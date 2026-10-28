@@ -82,6 +82,7 @@ public class ConfigService {
 
         log.info("Config loaded: routes={} (published={}), conditions={}, plugins={}, bindings={}",
                 routes.size(), publishedRoutes.size(), conditions.size(), plugins.size(), this.bindings.size());
+        eventPublisher.publishEvent(new fun.commons.gateway4j.engine.config.event.ConfigLoadedEvent(this, plugins));
         eventPublisher.publishEvent(new org.springframework.cloud.gateway.event.RefreshRoutesEvent(this));
     }
 

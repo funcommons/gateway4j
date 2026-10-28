@@ -32,7 +32,10 @@ public class RewritePlugin extends AbstractGatewayPlugin {
             return chain.execute(exchange);
         }
 
-        if (compiledPattern == null || config.getReplace() == null || config.getReplace().isEmpty()) {
+        // NOTE: an EMPTY replace is a valid rewrite (prefix strip, e.g. /svc-a/** -> /**),
+        // so only null replace disables rewriting. regex==null/blank already clears the
+        // compiled pattern in onConfigChange.
+        if (compiledPattern == null || config.getReplace() == null) {
             return chain.execute(exchange);
         }
 

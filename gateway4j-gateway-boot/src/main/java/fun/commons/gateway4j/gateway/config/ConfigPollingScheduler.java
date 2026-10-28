@@ -8,9 +8,11 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * 30s fallback polling: compares DB config_version against the local version and
- * reloads all config when the DB is ahead. Complements event-driven updates so a
- * missed push still converges within one polling interval.
+ * 60s fallback polling: compares the DB config fingerprint against the local
+ * version and reloads all config when the DB moved ahead. With the Redis push
+ * channel ({@code gateway4j:config:changed}) now providing second-level
+ * propagation, polling is the correctness fallback only (missed push, Redis
+ * down, commit-race) — hence the relaxed 60s default.
  */
 @Component
 public class ConfigPollingScheduler {
@@ -25,7 +27,7 @@ public class ConfigPollingScheduler {
         this.configService = configService;
     }
 
-    @Scheduled(fixedDelayString = "${gateway4j.config.poll-interval-ms:30000}", initialDelay = 30000)
+    @Scheduled(fixedDelayString = "${gateway4j.config.poll-interval-ms:60000}", initialDelay = 30000)
     public void pollConfigVersion() {
         try {
             if (configSyncService.checkVersion()) {

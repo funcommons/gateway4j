@@ -97,6 +97,30 @@ class RewritePluginTest {
     }
 
     @Test
+    void emptyReplaceStripsPrefix() {
+        // 刚需场景：分发子路由前缀剥离 /svc-a/** -> /**，replace 必须允许空串
+        plugin.onConfigChange(new PluginConfig("rewrite",
+                "{\"regex\":\"^/svc-a\",\"replace\":\"\",\"percentage\":100}", 1));
+
+        MockServerWebExchange exchange = createExchange("/svc-a/users/1");
+        StepVerifier.create(plugin.execute(exchange, passThroughChain())).verifyComplete();
+
+        String rewrittenUri = exchange.getAttribute("gw4j:rewrite_uri");
+        assertEquals("/users/1", rewrittenUri);
+    }
+
+    @Test
+    void emptyReplaceOnNonMatchingPathPassesThrough() {
+        plugin.onConfigChange(new PluginConfig("rewrite",
+                "{\"regex\":\"^/svc-a\",\"replace\":\"\",\"percentage\":100}", 1));
+
+        MockServerWebExchange exchange = createExchange("/other/path");
+        StepVerifier.create(plugin.execute(exchange, passThroughChain())).verifyComplete();
+
+        assertNull(exchange.getAttribute("gw4j:rewrite_uri"));
+    }
+
+    @Test
     void pluginIdAndPhase() {
         assertEquals("rewrite", plugin.pluginId());
         assertEquals("PRE", plugin.phase());

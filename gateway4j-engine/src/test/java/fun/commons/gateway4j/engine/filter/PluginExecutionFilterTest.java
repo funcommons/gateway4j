@@ -153,4 +153,101 @@ class PluginExecutionFilterTest {
         filter.filter(exchange, chain).block();
         assertTrue(exchange.getAttributes().containsKey(GatewayConstants.REQUEST_START_TIME_KEY));
     }
+
+    @Test
+    void routePathPatternExposedForMetricTagging() {
+        seed();
+        MockServerWebExchange exchange = exchange();
+        filter.filter(exchange, ex -> Mono.empty()).block();
+        // seed() route 7 path=/api/** — exposed for MetricsPlugin per-route tagging
+        assertEquals("/api/**", exchange.getAttribute(PluginExecutionFilter.ROUTE_PATH_PATTERN_ATTR));
+    }
+
+    @Test
+    void postChainStillRunsWhenForwardFails() {
+        // Upstream refuses the connection: POST plugins (logging-post etc.) must still execute,
+        // and the original forward error must propagate (never a silent swallow, never a re-forward).
+        seed();
+        MockServerWebExchange exchange = exchange();
+        RuntimeException connectRefused = new RuntimeException("Connection refused: /127.0.0.1:1");
+        GatewayFilterChain chain = ex -> Mono.error(connectRefused);
+
+        RuntimeException thrown = assertThrows(RuntimeException.class,
+                () -> filter.filter(exchange, chain).block());
+
+        assertSame(connectRefused, thrown);
+        assertTrue(execution.contains("gpre:PRE"), "PRE chain should have run");
+        assertTrue(execution.contains("gpost:POST"),
+                "POST chain must run on the forward-failure path (error requests need logging/metrics most)");
+        assertEquals("RuntimeException", exchange.getAttribute(PluginExecutionFilter.FORWARD_ERROR_ATTR),
+                "POST observers need the forward-error marker to count request errors");
+    }
+
+    @Test
+    void forwardIsNeverRetriedAndOriginalErrorSurvivesFailingPostPlugin() {
+        seed();
+        final int[] forwardCalls = {0};
+        MockServerWebExchange exchange = exchange();
+        RuntimeException connectRefused = new RuntimeException("Connection refused");
+        // A POST plugin that itself blows up on the error path must not mask the
+        // upstream error nor trigger a second forward.
+        registry.register(new GatewayPlugin() {
+            @Override public String pluginId() { return "gpost-broken"; }
+            @Override public String pluginName() { return pluginId(); }
+            @Override public String phase() { return "POST"; }
+            @Override public int order() { return 0; }
+            @Override public Mono<Void> execute(ServerWebExchange ex, PluginChain chain) {
+                execution.add("gpost-broken:POST");
+                return Mono.error(new IllegalStateException("post plugin exploded"));
+            }
+        });
+        plugins.add(Plugin.builder().id(4L).pluginId("gpost-broken").pluginName("g")
+                .pluginType("BUILTIN").pluginPhase("POST").scope("GLOBAL")
+                .status("ENABLED").sortOrder(6).config("{}").build());
+        configService.loadAllConfig();
+
+        RuntimeException thrown = assertThrows(RuntimeException.class, () ->
+                filter.filter(exchange, ex -> {
+                    forwardCalls[0]++;
+                    return Mono.error(connectRefused);
+                }).block());
+
+        assertSame(connectRefused, thrown,
+                "original upstream error must survive a failing POST plugin");
+        assertEquals(1, forwardCalls[0], "forward must be attempted exactly once (no replay)");
+        assertEquals(List.of("gpre:PRE", "rpre:PRE", "gpost:POST", "gpost-broken:POST"), execution);
+    }
+
+    @Test
+    void rewriteAttributeRewritesForwardUrlPathOnly() {
+        seed();
+        MockServerWebExchange exchange = exchange();
+        exchange.getAttributes().put(PluginExecutionFilter.REWRITE_URI_ATTR, "/real/x");
+        exchange.getAttributes().put(ServerWebExchangeUtils.GATEWAY_REQUEST_URL_ATTR,
+                URI.create("http://127.0.0.1:1/e2e/gw/svc-a/x?y=1"));
+        URI forwarded = captureForwardedUrl(exchange);
+
+        assertEquals("http://127.0.0.1:1/real/x?y=1", String.valueOf(forwarded));
+    }
+
+    @Test
+    void forwardUrlUntouchedWithoutRewriteAttribute() {
+        seed();
+        MockServerWebExchange exchange = exchange();
+        exchange.getAttributes().put(ServerWebExchangeUtils.GATEWAY_REQUEST_URL_ATTR,
+                URI.create("http://127.0.0.1:1/e2e/gw/svc-a/x"));
+        URI forwarded = captureForwardedUrl(exchange);
+
+        assertEquals("http://127.0.0.1:1/e2e/gw/svc-a/x", String.valueOf(forwarded));
+    }
+
+    /** Runs the filter and returns the forward URL as the (simulated) routing filter sees it. */
+    private URI captureForwardedUrl(MockServerWebExchange exchange) {
+        java.util.concurrent.atomic.AtomicReference<URI> seen = new java.util.concurrent.atomic.AtomicReference<>();
+        filter.filter(exchange, ex -> {
+            seen.set(ex.getRequiredAttribute(ServerWebExchangeUtils.GATEWAY_REQUEST_URL_ATTR));
+            return Mono.empty();
+        }).block();
+        return seen.get();
+    }
 }

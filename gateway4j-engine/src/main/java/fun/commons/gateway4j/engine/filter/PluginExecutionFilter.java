@@ -15,6 +15,7 @@ import org.springframework.cloud.gateway.support.ServerWebExchangeUtils;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -32,6 +33,10 @@ import java.util.Objects;
  *       they are bound to), ordered by binding sort_order.</li>
  *   <li>Every plugin runs fail-open (see {@link FailSafePluginChainRunner}): a
  *       plugin error is logged and the chain continues.</li>
+ *   <li>The POST chain runs on both forward outcomes — success AND failure
+ *       (upstream refused/timeout) — so logging-post/tracing-post/cache-post
+ *       never miss failed requests. On failure the POST chain runs, then the
+ *       original upstream error propagates; the forward is never retried.</li>
  * </ul>
  */
 public class PluginExecutionFilter implements GlobalFilter, org.springframework.core.Ordered {
@@ -48,6 +53,30 @@ public class PluginExecutionFilter implements GlobalFilter, org.springframework.
 
     private static final String PHASE_PRE = "PRE";
     private static final String PHASE_POST = "POST";
+
+    /**
+     * Set by the builtin RewritePlugin (gateway4j-plugin-builtins) when a PRE
+     * rewrite rule matched; the engine consumes it here to actually rewrite the
+     * forwarded request path (the plugin itself cannot touch the SCG forward).
+     * Keep in sync with RewritePlugin — key = GatewayConstants.PLUGIN_CONTEXT_PREFIX + "rewrite_uri".
+     */
+    static final String REWRITE_URI_ATTR = "gw4j:rewrite_uri";
+
+    /**
+     * Serving route's configured path pattern (e.g. {@code /api/user/**}), exposed
+     * to plugins for per-route metric tagging. Keep the literal in sync with
+     * MetricsPlugin ("gw4j:routePathPattern") — plugin-api cannot carry the key.
+     */
+    public static final String ROUTE_PATH_PATTERN_ATTR = "gw4j:routePathPattern";
+
+    /**
+     * Set before the POST chain runs on a forward failure — value is the exception
+     * simple name (e.g. {@code AnnotatedConnectException}). Lets POST observers
+     * (MetricsPlugin) count upstream errors even though the response status is not
+     * rendered yet. Keep the literal in sync with MetricsPlugin
+     * ("gw4j:forwardError").
+     */
+    public static final String FORWARD_ERROR_ATTR = "gw4j:forwardError";
 
     private final ConfigService configService;
     private final PluginInstanceRegistry pluginRegistry;
@@ -66,6 +95,7 @@ public class PluginExecutionFilter implements GlobalFilter, org.springframework.
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         exchange.getAttributes().putIfAbsent(GatewayConstants.REQUEST_START_TIME_KEY, System.nanoTime());
         Long routeId = resolveRouteId(exchange);
+        exposeRoutePathPattern(exchange, routeId);
 
         List<GatewayPlugin> pre = compose(PHASE_PRE, routeId);
         List<GatewayPlugin> post = compose(PHASE_POST, routeId);
@@ -82,10 +112,79 @@ public class PluginExecutionFilter implements GlobalFilter, org.springframework.
                         log.debug("Response committed by PRE plugin chain, skipping forward and POST chain");
                         return Mono.empty();
                     }
+                    applyRewrite(exchange);
+                    // POST chain must run on BOTH outcomes of the forward:
+                    //  - success  → .then(defer(post))
+                    //  - failure (upstream refused/timeout) → onErrorResume runs the POST
+                    //    chain first (error requests need logging/metrics the most), then
+                    //    re-emits the ORIGINAL error. The forward is never re-attempted
+                    //    (no second chain.filter subscription in any resume path) and a
+                    //    POST-chain failure must not mask the upstream error.
                     return chain.filter(exchange)
+                            .onErrorResume(forwardError -> {
+                                // Marker for POST-phase observers (MetricsPlugin counts the
+                                // request as an error even though no status was rendered yet).
+                                exchange.getAttributes().put(FORWARD_ERROR_ATTR,
+                                        forwardError.getClass().getSimpleName());
+                                return new FailSafePluginChainRunner(post)
+                                        .execute(exchange, Mono.empty())
+                                        .onErrorResume(postError -> {
+                                            log.warn("POST plugin chain failed on error path, propagating original forward error: {}",
+                                                    postError.toString());
+                                            return Mono.error(forwardError);
+                                        })
+                                        .then(Mono.error(forwardError));
+                            })
                             .then(Mono.defer(() -> new FailSafePluginChainRunner(post)
                                     .execute(exchange, Mono.empty())));
                 }));
+    }
+
+    /**
+     * Applies a PRE-phase path rewrite requested by the builtin RewritePlugin
+     * ({@code gw4j:rewrite_uri} attribute) to the SCG forward URL. Runs after
+     * {@link DispatchRoutingFilter} (which set {@code GATEWAY_REQUEST_URL_ATTR}
+     * to the target upstream, keeping the original path) and before the routing
+     * filter subscribes, so the forward carries the rewritten path. Only the
+     * path is replaced; scheme/authority/query are preserved.
+     */
+    private void applyRewrite(ServerWebExchange exchange) {
+        String rewritten = exchange.getAttribute(REWRITE_URI_ATTR);
+        if (rewritten == null || rewritten.isBlank()) {
+            return;
+        }
+        URI current = exchange.getRequiredAttribute(ServerWebExchangeUtils.GATEWAY_REQUEST_URL_ATTR);
+        String path = rewritten.startsWith("/") ? rewritten : "/" + rewritten;
+        try {
+            URI target = new URI(current.getScheme(), current.getRawAuthority(),
+                    path.isEmpty() ? "/" : path, current.getRawQuery(), current.getRawFragment());
+            exchange.getAttributes().put(ServerWebExchangeUtils.GATEWAY_REQUEST_URL_ATTR, target);
+            log.info("Rewrite applied: {}{} -> {}{}", current.getRawAuthority(), current.getRawPath(),
+                    target.getRawAuthority(), target.getRawPath());
+        } catch (Exception e) {
+            log.warn("Rewrite target '{}' invalid for upstream URI {}, keeping original path: {}",
+                    rewritten, current, e.getMessage());
+        }
+    }
+
+    /**
+     * Exposes the serving route's configured path pattern (gw4j:routePathPattern)
+     * for per-route metric tagging (MetricsPlugin → /v1/monitor/routes/status, which
+     * indexes meters by the route's configured path). Fail-open: an unreadable
+     * route row only degrades metrics tagging, never the request.
+     */
+    private void exposeRoutePathPattern(ServerWebExchange exchange, Long routeId) {
+        if (routeId == null || exchange.getAttributes().containsKey(ROUTE_PATH_PATTERN_ATTR)) {
+            return;
+        }
+        try {
+            fun.commons.gateway4j.common.model.Route route = configService.getRoute(routeId);
+            if (route != null && route.getPath() != null && !route.getPath().isBlank()) {
+                exchange.getAttributes().put(ROUTE_PATH_PATTERN_ATTR, route.getPath());
+            }
+        } catch (Exception e) {
+            log.debug("Cannot expose route path pattern for route {}: {}", routeId, e.getMessage());
+        }
     }
 
     /**

@@ -22,11 +22,45 @@ public class MetricsPlugin extends AbstractGatewayPlugin {
     private static final Logger log = LoggerFactory.getLogger(MetricsPlugin.class);
     private static final String START_TIME_ATTR = GatewayConstants.PLUGIN_CONTEXT_PREFIX + "metrics_start";
 
+    /**
+     * Set by the engine (PluginExecutionFilter) — the serving route's configured
+     * path pattern (e.g. {@code /api/user/**}). Metric {@code path} tags prefer it
+     * over the concrete request path: /v1/monitor/routes/status indexes meters by
+     * the route's configured path, and per-pattern aggregation avoids unbounded
+     * path-tag cardinality. Keep the literal in sync with the engine constant
+     * ("gw4j:routePathPattern"); plugin-api cannot carry the shared key.
+     */
+    public static final String ROUTE_PATH_PATTERN_ATTR = "gw4j:routePathPattern";
+
+    /**
+     * Set by the engine (PluginExecutionFilter) on the POST chain's error path —
+     * the simple name of the exception that failed the forward (e.g.
+     * {@code AnnotatedConnectException}). The POST-phase instance counts it as a
+     * request error even though the response status is not yet rendered. Keep the
+     * literal in sync with the engine constant ("gw4j:forwardError").
+     */
+    public static final String FORWARD_ERROR_ATTR = "gw4j:forwardError";
+
+    private final boolean postPhase;
     private volatile MetricsPluginConfig config;
     private volatile MeterRegistry meterRegistry;
 
     public MetricsPlugin() {
-        super(BuiltinPluginConstants.METRICS, "指标采集插件", "PRE", 0);
+        this(false);
+    }
+
+    /**
+     * @param postPhase false → PRE instance ({@code metrics}, counts requests before
+     *                  the forward); true → POST instance ({@code metrics-post},
+     *                  records latency/final status and errors after the response
+     *                  phase — the only vantage point that sees real response
+     *                  statuses and the engine's forward-error marker).
+     */
+    public MetricsPlugin(boolean postPhase) {
+        super(postPhase ? BuiltinPluginConstants.METRICS_POST : BuiltinPluginConstants.METRICS,
+                postPhase ? "指标采集插件（后置）" : "指标采集插件",
+                postPhase ? "POST" : "PRE", 0);
+        this.postPhase = postPhase;
     }
 
     public void setMeterRegistry(MeterRegistry meterRegistry) {
@@ -41,16 +75,22 @@ public class MetricsPlugin extends AbstractGatewayPlugin {
 
         String prefix = config.getMetricsPrefix() != null ? config.getMetricsPrefix() : "gateway4j";
 
-        if (config.isLogRequestCount()) {
-            Counter.builder(prefix + ".requests.total")
-                    .description("Total requests")
-                    .tag("method", exchange.getRequest().getMethod().name())
-                    .tag("path", normalizePath(exchange.getRequest().getPath().value()))
-                    .register(meterRegistry)
-                    .increment();
+        if (!postPhase) {
+            if (config.isLogRequestCount()) {
+                Counter.builder(prefix + ".requests.total")
+                        .description("Total requests")
+                        .tag("method", exchange.getRequest().getMethod().name())
+                        .tag("path", metricPath(exchange))
+                        .register(meterRegistry)
+                        .increment();
+            }
+            exchange.getAttributes().put(START_TIME_ATTR, System.nanoTime());
+        } else if (exchange.getAttribute(START_TIME_ATTR) == null) {
+            // No PRE instance ran (metrics row absent): still record duration from the
+            // engine-wide request start so latency/errors are not lost.
+            Object engineStart = exchange.getAttribute(GatewayConstants.REQUEST_START_TIME_KEY);
+            exchange.getAttributes().put(START_TIME_ATTR, engineStart != null ? engineStart : System.nanoTime());
         }
-
-        exchange.getAttributes().put(START_TIME_ATTR, System.nanoTime());
 
         return chain.execute(exchange).doOnSuccess(v -> recordLatency(exchange, prefix, null))
                 .doOnError(err -> recordLatency(exchange, prefix, err));
@@ -58,7 +98,15 @@ public class MetricsPlugin extends AbstractGatewayPlugin {
 
     @Override
     public void onConfigChange(PluginConfig pluginConfig) {
-        this.config = JsonUtils.parseObject(pluginConfig.config(), MetricsPluginConfig.class);
+        MetricsPluginConfig newConfig = null;
+        try {
+            newConfig = JsonUtils.parseObject(pluginConfig.config(), MetricsPluginConfig.class);
+        } catch (Exception e) {
+            log.warn("Failed to parse metrics plugin config (using defaults): {}", e.getMessage());
+        }
+        // null/blank config → defaults (enabled, prefix gateway4j, all counters on),
+        // so a plain ENABLED gw_plugin row without config JSON already lights up the monitor dashboard.
+        this.config = newConfig != null ? newConfig : new MetricsPluginConfig();
     }
 
     private void recordLatency(ServerWebExchange exchange, String prefix, Throwable error) {
@@ -66,11 +114,19 @@ public class MetricsPlugin extends AbstractGatewayPlugin {
         if (startTime == null) return;
 
         long durationNanos = System.nanoTime() - startTime;
-        String path = normalizePath(exchange.getRequest().getPath().value());
+        String path = metricPath(exchange);
         String method = exchange.getRequest().getMethod().name();
 
         HttpStatus status = exchange.getResponse().getStatusCode() instanceof HttpStatus hs ? hs : null;
         String statusCode = status != null ? String.valueOf(status.value()) : "unknown";
+
+        // Only the POST instance records latency/errors: it runs after the response
+        // phase and sees the real status. The PRE instance completes BEFORE the
+        // forward — its samples would be near-zero-duration with status "unknown"
+        // and would skew every aggregate (avg/p95) read by the monitor dashboard.
+        if (!postPhase) {
+            return;
+        }
 
         if (config.isLogLatency()) {
             Timer.builder(prefix + ".request.latency")
@@ -83,15 +139,27 @@ public class MetricsPlugin extends AbstractGatewayPlugin {
                     .record(Duration.ofNanos(durationNanos));
         }
 
-        if (config.isLogErrorCount() && (error != null || (status != null && status.is5xxServerError()))) {
+        boolean forwardFailed = exchange.getAttribute(FORWARD_ERROR_ATTR) != null;
+        if (config.isLogErrorCount() && (error != null || forwardFailed
+                || (status != null && status.is5xxServerError()))) {
             Counter.builder(prefix + ".requests.errors")
                     .description("Request errors")
                     .tag("method", method)
                     .tag("path", path)
-                    .tag("status", statusCode)
+                    .tag("status", forwardFailed && status == null ? "502" : statusCode)
                     .register(meterRegistry)
                     .increment();
         }
+    }
+
+    /**
+     * Metric {@code path} tag: the serving route's configured path pattern when
+     * the engine exposed one (preferred — matches the monitor dashboard's route
+     * indexing), else the normalized concrete request path.
+     */
+    private String metricPath(ServerWebExchange exchange) {
+        Object pattern = exchange.getAttribute(ROUTE_PATH_PATTERN_ATTR);
+        return normalizePath(pattern instanceof String p && !p.isBlank() ? p : exchange.getRequest().getPath().value());
     }
 
     private String normalizePath(String path) {

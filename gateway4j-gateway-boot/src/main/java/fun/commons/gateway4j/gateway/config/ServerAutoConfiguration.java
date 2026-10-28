@@ -12,6 +12,7 @@ import fun.commons.gateway4j.engine.config.ConfigService;
 import fun.commons.gateway4j.engine.config.EngineAutoConfiguration;
 import fun.commons.gateway4j.engine.config.cache.PluginConfigCache;
 import fun.commons.gateway4j.engine.config.cache.RouteConfigCache;
+import fun.commons.gateway4j.engine.config.sync.ConfigPushHandler;
 import fun.commons.gateway4j.engine.config.sync.ConfigSyncService;
 import fun.commons.gateway4j.engine.plugin.runtime.PluginInstanceRegistry;
 import fun.commons.gateway4j.engine.route.dispatcher.RouteDispatcher;
@@ -78,10 +79,19 @@ public class ServerAutoConfiguration {
      * Runtime instances of the builtin plugins, keyed by their stable plugin_id
      * (BuiltinPluginConstants). GROOVY/JAR plugins and unknown plugin_ids have no
      * instance here and are skipped (fail-open) at execution time.
+     *
+     * <p>Every instance is inert until a matching ENABLED gw_plugin row pushes
+     * config into it (PluginInstanceRegistry#applyPluginConfigs); instances
+     * without a DB row never enter the plugin chain (composition is row-driven).
+     * Instances needing external middleware (Kafka/ES/DingTalk) only build their
+     * client when their config is enabled+complete, so registering them is
+     * startup-safe even without the middleware present (fail-open).</p>
      */
     @Bean
-    public PluginInstanceRegistry pluginInstanceRegistry() {
+    public PluginInstanceRegistry pluginInstanceRegistry(io.micrometer.core.instrument.MeterRegistry meterRegistry) {
         PluginInstanceRegistry registry = new PluginInstanceRegistry();
+
+        // --- baseline (already registered before) ---
         registry.register(new SecurityPlugin());
         registry.register(new CachePlugin(false));
         registry.register(new CachePlugin(true));
@@ -93,6 +103,53 @@ public class ServerAutoConfiguration {
         registry.register(new TracingPlugin(false));
         registry.register(new TracingPlugin(true));
         registry.register(new MockPlugin());
+
+        // --- observability: feeds /v1/monitor/routes/status (requests.total / requests.errors) ---
+        // PRE counts requests, POST records latency/final status and errors (incl.
+        // forward failures, via the engine's gw4j:forwardError marker).
+        fun.commons.gateway4j.plugin.builtins.metrics.MetricsPlugin metricsPlugin =
+                new fun.commons.gateway4j.plugin.builtins.metrics.MetricsPlugin(false);
+        metricsPlugin.setMeterRegistry(meterRegistry);
+        registry.register(metricsPlugin);
+        fun.commons.gateway4j.plugin.builtins.metrics.MetricsPlugin metricsPostPlugin =
+                new fun.commons.gateway4j.plugin.builtins.metrics.MetricsPlugin(true);
+        metricsPostPlugin.setMeterRegistry(meterRegistry);
+        registry.register(metricsPostPlugin);
+
+        // --- traffic shaping: rewrite (path strip for dispatch sub-routes, consumed by PluginExecutionFilter) ---
+        registry.register(new fun.commons.gateway4j.plugin.builtins.rewrite.RewritePlugin());
+
+        // --- authentication / security ---
+        registry.register(new fun.commons.gateway4j.plugin.builtins.jwt.JwtPlugin());
+        registry.register(new fun.commons.gateway4j.plugin.builtins.keyauth.KeyAuthPlugin());
+        registry.register(new fun.commons.gateway4j.plugin.builtins.basicauth.BasicAuthPlugin());
+        registry.register(new fun.commons.gateway4j.plugin.builtins.sign.SignPlugin());
+        registry.register(new fun.commons.gateway4j.plugin.builtins.waf.WafPlugin());
+        registry.register(new fun.commons.gateway4j.plugin.builtins.oauth2.OAuth2Plugin());
+
+        // --- fault tolerance ---
+        registry.register(new fun.commons.gateway4j.plugin.builtins.circuitbreaker.CircuitBreakerPlugin());
+        registry.register(new fun.commons.gateway4j.plugin.builtins.sentinel.SentinelPlugin());
+
+        // --- traffic governance ---
+        registry.register(new fun.commons.gateway4j.plugin.builtins.retry.RetryPlugin());
+        registry.register(new fun.commons.gateway4j.plugin.builtins.redirect.RedirectPlugin());
+        registry.register(new fun.commons.gateway4j.plugin.builtins.websocket.WebSocketPlugin());
+        registry.register(new fun.commons.gateway4j.plugin.builtins.parammapping.ParamMappingPlugin());
+        registry.register(new fun.commons.gateway4j.plugin.builtins.contextpath.ContextPathPlugin());
+
+        // --- observability / rewriting (external-middleware ones stay fail-open) ---
+        registry.register(new fun.commons.gateway4j.plugin.builtins.logging.kafka.LoggingKafkaPlugin(false));
+        registry.register(new fun.commons.gateway4j.plugin.builtins.logging.kafka.LoggingKafkaPlugin(true));
+        registry.register(new fun.commons.gateway4j.plugin.builtins.logging.elasticsearch.LoggingElasticsearchPlugin(false));
+        registry.register(new fun.commons.gateway4j.plugin.builtins.logging.elasticsearch.LoggingElasticsearchPlugin(true));
+        registry.register(new fun.commons.gateway4j.plugin.builtins.request.RequestPlugin());
+        registry.register(new fun.commons.gateway4j.plugin.builtins.modifyresponse.ModifyResponsePlugin());
+        registry.register(new fun.commons.gateway4j.plugin.builtins.cryptor.CryptorRequestPlugin());
+        registry.register(new fun.commons.gateway4j.plugin.builtins.cryptor.CryptorResponsePlugin());
+        registry.register(new fun.commons.gateway4j.plugin.builtins.dingtalk.DingTalkPlugin());
+        registry.register(new fun.commons.gateway4j.plugin.builtins.watermark.WatermarkPlugin());
+
         return registry;
     }
 
@@ -104,6 +161,47 @@ public class ServerAutoConfiguration {
     @Bean
     public ConfigSyncService configSyncService(RouteMapper routeMapper, PluginMapper pluginMapper) {
         return new ConfigSyncService(() -> configFingerprint(routeMapper, pluginMapper));
+    }
+
+    /**
+     * Instant config-change channel (contract with admin publisher side): Redis
+     * pub/sub channel {@code gateway4j:config:changed} triggers the existing
+     * fingerprint-guarded reload; the 60s DB poll stays active as fallback.
+     */
+    @Bean
+    public ConfigPushHandler configPushHandler(ConfigService configService, ConfigSyncService configSyncService) {
+        return new ConfigPushHandler(configService, configSyncService);
+    }
+
+    @Bean
+    public ConfigPushSubscriber configPushSubscriber(fun.commons.framework4j.redis.manager.MultiRedisManager redisManager,
+                                                     ConfigPushHandler configPushHandler) {
+        return new ConfigPushSubscriber(redisManager, configPushHandler);
+    }
+
+    /**
+     * Mirrors the runtime plugin inventory (registered vs configured-but-skipped)
+     * into Redis key {@code gateway4j:plugin:runtime} after every reload, for the
+     * admin console display. Fail-open, TTL 10 minutes.
+     */
+    @Bean
+    public PluginRuntimeCatalogPublisher pluginRuntimeCatalogPublisher(
+            fun.commons.framework4j.redis.manager.MultiRedisManager redisManager,
+            PluginInstanceRegistry pluginInstanceRegistry) {
+        return new PluginRuntimeCatalogPublisher(redisManager, pluginInstanceRegistry);
+    }
+
+    /**
+     * Mirrors this JVM's route metrics (the MetricsPlugin meters on the data
+     * plane's own MeterRegistry) into Redis HASH {@code gateway4j:metrics:routes}
+     * every 5s, so the admin console (a separate JVM with an empty local
+     * registry) can render the monitor dashboard. Fail-open, EXPIRE 60 per write.
+     */
+    @Bean
+    public MetricsSnapshotPublisher metricsSnapshotPublisher(
+            fun.commons.framework4j.redis.manager.MultiRedisManager redisManager,
+            io.micrometer.core.instrument.MeterRegistry meterRegistry) {
+        return new MetricsSnapshotPublisher(redisManager, meterRegistry);
     }
 
     /**

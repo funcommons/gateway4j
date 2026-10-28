@@ -68,7 +68,7 @@ framework4j:
 
 gateway4j:
   config:
-    poll-interval-ms: 30000
+    poll-interval-ms: 60000
   open-api:
     app-key: gateway4j-open
     app-secret: it-test-secret-key

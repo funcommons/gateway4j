@@ -30,6 +30,7 @@ public final class BuiltinPluginConstants {
 
     // Observability
     public static final String METRICS = "metrics";
+    public static final String METRICS_POST = "metrics-post";
     public static final String WEBSOCKET = "websocket";
 
     // Traffic control

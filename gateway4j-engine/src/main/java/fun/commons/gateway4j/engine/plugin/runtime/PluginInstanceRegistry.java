@@ -43,6 +43,17 @@ public class PluginInstanceRegistry {
     }
 
     /**
+     * Stable (plugin_id ordered) snapshot of all registered instances — used for
+     * runtime inventory reporting (e.g. the Redis runtime catalog), not for lookup.
+     */
+    public java.util.LinkedHashMap<String, GatewayPlugin> instances() {
+        return instances.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
+                        (a, b) -> a, java.util.LinkedHashMap::new));
+    }
+
+    /**
      * Push the persisted config of every plugin row into the matching runtime
      * instance. Rows without a registered instance are logged (once per reload)
      * and skipped; config parse failures are fail-open (instance keeps its

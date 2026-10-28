@@ -57,7 +57,8 @@ framework4j:
 
 gateway4j:
   config:
-    poll-interval-ms: 30000
+    # Fallback poll only — primary propagation is the Redis push channel gateway4j:config:changed
+    poll-interval-ms: 60000
   open-api:
     app-key: gateway4j-open
     app-secret: dev-test-secret-key
