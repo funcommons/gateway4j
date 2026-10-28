@@ -2,6 +2,7 @@ package fun.commons.gateway4j.admin.controller;
 
 import fun.commons.framework4j.accesstoken.annotation.RequiresToken;
 import fun.commons.gateway4j.admin.mapper.RouteConditionMapper;
+import fun.commons.gateway4j.admin.service.MetricsSnapshotReader;
 import fun.commons.gateway4j.admin.service.RouteService;
 import fun.commons.gateway4j.common.model.Route;
 import fun.commons.gateway4j.common.model.RouteCondition;
@@ -20,12 +21,14 @@ public class MonitorController {
     private final MeterRegistry meterRegistry;
     private final RouteService routeService;
     private final RouteConditionMapper conditionMapper;
+    private final MetricsSnapshotReader snapshotReader;
 
     public MonitorController(MeterRegistry meterRegistry, RouteService routeService,
-                             RouteConditionMapper conditionMapper) {
+                             RouteConditionMapper conditionMapper, MetricsSnapshotReader snapshotReader) {
         this.meterRegistry = meterRegistry;
         this.routeService = routeService;
         this.conditionMapper = conditionMapper;
+        this.snapshotReader = snapshotReader;
     }
 
     @GetMapping("/routes/status")
@@ -155,6 +158,15 @@ public class MonitorController {
                 sum += counter.count();
             }
         }
+        // 跨 JVM 兜底：本 JVM（管理台）没有流量，真实指标在数据面 JVM，由
+        // MetricsSnapshotPublisher 每 5s 写入 Redis。生产中两者互斥（数据面走本地、
+        // 管理台走快照），相加无双算风险；快照不可用时返回全 0。
+        MetricsSnapshotReader.MetricsSnapshot snapshot = snapshotReader.readByPath(normalized);
+        if ("requests.total".equals(meterSuffix)) {
+            sum += snapshot.total();
+        } else if ("requests.errors".equals(meterSuffix)) {
+            sum += snapshot.errors();
+        }
         return sum;
     }
 
@@ -173,11 +185,17 @@ public class MonitorController {
                 count += timer.count();
             }
         }
+        // 跨 JVM 兜底：分子/分母同时叠加 Redis 快照分量，均值口径保持一致
+        MetricsSnapshotReader.MetricsSnapshot snapshot = snapshotReader.readByPath(normalized);
+        totalTime += snapshot.latencyMsSum();
+        count += snapshot.latencyCount();
         return count > 0 ? totalTime / count : 0;
     }
 
     private double[] latencyPercentilesByPath(String path) {
         String normalized = normalizePath(path);
+        // Redis 快照只有总耗时/次数分量，没有分位数 → 本地注册表无数据时
+        // p50/p95/p99 只能降级为 0（可接受的降级）
         double p50 = 0, p95 = 0, p99 = 0;
         double totalTime = 0;
         long count = 0;
