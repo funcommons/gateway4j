@@ -1,0 +1,25 @@
+用例: 01-14_未知路由应展示_404_页面而不是静默跳回路由列表__FAIL
+时间: 2026-10-27T09:49:17.994Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/login
+200 GET /v1/permissions
+200 GET /v1/routes
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/routes
+
+--- Extra ---
+失败断言详情见 playwright error-context / results.json

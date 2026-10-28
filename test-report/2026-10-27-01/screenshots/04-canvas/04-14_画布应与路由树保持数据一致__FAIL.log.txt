@@ -1,0 +1,22 @@
+用例: 04-14_画布应与路由树保持数据一致__FAIL
+时间: 2026-10-27T09:54:43.769Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/routes/-100/canvas
+200 GET /v1/routes
+200 GET /v1/routes/-100/children
+
+--- Extra ---
+失败断言详情见 playwright error-context / results.json

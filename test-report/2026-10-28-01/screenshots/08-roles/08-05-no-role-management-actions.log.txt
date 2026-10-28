@@ -1,0 +1,20 @@
+用例: 08-05-no-role-management-actions
+时间: 2026-10-28T04:33:19.731Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+(无)
+
+--- Extra ---
+页面按钮: 角色 / 我的权限 / 新建角色 / 授权 / 编辑 / 删除 / 授权 / 编辑 / 删除 / 授权 / 编辑 / 删除 / 授权 / 编辑 / 删除

@@ -1,0 +1,23 @@
+用例: 06-03-search-filter-not-applied
+时间: 2026-10-27T09:56:19.549Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/plugins?page=1&page_size=20
+200 GET /v1/plugins?page=1&page_size=20&keyword=__no_such_plugin__
+200 GET /v1/plugins?page=1&page_size=20&keyword=__no_such_plugin__
+200 GET /v1/plugins?page=1&page_size=20
+
+--- Extra ---
+UI 行数=10; 后端带 keyword 返回条数=10（不传 keyword 时为 10）

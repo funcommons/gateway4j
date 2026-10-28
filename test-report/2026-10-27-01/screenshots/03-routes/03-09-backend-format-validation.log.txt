@@ -1,0 +1,20 @@
+用例: 03-09-backend-format-validation
+时间: 2026-10-27T09:51:16.340Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/routes
+
+--- Extra ---
+POST /v1/routes 响应: status=200 payload={"id":"2115018481962287106","route_name":"bad_route_mvqi9upg552","route_type":"BACKEND","path":"not-a-path","upstream_url":"ftp://xxx","status":"DRAFT","parent_route_id":null,"sort_order":1,"remark":null,"config_version":"0","created_at":null,"updated_at":null,"is_deleted":null}

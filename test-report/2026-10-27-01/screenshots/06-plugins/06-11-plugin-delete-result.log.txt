@@ -1,0 +1,27 @@
+用例: 06-11-plugin-delete-result
+时间: 2026-10-27T09:57:25.173Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/plugins
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/plugins?page=1&page_size=20
+200 GET /v1/plugins?page=1&page_size=20
+200 GET /v1/plugins?page=1&page_size=20&keyword=e2e_delgvy_mvqihkb8792
+200 DELETE /v1/plugins/2115019990976397314
+200 GET /v1/plugins?page=1&page_size=20&keyword=e2e_delgvy_mvqihkb8792
+
+--- Extra ---
+删除后仍可见次数=0

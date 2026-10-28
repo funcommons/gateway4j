@@ -1,0 +1,24 @@
+用例: 04-09-canvas-persisted-after-reload
+时间: 2026-10-27T09:54:11.031Z
+
+--- Console Errors ---
+Failed to load resource: the server responded with a status of 405 (Method Not Allowed)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+405 GET http://localhost:9302/v1/routes/-100
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 PUT /v1/routes/-100/canvas
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+405 GET /v1/routes/-100
+200 GET /v1/routes/-100/canvas
+
+--- Extra ---
+刷新后节点数=0

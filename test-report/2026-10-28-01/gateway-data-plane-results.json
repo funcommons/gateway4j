@@ -1,0 +1,155 @@
+{
+  "config": {
+    "configFile": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/playwright.gateway.config.ts",
+    "rootDir": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-gateway",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-gateway",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 180000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "/Users/justin/codes/funcommons/gateway4j/test-report/2026-10-28-01/gateway-data-plane-results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.60.0",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "data-plane.spec.ts",
+      "file": "data-plane.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "场景4 404兜底：未匹配任何路径应得到网关明确的非转发响应",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 180000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 5,
+                  "error": {
+                    "message": "Error: 未匹配路径期望 404，实际 http=500 body={\"code\":10001,\"message\":\"系统繁忙，请稍后重试\",\"data\":null,\"trace_id\":\"29041df0-fa1a-475c-9509-1f6b1fd75f9c\",\"timestamp\":1793172125228,\"success\":false,\"fail\":true}\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m404\u001b[39m\nReceived: \u001b[31m500\u001b[39m",
+                    "stack": "Error: 未匹配路径期望 404，实际 http=500 body={\"code\":10001,\"message\":\"系统繁忙，请稍后重试\",\"data\":null,\"trace_id\":\"29041df0-fa1a-475c-9509-1f6b1fd75f9c\",\"timestamp\":1793172125228,\"success\":false,\"fail\":true}\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m404\u001b[39m\nReceived: \u001b[31m500\u001b[39m\n    at /Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-gateway/data-plane.spec.ts:431:86",
+                    "location": {
+                      "file": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-gateway/data-plane.spec.ts",
+                      "column": 86,
+                      "line": 431
+                    },
+                    "snippet": "  429 |\n  430 |   // 语义判据：404 兜底应返回 404\n> 431 |   expect(r.status, `未匹配路径期望 404，实际 http=${r.status} body=${bodyText.slice(0, 300)}`).toBe(404)\n      |                                                                                      ^\n  432 | })\n  433 |\n  434 | // ---------- 场景 5：插件链冒烟（尽力而为） ----------"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-gateway/data-plane.spec.ts",
+                        "column": 86,
+                        "line": 431
+                      },
+                      "message": "Error: 未匹配路径期望 404，实际 http=500 body={\"code\":10001,\"message\":\"系统繁忙，请稍后重试\",\"data\":null,\"trace_id\":\"29041df0-fa1a-475c-9509-1f6b1fd75f9c\",\"timestamp\":1793172125228,\"success\":false,\"fail\":true}\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m404\u001b[39m\nReceived: \u001b[31m500\u001b[39m\n\n  429 |\n  430 |   // 语义判据：404 兜底应返回 404\n> 431 |   expect(r.status, `未匹配路径期望 404，实际 http=${r.status} body=${bodyText.slice(0, 300)}`).toBe(404)\n      |                                                                                      ^\n  432 | })\n  433 |\n  434 | // ---------- 场景 5：插件链冒烟（尽力而为） ----------\n    at /Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-gateway/data-plane.spec.ts:431:86"
+                    }
+                  ],
+                  "stdout": [
+                    {
+                      "text": "[env] worker pid=67357 RUN=mvrsdu8h\n"
+                    },
+                    {
+                      "text": "[场景4] 实际响应 http=500 body={\"code\":10001,\"message\":\"系统繁忙，请稍后重试\",\"data\":null,\"trace_id\":\"29041df0-fa1a-475c-9509-1f6b1fd75f9c\",\"timestamp\":1793172125228,\"success\":false,\"fail\":true}\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-28T07:22:04.248Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/test-results/data-plane-场景4-404兜底：未匹配任何路径应得到网关明确的非转发响应/error-context.md"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/test-results/data-plane-场景4-404兜底：未匹配任何路径应得到网关明确的非转发响应/error-context.md"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-gateway/data-plane.spec.ts",
+                    "column": 86,
+                    "line": 431
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "dae32a3ae75d7e3f04be-4dd1d92cfc0671b8af9d",
+          "file": "data-plane.spec.ts",
+          "line": 420,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-28T07:22:04.009Z",
+    "duration": 1301.5839999999998,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 1,
+    "flaky": 0
+  }
+}

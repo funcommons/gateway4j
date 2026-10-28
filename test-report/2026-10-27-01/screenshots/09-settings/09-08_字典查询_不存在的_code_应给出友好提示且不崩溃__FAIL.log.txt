@@ -1,0 +1,20 @@
+用例: 09-08_字典查询_不存在的_code_应给出友好提示且不崩溃__FAIL
+时间: 2026-10-27T09:59:36.803Z
+
+--- Console Errors ---
+Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+500 GET http://localhost:9302/v1/dict/NOT_EXIST_DICT_CODE
+
+--- 后端 API 调用记录 (status METHOD path) ---
+500 GET /v1/dict/NOT_EXIST_DICT_CODE
+
+--- Extra ---
+失败断言详情见 playwright error-context / results.json

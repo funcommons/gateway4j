@@ -1,0 +1,17 @@
+# IDE / 本地工具
+.idea/
+.claude/
+.DS_Store
+
+# 构建产物
+node_modules/
+dist/
+target/
+*.tsbuildinfo
+
+# 测试运行产物（报告在 test-report/，需入库）
+test-results/
+playwright-report/
+
+# 日志
+*.log

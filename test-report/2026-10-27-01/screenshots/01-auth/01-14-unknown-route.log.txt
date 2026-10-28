@@ -1,0 +1,66 @@
+用例: 01-14-unknown-route
+时间: 2026-10-27T09:49:17.971Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/login
+200 GET /v1/permissions
+200 GET /v1/routes
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/routes
+
+--- Extra ---
+落地 URL: http://localhost:9302/routes; 页面文本: 路由列表
+全部
+草稿
+已发布
+变更中
+已下线
+全部展开
+全部折叠
+路由名称
+	
+路由类型
+	
+匹配路径
+	
+状态
+	
+更多
+▶
+api_gateway
+	
+分发
+	
+/api/**
+	
+已发布
+	
+编辑
+画布
+下线
+
+
+user_service
+	
+后置
+	
+/api/user/**
+	
+已发布
+	
+编辑
+画布
+下线

@@ -1,0 +1,23 @@
+用例: 04-14-canvas-vs-route-tree
+时间: 2026-10-28T04:29:47.503Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/routes/-100/canvas
+200 GET /v1/routes
+200 GET /v1/routes/-100/children
+200 PUT /v1/routes/-100/canvas
+
+--- Extra ---
+canvas_data="{\"edges\": [{\"id\": \"e--100--101\", \"data\": {}, \"type\": \"default\", \"label\": \"\", \"events\": {}, \"source\": \"-100\", \"target\": \"-101\", \"sourceX\": 495, \"sourceY\": 102, \"targetX\; 子路由数=4

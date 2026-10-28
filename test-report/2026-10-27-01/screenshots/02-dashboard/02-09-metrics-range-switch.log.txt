@@ -1,0 +1,21 @@
+用例: 02-09-metrics-range-switch
+时间: 2026-10-27T09:50:08.685Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/monitor/routes/-100/metrics?time_range=6h&granularity=1m
+200 GET /v1/monitor/routes/-100/metrics?time_range=6h&granularity=1m
+
+--- Extra ---
+分段控件组数: 2
