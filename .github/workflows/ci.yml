@@ -1,0 +1,108 @@
+# CI —— PR / main 推送门槛
+#
+# 三个独立 job：
+#   frontend  前端 type-check + Vitest 全量单测（1681 例）
+#   backend   后端 gateway4j-admin 及其依赖模块单元测试（96 例）
+#   guards    权限码差集 + 接口契约护栏（纯 Node 脚本，零依赖）
+#
+# guards 说明：check-api-contract 当前会因既有缺口 GET /v1/plugins/{id}
+# （gateway4j-admin-ui/src/api/plugins.ts:57 调用、后端 PluginController 无对应单查端点）
+# 而失败 —— 该 job 独立于 frontend/backend，修复合拢前不影响其余门槛；
+# 合拢后它即为阻塞级护栏（详见 README-CI.md）。
+
+name: CI
+
+on:
+  pull_request:
+    paths:
+      - 'gateway4j-admin-ui/**'
+      - 'gateway4j-admin/**'
+      - 'gateway4j-admin-boot/**'
+      - 'gateway4j-common/**'
+      - 'gateway4j-engine/**'
+      - 'gateway4j-plugin-api/**'
+      - 'gateway4j-plugin-builtins/**'
+      - 'gateway4j-gateway-boot/**'
+      - 'pom.xml'
+      - 'scripts/**'
+      - '.github/workflows/ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'gateway4j-admin-ui/**'
+      - 'gateway4j-admin/**'
+      - 'gateway4j-admin-boot/**'
+      - 'gateway4j-common/**'
+      - 'gateway4j-engine/**'
+      - 'gateway4j-plugin-api/**'
+      - 'gateway4j-plugin-builtins/**'
+      - 'gateway4j-gateway-boot/**'
+      - 'pom.xml'
+      - 'scripts/**'
+      - '.github/workflows/ci.yml'
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: frontend (type-check + vitest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: gateway4j-admin-ui
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: gateway4j-admin-ui/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # 单测（Vitest/jsdom）本身不需要浏览器；这里按回归矩阵基线安装 chromium，
+      # 保证该 runner 随时可复用于 e2e 冒烟。CI 网络无本地 TLS 拦截问题。
+      - name: Install Playwright chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Unit tests (vitest)
+        run: npx vitest run
+
+  backend:
+    name: backend (mvn test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+
+      - name: Unit tests (gateway4j-admin + deps)
+        run: mvn -q -pl gateway4j-admin -am test
+
+  guards:
+    name: guards (permissions + api contract)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # 两个脚本为纯 Node ESM、零三方依赖，无需 npm ci
+      - name: Permission codes guard
+        run: node scripts/check-permissions.mjs
+
+      - name: API contract guard
+        run: node scripts/check-api-contract.mjs
