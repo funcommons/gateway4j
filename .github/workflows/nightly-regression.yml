@@ -122,14 +122,16 @@ jobs:
         working-directory: gateway4j-admin-ui
         run: npx playwright install --with-deps chromium
 
+      # 注意不要传 --reporter=list：CLI 参数会整体覆盖 config 的 reporters，
+      # 导致 config 里的 json 结果文件（results.json）不再输出
       - name: Run regression matrix (106 cases)
         working-directory: gateway4j-admin-ui
-        run: npx playwright test --config=playwright.regression.config.ts --reporter=list
+        run: npx playwright test --config=playwright.regression.config.ts
 
       # 数据面：网关真实转发/分发/热更新/404/插件链（echo 后端由 spec 自建自清）
       - name: Run gateway data-plane suite (5 cases)
         working-directory: gateway4j-admin-ui
-        run: npx playwright test --config=playwright.gateway.config.ts --reporter=list
+        run: npx playwright test --config=playwright.gateway.config.ts
 
       # 截图由 e2e-regression helper 写入 <repo>/test-report/<date>-<seq>/screenshots/
       - name: Upload regression report

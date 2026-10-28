@@ -1,0 +1,22 @@
+用例: 07-02-user-search
+时间: 2026-10-28T15:48:06.690Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/users?page=1&page_size=20
+200 GET /v1/users?page=1&page_size=20&keyword=admin
+200 GET /v1/users?page=1&page_size=20&keyword=admin
+
+--- Extra ---
+UI 行数=1; 后端带 keyword 返回=1

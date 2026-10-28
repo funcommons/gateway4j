@@ -1,0 +1,20 @@
+用例: 04-06-prop-label-edited
+时间: 2026-10-28T15:43:18.610Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 PUT /v1/routes/-100/canvas
+
+--- Extra ---
+画布节点文本: 回归测试节点
