@@ -3,7 +3,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 
 /** 报告根目录（与 playwright.regression.config.ts 中的 results.json 输出目录一致） */
-export const REPORT_ROOT = path.resolve(process.cwd(), '../test-report/2026-10-28-02')
+export const REPORT_ROOT = path.resolve(process.cwd(), '../test-report/2026-10-28-03')
 export const SHOT_ROOT = path.join(REPORT_ROOT, 'screenshots')
 
 export const CREDENTIALS = { username: 'admin', password: 'admin123' }
@@ -103,10 +103,21 @@ export async function login(page: Page, redirect = '/routes') {
   await expect(page.getByRole('button', { name: '登录' })).toBeVisible({ timeout: 20_000 })
   await page.locator('input').first().fill(CREDENTIALS.username)
   await page.locator('input[type="password"]').first().fill(CREDENTIALS.password)
-  await Promise.all([
-    page.waitForURL(new RegExp(redirect.replace(/\//g, '\\/')), { timeout: 30_000 }),
-    page.getByRole('button', { name: '登录' }).click(),
-  ])
+  // login 接口有 10 次/分钟/IP 自我保护限流（2026-10-28 快赢包），
+  // beforeEach 级逐用例登录在单分钟内可能触顶 429 —— 此时滑动窗口 60s 内恢复，
+  // 表单值保留，间隔重试点击即可；重试 3 次仍失败则照常抛错（不弱化断言）。
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await Promise.all([
+        page.waitForURL(new RegExp(redirect.replace(/\//g, '\\/')), { timeout: 30_000 }),
+        page.getByRole('button', { name: '登录' }).click(),
+      ])
+      break
+    } catch (e) {
+      if (attempt >= 3) throw e
+      await page.waitForTimeout(25_000)
+    }
+  }
   await page.waitForLoadState('networkidle').catch(() => {})
 }
 
