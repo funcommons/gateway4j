@@ -10,6 +10,7 @@ import fun.commons.gateway4j.common.model.Plugin;
 import fun.commons.gateway4j.common.model.PluginGroupItem;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.context.ApplicationEventPublisher;
@@ -251,5 +252,76 @@ class PluginServiceTest {
     void getPluginDetailNotFoundThrows() {
         when(pluginMapper.selectById(404L)).thenReturn(null);
         assertThrows(BusinessException.class, () -> pluginService.getPluginDetail(404L));
+    }
+
+    // ==================== T2：写操作发布 ConfigChangeEvent（驱动 Redis 配置广播） ====================
+
+    @Test
+    void createPluginPublishesChangeEvent() {
+        when(pluginMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        when(pluginMapper.insert(any(Plugin.class))).thenAnswer(invocation -> {
+            Plugin p = invocation.getArgument(0);
+            p.setId(1L);
+            return 1;
+        });
+
+        pluginService.createPlugin(testPlugin, null, null);
+
+        ArgumentCaptor<fun.commons.gateway4j.engine.config.event.ConfigChangeEvent> eventCaptor =
+                ArgumentCaptor.forClass(fun.commons.gateway4j.engine.config.event.ConfigChangeEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertEvent(eventCaptor.getValue(), "PLUGIN", 1L, "CREATE");
+    }
+
+    @Test
+    void updatePluginPublishesChangeEvent() {
+        when(pluginMapper.selectById(1L)).thenReturn(testPlugin);
+        when(pluginMapper.updateById(any(Plugin.class))).thenReturn(1);
+
+        Plugin update = new Plugin();
+        update.setId(1L);
+        update.setPluginName("updated-name");
+        pluginService.updatePlugin(update);
+
+        ArgumentCaptor<fun.commons.gateway4j.engine.config.event.ConfigChangeEvent> eventCaptor =
+                ArgumentCaptor.forClass(fun.commons.gateway4j.engine.config.event.ConfigChangeEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertEvent(eventCaptor.getValue(), "PLUGIN", 1L, "UPDATE");
+    }
+
+    @Test
+    void deleteDisabledPluginPublishesChangeEvent() {
+        testPlugin.setPluginType("JAR");
+        testPlugin.setStatus("DISABLED");
+        when(pluginMapper.selectById(1L)).thenReturn(testPlugin);
+        when(pluginMapper.deleteById(1L)).thenReturn(1);
+
+        pluginService.deletePlugin(1L);
+
+        ArgumentCaptor<fun.commons.gateway4j.engine.config.event.ConfigChangeEvent> eventCaptor =
+                ArgumentCaptor.forClass(fun.commons.gateway4j.engine.config.event.ConfigChangeEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertEvent(eventCaptor.getValue(), "PLUGIN", 1L, "DELETE");
+    }
+
+    @Test
+    void enableGlobalPluginPublishesGlobalPluginEvent() {
+        testPlugin.setScope("GLOBAL");
+        when(pluginMapper.selectById(1L)).thenReturn(testPlugin);
+        when(pluginMapper.updateById(any(Plugin.class))).thenReturn(1);
+
+        pluginService.enablePlugin(1L);
+
+        ArgumentCaptor<fun.commons.gateway4j.engine.config.event.ConfigChangeEvent> eventCaptor =
+                ArgumentCaptor.forClass(fun.commons.gateway4j.engine.config.event.ConfigChangeEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertEvent(eventCaptor.getValue(), "GLOBAL_PLUGIN", 1L, "ENABLE");
+    }
+
+    private void assertEvent(fun.commons.gateway4j.engine.config.event.ConfigChangeEvent event,
+                             String expectedConfigType, Long expectedId, String expectedChangeType) {
+        assertEquals(expectedConfigType, event.getConfigType());
+        assertEquals(expectedId, event.getConfigId());
+        assertEquals(expectedChangeType, event.getChangeType());
     }
 }

@@ -4,6 +4,7 @@ import fun.commons.framework4j.accesstoken.core.AccessTokenGenerator.TokenPair;
 import fun.commons.framework4j.accesstoken.core.RefreshTokenService;
 import fun.commons.framework4j.accesstoken.annotation.RequiresToken;
 import fun.commons.framework4j.accesstoken.context.TokenContext;
+import fun.commons.framework4j.ratelimit.annotation.RateLimit;
 import fun.commons.gateway4j.admin.service.AuthService;
 import fun.commons.gateway4j.common.model.User;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +27,12 @@ public class AuthController {
         this.refreshTokenService = refreshTokenService;
     }
 
+    /**
+     * 登录接口自我保护限流：IP 维度 10 次/分钟（滑动窗口），防口令爆破。
+     * 超限返回 HTTP 429 + 信封 10500（TOO_MANY_REQUESTS）+ Retry-After。
+     */
     @PostMapping("/login")
+    @RateLimit(limit = 10, window = "1m", scope = "ip")
     public Map<String, Object> login(@RequestBody LoginRequest request) {
         User user = authService.authenticate(request.username(), request.password());
         List<String> roles = authService.getUserRoleCodes(user.getId());

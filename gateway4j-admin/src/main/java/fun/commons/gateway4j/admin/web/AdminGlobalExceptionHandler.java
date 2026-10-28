@@ -1,5 +1,6 @@
 package fun.commons.gateway4j.admin.web;
 
+import fun.commons.framework4j.accesstoken.exception.AuthException;
 import fun.commons.framework4j.api.ApiCode;
 import fun.commons.framework4j.web.ApiError;
 import fun.commons.framework4j.web.ApiResponse;
@@ -55,6 +56,25 @@ public class AdminGlobalExceptionHandler extends GlobalExceptionHandler {
             Map.entry("PositiveOrZero", "OUT_OF_RANGE"),
             Map.entry("Negative", "OUT_OF_RANGE"),
             Map.entry("NegativeOrZero", "OUT_OF_RANGE"));
+
+    /**
+     * 认证异常（token 缺失/无效/过期/签名校验失败，102xx 认证类错误码）→ HTTP 401。
+     * <p>
+     * framework4j-accesstoken 的 {@code TokenInterceptor} 在 preHandle 阶段抛出
+     * {@link AuthException}，framework4j-web v1.2.1 的默认处理器无对应分支，
+     * 此前落入 {@code Exception} 兜底返回 500「系统繁忙」（D22）——前端 401 →
+     * 静默 refresh → 重放链路因此无法触发。仅映射认证类异常，真正的服务器异常
+     * 仍走 500 兜底。信封业务码沿用异常自带 code（10200 未认证/10201 过期/
+     * 10202 签名校验失败/10207 格式错误），message 为拦截器给出的友好文案。
+     */
+    @ExceptionHandler(AuthException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ApiResponse<?> handleAuthException(AuthException e) {
+        log.warn("[认证异常] code={}, message={}", e.getCode(), e.getMessage());
+        String message = e.getMessage() != null && !e.getMessage().isBlank()
+                ? e.getMessage() : "认证失败，请重新登录";
+        return ApiResponse.fail(e.getCode(), message);
+    }
 
     /**
      * gateway4j 业务异常（ErrorCode 106xx 业务自定义段）→ 信封失败响应，HTTP 200。

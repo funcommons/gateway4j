@@ -41,6 +41,10 @@ framework4j:
         druid:
           initial-size: 2
           max-active: 10
+          # 框架默认 stat,wall,slf4j —— wall（SQL 防火墙）解析不了 Flyway 迁移中的
+          # PL/pgSQL（CREATE OR REPLACE FUNCTION ... $$），全新库首启会拦掉 V1.0.0。
+          # 管理库 SQL 全部为 MyBatis 服务端生成（无用户拼接），此处去掉 wall。
+          filters: stat,slf4j
 
   redis:
     enabled: true
@@ -64,6 +68,17 @@ framework4j:
     enabled: true
     path-patterns: /v1/open/**
     redis-name: default
+
+  # 登录接口自我保护限流（AuthController#login @RateLimit 10 次/分钟/IP）。
+  # 拦截路径收窄到 /v1/auth/**，避免默认 100/min 波及其余管理面接口；
+  # framework4j 默认白名单含 /v1/auth/login 与 127.0.0.1，会令限流失效，这里显式清空。
+  rate-limit:
+    enabled: true
+    redis-name: default
+    path-patterns:
+      - /v1/auth/**
+    whitelist-paths: []
+    whitelist-ips: []
 
 gateway4j:
   open-api:

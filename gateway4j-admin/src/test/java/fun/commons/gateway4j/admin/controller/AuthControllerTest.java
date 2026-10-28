@@ -49,4 +49,21 @@ class AuthControllerTest {
         assertEquals("at-new", result.get("access_token"));
         assertEquals("rt-new", result.get("refresh_token"));
     }
+
+    @Test
+    void loginHasSelfProtectionRateLimit() throws Exception {
+        // T3：登录接口必须带 IP 维度 10 次/分钟限流，防口令爆破；注解被误删时此用例失败
+        var annotation = AuthController.class
+                .getDeclaredMethod("login", AuthController.LoginRequest.class)
+                .getAnnotation(fun.commons.framework4j.ratelimit.annotation.RateLimit.class);
+        assertNotNull(annotation, "login 必须标注 @RateLimit");
+        assertEquals(10, annotation.limit());
+        assertEquals("1m", annotation.window());
+        assertEquals("ip", annotation.scope());
+
+        var refreshAnnotation = AuthController.class
+                .getDeclaredMethod("refresh", AuthController.RefreshRequest.class)
+                .getAnnotation(fun.commons.framework4j.ratelimit.annotation.RateLimit.class);
+        assertNull(refreshAnnotation, "refresh 不应叠加方法级限流注解");
+    }
 }

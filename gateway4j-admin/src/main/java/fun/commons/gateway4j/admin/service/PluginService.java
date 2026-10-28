@@ -138,6 +138,7 @@ public class PluginService extends ServiceImpl<PluginMapper, Plugin> {
                 groupItemMapper.insert(item);
             }
         }
+        publishPluginChange(plugin.getId(), plugin.getScope(), plugin.getConfigVersion(), "CREATE");
         return plugin;
     }
 
@@ -151,6 +152,7 @@ public class PluginService extends ServiceImpl<PluginMapper, Plugin> {
             validatePluginIdUnique(plugin.getPluginId(), plugin.getId());
         }
         updateById(plugin);
+        publishPluginChange(plugin.getId(), existing.getScope(), existing.getConfigVersion(), "UPDATE");
     }
 
     @Transactional
@@ -172,6 +174,7 @@ public class PluginService extends ServiceImpl<PluginMapper, Plugin> {
                 .eq(PluginGroupItem::getGroupPluginId, pluginId));
         bindingMapper.delete(new LambdaQueryWrapper<RoutePluginBinding>()
                 .eq(RoutePluginBinding::getPluginId, pluginId));
+        publishPluginChange(pluginId, existing.getScope(), existing.getConfigVersion(), "DELETE");
     }
 
     @Transactional
