@@ -15,6 +15,27 @@
                 :label="item.status === 'ENABLED' ? t('common.enabled') : t('common.disabled')"
                 :dot="item.status === 'ENABLED'"
               />
+              <!-- 数据面接线状态：状态未知（available=false）时不显示，静默降级 -->
+              <FcTooltip
+                v-if="runtimeBadge(item) === 'unwired'"
+                :content="t('plugin.runtimeUnwiredTip')"
+                placement="top"
+              >
+                <FcTag color="warning" size="sm" data-testid="runtime-badge">{{ t('plugin.runtimeUnwired') }}</FcTag>
+              </FcTooltip>
+              <FcTag
+                v-else-if="runtimeBadge(item) === 'wired'"
+                color="success"
+                size="sm"
+                data-testid="runtime-badge"
+              >{{ t('plugin.runtimeWired') }}</FcTag>
+              <!-- JAR/GROOVY 自定义插件与数据面接线无关，固定灰徽标防误导 -->
+              <FcTag
+                v-else-if="runtimeBadge(item) === 'unsupported'"
+                color="gray"
+                size="sm"
+                data-testid="runtime-badge"
+              >{{ t('plugin.runtimeUnsupported') }}</FcTag>
             </div>
             <p class="desc">{{ item.description }}</p>
             <div class="card-actions">
@@ -49,10 +70,10 @@ import { ElMessage } from 'element-plus'
 import { useFcConfirm } from '@/composables/useFcConfirm'
 import { usePermission } from '@/composables/usePermission'
 import {
-  FcSection, FcSectionCard, FcInput, FcTag, FcButton, FcEmpty, FcDialog, FcSkeleton, FcStatusBadge
+  FcSection, FcSectionCard, FcInput, FcTag, FcButton, FcEmpty, FcDialog, FcSkeleton, FcStatusBadge, FcTooltip
 } from '@/components'
 import PluginDynamicForm from '@/components/PluginDynamicForm.vue'
-import { listBuiltinTypes, updatePlugin, enablePlugin, disablePlugin, validateConfig } from '@/api/plugins'
+import { listBuiltinTypes, updatePlugin, enablePlugin, disablePlugin, validateConfig, getRuntimeStatus } from '@/api/plugins'
 import { getBuiltinCategory, BUILTIN_CATEGORIES, type BuiltinCategoryKey } from './builtinCategories'
 
 const { t } = useI18n()
@@ -83,6 +104,36 @@ const visibleCategories = computed(() => {
     .map(c => ({ key: c.key, i18nKey: c.i18nKey, plugins: grouped.get(c.key)! }))
 })
 
+/** 数据面插件接线状态（engine reload 后写入 Redis；available=false 表示状态未知 → 静默降级）。 */
+const runtimeMap = ref<Record<string, { registered: boolean }>>({})
+const runtimeAvailable = ref(false)
+
+async function loadRuntimeStatus() {
+  runtimeAvailable.value = false
+  runtimeMap.value = {}
+  try {
+    const res = (await getRuntimeStatus()) as { available?: boolean; items?: Array<{ plugin_id?: string; registered?: boolean }> } | undefined
+    if (!res || res.available !== true) return
+    const map: Record<string, { registered: boolean }> = {}
+    for (const it of res.items || []) {
+      if (it && it.plugin_id) map[it.plugin_id] = { registered: !!it.registered }
+    }
+    runtimeMap.value = map
+    runtimeAvailable.value = true
+  } catch {
+    // 接口异常同样按状态未知处理：不显示数据面徽标，不打扰用户
+  }
+}
+
+const RUNTIME_UNSUPPORTED_TYPES = new Set(['JAR', 'GROOVY'])
+
+/** 卡片数据面徽标：wired=已接线 / unwired=未接线 / unsupported=暂不支持(JAR/GROOVY) / none=不显示。 */
+function runtimeBadge(item: any): 'wired' | 'unwired' | 'unsupported' | 'none' {
+  if (RUNTIME_UNSUPPORTED_TYPES.has(String(item?.plugin_type ?? '').toUpperCase())) return 'unsupported'
+  if (!runtimeAvailable.value) return 'none'
+  return runtimeMap.value[item.plugin_id]?.registered ? 'wired' : 'unwired'
+}
+
 const dialog = ref(false)
 const selected = ref<any>(null)
 const config = ref<any>({})
@@ -94,6 +145,7 @@ async function load() {
   const myEpoch = ++loadEpoch
   loading.value = true
   loadError.value = ''
+  loadRuntimeStatus()
   try {
     const data = (await listBuiltinTypes()) as any
     if (myEpoch !== loadEpoch) return

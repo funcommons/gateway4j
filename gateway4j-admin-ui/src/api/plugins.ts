@@ -85,3 +85,21 @@ export function validateConfig(pluginId: string, config: string) {
 export function validateGroovy(scriptContent: string) {
   return envelope<{ is_valid: boolean; error_message?: string }>(http.post('/v1/plugins/validate-groovy', { script_content: scriptContent }))
 }
+
+export interface PluginRuntimeStatusItem {
+  plugin_id: string
+  phase: string
+  registered: boolean
+  updated_at: number
+}
+
+export interface PluginRuntimeStatusResponse {
+  /** false = 状态未知（engine 未写入 / Redis 失败 / TTL 过期），前端需静默降级不显示接线徽标 */
+  available: boolean
+  items: PluginRuntimeStatusItem[]
+}
+
+/** 数据面插件接线状态（engine 每次 reload 后写入 Redis，TTL 10 分钟）。 */
+export function getRuntimeStatus() {
+  return envelope<PluginRuntimeStatusResponse>(http.get('/v1/plugins/runtime-status'))
+}

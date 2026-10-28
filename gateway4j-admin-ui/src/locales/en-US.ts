@@ -305,7 +305,11 @@ export default {
     phasePre: 'PRE',
     phasePost: 'POST',
     scopeRoute: 'Route',
-    scopeGlobal: 'Global'
+    scopeGlobal: 'Global',
+    runtimeWired: 'Wired',
+    runtimeUnwired: 'Not Wired',
+    runtimeUnwiredTip: 'The gateway data plane has not registered this plugin instance; bindings will not actually execute',
+    runtimeUnsupported: 'Not Supported'
   },
   monitor: {
     status: 'Route Status',

@@ -302,7 +302,11 @@ export default {
     phasePre: '前置',
     phasePost: '后置',
     scopeRoute: '路由级',
-    scopeGlobal: '全局'
+    scopeGlobal: '全局',
+    runtimeWired: '已接线',
+    runtimeUnwired: '未接线',
+    runtimeUnwiredTip: '数据面暂未注册该插件实例，绑定后不会实际执行',
+    runtimeUnsupported: '暂不支持'
   },
   monitor: {
     status: '路由状态',
