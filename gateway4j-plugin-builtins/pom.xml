@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>fun.commons</groupId>
+        <artifactId>gateway4j</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>gateway4j-plugin-builtins</artifactId>
+
+    <dependencies>
+        <dependency>
+            <groupId>fun.commons</groupId>
+            <artifactId>gateway4j-plugin-api</artifactId>
+        </dependency>
+
+        <!-- framework4j SDK（内置插件所需能力） -->
+        <dependency>
+            <groupId>com.github.funcommons.framework4j</groupId>
+            <artifactId>framework4j-accesstoken</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.funcommons.framework4j</groupId>
+            <artifactId>framework4j-signature</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.funcommons.framework4j</groupId>
+            <artifactId>framework4j-rate-limit</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.funcommons.framework4j</groupId>
+            <artifactId>framework4j-cache</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.funcommons.framework4j</groupId>
+            <artifactId>framework4j-audit</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.funcommons.framework4j</groupId>
+            <artifactId>framework4j-sensitive</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.funcommons.framework4j</groupId>
+            <artifactId>framework4j-id</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+
+        <!-- JWT -->
+        <dependency>
+            <groupId>com.auth0</groupId>
+            <artifactId>java-jwt</artifactId>
+        </dependency>
+
+        <!-- Resilience4J -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-circuitbreaker</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-ratelimiter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-timelimiter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-reactor</artifactId>
+        </dependency>
+
+        <!-- JsonPath -->
+        <dependency>
+            <groupId>com.jayway.jsonpath</groupId>
+            <artifactId>json-path</artifactId>
+        </dependency>
+
+        <!-- Kafka -->
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+        </dependency>
+
+        <!-- Elasticsearch -->
+        <dependency>
+            <groupId>co.elastic.clients</groupId>
+            <artifactId>elasticsearch-java</artifactId>
+        </dependency>
+
+        <!-- Sentinel -->
+        <dependency>
+            <groupId>com.alibaba.csp</groupId>
+            <artifactId>sentinel-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.alibaba.csp</groupId>
+            <artifactId>sentinel-reactor-adapter</artifactId>
+        </dependency>
+
+        <!-- Micrometer -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+        </dependency>
+
+        <!-- Spring WebFlux (for WebClient in OAuth2/ES plugins) -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-webflux</artifactId>
+        </dependency>
+
+        <!-- Spring WebSocket (for WebSocket proxy) -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-websocket</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.projectreactor</groupId>
+            <artifactId>reactor-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+</project>

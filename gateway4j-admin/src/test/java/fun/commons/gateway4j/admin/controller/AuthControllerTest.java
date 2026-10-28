@@ -1,0 +1,52 @@
+package fun.commons.gateway4j.admin.controller;
+
+import fun.commons.framework4j.accesstoken.core.AccessTokenGenerator.TokenPair;
+import fun.commons.framework4j.accesstoken.core.RefreshTokenService;
+import fun.commons.gateway4j.admin.service.AuthService;
+import fun.commons.gateway4j.common.model.User;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class AuthControllerTest {
+
+    @Mock private AuthService authService;
+    @Mock private RefreshTokenService refreshTokenService;
+    @InjectMocks private AuthController controller;
+
+    @Test
+    void login() {
+        User user = User.builder().id(1L).username("admin").realName("管理员").build();
+        when(authService.authenticate("admin", "pass")).thenReturn(user);
+        when(authService.getUserRoleCodes(1L)).thenReturn(List.of("ROLE_ADMIN"));
+        when(refreshTokenService.generateTokenPair(anyMap()))
+                .thenReturn(new TokenPair("at-123", "rt-456", "fam-1", 7200, 2592000));
+
+        Map<String, Object> result = controller.login(new AuthController.LoginRequest("admin", "pass"));
+        assertEquals("1", result.get("user_id"));
+        assertEquals("admin", result.get("username"));
+        assertEquals(List.of("ROLE_ADMIN"), result.get("roles"));
+        assertEquals("at-123", result.get("access_token"));
+        assertEquals("rt-456", result.get("refresh_token"));
+        assertEquals(7200L, result.get("expires_in"));
+    }
+
+    @Test
+    void refresh() {
+        when(refreshTokenService.refreshAccessToken("rt-456"))
+                .thenReturn(new TokenPair("at-new", "rt-new", "fam-1", 7200, 2592000));
+        Map<String, Object> result = controller.refresh(new AuthController.RefreshRequest("rt-456"));
+        assertEquals("at-new", result.get("access_token"));
+        assertEquals("rt-new", result.get("refresh_token"));
+    }
+}

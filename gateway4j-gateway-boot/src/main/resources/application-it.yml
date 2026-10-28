@@ -1,0 +1,74 @@
+server:
+  port: 9090
+
+spring:
+  application:
+    name: gateway4j-server
+
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration,com.alibaba.druid.spring.boot3.autoconfigure.DruidDataSourceAutoConfigure
+
+  main:
+    web-application-type: reactive
+    allow-bean-definition-overriding: true
+
+  cloud:
+    compatibility-verifier:
+      enabled: false
+    gateway:
+      routes: []
+
+logging:
+  level:
+    fun.commons: info
+    fun.commons.framework4j: info
+
+# MyBatis-Plus mapper scanning
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    banner: false
+
+framework4j:
+  datasource:
+    enabled: true
+    datasources:
+      default:
+        url: jdbc:postgresql://localhost:5433/gateway4j_it
+        username: test
+        password: test
+        driver-class-name: org.postgresql.Driver
+        druid:
+          initial-size: 2
+          max-active: 10
+
+  redis:
+    enabled: true
+    datasources:
+      default:
+        host: localhost
+        port: 6380
+        database: 0
+
+  access-token:
+    enabled: true
+    secret-key: gateway4j-it-secret-key-0123456789abcdef0123456789
+    hash-salt: gateway4j-it-hash-salt
+    expire-time: 7200
+    redis-name: default
+    policies:
+      DEFAULT:
+        key: user_id
+
+  signature:
+    enabled: true
+    path-patterns: /v1/open/**
+    redis-name: default
+
+gateway4j:
+  config:
+    poll-interval-ms: 30000
+  open-api:
+    app-key: gateway4j-open
+    app-secret: it-test-secret-key

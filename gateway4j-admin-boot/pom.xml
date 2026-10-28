@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>fun.commons</groupId>
+        <artifactId>gateway4j</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>gateway4j-admin-boot</artifactId>
+
+    <dependencies>
+        <!-- 项目内部模块 -->
+        <dependency>
+            <groupId>fun.commons</groupId>
+            <artifactId>gateway4j-admin</artifactId>
+            <exclusions>
+                <!-- admin-boot 用 Servlet，排除 Reactive 网关依赖 -->
+                <exclusion>
+                    <groupId>org.springframework.cloud</groupId>
+                    <artifactId>spring-cloud-starter-gateway</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>fun.commons</groupId>
+            <artifactId>gateway4j-common</artifactId>
+        </dependency>
+
+        <!-- framework4j SDK (全套, Servlet 环境) -->
+        <dependency>
+            <groupId>com.github.funcommons.framework4j</groupId>
+            <artifactId>framework4j-accesstoken</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.funcommons.framework4j</groupId>
+            <artifactId>framework4j-idempotency</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.funcommons.framework4j</groupId>
+            <artifactId>framework4j-sensitive</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.funcommons.framework4j</groupId>
+            <artifactId>framework4j-audit</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.funcommons.framework4j</groupId>
+            <artifactId>framework4j-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.funcommons.framework4j</groupId>
+            <artifactId>framework4j-id</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.funcommons.framework4j</groupId>
+            <artifactId>framework4j-signature</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.funcommons.framework4j</groupId>
+            <artifactId>framework4j-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.funcommons.framework4j</groupId>
+            <artifactId>framework4j-datasource</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.funcommons.framework4j</groupId>
+            <artifactId>framework4j-sql-tracing</artifactId>
+        </dependency>
+
+        <!-- Spring Boot Web (Servlet/Tomcat) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- 确保 Tomcat 不被 gateway4j-admin 的 exclusion 传递移除 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-tomcat</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-jsqlparser</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>druid-spring-boot-3-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.groovy</groupId>
+            <artifactId>groovy</artifactId>
+        </dependency>
+
+        <!-- Flyway for DB migration -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-log4j2</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>${project.name}</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>17</source>
+                    <target>17</target>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+        </plugins>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <includes>
+                    <include>*.yaml</include>
+                    <include>*.yml</include>
+                </includes>
+                <filtering>true</filtering>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <includes>
+                    <include>**/*.*</include>
+                </includes>
+                <filtering>false</filtering>
+            </resource>
+        </resources>
+    </build>
+
+</project>

@@ -1,0 +1,71 @@
+server:
+  port: 9301
+
+spring:
+  application:
+    name: gateway4j-admin
+
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration,com.alibaba.druid.spring.boot3.autoconfigure.DruidDataSourceAutoConfigure,org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+logging:
+  level:
+    fun.commons: info
+    fun.commons.framework4j: info
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    banner: false
+
+framework4j:
+  datasource:
+    enabled: true
+    datasources:
+      default:
+        url: jdbc:postgresql://localhost:5432/gateway4j
+        username: admin
+        password: test@2026
+        driver-class-name: org.postgresql.Driver
+        druid:
+          initial-size: 2
+          max-active: 10
+
+  redis:
+    enabled: true
+    datasources:
+      default:
+        host: localhost
+        port: 6379
+        database: 0
+
+  access-token:
+    enabled: true
+    secret-key: gateway4j-dev-secret-key-0123456789abcdef0123456789
+    hash-salt: gateway4j-dev-hash-salt
+    expire-time: 7200
+    redis-name: default
+    policies:
+      BEARER:
+        key: user_id
+
+  signature:
+    enabled: true
+    path-patterns: /v1/open/**
+    redis-name: default
+
+gateway4j:
+  open-api:
+    app-key: gateway4j-open
+    app-secret: dev-test-secret-key

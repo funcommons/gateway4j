@@ -1,0 +1,345 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.5.16</version>
+        <relativePath/> <!-- lookup parent from repository -->
+    </parent>
+
+    <groupId>fun.commons</groupId>
+    <artifactId>gateway4j</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>gateway4j-common</module>
+        <module>gateway4j-plugin-api</module>
+        <module>gateway4j-engine</module>
+        <module>gateway4j-plugin-builtins</module>
+        <module>gateway4j-admin</module>
+        <module>gateway4j-gateway-boot</module>
+        <module>gateway4j-admin-boot</module>
+    </modules>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <spring-cloud-gateway.version>4.3.1</spring-cloud-gateway.version>
+        <mybatis-plus.version>3.5.15</mybatis-plus.version>
+        <druid.version>1.2.28</druid.version>
+        <postgresql.version>42.7.11</postgresql.version>
+        <caffeine.version>3.1.8</caffeine.version>
+        <groovy.version>4.0.15</groovy.version>
+        <java-jwt.version>4.5.0</java-jwt.version>
+        <resilience4j.version>2.2.0</resilience4j.version>
+        <json-path.version>2.9.0</json-path.version>
+        <kafka-clients.version>3.7.0</kafka-clients.version>
+        <elasticsearch-java.version>8.12.0</elasticsearch-java.version>
+        <sentinel.version>1.8.7</sentinel.version>
+        <commons-io.version>2.18.0</commons-io.version>
+        <commons-text.version>1.13.1</commons-text.version>
+        <commons-compress.version>1.27.1</commons-compress.version>
+        <guava.version>33.4.0-jre</guava.version>
+        <framework4j.version>v1.2.1</framework4j.version>
+    </properties>
+
+    <!-- 自定义远程仓库 -->
+    <repositories>
+
+        <!-- JitPack（framework4j） -->
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+
+        <!-- 阿里云 -->
+        <repository>
+            <id>aliyun-central</id>
+            <url>https://maven.aliyun.com/repository/central</url>
+        </repository>
+
+        <repository>
+            <id>aliyun-public</id>
+            <url>https://maven.aliyun.com/repository/public</url>
+        </repository>
+
+        <!-- 华为 -->
+        <repository>
+            <id>huawei-maven</id>
+            <url>https://mirrors.huaweicloud.com/repository/maven</url>
+        </repository>
+
+        <!-- 腾讯 -->
+        <repository>
+            <id>tencent-maven-public</id>
+            <url>https://mirrors.cloud.tencent.com/nexus/repository/maven-public</url>
+        </repository>
+
+        <!-- commons.fun -->
+        <repository>
+            <id>fun-commons-repo</id>
+            <url>https://utilsfun.oss-cn-shenzhen.aliyuncs.com/repository</url>
+        </repository>
+
+    </repositories>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- 引入BOM -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>3.5.16</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- 项目内部模块 -->
+            <dependency>
+                <groupId>fun.commons</groupId>
+                <artifactId>gateway4j-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>fun.commons</groupId>
+                <artifactId>gateway4j-plugin-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>fun.commons</groupId>
+                <artifactId>gateway4j-engine</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>fun.commons</groupId>
+                <artifactId>gateway4j-plugin-builtins</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>fun.commons</groupId>
+                <artifactId>gateway4j-admin</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>fun.commons</groupId>
+                <artifactId>gateway4j-gateway-boot</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>fun.commons</groupId>
+                <artifactId>gateway4j-admin-boot</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!-- framework4j SDK -->
+            <dependency>
+                <groupId>com.github.funcommons.framework4j</groupId>
+                <artifactId>framework4j-all</artifactId>
+                <version>${framework4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.funcommons.framework4j</groupId>
+                <artifactId>framework4j-accesstoken</artifactId>
+                <version>${framework4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.funcommons.framework4j</groupId>
+                <artifactId>framework4j-signature</artifactId>
+                <version>${framework4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.funcommons.framework4j</groupId>
+                <artifactId>framework4j-rate-limit</artifactId>
+                <version>${framework4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.funcommons.framework4j</groupId>
+                <artifactId>framework4j-cache</artifactId>
+                <version>${framework4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.funcommons.framework4j</groupId>
+                <artifactId>framework4j-audit</artifactId>
+                <version>${framework4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.funcommons.framework4j</groupId>
+                <artifactId>framework4j-sensitive</artifactId>
+                <version>${framework4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.funcommons.framework4j</groupId>
+                <artifactId>framework4j-idempotency</artifactId>
+                <version>${framework4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.funcommons.framework4j</groupId>
+                <artifactId>framework4j-id</artifactId>
+                <version>${framework4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.funcommons.framework4j</groupId>
+                <artifactId>framework4j-web</artifactId>
+                <version>${framework4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.funcommons.framework4j</groupId>
+                <artifactId>framework4j-api</artifactId>
+                <version>${framework4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.funcommons.framework4j</groupId>
+                <artifactId>framework4j-redis</artifactId>
+                <version>${framework4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.funcommons.framework4j</groupId>
+                <artifactId>framework4j-datasource</artifactId>
+                <version>${framework4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.funcommons.framework4j</groupId>
+                <artifactId>framework4j-datetime</artifactId>
+                <version>${framework4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.funcommons.framework4j</groupId>
+                <artifactId>framework4j-sql-tracing</artifactId>
+                <version>${framework4j.version}</version>
+            </dependency>
+
+            <!-- Spring Cloud Gateway -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-starter-gateway</artifactId>
+                <version>${spring-cloud-gateway.version}</version>
+            </dependency>
+
+            <!-- MyBatis-Plus -->
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-jsqlparser</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+
+            <!-- Druid -->
+            <dependency>
+                <groupId>com.alibaba</groupId>
+                <artifactId>druid-spring-boot-3-starter</artifactId>
+                <version>${druid.version}</version>
+            </dependency>
+
+            <!-- Groovy -->
+            <dependency>
+                <groupId>org.apache.groovy</groupId>
+                <artifactId>groovy</artifactId>
+                <version>${groovy.version}</version>
+            </dependency>
+
+            <!-- commons -->
+            <dependency>
+                <groupId>commons-io</groupId>
+                <artifactId>commons-io</artifactId>
+                <version>${commons-io.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-text</artifactId>
+                <version>${commons-text.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-compress</artifactId>
+                <version>${commons-compress.version}</version>
+            </dependency>
+
+            <!-- PostgreSQL -->
+            <dependency>
+                <groupId>org.postgresql</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>${postgresql.version}</version>
+            </dependency>
+
+            <!-- Guava -->
+            <dependency>
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>${guava.version}</version>
+            </dependency>
+
+            <!-- JWT -->
+            <dependency>
+                <groupId>com.auth0</groupId>
+                <artifactId>java-jwt</artifactId>
+                <version>${java-jwt.version}</version>
+            </dependency>
+
+            <!-- Resilience4J -->
+            <dependency>
+                <groupId>io.github.resilience4j</groupId>
+                <artifactId>resilience4j-circuitbreaker</artifactId>
+                <version>${resilience4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.resilience4j</groupId>
+                <artifactId>resilience4j-ratelimiter</artifactId>
+                <version>${resilience4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.resilience4j</groupId>
+                <artifactId>resilience4j-timelimiter</artifactId>
+                <version>${resilience4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.resilience4j</groupId>
+                <artifactId>resilience4j-reactor</artifactId>
+                <version>${resilience4j.version}</version>
+            </dependency>
+
+            <!-- JsonPath -->
+            <dependency>
+                <groupId>com.jayway.jsonpath</groupId>
+                <artifactId>json-path</artifactId>
+                <version>${json-path.version}</version>
+            </dependency>
+
+            <!-- Kafka -->
+            <dependency>
+                <groupId>org.apache.kafka</groupId>
+                <artifactId>kafka-clients</artifactId>
+                <version>${kafka-clients.version}</version>
+            </dependency>
+
+            <!-- Elasticsearch -->
+            <dependency>
+                <groupId>co.elastic.clients</groupId>
+                <artifactId>elasticsearch-java</artifactId>
+                <version>${elasticsearch-java.version}</version>
+            </dependency>
+
+            <!-- Sentinel -->
+            <dependency>
+                <groupId>com.alibaba.csp</groupId>
+                <artifactId>sentinel-reactor-adapter</artifactId>
+                <version>${sentinel.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.alibaba.csp</groupId>
+                <artifactId>sentinel-core</artifactId>
+                <version>${sentinel.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+</project>
