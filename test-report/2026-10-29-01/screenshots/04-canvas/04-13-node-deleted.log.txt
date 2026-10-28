@@ -1,0 +1,20 @@
+用例: 04-13-node-deleted
+时间: 2026-10-28T17:38:06.420Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+(无)
+
+--- Extra ---
+删除前=8, 删除后=7

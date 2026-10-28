@@ -1,0 +1,293 @@
+{
+  "config": {
+    "configFile": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/playwright.gateway.config.ts",
+    "rootDir": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-gateway",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-gateway",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 180000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "/Users/justin/codes/funcommons/gateway4j/test-report/2026-10-29-01/gateway-data-plane-results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.60.0",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "data-plane.spec.ts",
+      "file": "data-plane.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "场景1 基础转发：建路由→发布→网关转发到 echo",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 180000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 117,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "[env] worker pid=39719 RUN=mvseneci\n"
+                    },
+                    {
+                      "text": "[场景1] route=gwtest_base_mvseneci_fgjb id=2115500184744091649 config_version=3（基线 max=2）\n"
+                    },
+                    {
+                      "text": "[场景1] OK http=200 body={\"echo\":true,\"tag\":\"gw-echo-19001\",\"path\":\"/e2e/gw/mvsenecib1/ping\",\"method\":\"GET\",\"header_x_echo\":\"scenario1\",\"header_x_ver\":null,\"body\":null}\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-28T17:45:21.770Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "dae32a3ae75d7e3f04be-1c9621f2ef8990a4168a",
+          "file": "data-plane.spec.ts",
+          "line": 216,
+          "column": 1
+        },
+        {
+          "title": "场景2 分发路由：HEADER x-ver 条件分流到不同子路由",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 180000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 233,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "[场景2] routes a=2115500185218048001 b=2115500185251602434 dispatch=2115500185289351170 v=3（基线 max=2）\n"
+                    },
+                    {
+                      "text": "[场景2] 实测 x-ver=v1 → http=200 tag=gw-echo-19002；x-ver=v2 → http=200 tag=gw-echo-19003\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-28T17:45:22.893Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "dae32a3ae75d7e3f04be-015c106901b7ae31149a",
+          "file": "data-plane.spec.ts",
+          "line": 258,
+          "column": 1
+        },
+        {
+          "title": "场景3 热更新：路由下线后网关在 45s 内摘除",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 180000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 136,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "[场景3] route=gwtest_s3_mvseneci_7f7t id=2115500186220486657 config_version=5\n"
+                    },
+                    {
+                      "text": "[场景3] 下线前已生效 http=200\n"
+                    },
+                    {
+                      "text": "[场景3] 已下线 status=OFFLINE config_version=6（新基线 max=5）\n"
+                    },
+                    {
+                      "text": "[场景3] 摘除后实际响应 http=404 tag=null（下线前 http=200）\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-28T17:45:23.130Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "dae32a3ae75d7e3f04be-687207746fc8ba99d722",
+          "file": "data-plane.spec.ts",
+          "line": 351,
+          "column": 1
+        },
+        {
+          "title": "场景4 404兜底：未匹配任何路径应得到网关明确的非转发响应",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 180000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 5,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "[场景4] 实际响应 http=404 body={\"code\":404,\"message\":\"Not Found: No static resource e2e/gw/definitely-not-registered-mvseneci/deep/path.\",\"data\":null,\"success\":false,\"fail\":true}\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-28T17:45:23.271Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "dae32a3ae75d7e3f04be-4dd1d92cfc0671b8af9d",
+          "file": "data-plane.spec.ts",
+          "line": 420,
+          "column": 1
+        },
+        {
+          "title": "场景5 插件链冒烟：绑定 Mock 插件（可短路）观察是否生效",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 180000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 154,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "[场景5] ENABLED 插件: e2e_gvy_mvsady09264(ROUTE/PRE), e2e_gvy_mvsegewg27(ROUTE/PRE), logging(GLOBAL/PRE), logging-post(GLOBAL/POST), tracing-post(GLOBAL/POST), tracing(GLOBAL/PRE), metrics(GLOBAL/PRE), metrics-post(GLOBAL/POST)\n"
+                    },
+                    {
+                      "text": "[场景5] route=gwtest_plugin_mvseneci_217n 插件=gwtest_mock_mvseneci_8r6k config_version=5\n"
+                    },
+                    {
+                      "text": "[场景5] Mock 未短路（实际响应 http=200 body={\"echo\":true,\"tag\":\"gw-echo-19001\",\"path\":\"/e2e/gw/mvsenecip5/ping\",\"method\":\"GET\",\"header_x_echo\":null,\"header_x_ver\":null,\"body\":null}），降级判据：绑定成功(true) + 转发仍通(tag=gw-echo-19001)；插件链行为无法黑盒断言\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-28T17:45:23.281Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "dae32a3ae75d7e3f04be-329dced5446f7f7744f7",
+          "file": "data-plane.spec.ts",
+          "line": 435,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-28T17:45:21.505Z",
+    "duration": 2011.2019999999998,
+    "expected": 5,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

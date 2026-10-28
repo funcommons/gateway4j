@@ -1,0 +1,22 @@
+用例: 05-09-import-bad-structure
+时间: 2026-10-28T17:39:18.040Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+(无)
+
+--- Extra ---
+预检报告文本: "可导入：否
+
+路由包结构无效：缺少 routes 数组"

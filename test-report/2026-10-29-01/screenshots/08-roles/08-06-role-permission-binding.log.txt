@@ -1,0 +1,20 @@
+用例: 08-06-role-permission-binding
+时间: 2026-10-28T17:43:37.343Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/roles
+
+--- Extra ---
+后端角色列表: [{"id":"1","role_code":"ROLE_ADMIN","role_name":"超级管理员","remark":null,"created_at":"2026-10-28T15:27:43.710674Z","updated_at":"2026-10-28T15:27:43.710674Z"},{"id":"2","role_code":"ROLE_OPS","role_name":"网关运维","remark":null,"created_at":"2026-10-28T15:27:43.710674Z","updated_at":"2026-10-28T15:27:43.710674Z"},{"id":"3","role_code":"ROLE_DEV","role_name":"研发人员","remark":null,"created_at":"2026-10-28
