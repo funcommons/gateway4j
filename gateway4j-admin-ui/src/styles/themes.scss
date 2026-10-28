@@ -1,0 +1,48 @@
+// Project-level theme tokens (light/dark non-brand layer)
+// SDK's theme.scss imports this. Each selector re-asserts tokens so they
+// win over the brand-level defaults for the active theme (light/dark/orange-black).
+
+[data-theme="light"], :root {
+  --app-bg-page: #f5f7fa;
+  --app-bg-card: #ffffff;
+  --app-bg-muted: #f5f5f5;
+  --app-text: #1f2329;
+  --app-text-secondary: #646a73;
+  --app-border: #e5e6eb;
+  --app-separator: #dcdfe6;
+  --app-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --app-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --app-header-height: 60px;
+  --app-header-bg: #ffffff;
+  --app-header-border-color: var(--brand-separator);
+  --app-sidebar-bg: #fafbfc;
+  --app-sidebar-collapse-width: 64px;
+  --app-main-padding: 16px;
+}
+
+[data-theme="dark"] {
+  --app-bg-page: #0e1116;
+  --app-bg-card: #1a1d23;
+  --app-bg-muted: #232730;
+  --app-text: #e5e6eb;
+  --app-text-secondary: #a0a3aa;
+  --app-border: #2f333d;
+  --app-separator: #2f333d;
+  --app-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --app-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --app-header-bg: #14171c;
+  --app-sidebar-bg: #14171c;
+}
+
+[data-theme="orange-black"] {
+  --app-bg-page: #0b0b0d;
+  --app-bg-card: #18181b;
+  --app-bg-muted: #27272a;
+  --app-text: #fafafa;
+  --app-text-secondary: #a1a1aa;
+  --app-border: #3f3f46;
+  --app-separator: #3f3f46;
+  --app-primary: #f97316;
+  --app-header-bg: #18181b;
+  --app-sidebar-bg: #18181b;
+}

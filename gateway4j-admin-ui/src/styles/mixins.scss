@@ -1,0 +1,41 @@
+// Common scss mixins used by the Fc SDK.
+// Sass is hoisted; we just expose a tiny shared toolbox so each component's
+// scoped scss can `@use '@/styles/mixins' as *` and reuse these.
+
+@mixin clearfix {
+  &::after { content: ''; display: table; clear: both; }
+}
+
+@mixin truncate($lines: 1) {
+  display: -webkit-box;
+  -webkit-line-clamp: $lines;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin absolute-fill {
+  position: absolute;
+  inset: 0;
+}
+
+// SDK component utilities ------------------------------------------------------
+
+@mixin reset-button {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}

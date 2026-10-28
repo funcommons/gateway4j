@@ -1,0 +1,207 @@
+import { test as base, expect, Page } from '@playwright/test'
+import * as fs from 'fs'
+import * as path from 'path'
+
+/** 报告根目录（与 playwright.regression.config.ts 中的 results.json 输出目录一致） */
+export const REPORT_ROOT = path.resolve(process.cwd(), '../test-report/2026-10-28-02')
+export const SHOT_ROOT = path.join(REPORT_ROOT, 'screenshots')
+
+export const CREDENTIALS = { username: 'admin', password: 'admin123' }
+
+/** 业务线编号 → 目录名 */
+export const LINES = {
+  auth: '01-auth',
+  dashboard: '02-dashboard',
+  routes: '03-routes',
+  canvas: '04-canvas',
+  importExport: '05-import-export',
+  plugins: '06-plugins',
+  users: '07-users',
+  roles: '08-roles',
+  settings: '09-settings',
+} as const
+
+export type LineKey = keyof typeof LINES
+
+/** 诊断信息：控制台错误、未捕获异常、失败的网络请求 */
+export interface Diagnostics {
+  consoleErrors: string[]
+  pageErrors: string[]
+  failedRequests: string[]
+  httpErrors: string[]
+  /** 全部后端 API 调用（METHOD URL -> status），用于证明"操作是否真的发出去了" */
+  apiCalls: string[]
+}
+
+export interface RegressionFixtures {
+  diag: Diagnostics
+  /** 截图并记录到业务线目录 */
+  shot: (line: LineKey, name: string, fullPage?: boolean) => Promise<string>
+}
+
+export const test = base.extend<RegressionFixtures>({
+  diag: async ({ page }, use) => {
+    const d: Diagnostics = { consoleErrors: [], pageErrors: [], failedRequests: [], httpErrors: [], apiCalls: [] }
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') d.consoleErrors.push(msg.text())
+    })
+    page.on('pageerror', (err) => d.pageErrors.push(String(err)))
+    page.on('requestfailed', (req) => {
+      const f = req.failure()
+      d.failedRequests.push(`${req.method()} ${req.url()} :: ${f ? f.errorText : 'unknown'}`)
+    })
+    page.on('response', (res) => {
+      const u = res.url()
+      if (u.includes('/v1/')) d.apiCalls.push(`${res.status()} ${res.request().method()} ${u.replace(/^https?:\/\/[^/]+/, '')}`)
+      if (res.status() >= 400) d.httpErrors.push(`${res.status()} ${res.request().method()} ${res.url()}`)
+    })
+    await use(d)
+  },
+
+  shot: async ({ page, diag }, use, testInfo) => {
+    const shot = async (line: LineKey, name: string, fullPage = false) => {
+      const dir = path.join(SHOT_ROOT, LINES[line])
+      fs.mkdirSync(dir, { recursive: true })
+      const file = path.join(dir, `${name}.png`)
+      // 等一帧，避免动画/骨架屏导致截图模糊
+      await page.waitForTimeout(400)
+      await page.screenshot({ path: file, fullPage })
+      return file
+    }
+    await use(shot)
+
+    // —— 失败时自动补全证据（整页截图 + 诊断日志）——
+    if (testInfo.status !== testInfo.expectedStatus) {
+      const line = lineFromTitle(testInfo.title)
+      const dir = path.join(SHOT_ROOT, LINES[line])
+      fs.mkdirSync(dir, { recursive: true })
+      const slug = testInfo.title.replace(/[^\w一-龥.-]+/g, '_').slice(0, 80)
+      await page.screenshot({ path: path.join(dir, `${slug}__FAIL.png`), fullPage: true }).catch(() => {})
+      writeEvidence(line, `${slug}__FAIL`, diag, `失败断言详情见 playwright error-context / results.json`)
+    }
+  },
+})
+
+/** 从用例标题推导业务线目录：优先取 "BL-0N"（describe 前缀），回退到用例编号 "0N-xx" */
+function lineFromTitle(title: string): LineKey {
+  const map: Record<string, LineKey> = {
+    '1': 'auth', '2': 'dashboard', '3': 'routes', '4': 'canvas',
+    '5': 'importExport', '6': 'plugins', '7': 'users', '8': 'roles', '9': 'settings',
+  }
+  const byDescribe = title.match(/BL-0(\d)/)
+  if (byDescribe) return map[byDescribe[1]] ?? 'auth'
+  const byCase = title.match(/(?:^|\D)0(\d)-\d\d/)
+  if (byCase) return map[byCase[1]] ?? 'auth'
+  return 'auth'
+}
+
+export { expect }
+
+/** 登录并等待进入路由列表 */
+export async function login(page: Page, redirect = '/routes') {
+  await page.goto('/login')
+  await expect(page.getByRole('button', { name: '登录' })).toBeVisible({ timeout: 20_000 })
+  await page.locator('input').first().fill(CREDENTIALS.username)
+  await page.locator('input[type="password"]').first().fill(CREDENTIALS.password)
+  await Promise.all([
+    page.waitForURL(new RegExp(redirect.replace(/\//g, '\\/')), { timeout: 30_000 }),
+    page.getByRole('button', { name: '登录' }).click(),
+  ])
+  await page.waitForLoadState('networkidle').catch(() => {})
+}
+
+/** 生成不重复的测试用名称 */
+export function uniq(prefix: string) {
+  return `${prefix}_${Date.now().toString(36)}${Math.floor(Math.random() * 1000)}`
+}
+
+/** 通过 el-form-item 标签文本定位表单控件（Element Plus 的 label-for 关联不稳定） */
+export function formField(page: Page, label: string, tag: 'input' | 'textarea' = 'input') {
+  return page
+    .locator('.el-form-item')
+    .filter({ has: page.locator('label', { hasText: label }) })
+    .locator(tag)
+    .first()
+}
+
+/** 确认弹窗（FcDialog.fc-confirm-dialog）里的确认按钮 */
+export function confirmButton(page: Page) {
+  return page.locator('.fc-dialog.fc-confirm-dialog:visible').getByRole('button', { name: '确认' })
+}
+
+/** 在已登录的浏览器上下文里直接调用同源后端 API（用于把"UI 缺陷"与"后端能力缺陷"区分开） */
+export async function apiCall(
+  page: Page,
+  method: string,
+  url: string,
+  body?: unknown
+): Promise<{ status: number; ok: boolean; payload: any }> {
+  return page.evaluate(
+    async ({ method, url, body }) => {
+      const tok = localStorage.getItem('gw4j_token')
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      })
+      let payload: any = null
+      const text = await res.text()
+      try { payload = JSON.parse(text) } catch { payload = text }
+      return { status: res.status, ok: res.ok, payload }
+    },
+    { method, url, body }
+  )
+}
+
+/** 写入测试证据（诊断信息）到文件 */
+export function writeEvidence(line: LineKey, name: string, diag: Diagnostics, extra?: string) {
+  const dir = path.join(SHOT_ROOT, LINES[line])
+  fs.mkdirSync(dir, { recursive: true })
+  const file = path.join(dir, `${name}.log.txt`)
+  const body = [
+    `用例: ${name}`,
+    `时间: ${new Date().toISOString()}`,
+    '',
+    '--- Console Errors ---',
+    diag.consoleErrors.length ? diag.consoleErrors.join('\n') : '(无)',
+    '',
+    '--- Page Errors (未捕获异常) ---',
+    diag.pageErrors.length ? diag.pageErrors.join('\n') : '(无)',
+    '',
+    '--- Failed Requests (网络失败) ---',
+    diag.failedRequests.length ? diag.failedRequests.join('\n') : '(无)',
+    '',
+    '--- HTTP >= 400 ---',
+    diag.httpErrors.length ? diag.httpErrors.join('\n') : '(无)',
+    '',
+    '--- 后端 API 调用记录 (status METHOD path) ---',
+    diag.apiCalls.length ? diag.apiCalls.join('\n') : '(无)',
+    extra ? `\n--- Extra ---\n${extra}` : '',
+  ].join('\n')
+  fs.writeFileSync(file, body, 'utf8')
+  return file
+}
+
+/** 统一的"步骤"封装：执行 -> 截图 -> 记录诊断；失败时抛错并保留证据 */
+export async function step<T>(
+  page: Page,
+  line: LineKey,
+  name: string,
+  fn: () => Promise<T>,
+  opts: { fullPage?: boolean } = {}
+): Promise<T> {
+  try {
+    const r = await fn()
+    await page.screenshot({ path: path.join(ensureDir(line), `${name}.png`), fullPage: opts.fullPage ?? false })
+    return r
+  } catch (e) {
+    await page.screenshot({ path: path.join(ensureDir(line), `${name}-FAIL.png`), fullPage: true }).catch(() => {})
+    throw e
+  }
+}
+
+function ensureDir(line: LineKey) {
+  const dir = path.join(SHOT_ROOT, LINES[line])
+  fs.mkdirSync(dir, { recursive: true })
+  return dir
+}
