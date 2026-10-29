@@ -1,0 +1,25 @@
+用例: 01-06-session-persists-after-reload
+时间: 2026-10-29T07:23:21.280Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMjY1Nzk3MzkzLCJub25jZSI6IjI4NDcxZWRmLTFlZWItNGU4ZC1hZmNiLTQ0ZjZhZGY1N2MxZiIsImlhdCI6MTc5MzI1ODU5NzM5MywiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiIxZWVmZTNlNC1lMzRlLTQxZjctOGQ0Yi00M2RiMzNhYzQwNjIifQ.mvXWE5ffZvLeIdFkRhkMF-qA1vSbDHOqqR5KvSdBpes :: net::ERR_ABORTED
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/login
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/routes
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/routes
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMjY1Nzk4MzIwLCJub25jZSI6IjA5OGRlYWYyLWIxOWQtNDQ3OC05ZGVlLWQyOGRhMzRiZTUyOCIsImlhdCI6MTc5MzI1ODU5ODMyMCwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiJmMDdkZjk3Zi1kOTBkLTRjZmUtOTU5NC1kNWMzZjVhZTI5YmIifQ.mEnHw7F9rwDaJ0HjNnRCX1mofn4R62IDA6_MQdj2MIc

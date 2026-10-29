@@ -1,0 +1,21 @@
+用例: 02-11-topology-node-count
+时间: 2026-10-29T07:26:49.943Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/monitor/topology
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMjY2MDA0OTI3LCJub25jZSI6ImU3ZWJhMjI4LWQyYTMtNGM3MS05YTQ5LTEzZjhlYWMzOWE0OSIsImlhdCI6MTc5MzI1ODgwNDkyNywiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiJkZTg2YzNiYy05NjYyLTRkZWEtOTU1NS1iOWUzNWVlZDRjZWIifQ.GtT1TKnivUkxfPPw3U_ym9bkcgxi-2NFrdCZiVVooz8
+
+--- Extra ---
+UI 节点数=40, 后端节点数=40

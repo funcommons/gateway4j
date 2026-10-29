@@ -1,0 +1,22 @@
+用例: 02-09-metrics-range-switch
+时间: 2026-10-29T07:26:32.497Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMjY1OTg2MDI0LCJub25jZSI6ImVjZDk0MDIxLTg5ODgtNGEwOC05ODNkLWRlMTk4ZThhYTRmNiIsImlhdCI6MTc5MzI1ODc4NjAyNCwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiI4YzVmN2FlZC05YTY0LTQxZDAtYmYwOC04ZTQ0MzhjY2RkYTIifQ.xZb6WzrVQF7HdrNkdUOxWGlQUtxh3n1tHzlVBXMjDxg
+200 GET /v1/monitor/timeseries?routeId=-106&timeRange=6h&granularity=1m
+200 GET /v1/monitor/timeseries?routeId=-106&timeRange=6h&granularity=1m
+
+--- Extra ---
+分段控件组数: 2

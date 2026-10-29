@@ -1,0 +1,22 @@
+用例: 03-13-patch-update
+时间: 2026-10-29T07:28:53.454Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMjY2MTMwODkxLCJub25jZSI6IjFmNTRiYjEwLWVhOTgtNGYwYi1iMjA3LTUxYjRjYzRmYTczYyIsImlhdCI6MTc5MzI1ODkzMDg5MSwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiJlZWIzMzZmOS0zODAwLTRjMDMtOGVkZS00NmQzYzc5YWE2ZWQifQ.SSy53kwMhZyB-ST-J7xX3vZaPmoMRHLaOzcU1tvCA9o
+200 POST /v1/routes
+200 PATCH /v1/routes/2115707426069016577
+
+--- Extra ---
+创建 status=200; PATCH status=200 payload={"id":"2115707426069016577","route_name":"e2e_patch_mvt82g9v836","route_type":"BACKEND","path":"/e2e/e2e_patch_mvt82g9v836/**","upstream_url":"http://127.0.0.1:19000","status":"DRAFT","parent_route_id

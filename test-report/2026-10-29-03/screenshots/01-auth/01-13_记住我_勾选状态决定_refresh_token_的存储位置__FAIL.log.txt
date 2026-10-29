@@ -1,0 +1,20 @@
+用例: 01-13_记住我_勾选状态决定_refresh_token_的存储位置__FAIL
+时间: 2026-10-29T07:03:45.079Z
+
+--- Console Errors ---
+Failed to load resource: the server responded with a status of 429 (Too Many Requests)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+429 POST http://localhost:9302/v1/auth/login
+
+--- 后端 API 调用记录 (status METHOD path) ---
+429 POST /v1/auth/login
+
+--- Extra ---
+失败断言详情见 playwright error-context / results.json

@@ -1,0 +1,36 @@
+用例: 03-14_草稿路由可发布_确认弹窗_状态真的变为已发布___FAIL
+时间: 2026-10-29T06:55:37.981Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMjY0MTA5NjU4LCJub25jZSI6IjgwY2E0NjE0LThmNGQtNDZhOC1hMmY5LWEyOThjZjZiNjBmYiIsImlhdCI6MTc5MzI1NjkwOTY1OCwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiJjOWI2MTYyMC1hM2EzLTQzODAtODdkYy1lODQ1MTBkOWRiMGMifQ.28s6kQY_VkwPiDG4BbSSz0ZHFTx8fHngBIpo4HrM7WY :: net::ERR_ABORTED
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/plugins/builtin-types
+200 GET /v1/environments
+200 GET /v1/routes
+200 POST /v1/routes
+200 GET /v1/routes
+200 GET /v1/routes/2115698955026165762
+200 GET /v1/routes/2115698955026165762
+200 GET /v1/routes/2115698955026165762/plugins
+200 GET /v1/routes/2115698955026165762/plugin-chain
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/routes
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMjY0MTE1ODU3LCJub25jZSI6IjZmZThjYWJjLWFkZjctNDk3Ni04YmIwLTRkZGFkZDY4NDA3YSIsImlhdCI6MTc5MzI1NjkxNTg1NywiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiI0OTAxYmNhZC0wZWM4LTQ4YTgtOWFlOC1mY2NjMWMzODZlMzEifQ.Y2KusI1JwmZotrW8t0wgbI9J6YCCC0ijMHUlSPKXkx0
+200 GET /v1/routes?environment=default
+
+--- Extra ---
+失败断言详情见 playwright error-context / results.json

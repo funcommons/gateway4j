@@ -1,0 +1,59 @@
+用例: 03-15-offline-status-verified
+时间: 2026-10-29T07:29:36.129Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMjY2MTUxMjU4LCJub25jZSI6IjFhMzdiM2QxLWE1OWMtNGIyOS1hNDFmLTQ5OTQ2YTNhMDE1OSIsImlhdCI6MTc5MzI1ODk1MTI1OCwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiJlN2Y0MDk3ZS04MzAwLTQwMDEtOWIxOS03NjkyZTY5N2E2YWIifQ.7o_xjoMP8x7dDuFgiQDWXex02GJ3geJDRBSMQFJcCIA :: net::ERR_ABORTED
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMjY2MTU3NDY1LCJub25jZSI6IjQ0YTI2NDVlLTk0NDktNGU4OS05YTc5LTJhNjA1NGM4MjM5MCIsImlhdCI6MTc5MzI1ODk1NzQ2NSwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiJmY2U1MTMwMS05MGJmLTRlYzEtODY4MC1jYjFmMzhmNTg4MzQifQ.jlY0QxOs8vIJ8Ef4xR-Skir6JVSHiTnOT7TN6-kqnRw :: net::ERR_ABORTED
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMjY2MTY0MjAzLCJub25jZSI6IjA3Y2IwMmVjLTJhNmYtNDQ0ZS1hNzhmLWM4OWMyZjg5ZGM5YSIsImlhdCI6MTc5MzI1ODk2NDIwMywiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiIwMDI3ZGY3Yi1kNGM0LTRlODQtOTg0ZC1jYTNlOGEzNGU5ZDMifQ.PSMT6Vs2jkSDGtZDi-IRHhl4tkFLMqI7afldnYiY-GQ :: net::ERR_ABORTED
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/plugins/builtin-types
+200 GET /v1/environments
+200 GET /v1/routes
+200 POST /v1/routes
+200 GET /v1/routes
+200 GET /v1/routes/2115707518087852033
+200 GET /v1/routes/2115707518087852033
+200 GET /v1/routes/2115707518087852033/plugins
+200 GET /v1/routes/2115707518087852033/plugin-chain
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/routes
+200 GET /v1/routes?environment=default
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMjY2MTU3NDY1LCJub25jZSI6IjQ0YTI2NDVlLTk0NDktNGU4OS05YTc5LTJhNjA1NGM4MjM5MCIsImlhdCI6MTc5MzI1ODk1NzQ2NSwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiJmY2U1MTMwMS05MGJmLTRlYzEtODY4MC1jYjFmMzhmNTg4MzQifQ.jlY0QxOs8vIJ8Ef4xR-Skir6JVSHiTnOT7TN6-kqnRw
+200 POST /v1/routes/2115707518087852033/publish
+200 GET /v1/config/sync-status
+200 GET /v1/routes?environment=default
+200 GET /v1/config/sync-status
+200 GET /v1/routes?environment=default
+200 GET /v1/config/sync-status
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/routes
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMjY2MTY0MjAzLCJub25jZSI6IjA3Y2IwMmVjLTJhNmYtNDQ0ZS1hNzhmLWM4OWMyZjg5ZGM5YSIsImlhdCI6MTc5MzI1ODk2NDIwMywiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiIwMDI3ZGY3Yi1kNGM0LTRlODQtOTg0ZC1jYTNlOGEzNGU5ZDMifQ.PSMT6Vs2jkSDGtZDi-IRHhl4tkFLMqI7afldnYiY-GQ
+200 GET /v1/routes?environment=default
+200 POST /v1/routes/2115707518087852033/offline
+200 GET /v1/routes?environment=default
+200 GET /v1/routes?environment=default
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/routes
+200 GET /v1/routes?environment=default
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMjY2MTcyMTYwLCJub25jZSI6Ijk3YzA3ODg0LTNjOTktNDhmMi04YWMxLWRkNDk5ZDE4MTNmNiIsImlhdCI6MTc5MzI1ODk3MjE2MCwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiIyZmY4ZmY5OS05Y2FkLTQyMGItODAzNS1kYzk2YmE4ZjEyMjYifQ.hzNdFh2vVbDVfDGpHzz8uF-ixhLDiaqgz8-LAXFicc0
+
+--- Extra ---
+下线后行内容:  e2e_off_mvt82vzn929 后置 /e2e/e2e_off_mvt82vzn929/** default — 已下线 编辑 画布 复制 重新发布 删除

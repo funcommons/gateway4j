@@ -1,0 +1,18 @@
+用例: 02-05-metrics-toolbar
+时间: 2026-10-29T07:25:11.873Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMjY1OTA2MDQzLCJub25jZSI6IjMyZmI4ZWY4LTFiNmQtNDE0MC1iYmMwLWM4YWNkNzk1NzkxZiIsImlhdCI6MTc5MzI1ODcwNjA0MywiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiI4YjRiMzk1NC1hODE2LTQ1MTctYjJlYi1jMjkyMzVkNzBmMzUifQ.A046thY5rElDWeVcDJDSNpgsWCNfr1jnOvIPrgA1xjg
+200 GET /v1/monitor/timeseries?routeId=-106&timeRange=1h&granularity=1m
