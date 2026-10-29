@@ -1,7 +1,7 @@
 package fun.commons.gateway4j.admin.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import fun.commons.gateway4j.admin.mapper.RouteConditionMapper;
+import fun.commons.gateway4j.common.mapper.RouteConditionMapper;
 import fun.commons.gateway4j.admin.service.MetricsSnapshotReader;
 import fun.commons.gateway4j.admin.service.RouteService;
 import fun.commons.gateway4j.common.model.Route;
@@ -18,6 +18,7 @@ import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -136,6 +137,24 @@ class MonitorControllerTest {
 
         assertEquals(0L, result.get(0).get("total_requests"));
         assertEquals(0L, result.get(0).get("error_count"));
+    }
+
+    /** P0-2：data_points.timestamp 必须是 ISO-8601 字符串（裸 epoch 毫秒会被 Long→String 契约变成 "1793..."，前端 new Date() 得 Invalid Date）。 */
+    @Test
+    void routeMetricsTimestampsAreIso8601Strings() {
+        Route route = Route.builder().id(1L).path("/api/a").build();
+        when(routeService.getById(1L)).thenReturn(route);
+
+        Map<String, Object> result = controller.routeMetrics(1L, "1h", "1m");
+
+        List<?> points = (List<?>) result.get("data_points");
+        assertTrue(points.size() > 0);
+        for (Object p : points) {
+            Map<?, ?> dp = (Map<?, ?>) p;
+            Object ts = dp.get("timestamp");
+            assertInstanceOf(String.class, ts, "timestamp 必须是 ISO-8601 字符串");
+            assertDoesNotThrow(() -> Instant.parse((String) ts), "timestamp 必须可被 Instant.parse 解析");
+        }
     }
 
     /** avg_latency：本地无数据时用 Redis 快照的 分子/分母（latency_ms_sum / latency_count）。 */

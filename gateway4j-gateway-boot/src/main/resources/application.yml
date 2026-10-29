@@ -6,7 +6,10 @@ spring:
     name: gateway4j-gateway
 
   autoconfigure:
-    exclude: com.alibaba.druid.spring.boot3.autoconfigure.DruidDataSourceAutoConfigure,org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,org.springframework.boot.actuate.autoconfigure.jdbc.DataSourceHealthContributorAutoConfiguration
+    # OpenIdAutoConfiguration 无 ConditionalOnWebApplication 守卫，其 WebMvcConfigurer
+    # 签名在纯 reactive 网关（无 spring-webmvc）下 introspect 即 CNFE；网关数据面
+    # 不使用 openid（MVC 参数解析/Jackson 定制均为 Servlet 侧能力），故显式排除。
+    exclude: com.alibaba.druid.spring.boot3.autoconfigure.DruidDataSourceAutoConfigure,org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,org.springframework.boot.actuate.autoconfigure.jdbc.DataSourceHealthContributorAutoConfiguration,fun.commons.framework4j.openid.config.OpenIdAutoConfiguration
 
   main:
     web-application-type: reactive

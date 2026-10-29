@@ -2,9 +2,9 @@ package fun.commons.gateway4j.admin.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import fun.commons.gateway4j.admin.mapper.RouteConditionMapper;
-import fun.commons.gateway4j.admin.mapper.RouteMapper;
-import fun.commons.gateway4j.admin.mapper.RoutePluginBindingMapper;
+import fun.commons.gateway4j.common.mapper.RouteConditionMapper;
+import fun.commons.gateway4j.common.mapper.RouteMapper;
+import fun.commons.gateway4j.common.mapper.RoutePluginBindingMapper;
 import fun.commons.gateway4j.common.exception.BusinessException;
 import fun.commons.gateway4j.common.constant.ErrorCode;
 import fun.commons.gateway4j.common.model.Route;

@@ -1,9 +1,9 @@
 package fun.commons.gateway4j.gateway.config;
 
-import fun.commons.gateway4j.admin.mapper.PluginMapper;
-import fun.commons.gateway4j.admin.mapper.RouteConditionMapper;
-import fun.commons.gateway4j.admin.mapper.RouteMapper;
-import fun.commons.gateway4j.admin.mapper.RoutePluginBindingMapper;
+import fun.commons.gateway4j.common.mapper.PluginMapper;
+import fun.commons.gateway4j.common.mapper.RouteConditionMapper;
+import fun.commons.gateway4j.common.mapper.RouteMapper;
+import fun.commons.gateway4j.common.mapper.RoutePluginBindingMapper;
 import fun.commons.gateway4j.common.model.Plugin;
 import fun.commons.gateway4j.common.model.Route;
 import fun.commons.gateway4j.common.model.RouteCondition;

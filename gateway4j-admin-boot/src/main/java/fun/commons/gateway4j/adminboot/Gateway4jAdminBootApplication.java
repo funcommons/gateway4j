@@ -8,7 +8,10 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
         "fun.commons.gateway4j",
         "fun.commons.framework4j"
 })
-@MapperScan("fun.commons.gateway4j.admin.mapper")
+@MapperScan({
+        "fun.commons.gateway4j.admin.mapper",
+        "fun.commons.gateway4j.common.mapper"
+})
 public class Gateway4jAdminBootApplication {
 
     public static void main(String[] args) {

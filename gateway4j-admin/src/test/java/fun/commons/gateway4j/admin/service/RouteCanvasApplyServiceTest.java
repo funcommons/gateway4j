@@ -1,7 +1,7 @@
 package fun.commons.gateway4j.admin.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import fun.commons.gateway4j.admin.mapper.RouteConditionMapper;
+import fun.commons.gateway4j.common.mapper.RouteConditionMapper;
 import fun.commons.gateway4j.admin.service.RouteCanvasApplyService.CanvasApplyRequest;
 import fun.commons.gateway4j.admin.service.RouteCanvasApplyService.CanvasEdgeDataDto;
 import fun.commons.gateway4j.admin.service.RouteCanvasApplyService.CanvasEdgeDto;

@@ -26,10 +26,6 @@
             <groupId>fun.commons</groupId>
             <artifactId>gateway4j-common</artifactId>
         </dependency>
-        <dependency>
-            <groupId>fun.commons</groupId>
-            <artifactId>gateway4j-admin</artifactId>
-        </dependency>
 
         <!-- framework4j SDK -->
         <dependency>

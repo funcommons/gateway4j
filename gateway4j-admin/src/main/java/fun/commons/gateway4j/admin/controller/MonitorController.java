@@ -1,7 +1,7 @@
 package fun.commons.gateway4j.admin.controller;
 
 import fun.commons.framework4j.accesstoken.annotation.RequiresToken;
-import fun.commons.gateway4j.admin.mapper.RouteConditionMapper;
+import fun.commons.gateway4j.common.mapper.RouteConditionMapper;
 import fun.commons.gateway4j.admin.service.MetricsSnapshotReader;
 import fun.commons.gateway4j.admin.service.RouteService;
 import fun.commons.gateway4j.common.model.Route;
@@ -11,6 +11,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
 import java.util.*;
 
 @RestController
@@ -66,7 +67,9 @@ public class MonitorController {
         List<Map<String, Object>> dataPoints = new ArrayList<>();
         for (int i = points - 1; i >= 0; i--) {
             Map<String, Object> dp = new LinkedHashMap<>();
-            dp.put("timestamp", now - (long) i * stepMs);
+            // ISO-8601 字符串（带时区语义）：前端 new Date(iso) 直解；裸 epoch 毫秒被
+            // framework4j Long→String 契约序列化成 "1793..." 后 new Date(str) 是 Invalid Date
+            dp.put("timestamp", Instant.ofEpochMilli(now - (long) i * stepMs).toString());
             dp.put("total_requests", (long) total);
             dp.put("error_count", (long) errors);
             dp.put("error_rate", total > 0 ? errors / total : 0.0);

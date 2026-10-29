@@ -1,4 +1,4 @@
-package fun.commons.gateway4j.admin.mapper;
+package fun.commons.gateway4j.common.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import fun.commons.gateway4j.common.model.RouteCondition;
