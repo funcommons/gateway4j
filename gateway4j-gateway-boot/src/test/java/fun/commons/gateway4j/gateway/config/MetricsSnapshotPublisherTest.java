@@ -81,11 +81,42 @@ class MetricsSnapshotPublisherTest {
         assertEquals(150.0, asDouble(value.get("latency_ms_sum")));
         assertEquals(2L, asLong(value.get("latency_count")));
         assertNotNull(value.get("updated_at"));
+        // P1-1: active is always part of the contract (0 without a tracker)
+        assertEquals(0L, asLong(value.get("active")));
 
-        // contract field order for the admin side: total, errors, latency_ms_sum, latency_count, updated_at
+        // contract field order for the admin side: total, errors, latency_ms_sum, latency_count, active, updated_at
         assertIterableEquals(
-                java.util.List.of("total", "errors", "latency_ms_sum", "latency_count", "updated_at"),
+                java.util.List.of("total", "errors", "latency_ms_sum", "latency_count", "active", "updated_at"),
                 ((java.util.LinkedHashMap<?, ?>) value).keySet());
+    }
+
+    @Test
+    void activeFieldMirrorsInFlightTrackerLiveCounts() {
+        fun.commons.gateway4j.engine.metrics.InFlightRequestTracker tracker =
+                new fun.commons.gateway4j.engine.metrics.InFlightRequestTracker();
+        String path = "/e2e/active/**";
+        Counter.builder("gateway4j.requests.total").tag("method", "GET").tag("path", path)
+                .register(meterRegistry).increment();
+
+        tracker.increment(path);
+        tracker.increment(path);
+        new MetricsSnapshotPublisher(redisManager, meterRegistry, tracker).publishSnapshot();
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(hashOperations).putAll(eq(KEY), captor.capture());
+        Map<?, ?> value = fun.commons.gateway4j.common.util.JsonUtils
+                .parseObject((String) captor.getValue().get(path), Map.class);
+        assertEquals(2L, asLong(value.get("active")), "active must reflect live in-flight count");
+
+        tracker.decrement(path);
+        new MetricsSnapshotPublisher(redisManager, meterRegistry, tracker).publishSnapshot();
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> captor2 = ArgumentCaptor.forClass(Map.class);
+        verify(hashOperations, times(2)).putAll(eq(KEY), captor2.capture());
+        Map<?, ?> after = fun.commons.gateway4j.common.util.JsonUtils
+                .parseObject((String) captor2.getValue().get(path), Map.class);
+        assertEquals(1L, asLong(after.get("active")));
     }
 
     @Test

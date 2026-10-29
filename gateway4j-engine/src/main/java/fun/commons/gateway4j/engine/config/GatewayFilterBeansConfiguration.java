@@ -2,6 +2,8 @@ package fun.commons.gateway4j.engine.config;
 
 import fun.commons.gateway4j.engine.filter.DispatchRoutingFilter;
 import fun.commons.gateway4j.engine.filter.PluginExecutionFilter;
+import fun.commons.gateway4j.engine.metrics.InFlightRequestTracker;
+import fun.commons.gateway4j.engine.plugin.metrics.PluginExecutionStats;
 import fun.commons.gateway4j.engine.plugin.runtime.PluginInstanceRegistry;
 import fun.commons.gateway4j.engine.route.dispatcher.RouteDispatcher;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -34,9 +36,33 @@ public class GatewayFilterBeansConfiguration {
         return new DispatchRoutingFilter(configService, routeDispatcher);
     }
 
+    /**
+     * P1-1 in-flight request gauge (per route path pattern bucket), read by the
+     * gateway-boot MetricsSnapshotPublisher for the Redis snapshot's
+     * {@code active} field. Plain object, admin-safe (no SCG types).
+     */
+    @Bean
+    public InFlightRequestTracker inFlightRequestTracker() {
+        return new InFlightRequestTracker();
+    }
+
+    /**
+     * P1-2 plugin execution counters ({@code gateway4j_plugin_execution} meter +
+     * runtime catalog {@code stats}). The MeterRegistry is optional: this bean
+     * may also be created in the admin (Servlet) context where micrometer's
+     * registry exists anyway, so wiring it is safe on both sides.
+     */
+    @Bean
+    public PluginExecutionStats pluginExecutionStats(org.springframework.beans.factory.ObjectProvider<io.micrometer.core.instrument.MeterRegistry> meterRegistry) {
+        return new PluginExecutionStats(meterRegistry.getIfAvailable());
+    }
+
     @Bean
     public PluginExecutionFilter pluginExecutionFilter(ConfigService configService,
-                                                       PluginInstanceRegistry pluginInstanceRegistry) {
-        return new PluginExecutionFilter(configService, pluginInstanceRegistry);
+                                                       PluginInstanceRegistry pluginInstanceRegistry,
+                                                       InFlightRequestTracker inFlightRequestTracker,
+                                                       PluginExecutionStats pluginExecutionStats) {
+        return new PluginExecutionFilter(configService, pluginInstanceRegistry,
+                inFlightRequestTracker, pluginExecutionStats);
     }
 }

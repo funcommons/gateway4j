@@ -26,6 +26,21 @@ logging:
     fun.commons: info
     fun.commons.framework4j: info
 
+management:
+  endpoints:
+    web:
+      exposure:
+        # 9300 数据面暴露面收敛：只放健康/信息/指标，其余 actuator 端点一律不暴露
+        include: health,info,prometheus
+  health:
+    # LoggingElasticsearchPlugin 把 ES 客户端带上了 classpath，actuate 据此自动注册
+    # ElasticsearchHealthIndicator；ES 中间件未部署（可选插件）时 /actuator/health
+    # 恒为 503 DOWN，淹没真实健康状态。这里显式关闭该贡献者（数据面日志走插件的
+    # fail-open 通道，不依赖此健康检查），health 恢复 UP；show-details 保持默认
+    # never，避免内部细节外泄。
+    elasticsearch:
+      enabled: false
+
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
@@ -59,9 +74,19 @@ framework4j:
     redis-name: default
 
 gateway4j:
+  # P2-2 多环境：本数据面实例装载的环境标识（引擎按 environment 过滤 gw_route）。
+  # 单环境部署保持 default，与多环境前行为完全一致；多环境部署时每个实例覆盖此值。
+  env: default
   config:
     # Fallback poll only — primary propagation is the Redis push channel gateway4j:config:changed
     poll-interval-ms: 60000
+  engine:
+    plugin-loader:
+      # 动态插件（GROOVY/JAR，ADR-003 第一阶段）单次执行墙钟上限；超时按该插件 on_error 语义处理
+      exec-timeout-ms: 1000
+      # JAR 插件沙箱父 ClassLoader 在默认白名单（plugin-api+common+web/reactor/slf4j）外
+      # 额外放行的包前缀；扩白名单会削弱隔离，优先把依赖打进插件 jar。
+      # jar-parent-packages: ["com.fasterxml.jackson."]
   open-api:
     app-key: gateway4j-open
     app-secret: dev-test-secret-key

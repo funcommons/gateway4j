@@ -13,12 +13,14 @@ class ConditionTypeTest {
         assertEquals("QUERY", ConditionType.QUERY.code());
         assertEquals("BODY", ConditionType.BODY.code());
         assertEquals("GROOVY", ConditionType.GROOVY.code());
+        assertEquals("WEIGHT", ConditionType.WEIGHT.code());
     }
 
     @Test
     void fromCode() {
         assertEquals(ConditionType.HEADER, ConditionType.fromCode("HEADER"));
         assertEquals(ConditionType.GROOVY, ConditionType.fromCode("GROOVY"));
+        assertEquals(ConditionType.WEIGHT, ConditionType.fromCode("WEIGHT"));
     }
 
     @Test

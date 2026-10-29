@@ -1,10 +1,13 @@
 package fun.commons.gateway4j.engine.plugin.chain;
 
 import fun.commons.gateway4j.common.constant.GatewayConstants;
+import fun.commons.gateway4j.engine.plugin.metrics.PluginExecutionStats;
+import fun.commons.gateway4j.engine.web.GatewayErrorResponses;
 import fun.commons.gateway4j.plugin.api.GatewayPlugin;
 import fun.commons.gateway4j.plugin.api.PluginChain;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
@@ -21,6 +24,18 @@ import java.util.List;
  * plugin" — they propagate. Otherwise a plugin that delegated downstream and
  * saw the forward fail would trigger a second forward attempt through its
  * error handler.</p>
+ *
+ * <p>on_error policy (P1-2): a plugin whose {@code gw_plugin.config} JSON sets
+ * {@code "on_error":"close"} (see {@link ConfiguredPlugin#extractOnError})
+ * short-circuits the request with 503 + JSON envelope when it throws — before
+ * the continuation has started. After the continuation started the guard rail
+ * above wins (the error propagates; a rendered response can't be un-rendered).
+ * Every plugin (default open) keeps the historical fail-open behavior.</p>
+ *
+ * <p>Execution metrics (P1-2): every evaluation is recorded into the optional
+ * {@link PluginExecutionStats} — {@code ok} / {@code skipped} / {@code error} —
+ * feeding the {@code gateway4j_plugin_execution} meter and the Redis runtime
+ * catalog's {@code stats} object.</p>
  */
 public class FailSafePluginChainRunner {
 
@@ -30,10 +45,20 @@ public class FailSafePluginChainRunner {
     public static final String CONTINUATION_STARTED_ATTR =
             GatewayConstants.PLUGIN_CONTEXT_PREFIX + "chainContinuationStarted";
 
+    /** Exchange attribute: set when an on_error=close plugin short-circuited the request (value = plugin_id). */
+    public static final String ABORTED_BY_PLUGIN_ATTR =
+            GatewayConstants.PLUGIN_CONTEXT_PREFIX + "chainAbortedByPlugin";
+
     private final List<GatewayPlugin> plugins;
+    private final PluginExecutionStats stats;
 
     public FailSafePluginChainRunner(List<GatewayPlugin> plugins) {
+        this(plugins, null);
+    }
+
+    public FailSafePluginChainRunner(List<GatewayPlugin> plugins, PluginExecutionStats stats) {
         this.plugins = plugins == null ? List.of() : List.copyOf(plugins);
+        this.stats = stats;
     }
 
     /**
@@ -56,26 +81,70 @@ public class FailSafePluginChainRunner {
         Mono<Void> step;
         try {
             if (plugin.skip(exchange)) {
+                record(plugin, PluginExecutionStats.Result.SKIPPED);
                 step = executeFrom(index + 1, exchange, continuation);
             } else {
-                step = plugin.execute(exchange, new RemainingChain(index + 1, continuation));
+                step = plugin.execute(exchange, new RemainingChain(index + 1, continuation))
+                        .doOnSuccess(v -> record(plugin, PluginExecutionStats.Result.OK));
             }
         } catch (Throwable t) {
+            record(plugin, PluginExecutionStats.Result.ERROR);
             log.warn("Plugin {} threw synchronously, fail-open continue: {}",
                     plugin.pluginId(), t.toString());
+            if (closeOnError(plugin)) {
+                return shortCircuit(exchange, plugin, t);
+            }
             step = executeFrom(index + 1, exchange, continuation);
         }
 
         return step.onErrorResume(t -> {
             if (Boolean.TRUE.equals(exchange.getAttribute(CONTINUATION_STARTED_ATTR))) {
                 // The forwarding (or a later plugin) already ran; never re-run the chain.
+                // NOTE: deliberately NOT recorded as this plugin's ERROR — the failure
+                // belongs to the forward (tracked by the request metrics), and the error
+                // re-emitted from a deeper level would otherwise be attributed to every
+                // outer plugin boundary it passes through.
                 log.warn("Plugin {} failed after chain progressed, propagating: {}",
                         plugin.pluginId(), t.toString());
                 return Mono.error(t);
             }
+            record(plugin, PluginExecutionStats.Result.ERROR);
             log.warn("Plugin {} failed, fail-open continue: {}", plugin.pluginId(), t.toString());
+            if (closeOnError(plugin)) {
+                return shortCircuit(exchange, plugin, t);
+            }
             return executeFrom(index + 1, exchange, continuation);
         });
+    }
+
+    /** on_error=close (from the row's config JSON) → 503 short-circuit instead of fail-open. */
+    private boolean closeOnError(GatewayPlugin plugin) {
+        return plugin instanceof ConfiguredPlugin configured
+                && ConfiguredPlugin.ON_ERROR_CLOSE.equals(configured.onError());
+    }
+
+    /**
+     * Renders 503 + JSON envelope and terminates the chain (no further plugins,
+     * no forward). The written response commits it, which PluginExecutionFilter's
+     * existing isCommitted guard turns into "skip forward and POST chain".
+     * Fail-safe: an already-committed response can't be rewritten — the original
+     * error propagates instead.
+     */
+    private Mono<Void> shortCircuit(ServerWebExchange exchange, GatewayPlugin plugin, Throwable t) {
+        log.warn("Plugin {} failed with on_error=close, short-circuiting request with 503: {}",
+                plugin.pluginId(), t.toString());
+        exchange.getAttributes().put(ABORTED_BY_PLUGIN_ATTR, String.valueOf(plugin.pluginId()));
+        if (exchange.getResponse().isCommitted()) {
+            return Mono.error(t);
+        }
+        return GatewayErrorResponses.respond(exchange, HttpStatus.SERVICE_UNAVAILABLE,
+                "Service Unavailable: plugin '" + plugin.pluginId() + "' failed (on_error=close)");
+    }
+
+    private void record(GatewayPlugin plugin, PluginExecutionStats.Result result) {
+        if (stats != null) {
+            stats.record(plugin.pluginId(), plugin.pluginName(), plugin.phase(), result);
+        }
     }
 
     /** PluginChain view over the plugins after {@code index}. */

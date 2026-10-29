@@ -3,8 +3,10 @@ package fun.commons.gateway4j.engine.filter;
 import fun.commons.gateway4j.common.constant.GatewayConstants;
 import fun.commons.gateway4j.common.model.Plugin;
 import fun.commons.gateway4j.engine.config.ConfigService;
+import fun.commons.gateway4j.engine.metrics.InFlightRequestTracker;
 import fun.commons.gateway4j.engine.plugin.chain.ConfiguredPlugin;
 import fun.commons.gateway4j.engine.plugin.chain.FailSafePluginChainRunner;
+import fun.commons.gateway4j.engine.plugin.metrics.PluginExecutionStats;
 import fun.commons.gateway4j.engine.plugin.runtime.PluginInstanceRegistry;
 import fun.commons.gateway4j.plugin.api.GatewayPlugin;
 import org.slf4j.Logger;
@@ -80,10 +82,19 @@ public class PluginExecutionFilter implements GlobalFilter, org.springframework.
 
     private final ConfigService configService;
     private final PluginInstanceRegistry pluginRegistry;
+    private final InFlightRequestTracker inFlightTracker;
+    private final PluginExecutionStats executionStats;
 
     public PluginExecutionFilter(ConfigService configService, PluginInstanceRegistry pluginRegistry) {
+        this(configService, pluginRegistry, null, null);
+    }
+
+    public PluginExecutionFilter(ConfigService configService, PluginInstanceRegistry pluginRegistry,
+                                 InFlightRequestTracker inFlightTracker, PluginExecutionStats executionStats) {
         this.configService = configService;
         this.pluginRegistry = pluginRegistry;
+        this.inFlightTracker = inFlightTracker;
+        this.executionStats = executionStats;
     }
 
     @Override
@@ -97,6 +108,16 @@ public class PluginExecutionFilter implements GlobalFilter, org.springframework.
         Long routeId = resolveRouteId(exchange);
         exposeRoutePathPattern(exchange, routeId);
 
+        // P1-1 in-flight gauge: counted from plugin-chain start until this filter's
+        // Mono terminates (forward + POST chain included). Requests that never match
+        // a route never reach this filter (fail fast with 404) and are not counted;
+        // a route whose path pattern is unreadable lands in the "_other" bucket.
+        String inFlightBucket = inFlightTracker == null ? null
+                : inFlightTracker.bucketFor(exchange.getAttribute(ROUTE_PATH_PATTERN_ATTR));
+        if (inFlightTracker != null) {
+            inFlightTracker.increment(inFlightBucket);
+        }
+
         List<GatewayPlugin> pre = compose(PHASE_PRE, routeId);
         List<GatewayPlugin> post = compose(PHASE_POST, routeId);
         if (log.isDebugEnabled() && (!pre.isEmpty() || !post.isEmpty())) {
@@ -104,7 +125,7 @@ public class PluginExecutionFilter implements GlobalFilter, org.springframework.
                     ids(pre), ids(post));
         }
 
-        return new FailSafePluginChainRunner(pre).execute(exchange, Mono.empty())
+        return new FailSafePluginChainRunner(pre, executionStats).execute(exchange, Mono.empty())
                 .then(Mono.defer(() -> {
                     if (exchange.getResponse().isCommitted()) {
                         // A PRE plugin short-circuited (already wrote the response):
@@ -126,7 +147,7 @@ public class PluginExecutionFilter implements GlobalFilter, org.springframework.
                                 // request as an error even though no status was rendered yet).
                                 exchange.getAttributes().put(FORWARD_ERROR_ATTR,
                                         forwardError.getClass().getSimpleName());
-                                return new FailSafePluginChainRunner(post)
+                                return new FailSafePluginChainRunner(post, executionStats)
                                         .execute(exchange, Mono.empty())
                                         .onErrorResume(postError -> {
                                             log.warn("POST plugin chain failed on error path, propagating original forward error: {}",
@@ -135,9 +156,14 @@ public class PluginExecutionFilter implements GlobalFilter, org.springframework.
                                         })
                                         .then(Mono.error(forwardError));
                             })
-                            .then(Mono.defer(() -> new FailSafePluginChainRunner(post)
+                            .then(Mono.defer(() -> new FailSafePluginChainRunner(post, executionStats)
                                     .execute(exchange, Mono.empty())));
-                }));
+                }))
+                .doFinally(signal -> {
+                    if (inFlightTracker != null) {
+                        inFlightTracker.decrement(inFlightBucket);
+                    }
+                });
     }
 
     /**
@@ -235,7 +261,12 @@ public class PluginExecutionFilter implements GlobalFilter, org.springframework.
         return rows.stream().filter(p -> phase.equals(p.getPluginPhase())).toList();
     }
 
-    /** Maps persisted plugin rows to runtime instances; rows without an instance are skipped. */
+    /**
+     * Maps persisted plugin rows to runtime instances; rows without an instance
+     * are skipped (counted as {@code skipped} in the execution stats) and the
+     * row's raw config JSON travels along on the ConfiguredPlugin for the
+     * generic on_error policy extraction.
+     */
     private void appendInstances(List<GatewayPlugin> target, List<Plugin> rows) {
         if (rows == null) {
             return;
@@ -245,10 +276,14 @@ public class PluginExecutionFilter implements GlobalFilter, org.springframework.
             if (instance == null) {
                 log.debug("Plugin row {} (plugin_id={}, type={}) has no runtime instance, skipping",
                         row.getId(), row.getPluginId(), row.getPluginType());
+                if (executionStats != null) {
+                    executionStats.record(row.getPluginId(), row.getPluginName(),
+                            row.getPluginPhase(), PluginExecutionStats.Result.SKIPPED);
+                }
                 continue;
             }
             int order = row.getSortOrder() != null ? row.getSortOrder() : 0;
-            target.add(new ConfiguredPlugin(instance, order));
+            target.add(new ConfiguredPlugin(instance, order, row.getConfig()));
         }
     }
 

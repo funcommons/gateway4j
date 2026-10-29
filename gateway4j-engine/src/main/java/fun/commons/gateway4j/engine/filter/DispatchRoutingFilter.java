@@ -3,6 +3,7 @@ package fun.commons.gateway4j.engine.filter;
 import fun.commons.gateway4j.common.constant.GatewayConstants;
 import fun.commons.gateway4j.engine.config.ConfigService;
 import fun.commons.gateway4j.engine.route.dispatcher.RouteDispatcher;
+import fun.commons.gateway4j.engine.web.GatewayErrorResponses;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
@@ -29,8 +30,10 @@ import java.net.URI;
  * rewritten.</p>
  *
  * <p>If no condition matches any target, the gateway answers 404 itself (the
- * request is never forwarded). Backend (BACKEND) routes are not touched and
- * pass straight through.</p>
+ * request is never forwarded) using the shared data-plane error envelope + an
+ * {@code X-Trace-Id} header ({@link GatewayErrorResponses}, same shape as
+ * gateway-boot's GatewayErrorAdvice). Backend (BACKEND) routes are not touched
+ * and pass straight through.</p>
  */
 public class DispatchRoutingFilter implements GlobalFilter, org.springframework.core.Ordered {
 
@@ -63,7 +66,7 @@ public class DispatchRoutingFilter implements GlobalFilter, org.springframework.
         if (routeId == null || !configService.isDispatchRoute(routeId)) {
             return chain.filter(exchange);
         }
-        log.info("Dispatch route {} handling request {}", routeId, exchange.getRequest().getPath().value());
+        log.debug("Dispatch route {} handling request {}", routeId, exchange.getRequest().getPath().value());
 
         java.util.concurrent.atomic.AtomicBoolean resolved =
                 new java.util.concurrent.atomic.AtomicBoolean(false);
@@ -84,12 +87,13 @@ public class DispatchRoutingFilter implements GlobalFilter, org.springframework.
         URI target = buildTargetUri(exchange.getRequest().getURI(), resolved.upstreamUrl());
         if (target == null) {
             log.warn("Dispatch route resolved to invalid upstream '{}', returning 502", resolved.upstreamUrl());
-            return respond(exchange, HttpStatus.BAD_GATEWAY);
+            return respond(exchange, HttpStatus.BAD_GATEWAY,
+                    "Bad Gateway: dispatch route resolved to invalid upstream");
         }
         exchange.getAttributes().put(ServerWebExchangeUtils.GATEWAY_REQUEST_URL_ATTR, target);
         exchange.getAttributes().put(GatewayConstants.RESOLVED_ROUTE_KEY, resolved);
         exchange.getAttributes().put(GatewayConstants.ROUTE_ID_KEY, resolved.routeId());
-        log.info("Dispatch forwarding route={} path={} to upstream={}",
+        log.debug("Dispatch forwarding route={} path={} to upstream={}",
                 resolved.routeId(), resolved.matchedPath(), resolved.upstreamUrl());
         return chain.filter(exchange);
     }
@@ -109,15 +113,24 @@ public class DispatchRoutingFilter implements GlobalFilter, org.springframework.
         }
     }
 
+    /**
+     * The single info-level log line for the no-target 404 case (the happy-path
+     * dispatch logs stay debug — per-request noise). The 404 itself answers with
+     * the same JSON envelope + {@code X-Trace-Id} as GatewayErrorAdvice, so the
+     * gateway's own answers are indistinguishable in shape from the advice ones.
+     */
     private Mono<Void> respond404(ServerWebExchange exchange, Long dispatchRouteId) {
         log.info("Dispatch route {} matched path {} but no condition/target resolved, returning 404",
                 dispatchRouteId, exchange.getRequest().getPath().value());
-        return respond(exchange, HttpStatus.NOT_FOUND);
+        return respond(exchange, HttpStatus.NOT_FOUND, "Not Found: no dispatch condition/target resolved");
     }
 
-    private Mono<Void> respond(ServerWebExchange exchange, HttpStatus status) {
-        exchange.getResponse().setStatusCode(status);
-        return exchange.getResponse().setComplete();
+    private Mono<Void> respond(ServerWebExchange exchange, HttpStatus status, String message) {
+        if (exchange.getResponse().isCommitted()) {
+            // defensive: nothing sensible to render anymore
+            return exchange.getResponse().setComplete();
+        }
+        return GatewayErrorResponses.respond(exchange, status, message);
     }
 
     private Long parseRouteId(String id) {

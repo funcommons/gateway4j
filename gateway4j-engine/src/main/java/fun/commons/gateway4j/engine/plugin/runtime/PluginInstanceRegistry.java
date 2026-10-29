@@ -31,6 +31,20 @@ public class PluginInstanceRegistry {
         instances.put(plugin.pluginId(), plugin);
     }
 
+    /**
+     * Removes a runtime instance (dynamic GROOVY/JAR plugins: the loader
+     * unregisters when a row is disabled/changed/removed, closing its
+     * classloader). Builtins are never unregistered. No-op when absent.
+     *
+     * @return the previously registered instance, or {@code null}
+     */
+    public GatewayPlugin unregister(String pluginId) {
+        if (pluginId == null) {
+            return null;
+        }
+        return instances.remove(pluginId);
+    }
+
     public GatewayPlugin find(String pluginId) {
         if (pluginId == null) {
             return null;

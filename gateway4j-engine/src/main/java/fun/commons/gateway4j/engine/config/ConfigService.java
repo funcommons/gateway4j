@@ -17,12 +17,21 @@ import org.springframework.context.event.EventListener;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 
-public class ConfigService {
+public class ConfigService implements org.springframework.context.EnvironmentAware {
 
     private static final Logger log = LoggerFactory.getLogger(ConfigService.class);
 
     private static final String STATUS_PUBLISHED = "PUBLISHED";
+
+    /** P2-2 多环境：数据面环境标识配置项（{@code gateway4j.env}，缺省 default）。 */
+    public static final String ENV_PROPERTY = "gateway4j.env";
+
+    private static final Pattern ENV_PATTERN = Pattern.compile(Route.ENVIRONMENT_PATTERN);
+
+    /** 当前数据面环境（volatile：loadAllConfig 与请求线程并发读）。 */
+    private volatile String environment = Route.DEFAULT_ENVIRONMENT;
 
     private final RouteConfigCache routeCache;
     private final PluginConfigCache pluginCache;
@@ -66,24 +75,108 @@ public class ConfigService {
         List<Plugin> plugins = pluginLoader.get();
         List<RoutePluginBinding> bindings = bindingLoader.get();
 
-        routeCache.refreshAll(routes);
+        // P2-2 多环境：装载查询按当前 environment 过滤（等效 SQL 侧
+        // WHERE environment = ?，单 env 部署全部行为 'default'，零行为变化）。
+        List<Route> envRoutes = filterByEnvironment(routes);
+        routeCache.refreshAll(envRoutes);
         pluginCache.refreshAll(plugins);
         // Push persisted plugin config into runtime plugin instances (fail-open per plugin).
         pluginRegistry.applyPluginConfigs(plugins);
 
         // The data plane (dispatcher path/condition matching + SCG registration via
         // DynamicRouteLocator's supplier) only ever serves PUBLISHED routes.
-        List<Route> publishedRoutes = routes.stream()
+        List<Route> publishedRoutes = envRoutes.stream()
                 .filter(r -> STATUS_PUBLISHED.equals(r.getStatus()))
                 .toList();
         routeDispatcher.updateRoutes(publishedRoutes, conditions);
 
         this.bindings = bindings == null ? List.of() : bindings;
 
-        log.info("Config loaded: routes={} (published={}), conditions={}, plugins={}, bindings={}",
-                routes.size(), publishedRoutes.size(), conditions.size(), plugins.size(), this.bindings.size());
-        eventPublisher.publishEvent(new fun.commons.gateway4j.engine.config.event.ConfigLoadedEvent(this, plugins));
+        log.info("Config loaded: environment={}, routes={} (published={}), conditions={}, plugins={}, bindings={}",
+                environment, envRoutes.size(), publishedRoutes.size(), conditions.size(), plugins.size(),
+                this.bindings.size());
+        eventPublisher.publishEvent(new fun.commons.gateway4j.engine.config.event.ConfigLoadedEvent(
+                this, plugins, maxConfigVersion(envRoutes, plugins)));
         eventPublisher.publishEvent(new org.springframework.cloud.gateway.event.RefreshRoutesEvent(this));
+    }
+
+    /**
+     * P2-2 多环境：把装载到的路由行按当前 environment 过滤。
+     *
+     * <p>environment 为 null/blank 的行（迁移前的存量数据、旧客户端写入）视为
+     * {@link Route#DEFAULT_ENVIRONMENT}，保证向后兼容；其他环境的行不进缓存、
+     * 不进分发器，本环境的 gateway 完全无感。</p>
+     */
+    private List<Route> filterByEnvironment(List<Route> routes) {
+        if (routes == null) {
+            return List.of();
+        }
+        String env = this.environment;
+        return routes.stream()
+                .filter(r -> env.equals(environmentOf(r)))
+                .toList();
+    }
+
+    /** 路由行的有效环境：null/blank 归一为 default（向后兼容；口径在 common，admin/engine 共用）。 */
+    public static String environmentOf(Route route) {
+        return route == null ? Route.DEFAULT_ENVIRONMENT : Route.environmentOr(route.getEnvironment());
+    }
+
+    /**
+     * Spring 装配回调：从 {@code gateway4j.env} 读取环境标识（缺省 default）。
+     * 仅 Spring 容器创建的实例会触发（@Bean 返回对象同样走 Aware 回调）；
+     * 直接 new 的实例保持 default，可用 {@link #setEnvironment(String)} 显式指定。
+     */
+    @Override
+    public void setEnvironment(org.springframework.core.env.Environment springEnvironment) {
+        String configured = springEnvironment.getProperty(ENV_PROPERTY, Route.DEFAULT_ENVIRONMENT);
+        applyEnvironment(configured);
+    }
+
+    /** 显式指定数据面环境（测试 / 非容器装配用）；非法值告警并回退 default（fail-open）。 */
+    public void setEnvironment(String environment) {
+        applyEnvironment(environment);
+    }
+
+    private void applyEnvironment(String configured) {
+        if (configured == null || configured.isBlank()) {
+            this.environment = Route.DEFAULT_ENVIRONMENT;
+            return;
+        }
+        String trimmed = configured.trim();
+        if (!ENV_PATTERN.matcher(trimmed).matches()) {
+            log.warn("Invalid {} '{}' (expected {}), falling back to '{}'",
+                    ENV_PROPERTY, configured, Route.ENVIRONMENT_PATTERN, Route.DEFAULT_ENVIRONMENT);
+            this.environment = Route.DEFAULT_ENVIRONMENT;
+            return;
+        }
+        this.environment = trimmed;
+    }
+
+    /** 当前数据面环境标识（恒非 null，已按白名单校验）。 */
+    public String getEnvironment() {
+        return environment;
+    }
+
+
+    /** Max config_version over the loaded route + plugin rows (P1-3 sync-status "version"). */
+    static long maxConfigVersion(List<Route> routes, List<Plugin> plugins) {
+        long max = 0;
+        if (routes != null) {
+            for (Route route : routes) {
+                if (route != null && route.getConfigVersion() != null) {
+                    max = Math.max(max, route.getConfigVersion());
+                }
+            }
+        }
+        if (plugins != null) {
+            for (Plugin plugin : plugins) {
+                if (plugin != null && plugin.getConfigVersion() != null) {
+                    max = Math.max(max, plugin.getConfigVersion());
+                }
+            }
+        }
+        return max;
     }
 
     public Route getRoute(Long id) {

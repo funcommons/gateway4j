@@ -16,6 +16,7 @@ import fun.commons.gateway4j.plugin.api.PluginChain;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
+import org.springframework.http.HttpStatus;
 
 import org.springframework.cloud.gateway.support.ServerWebExchangeUtils;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
@@ -249,5 +250,111 @@ class PluginExecutionFilterTest {
             return Mono.empty();
         }).block();
         return seen.get();
+    }
+
+    // ------------------------------------------------------------------
+    // P1-1: in-flight gauge / P1-2: execution stats
+    // ------------------------------------------------------------------
+
+    @Test
+    void inFlightCountIncrementsAndDecrementsAroundTheRequest() {
+        fun.commons.gateway4j.engine.metrics.InFlightRequestTracker tracker =
+                new fun.commons.gateway4j.engine.metrics.InFlightRequestTracker();
+        filter = new PluginExecutionFilter(configService, registry, tracker,
+                new fun.commons.gateway4j.engine.plugin.metrics.PluginExecutionStats());
+        seed();
+
+        java.util.concurrent.atomic.AtomicLong seenDuringRequest = new java.util.concurrent.atomic.AtomicLong(-1);
+        filter.filter(exchange(), ex -> {
+            seenDuringRequest.set(tracker.activeFor("/api/**"));
+            return Mono.empty();
+        }).block();
+
+        assertEquals(1L, seenDuringRequest.get(), "in-flight must be 1 while the request executes");
+        assertEquals(0L, tracker.activeFor("/api/**"), "in-flight must drop back to 0 after completion");
+    }
+
+    @Test
+    void inFlightDecrementsEvenWhenForwardFails() {
+        fun.commons.gateway4j.engine.metrics.InFlightRequestTracker tracker =
+                new fun.commons.gateway4j.engine.metrics.InFlightRequestTracker();
+        filter = new PluginExecutionFilter(configService, registry, tracker, null);
+        seed();
+
+        assertThrows(RuntimeException.class, () ->
+                filter.filter(exchange(), ex -> Mono.error(new RuntimeException("upstream down"))).block());
+
+        assertEquals(0L, tracker.activeFor("/api/**"), "doFinally must fire on error signals too");
+    }
+
+    @Test
+    void inFlightWithoutRoutePatternFallsIntoOtherBucket() {
+        fun.commons.gateway4j.engine.metrics.InFlightRequestTracker tracker =
+                new fun.commons.gateway4j.engine.metrics.InFlightRequestTracker();
+        filter = new PluginExecutionFilter(configService, registry, tracker, null);
+        // no route attribute → no pattern → "_other"
+        MockServerWebExchange noRoute = MockServerWebExchange.builder(
+                MockServerHttpRequest.get("/nowhere").build()).build();
+
+        java.util.concurrent.atomic.AtomicLong seenDuringRequest = new java.util.concurrent.atomic.AtomicLong(-1);
+        filter.filter(noRoute, ex -> {
+            seenDuringRequest.set(tracker.activeFor("_other"));
+            return Mono.empty();
+        }).block();
+
+        assertEquals(1L, seenDuringRequest.get(), "pattern-less requests are counted under _other");
+        assertEquals(0L, tracker.activeFor("_other"), "and released after the request");
+    }
+
+    @Test
+    void unregisteredPluginRowCountsAsSkippedInStats() {
+        fun.commons.gateway4j.engine.plugin.metrics.PluginExecutionStats stats =
+                new fun.commons.gateway4j.engine.plugin.metrics.PluginExecutionStats();
+        filter = new PluginExecutionFilter(configService, registry, null, stats);
+
+        register("gpre", "PRE", "GLOBAL");
+        plugins.add(Plugin.builder().id(1L).pluginId("gpre").pluginName("g")
+                .pluginType("BUILTIN").pluginPhase("PRE").scope("GLOBAL")
+                .status("ENABLED").sortOrder(1).config("{}").build());
+        // no runtime instance for "ghost" → composition-time skip, counted per request
+        plugins.add(Plugin.builder().id(2L).pluginId("ghost").pluginName("ghost-name")
+                .pluginType("GROOVY").pluginPhase("PRE").scope("GLOBAL")
+                .status("ENABLED").sortOrder(2).config("{}").build());
+        configService.loadAllConfig();
+
+        filter.filter(exchange(), ex -> Mono.empty()).block();
+
+        assertArrayEquals(new long[]{0, 1, 0}, stats.statsFor("ghost"));
+        assertArrayEquals(new long[]{1, 0, 0}, stats.statsFor("gpre"));
+    }
+
+    @Test
+    void onErrorCloseConfigReachesTheChainRunner() {
+        // security-style strict config on a throwing plugin: 503 short-circuit, no forward
+        registry.register(new GatewayPlugin() {
+            @Override public String pluginId() { return "strict"; }
+            @Override public String pluginName() { return "strict"; }
+            @Override public String phase() { return "PRE"; }
+            @Override public int order() { return 0; }
+            @Override public Mono<Void> execute(ServerWebExchange ex, PluginChain chain) {
+                execution.add("strict:PRE");
+                return Mono.error(new IllegalStateException("waf exploded"));
+            }
+        });
+        plugins.add(Plugin.builder().id(9L).pluginId("strict").pluginName("strict")
+                .pluginType("BUILTIN").pluginPhase("PRE").scope("GLOBAL")
+                .status("ENABLED").sortOrder(1).config("{\"on_error\":\"close\"}").build());
+        configService.loadAllConfig();
+
+        MockServerWebExchange exchange = exchange();
+        boolean[] chained = {false};
+        filter.filter(exchange, ex -> {
+            chained[0] = true;
+            return Mono.empty();
+        }).block();
+
+        assertFalse(chained[0], "on_error=close must short-circuit before the forward");
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, exchange.getResponse().getStatusCode());
+        assertTrue(exchange.getResponse().getBodyAsString().block().contains("\"code\":503"));
     }
 }

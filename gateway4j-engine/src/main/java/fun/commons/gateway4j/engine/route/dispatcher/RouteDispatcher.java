@@ -1,5 +1,6 @@
 package fun.commons.gateway4j.engine.route.dispatcher;
 
+import fun.commons.gateway4j.common.constant.ConditionType;
 import fun.commons.gateway4j.common.constant.GatewayConstants;
 import fun.commons.gateway4j.common.exception.CyclicReferenceException;
 import fun.commons.gateway4j.common.exception.DepthExceededException;
@@ -13,7 +14,9 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
+import java.util.random.RandomGenerator;
 import java.util.stream.Collectors;
 
 public class RouteDispatcher {
@@ -25,9 +28,29 @@ public class RouteDispatcher {
     private Map<Long, Route> routeMap = Map.of();
     private Map<Long, List<RouteCondition>> conditionMap = Map.of();
 
+    /**
+     * WEIGHT 流量分割的随机源，产出 [0,1) 的 double。
+     * 生产默认 ThreadLocalRandom（线程安全、每线程独立）；单测可通过构造器或
+     * {@link #setRandom(RandomGenerator)} 注入固定 seed 的 SplittableRandom/Random
+     * 以确定性复现精确选择序列（注入线程不安全的源时须保证单线程调度）。
+     */
+    private volatile RandomGenerator random;
+
     public RouteDispatcher(RoutePathMatcher pathMatcher, RouteConditionMatcher conditionMatcher) {
+        this(pathMatcher, conditionMatcher, ThreadLocalRandom.current());
+    }
+
+    /** Test/ops seam: inject a deterministic {@link RandomGenerator} (e.g. a seeded SplittableRandom). */
+    public RouteDispatcher(RoutePathMatcher pathMatcher, RouteConditionMatcher conditionMatcher,
+                           RandomGenerator random) {
         this.pathMatcher = pathMatcher;
         this.conditionMatcher = conditionMatcher;
+        this.random = Objects.requireNonNull(random, "random");
+    }
+
+    /** Replaces the WEIGHT traffic-split random source at runtime (ops/test seam). */
+    public void setRandom(RandomGenerator random) {
+        this.random = Objects.requireNonNull(random, "random");
     }
 
     public void updateRoutes(List<Route> routes, List<RouteCondition> conditions) {
@@ -123,7 +146,14 @@ public class RouteDispatcher {
         List<RouteCondition> sorted = new ArrayList<>(conditions);
         sorted.sort(Comparator.comparingInt(RouteCondition::getPriority));
 
+        // WEIGHT 条件不是请求谓词（恒不参与 match），先摘出走加权随机通道；
+        // 非 WEIGHT 条件保持既有语义：priority 升序，首个匹配且目标可解析者胜出。
+        List<RouteCondition> weightCandidates = new ArrayList<>();
         for (RouteCondition condition : sorted) {
+            if (ConditionType.WEIGHT.code().equals(condition.getConditionType())) {
+                weightCandidates.add(condition);
+                continue;
+            }
             if (conditionMatcher.match(exchange, condition)) {
                 Long targetId = condition.getTargetRouteId();
                 if (visited.contains(targetId)) {
@@ -155,8 +185,132 @@ public class RouteDispatcher {
             }
         }
 
-        log.info("Dispatch route {} resolved no target from {} condition(s)", currentRoute.getId(), sorted.size());
-        return Mono.empty();
+        if (weightCandidates.isEmpty()) {
+            log.info("Dispatch route {} resolved no target from {} condition(s)", currentRoute.getId(), sorted.size());
+            return Mono.empty();
+        }
+        return dispatchWeighted(exchange, currentRoute, weightCandidates, visited, dispatchPath, depth);
+    }
+
+    /**
+     * WEIGHT 流量分割（MSE 金丝雀 / APISIX traffic-split 口径）。仅当同一分发路由下
+     * 没有任何非 WEIGHT 条件匹配时才进入本通道；权重取 {@code condition_key} 中的
+     * 正整数字符串（如 {@code "20"}/{@code "80"}），{@code condition_value} 可空忽略。
+     *
+     * <p>候选口径：① 目标路由缺失/未发布 → 剔除（与既有 continue 语义一致）；
+     * ② 目标已在 visited（成环）→ 剔除并告警（加权通道按配置错误跳过而非随机抛环错误，
+     * 全部候选成环时按既有 no-target 兜底返回 empty→404）；③ 权重非法（空/非数字/
+     * 0/负数）→ 该候选权重记 0，不参与加权随机，但保留其目标参与"全 0 兜底"；
+     * ④ 权重之和为 0 → 既有默认选择：priority 升序首个目标可解析的候选。</p>
+     */
+    private Mono<ResolvedRoute> dispatchWeighted(ServerWebExchange exchange, Route currentRoute,
+                                                 List<RouteCondition> weightCandidates, Set<Long> visited,
+                                                 List<Long> dispatchPath, int depth) {
+        List<RouteCondition> resolvable = new ArrayList<>(weightCandidates.size());
+        List<Long> weights = new ArrayList<>(weightCandidates.size());
+        long total = 0;
+        for (RouteCondition condition : weightCandidates) {
+            Long targetId = condition.getTargetRouteId();
+            Route targetRoute = targetId == null ? null : routeMap.get(targetId);
+            if (targetRoute == null) {
+                log.warn("Dispatch route {} weight candidate (key={}) targets missing/unpublished route {}, ignoring",
+                        currentRoute.getId(), condition.getConditionKey(), targetId);
+                continue;
+            }
+            if (visited.contains(targetId)) {
+                log.warn("Dispatch route {} weight candidate targets route {} forming cycle {}, ignoring",
+                        currentRoute.getId(), targetId, buildCyclePath(dispatchPath, targetId));
+                continue;
+            }
+            long weight = parseWeight(currentRoute, condition);
+            if (weight > 0) {
+                total += weight;
+            }
+            resolvable.add(condition);
+            weights.add(weight);
+        }
+
+        if (resolvable.isEmpty()) {
+            log.info("Dispatch route {} resolved no target from {} weight candidate(s)",
+                    currentRoute.getId(), weightCandidates.size());
+            return Mono.empty();
+        }
+
+        int chosenIndex;
+        if (total > 0) {
+            chosenIndex = selectByWeight(resolvable.size(), weights, total);
+        } else {
+            // 全部候选权重之和为 0（全部非法/为 0）→ 既有默认选择：priority 升序首个可解析候选。
+            chosenIndex = 0;
+            log.info("Dispatch route {} weight candidates sum to 0, falling back to priority-first candidate {}",
+                    currentRoute.getId(), resolvable.get(0).getTargetRouteId());
+        }
+
+        RouteCondition chosen = resolvable.get(chosenIndex);
+        Long targetId = chosen.getTargetRouteId();
+        Route targetRoute = routeMap.get(targetId);
+        if ("BACKEND".equals(targetRoute.getRouteType())) {
+            List<Long> fullPath = new ArrayList<>(dispatchPath);
+            fullPath.add(targetId);
+            return Mono.just(new ResolvedRoute(
+                    targetRoute.getId(),
+                    targetRoute.getUpstreamUrl(),
+                    targetRoute.getPath(),
+                    fullPath
+            ));
+        }
+
+        visited.add(targetId);
+        dispatchPath.add(targetId);
+        return dispatchRecursive(exchange, targetRoute, visited, dispatchPath, depth + 1);
+    }
+
+    /**
+     * 累积权重区间法：r = random * total，落在哪个候选的 [accBefore, accAfter) 区间即选中谁。
+     * 权重为 0 的候选区间为空，永远不会被选中；浮点安全兜底取最后一个正权重候选。
+     */
+    private int selectByWeight(int candidateCount, List<Long> weights, long total) {
+        double r = random.nextDouble() * total;
+        long acc = 0;
+        int lastPositive = 0;
+        for (int i = 0; i < candidateCount; i++) {
+            long w = weights.get(i);
+            if (w > 0) {
+                acc += w;
+                lastPositive = i;
+                if (r < acc) {
+                    return i;
+                }
+            }
+        }
+        return lastPositive;
+    }
+
+    /**
+     * 权重 = {@code condition_key} 的正整数字符串（如 {@code "20"}，容忍前后空白）。
+     * 空/非数字/0/负数均按非法处理（记 0 并告警）；仅支持整数（与 MSE/APISIX 口径一致），
+     * {@code "20.5"} 这类小数视为非法。
+     */
+    private long parseWeight(Route currentRoute, RouteCondition condition) {
+        String key = condition.getConditionKey();
+        if (key == null || key.isBlank()) {
+            log.warn("Dispatch route {} weight candidate has blank condition_key, treating weight as 0",
+                    currentRoute.getId());
+            return 0;
+        }
+        try {
+            long weight = Long.parseLong(key.trim());
+            if (weight <= 0) {
+                log.warn("Dispatch route {} weight candidate has non-positive weight '{}', treating as 0",
+                        currentRoute.getId(), key);
+                return 0;
+            }
+            return weight;
+        } catch (NumberFormatException e) {
+            log.warn("Dispatch route {} weight candidate has non-numeric weight '{}', treating as 0",
+                    currentRoute.getId(), key);
+            return 0;
+        }
     }
 
     private int pathMatcherSize() {

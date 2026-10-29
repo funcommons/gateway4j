@@ -23,6 +23,7 @@ class ErrorCodeTest {
     void codeStr() {
         assertEquals("10601", ErrorCode.ROUTE_NOT_FOUND.codeStr());
         assertEquals("10699", ErrorCode.ENGINE_INTERNAL_ERROR.codeStr());
+        assertEquals("10402", ErrorCode.ROUTE_VERSION_CONFLICT.codeStr());
     }
 
     @Test
@@ -35,7 +36,14 @@ class ErrorCodeTest {
 
     @Test
     void codesIn106xxRange() {
+        // 例外：ROUTE_VERSION_CONFLICT（P1-5 乐观锁）固定 10402 —— 跨 agent 契约
+        // （前端按此码识别"请刷新"弹窗），且与 framework4j ApiCode.STATE_CONFLICT(10402)
+        // 同码同义（状态冲突），API_CONTRACT §2.5 错误码表已含 10402。
+        var contractExceptions = java.util.Set.of(ErrorCode.ROUTE_VERSION_CONFLICT);
         for (ErrorCode value : ErrorCode.values()) {
+            if (contractExceptions.contains(value)) {
+                continue;
+            }
             assertTrue(value.code() >= 10600 && value.code() <= 10699,
                     "ErrorCode." + value.name() + " code " + value.code() + " not in 106xx range");
         }

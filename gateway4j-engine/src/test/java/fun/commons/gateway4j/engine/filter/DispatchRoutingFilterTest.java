@@ -23,6 +23,7 @@ import reactor.core.publisher.Mono;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -99,6 +100,71 @@ class DispatchRoutingFilterTest {
 
         assertFalse(chained[0], "request must not be forwarded");
         assertEquals(HttpStatus.NOT_FOUND, exchange.getResponse().getStatusCode());
+    }
+
+    @Test
+    void dispatch404CarriesJsonEnvelopeAndTraceHeader() {
+        seedDispatchSetup();
+        MockServerWebExchange exchange = exchange("/e2e/dispatch/ping", "1", "v2");
+        boolean[] chained = {false};
+
+        filter.filter(exchange, chain(chained)).block();
+
+        // envelope shape identical to GatewayErrorAdvice (code/message/data/success/fail)
+        String body = exchange.getResponse().getBodyAsString().block();
+        assertNotNull(body);
+        Map<?, ?> json = fun.commons.gateway4j.common.util.JsonUtils.parseObject(body, Map.class);
+        assertEquals(404, ((Number) json.get("code")).intValue());
+        assertEquals(Boolean.FALSE, json.get("success"));
+        assertEquals(Boolean.TRUE, json.get("fail"));
+        assertTrue(json.containsKey("data"));
+        assertNull(json.get("data"));
+        assertNotNull(json.get("message"));
+        // contract field order
+        assertIterableEquals(List.of("code", "message", "data", "success", "fail"),
+                ((java.util.LinkedHashMap<?, ?>) json).keySet());
+
+        // headers: JSON content type + trace id (engine attr if set, else UUID)
+        assertEquals("application/json", String.valueOf(
+                exchange.getResponse().getHeaders().getContentType()));
+        String traceId = exchange.getResponse().getHeaders().getFirst("X-Trace-Id");
+        assertNotNull(traceId, "X-Trace-Id header must be present");
+        assertFalse(traceId.isBlank());
+
+        // a pre-set engine trace id must be echoed verbatim, not replaced
+        MockServerWebExchange withTrace = exchange("/e2e/dispatch/ping", "1", "v2");
+        withTrace.getAttributes().put(GatewayConstants.TRACE_ID_KEY, "trace-abc-123");
+        filter.filter(withTrace, chain(new boolean[1])).block();
+        assertEquals("trace-abc-123",
+                withTrace.getResponse().getHeaders().getFirst("X-Trace-Id"));
+    }
+
+    @Test
+    void dispatchInvalidUpstreamReturns502Envelope() {
+        Route brokenTarget = Route.builder().id(3L).routeName("broken").routeType("BACKEND")
+                .path("/e2e/broken/**").upstreamUrl("   ")
+                .status("PUBLISHED").sortOrder(1).build();
+        Route dispatch = Route.builder().id(1L).routeName("disp").routeType("DISPATCH")
+                .path("/e2e/dispatch/**").status("PUBLISHED").sortOrder(1).build();
+        RouteCondition toBroken = RouteCondition.builder()
+                .routeId(1L).targetRouteId(3L).conditionType("HEADER").operator("EQ")
+                .conditionKey("x-ver").conditionValue("broken").priority(1).build();
+        routes.add(brokenTarget);
+        routes.add(dispatch);
+        conditions.add(toBroken);
+        configService.loadAllConfig();
+
+        MockServerWebExchange exchange = exchange("/e2e/dispatch/x", "1", "broken");
+        boolean[] chained = {false};
+        filter.filter(exchange, chain(chained)).block();
+
+        assertFalse(chained[0]);
+        assertEquals(HttpStatus.BAD_GATEWAY, exchange.getResponse().getStatusCode());
+        Map<?, ?> json = fun.commons.gateway4j.common.util.JsonUtils
+                .parseObject(exchange.getResponse().getBodyAsString().block(), Map.class);
+        assertEquals(502, ((Number) json.get("code")).intValue());
+        assertEquals(Boolean.FALSE, json.get("success"));
+        assertNotNull(exchange.getResponse().getHeaders().getFirst("X-Trace-Id"));
     }
 
     @Test

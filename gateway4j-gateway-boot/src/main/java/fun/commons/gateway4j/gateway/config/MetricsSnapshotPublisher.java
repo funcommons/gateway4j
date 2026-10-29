@@ -1,6 +1,7 @@
 package fun.commons.gateway4j.gateway.config;
 
 import fun.commons.gateway4j.common.util.JsonUtils;
+import fun.commons.gateway4j.engine.metrics.InFlightRequestTracker;
 import fun.commons.framework4j.redis.manager.MultiRedisManager;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Meter;
@@ -30,10 +31,13 @@ import java.util.concurrent.TimeUnit;
  * {@code gateway4j:metrics:routes}, field = the meter {@code path} tag verbatim
  * (the same value MonitorController matches against normalizePath(route.getPath())),
  * value = compact JSON
- * {@code {"total":N,"errors":N,"latency_ms_sum":F,"latency_count":N,"updated_at":epoch_ms}}
- * (total/errors/latency_count integers, latency_ms_sum fractional millis).
- * Every publish cycle ends with {@code EXPIRE 60}, so stale data self-expires
- * within 60s of the data plane dying.</p>
+ * {@code {"total":N,"errors":N,"latency_ms_sum":F,"latency_count":N,"active":N,"updated_at":epoch_ms}}
+ * (total/errors/latency_count/active integers, latency_ms_sum fractional
+ * millis). {@code active} is the in-flight request count for that path
+ * (P1-1), read live from the {@link InFlightRequestTracker} — it is always
+ * present (0 when no requests are in flight or no tracker is wired). Every
+ * publish cycle ends with {@code EXPIRE 60}, so stale data self-expires within
+ * 60s of the data plane dying.</p>
  *
  * <p>Meter selection mirrors MonitorController#sumByPath exactly: meter name
  * {@code endsWith} "requests.total" / "requests.errors" / "request.latency",
@@ -62,12 +66,19 @@ public class MetricsSnapshotPublisher {
 
     private final MultiRedisManager redisManager;
     private final MeterRegistry meterRegistry;
+    private final InFlightRequestTracker inFlightTracker;
 
     private volatile long lastWarnAtMs = 0L;
 
     public MetricsSnapshotPublisher(MultiRedisManager redisManager, MeterRegistry meterRegistry) {
+        this(redisManager, meterRegistry, null);
+    }
+
+    public MetricsSnapshotPublisher(MultiRedisManager redisManager, MeterRegistry meterRegistry,
+                                    InFlightRequestTracker inFlightTracker) {
         this.redisManager = redisManager;
         this.meterRegistry = meterRegistry;
+        this.inFlightTracker = inFlightTracker;
     }
 
     /**
@@ -103,9 +114,10 @@ public class MetricsSnapshotPublisher {
     /**
      * Pure aggregator (unit-testable): scan the local registry, group by the
      * {@code path} tag — total/errors/latency_count sum as integers,
-     * latency_ms_sum as (possibly fractional) millis.
+     * latency_ms_sum as (possibly fractional) millis; {@code active} is the
+     * live in-flight count from the tracker (always emitted; 0 without one).
      */
-    static Map<String, String> collectSnapshot(MeterRegistry registry, long nowEpochMs) {
+    Map<String, String> collectSnapshot(MeterRegistry registry, long nowEpochMs) {
         // path → [total, errors, latency_count]
         Map<String, long[]> integers = new LinkedHashMap<>();
         Map<String, Double> latencyMsSum = new LinkedHashMap<>();
@@ -131,6 +143,7 @@ public class MetricsSnapshotPublisher {
             value.put("errors", e.getValue()[1]);
             value.put("latency_ms_sum", latencyMsSum.getOrDefault(e.getKey(), 0d));
             value.put("latency_count", e.getValue()[2]);
+            value.put("active", inFlightTracker == null ? 0L : inFlightTracker.activeFor(e.getKey()));
             value.put("updated_at", nowEpochMs);
             snapshot.put(e.getKey(), JsonUtils.toCompactJson(value));
         }

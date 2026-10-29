@@ -154,8 +154,19 @@ public class ServerAutoConfiguration {
     }
 
     @Bean
-    public org.springframework.beans.factory.SmartInitializingSingleton configInitializer(ConfigService configService) {
-        return configService::loadAllConfig;
+    public org.springframework.beans.factory.SmartInitializingSingleton configInitializer(
+            ConfigService configService, ConfigSyncService configSyncService) {
+        return () -> {
+            // Seed the local content fingerprint BEFORE the first load, so the
+            // sync-status publisher (gateway4j:config:sync) reports a real
+            // fingerprint from the very first startup reload, not "0".
+            try {
+                configSyncService.checkVersion();
+            } catch (Exception e) {
+                // fail-open: fingerprint stays unknown; the 60s poll will seed it
+            }
+            configService.loadAllConfig();
+        };
     }
 
     @Bean
@@ -182,26 +193,43 @@ public class ServerAutoConfiguration {
     /**
      * Mirrors the runtime plugin inventory (registered vs configured-but-skipped)
      * into Redis key {@code gateway4j:plugin:runtime} after every reload, for the
-     * admin console display. Fail-open, TTL 10 minutes.
+     * admin console display — with the optional per-plugin cumulative
+     * {@code stats:{executed,skipped,error}} object (P1-2). Fail-open, TTL 10 minutes.
      */
     @Bean
     public PluginRuntimeCatalogPublisher pluginRuntimeCatalogPublisher(
             fun.commons.framework4j.redis.manager.MultiRedisManager redisManager,
-            PluginInstanceRegistry pluginInstanceRegistry) {
-        return new PluginRuntimeCatalogPublisher(redisManager, pluginInstanceRegistry);
+            PluginInstanceRegistry pluginInstanceRegistry,
+            fun.commons.gateway4j.engine.plugin.metrics.PluginExecutionStats pluginExecutionStats) {
+        return new PluginRuntimeCatalogPublisher(redisManager, pluginInstanceRegistry, pluginExecutionStats);
     }
 
     /**
      * Mirrors this JVM's route metrics (the MetricsPlugin meters on the data
      * plane's own MeterRegistry) into Redis HASH {@code gateway4j:metrics:routes}
      * every 5s, so the admin console (a separate JVM with an empty local
-     * registry) can render the monitor dashboard. Fail-open, EXPIRE 60 per write.
+     * registry) can render the monitor dashboard. The in-flight tracker feeds
+     * the snapshot's {@code active} field (P1-1). Fail-open, EXPIRE 60 per write.
      */
     @Bean
     public MetricsSnapshotPublisher metricsSnapshotPublisher(
             fun.commons.framework4j.redis.manager.MultiRedisManager redisManager,
-            io.micrometer.core.instrument.MeterRegistry meterRegistry) {
-        return new MetricsSnapshotPublisher(redisManager, meterRegistry);
+            io.micrometer.core.instrument.MeterRegistry meterRegistry,
+            fun.commons.gateway4j.engine.metrics.InFlightRequestTracker inFlightRequestTracker) {
+        return new MetricsSnapshotPublisher(redisManager, meterRegistry, inFlightRequestTracker);
+    }
+
+    /**
+     * Publishes the config sync status ({@code gateway4j:config:sync}, P1-3)
+     * after every completed reload so the admin console can show whether the
+     * data plane is serving the latest config. Fail-open, TTL 120s.
+     */
+    @Bean
+    public ConfigSyncStatusPublisher configSyncStatusPublisher(
+            fun.commons.framework4j.redis.manager.MultiRedisManager redisManager,
+            ConfigSyncService configSyncService,
+            org.springframework.core.env.Environment environment) {
+        return new ConfigSyncStatusPublisher(redisManager, configSyncService, environment);
     }
 
     /**
@@ -213,6 +241,45 @@ public class ServerAutoConfiguration {
             org.apache.ibatis.session.SqlSessionFactory sqlSessionFactory,
             com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor interceptor) {
         return () -> sqlSessionFactory.getConfiguration().addInterceptor(interceptor);
+    }
+
+    // =========================================================================
+    // --- 动态插件装载（ADR-003 第一阶段）：GROOVY 沙箱编译 / JAR 独立 ClassLoader ---
+    // =========================================================================
+
+    /**
+     * Dynamic-plugin loader settings ({@code gateway4j.engine.plugin-loader.*}).
+     */
+    @Bean
+    @org.springframework.boot.context.properties.ConfigurationProperties("gateway4j.engine.plugin-loader")
+    public fun.commons.gateway4j.engine.plugin.loader.PluginLoaderProperties pluginLoaderProperties() {
+        return new fun.commons.gateway4j.engine.plugin.loader.PluginLoaderProperties();
+    }
+
+    /**
+     * Reconciles ENABLED GROOVY/JAR {@code gw_plugin} rows into the shared
+     * {@link PluginInstanceRegistry} on every config reload: sandbox-compiles
+     * {@code gw_plugin_groovy} scripts, SPI-validates and loads the uploaded jars
+     * from the admin-side storage (read-only) with an isolated classloader each,
+     * closes the old classloader BEFORE a replacement is built (ADR-003 Metaspace
+     * guard) and unregisters+unloads disabled/removed rows. Compile/validation
+     * failures are fail-closed per row: ERROR log, no instance → the data plane
+     * counts the row as {@code skipped} per request.
+     */
+    @Bean
+    public fun.commons.gateway4j.engine.plugin.loader.DynamicPluginLoader dynamicPluginLoader(
+            PluginInstanceRegistry pluginInstanceRegistry,
+            fun.commons.gateway4j.common.mapper.GroovyMapper groovyMapper,
+            fun.commons.gateway4j.common.mapper.PluginJarFileMapper pluginJarFileMapper,
+            fun.commons.gateway4j.engine.plugin.loader.PluginLoaderProperties pluginLoaderProperties) {
+        return new fun.commons.gateway4j.engine.plugin.loader.DynamicPluginLoader(
+                pluginInstanceRegistry,
+                new fun.commons.gateway4j.engine.plugin.loader.GroovyPluginLoader(),
+                new fun.commons.gateway4j.engine.plugin.loader.JarPluginLoader(
+                        pluginLoaderProperties.getJarParentPackages()),
+                () -> groovyMapper.selectList(null),
+                () -> pluginJarFileMapper.selectList(null),
+                java.time.Duration.ofMillis(pluginLoaderProperties.getExecTimeoutMs()));
     }
 
     /**
