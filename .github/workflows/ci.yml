@@ -1,14 +1,12 @@
 # CI —— PR / main 推送门槛
 #
-# 三个独立 job：
-#   frontend  前端 type-check + Vitest 全量单测（1681 例）
+# 三个独立 job，全部必须绿（无 continue-on-error 容忍）：
+#   frontend  前端 ESLint + type-check + Vitest 全量单测（1681 例）
 #   backend   后端 gateway4j-admin 及其依赖模块单元测试（96 例）
 #   guards    权限码差集 + 接口契约护栏（纯 Node 脚本，零依赖）
 #
-# guards 说明：check-api-contract 当前会因既有缺口 GET /v1/plugins/{id}
-# （gateway4j-admin-ui/src/api/plugins.ts:57 调用、后端 PluginController 无对应单查端点）
-# 而失败 —— 该 job 独立于 frontend/backend，修复合拢前不影响其余门槛；
-# 合拢后它即为阻塞级护栏（详见 README-CI.md）。
+# TODO(P1-8/H2)：scripts/check-write-guardrails.mjs 落地后加入 guards job
+# （写操作护栏脚本校验，具体步骤等该脚本合入后由主 agent 决定接线方式）。
 
 name: CI
 
@@ -47,7 +45,7 @@ concurrency:
 
 jobs:
   frontend:
-    name: frontend (type-check + vitest)
+    name: frontend (eslint + type-check + vitest)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -68,6 +66,10 @@ jobs:
       # 保证该 runner 随时可复用于 e2e 冒烟。CI 网络无本地 TLS 拦截问题。
       - name: Install Playwright chromium
         run: npx playwright install --with-deps chromium
+
+      # 零 error 基线（P2-8）：规则只拦真问题，warning 记账不拦截
+      - name: Lint (eslint)
+        run: npm run lint
 
       - name: Type check
         run: npm run type-check
