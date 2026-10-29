@@ -98,7 +98,8 @@ describe('routes/List.vue — publish() error UX', () => {
     mocks.publishRoute.mockRejectedValue(new Error('路由存在循环引用'))
     const wrapper = await factory([fakeRoute({ status: 'DRAFT' })])
     const vm = wrapper.vm as any
-    await vm.publish({ id: 'r1', route_name: 'r', status: 'DRAFT', children: [] })
+    vm.publish({ id: 'r1', route_name: 'r', status: 'DRAFT', children: [] })
+    await vm.onPublishConfirm('发布说明')
     expect(vm.actionError).toBe('路由存在循环引用')
   })
 
@@ -106,7 +107,8 @@ describe('routes/List.vue — publish() error UX', () => {
     mocks.publishRoute.mockRejectedValue(new Error('路由存在循环引用'))
     const wrapper = await factory([fakeRoute({ status: 'DRAFT' })])
     const vm = wrapper.vm as any
-    await vm.publish({ id: 'r1', route_name: 'r', status: 'DRAFT', children: [] })
+    vm.publish({ id: 'r1', route_name: 'r', status: 'DRAFT', children: [] })
+    await vm.onPublishConfirm('发布说明')
     await flushPromises()
     const el = wrapper.find('[data-testid="action-error"]')
     expect(el.exists()).toBe(true)
@@ -117,7 +119,8 @@ describe('routes/List.vue — publish() error UX', () => {
     mocks.publishRoute.mockResolvedValue(undefined)
     const wrapper = await factory([fakeRoute({ status: 'DRAFT' })])
     const vm = wrapper.vm as any
-    await vm.publish({ id: 'r1', route_name: 'r', status: 'DRAFT', children: [] })
+    vm.publish({ id: 'r1', route_name: 'r', status: 'DRAFT', children: [] })
+    await vm.onPublishConfirm('发布说明')
     await flushPromises()
     expect(vm.actionError).toBe('')
     expect(wrapper.find('[data-testid="action-error"]').exists()).toBe(false)
@@ -127,7 +130,8 @@ describe('routes/List.vue — publish() error UX', () => {
     mocks.publishRoute.mockRejectedValue(new Error('500'))
     const wrapper = await factory([fakeRoute({ status: 'DRAFT' })])
     const vm = wrapper.vm as any
-    await vm.publish({ id: 'r1', route_name: 'r', status: 'DRAFT', children: [] })
+    vm.publish({ id: 'r1', route_name: 'r', status: 'DRAFT', children: [] })
+    await vm.onPublishConfirm('发布说明')
     await flushPromises()
     // reload() should NOT be called on failure
     expect(mocks.listRoutes.mock.calls.length).toBe(1)
@@ -197,9 +201,11 @@ describe('routes/List.vue — actionError lifecycle', () => {
     const wrapper = await factory([fakeRoute({ status: 'DRAFT' })])
     const vm = wrapper.vm as any
     const r = { id: 'r1', route_name: 'r', status: 'DRAFT', children: [] }
-    await vm.publish(r)
+    vm.publish(r)
+    await vm.onPublishConfirm('发布说明')
     expect(vm.actionError).toBe('first')
-    await vm.publish(r)
+    vm.publish(r)
+    await vm.onPublishConfirm('发布说明')
     await flushPromises()
     expect(vm.actionError).toBe('')
   })
@@ -210,7 +216,8 @@ describe('routes/List.vue — actionError lifecycle', () => {
     const wrapper = await factory([fakeRoute({ status: 'DRAFT' })])
     const vm = wrapper.vm as any
     const r = { id: 'r1', route_name: 'r', status: 'DRAFT', children: [] }
-    await vm.publish(r)
+    vm.publish(r)
+    await vm.onPublishConfirm('发布说明')
     expect(vm.actionError).toBe('pub fail')
     await vm.del(r)
     expect(vm.actionError).toBe('del fail')

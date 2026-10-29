@@ -85,7 +85,9 @@ describe('List.vue — error resilience', () => {
     const wrapper = factory()
     await flushPromises()
     const vm = wrapper.vm as any
-    await vm.publish({ id: 'p1' })
+    // H7b T2：publish 先开变更说明弹窗，确认后提交
+    vm.publish({ id: 'p1' })
+    await vm.onPublishConfirm('发布说明')
     // reload should NOT be called when publish fails
     expect(mocks.listRoutes.mock.calls.length).toBe(1)
     expect(vm.actionError).toBeTruthy()

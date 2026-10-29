@@ -18,6 +18,11 @@ export interface LoginResponse {
   access_token: string
   refresh_token: string
   expires_in: number
+  /**
+   * P2-9 弱口令标记：登录响应平铺追加（缺省 false，非阻断）。
+   * true = 仍在使用默认/初始口令，前端展示常驻改密横幅。
+   */
+  password_stale?: boolean
 }
 
 export function login(username: string, password: string) {

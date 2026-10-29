@@ -54,31 +54,105 @@
 
         <template #tab-changes>
           <div class="changes-toolbar">
+            <!-- P2-6：审计接口不可用回退旧 /v1/changes 时显示「兼容模式」徽标 -->
+            <span
+              v-if="auditMode === false"
+              class="compat-badge"
+              data-testid="changes-compat-badge"
+            >{{ t('settings.auditCompatMode') }}</span>
             <FcButton variant="primary" size="sm" :loading="changesLoading" data-testid="changes-refresh" @click="loadChanges">{{ t('common.refresh') }}</FcButton>
           </div>
-          <!-- 接口 404 / 失败时显示不可用空态而非报错崩页 -->
-          <FcEmpty v-if="changesUnavailable" type="error" :title="t('settings.changesUnavailable')" data-testid="changes-unavailable" />
-          <template v-else>
-            <FcTable :data="changes" :loading="changesLoading" stripe>
-              <el-table-column :label="t('settings.changeTime')" width="180">
-                <template #default="{ row }">{{ formatChangeTime((row as any).updated_at) }}</template>
+
+          <!-- P2-6 审计日志模式：筛选（动作/操作人/时间范围）+ 信封分页 -->
+          <template v-if="auditMode !== false">
+            <div class="audit-filters" data-testid="audit-filters">
+              <FcSelect
+                v-model="auditAction"
+                :options="auditActionOptions"
+                :placeholder="t('settings.auditActionAll')"
+                clearable
+                style="width: 170px"
+                data-testid="audit-filter-action"
+                @change="onAuditFilterChange"
+              />
+              <FcInput
+                v-model="auditActor"
+                :placeholder="t('settings.auditActor')"
+                clearable
+                style="width: 170px"
+                data-testid="audit-filter-actor"
+                @enter="onAuditFilterChange"
+                @clear="onAuditFilterChange"
+              />
+              <el-date-picker
+                v-model="auditRange"
+                type="datetimerange"
+                value-format="YYYY-MM-DDTHH:mm:ss"
+                :start-placeholder="t('settings.auditRangeStart')"
+                :end-placeholder="t('settings.auditRangeEnd')"
+                data-testid="audit-filter-range"
+                @change="onAuditFilterChange"
+              />
+            </div>
+            <FcTable :data="auditRecords" :loading="changesLoading" stripe>
+              <el-table-column :label="t('settings.auditTime')" width="180">
+                <template #default="{ row }">{{ formatChangeTime((row as any).created_at) }}</template>
               </el-table-column>
-              <el-table-column :label="t('settings.changeType')" width="100">
+              <el-table-column :label="t('settings.auditAction')" width="180">
                 <template #default="{ row }">
-                  <FcTag :color="(row as any).type === 'plugin' ? 'success' : 'brand'" size="sm" :data-testid="`changes-type-${(row as any).type}`">
-                    {{ (row as any).type === 'plugin' ? t('settings.changeTypePlugin') : t('settings.changeTypeRoute') }}
+                  <span :data-testid="`audit-action-${(row as any).action}`">{{ (row as any).action }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column :label="t('settings.auditActor')" width="140">
+                <template #default="{ row }">{{ (row as any).actor || '-' }}</template>
+              </el-table-column>
+              <el-table-column :label="t('settings.auditTarget')">
+                <template #default="{ row }">{{ auditTargetText(row as AuditLogItem) }}</template>
+              </el-table-column>
+              <el-table-column :label="t('settings.auditResult')" width="110">
+                <template #default="{ row }">
+                  <FcTag :color="auditResultColor((row as any).result)" size="sm" :data-testid="`audit-result-${(row as any).id}`">
+                    {{ (row as any).result || '-' }}
                   </FcTag>
                 </template>
               </el-table-column>
-              <el-table-column prop="name" :label="t('settings.changeName')" />
-              <el-table-column :label="t('route.status')" width="120">
-                <template #default="{ row }">
-                  <FcStatusBadge :tone="changeStatusTone((row as any).status)" :label="changeStatusLabel((row as any).status)" />
-                </template>
-              </el-table-column>
-              <el-table-column prop="config_version" :label="t('settings.changeVersion')" width="140" />
             </FcTable>
-            <FcEmpty v-if="!changesLoading && !changes.length" :title="t('settings.changesEmpty')" data-testid="changes-empty" />
+            <FcEmpty v-if="!changesLoading && auditMode === true && !auditRecords.length" :title="t('settings.auditEmpty')" data-testid="audit-empty" />
+            <div v-if="auditMode === true" class="audit-pagination" data-testid="audit-pagination">
+              <FcPagination
+                v-model:current-page="auditPage"
+                v-model:page-size="auditPageSize"
+                :total="auditTotal"
+                @change="onAuditPageChange"
+              />
+            </div>
+          </template>
+
+          <!-- 兼容模式：审计接口 404 / 失败 → 沿用旧 /v1/changes（404 时显示不可用空态而非崩页） -->
+          <template v-else>
+            <FcEmpty v-if="changesUnavailable" type="error" :title="t('settings.changesUnavailable')" data-testid="changes-unavailable" />
+            <template v-else>
+              <FcTable :data="changes" :loading="changesLoading" stripe>
+                <el-table-column :label="t('settings.changeTime')" width="180">
+                  <template #default="{ row }">{{ formatChangeTime((row as any).updated_at) }}</template>
+                </el-table-column>
+                <el-table-column :label="t('settings.changeType')" width="100">
+                  <template #default="{ row }">
+                    <FcTag :color="(row as any).type === 'plugin' ? 'success' : 'brand'" size="sm" :data-testid="`changes-type-${(row as any).type}`">
+                      {{ (row as any).type === 'plugin' ? t('settings.changeTypePlugin') : t('settings.changeTypeRoute') }}
+                    </FcTag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="name" :label="t('settings.changeName')" />
+                <el-table-column :label="t('route.status')" width="120">
+                  <template #default="{ row }">
+                    <FcStatusBadge :tone="changeStatusTone((row as any).status)" :label="changeStatusLabel((row as any).status)" />
+                  </template>
+                </el-table-column>
+                <el-table-column prop="config_version" :label="t('settings.changeVersion')" width="140" />
+              </FcTable>
+              <FcEmpty v-if="!changesLoading && !changes.length" :title="t('settings.changesEmpty')" data-testid="changes-empty" />
+            </template>
           </template>
         </template>
       </FcTabsPanel>
@@ -95,9 +169,12 @@ import { useFcConfirm } from '@/composables/useFcConfirm'
 import { usePermission } from '@/composables/usePermission'
 import {
   FcSection, FcTabsPanel, FcInput, FcSelect, FcButton, FcTable, FcEmpty, FcSkeleton,
-  FcTag, FcStatusBadge
+  FcTag, FcStatusBadge, FcPagination
 } from '@/components'
-import { getDict, getConfig, saveConfig, listChanges, type ChangeItem } from '@/api/misc'
+import {
+  getDict, getConfig, saveConfig, listChanges, listAuditLogs,
+  type ChangeItem, type AuditLogItem
+} from '@/api/misc'
 import { mapFieldErrors } from '@/api/http'
 import { formatDate } from '@/utils'
 
@@ -254,24 +331,93 @@ async function loadDict() {
   }
 }
 
-// ===== 变更记录 Tab（T3）=====
+// ===== 变更记录 Tab（T3 → P2-6 升级）=====
 const changes = ref<ChangeItem[]>([])
 const changesLoading = ref(false)
 const changesUnavailable = ref(false)
 
+// P2-6：优先走审计日志信封分页接口；404 / 失败 → 回退旧 /v1/changes（兼容模式）
+const auditMode = ref<boolean | null>(null)
+const auditRecords = ref<AuditLogItem[]>([])
+const auditTotal = ref(0)
+const auditPage = ref(1)
+const auditPageSize = ref(20)
+const auditAction = ref('')
+const auditActor = ref('')
+const auditRange = ref<[string, string] | null>(null)
+
+/** 动作下拉：从当前页返回数据 distinct（不猜后端常量表，避免字典漂移） */
+const auditActionOptions = computed(() => {
+  const seen = new Set<string>()
+  for (const r of auditRecords.value) {
+    if (r?.action) seen.add(String(r.action))
+  }
+  return Array.from(seen).map((a) => ({ value: a, label: a }))
+})
+
+/** 结果着色：宽松匹配常见 SUCCESS/FAIL 词表，未知值中性灰 */
+function auditResultColor(result: unknown): 'success' | 'danger' | 'gray' {
+  const v = String(result ?? '').toUpperCase()
+  if (v === 'SUCCESS' || v === 'OK' || v === '0' || v === 'ALLOWED') return 'success'
+  if (v === 'FAILURE' || v === 'FAIL' || v === 'ERROR' || v === 'DENIED') return 'danger'
+  return 'gray'
+}
+
+/** 对象列：后端 AuditLog 实际下发 target_type + target_id；兼容契约草稿的 target 字段 */
+function auditTargetText(row: AuditLogItem): string {
+  const type = row.target_type || row.target
+  const id = row.target_id
+  if (type && id) return `${type}:${id}`
+  return String(type || id || '-') + ''
+}
+
 async function loadChanges() {
   changesLoading.value = true
+  try {
+    const r = await listAuditLogs({
+      page: auditPage.value,
+      pageSize: auditPageSize.value,
+      action: auditAction.value || undefined,
+      actor: auditActor.value.trim() || undefined,
+      from: auditRange.value?.[0] || undefined,
+      to: auditRange.value?.[1] || undefined
+    })
+    auditMode.value = true
+    auditRecords.value = Array.isArray(r?.records) ? r.records : []
+    // Long→String 契约：total 可能是 "11" 字符串（envelope 已归一 number，此处兜底）
+    auditTotal.value = Number(r?.total) || 0
+    changesUnavailable.value = false
+  } catch {
+    // 404 / 失败：沿用旧 /v1/changes（兼容模式徽标），不可用时显示空态，不崩页
+    await loadChangesLegacy()
+  } finally {
+    changesLoading.value = false
+  }
+}
+
+async function loadChangesLegacy() {
+  auditMode.value = false
   try {
     const r = (await listChanges(50)) as ChangeItem[]
     changes.value = Array.isArray(r) ? r : []
     changesUnavailable.value = false
   } catch {
-    // 404 / 失败：显示「接口暂不可用」空态，不崩页
     changes.value = []
     changesUnavailable.value = true
-  } finally {
-    changesLoading.value = false
   }
+}
+
+/** 筛选变化：重置回第 1 页再查 */
+function onAuditFilterChange() {
+  auditPage.value = 1
+  loadChanges()
+}
+
+/** 分页组件回调（change 事件带 page + size） */
+function onAuditPageChange(page: number, size: number) {
+  auditPage.value = page
+  auditPageSize.value = size
+  loadChanges()
 }
 
 const CHANGE_STATUS_KEY: Record<string, string> = {
@@ -350,6 +496,28 @@ onBeforeRouteLeave(async () => {
 .changes-toolbar {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 8px;
+}
+.compat-badge {
+  margin-right: auto;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: var(--app-text-secondary);
+  background: var(--app-bg-muted, #f4f4f5);
+}
+.audit-filters {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.audit-pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
 }
 </style>

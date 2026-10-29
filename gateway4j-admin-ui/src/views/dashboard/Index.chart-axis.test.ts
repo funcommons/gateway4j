@@ -6,13 +6,15 @@ import * as echarts from 'echarts'
 const mocks = vi.hoisted(() => ({
   listRouteStatus: vi.fn(),
   getTopology: vi.fn(),
-  getRouteMetrics: vi.fn()
+  getRouteMetrics: vi.fn(),
+  getRouteTimeseries: vi.fn()
 }))
 
 vi.mock('@/api/misc', () => ({
   listRouteStatus: mocks.listRouteStatus,
   getTopology: mocks.getTopology,
-  getRouteMetrics: mocks.getRouteMetrics
+  getRouteMetrics: mocks.getRouteMetrics,
+  getRouteTimeseries: mocks.getRouteTimeseries
 }))
 
 vi.mock('@vue-flow/core', () => ({
@@ -76,6 +78,8 @@ beforeEach(() => {
   ])
   mocks.getTopology.mockReset().mockResolvedValue({ nodes: [], edges: [] })
   mocks.getRouteMetrics.mockReset()
+  // P1-6: 时序接口不可用（旧 jar 404）→ 走旧 /metrics 回退路径, 保持本文件断言语义不变
+  mocks.getRouteTimeseries.mockReset().mockRejectedValue(new Error('404 no timeseries'))
 })
 
 describe('P0-2 — trend chart X axis (ISO-8601 timestamps)', () => {

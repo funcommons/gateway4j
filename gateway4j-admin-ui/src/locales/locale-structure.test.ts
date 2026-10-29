@@ -7,9 +7,9 @@ import enUS from './en-US'
 // test will catch it, but these structure tests document the expected shape.
 
 describe('locale structure', () => {
-  it('zh-CN has 11 top-level sections', () => {
+  it('zh-CN has 12 top-level sections', () => {
     expect(Object.keys(zhCN).sort()).toEqual([
-      'app', 'auth', 'common', 'emptyState', 'importExport', 'monitor', 'plugin', 'role', 'route', 'settings', 'sidebar', 'user'
+      'app', 'auth', 'common', 'emptyState', 'env', 'importExport', 'monitor', 'plugin', 'role', 'route', 'settings', 'sidebar', 'user'
     ].sort())
   })
 

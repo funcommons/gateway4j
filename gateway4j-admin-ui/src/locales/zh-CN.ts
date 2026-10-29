@@ -53,6 +53,7 @@ export default {
     unsavedChanges: '有未保存的更改，确定离开吗？',
     confirmPublish: '确定发布此路由？',
     confirmOffline: '确定下线此路由？',
+    optional: '可选',
     confirmDisableUser: '确定禁用此用户？',
     confirmDisablePlugin: '确定禁用此插件？',
     home: '首页',
@@ -70,7 +71,30 @@ export default {
     submit: '登录',
     title: 'Gateway4j 后台',
     welcome: '欢迎使用 Gateway4j',
-    usernamePasswordRequired: '请输入用户名和密码'
+    usernamePasswordRequired: '请输入用户名和密码',
+    pwdStaleBanner: '当前使用默认口令，建议立即修改',
+    pwdStaleAction: '立即修改',
+    pwdDialogTitle: '修改密码',
+    pwdNew: '新密码',
+    pwdNewPlaceholder: '请输入新密码',
+    pwdConfirm: '确认新密码',
+    pwdConfirmPlaceholder: '请再次输入新密码',
+    pwdMismatch: '两次输入的密码不一致',
+    pwdRequired: '请输入新密码',
+    pwdChanged: '密码已修改'
+  },
+  env: {
+    switcherLabel: '环境',
+    switcherTip: '管理面视图过滤与路由归属环境选择；数据面环境由网关进程配置决定，此处切换不影响数据面',
+    envCol: '环境',
+    envCreateHint: '新建路由将归属所选环境（缺省 default）',
+    envMigrateHint: '保存并携带变更即迁移到所选环境',
+    changeDescLabel: '变更说明',
+    changeDescPlaceholder: '简要描述本次变更内容（1~200 字）',
+    changeDescRequired: '请填写变更说明（1~200 字）',
+    changeDescOptional: '选填：画布应用走 diff 流已天然留痕',
+    publishDialogTitle: '发布路由',
+    changeDescBulkContext: '将对 {n} 条路由执行发布，请填写变更说明'
   },
   sidebar: {
     dashboard: '监控大盘',
@@ -167,6 +191,12 @@ export default {
     condTypeQuery: 'Query',
     condTypeBody: 'Body',
     condTypeGroovy: 'Groovy',
+    condTypeWeight: '权重',
+    condWeightTip: '同优先级候选按权重比例分流（权重 1~100，非请求谓词）',
+    condWeightTag: '权重 {n}',
+    condWeightRequired: '请填写权重（1~100 的整数）',
+    condWeightRange: '权重范围 {min}~{max} 的整数',
+    edgeWeight: '权重 (1~100)',
     backendNoOutgoing: '后置路由不可作为连线起点',
     selfLoopNotAllowed: '不允许自连接',
     dispatchNeedsEdge: '分发路由必须至少有一条连线',
@@ -235,7 +265,11 @@ export default {
     bulkConfirmContent: '将对 {n} 条路由执行该操作，是否继续？',
     bulkSelected: '已选 {n} 条',
     bulkResultAll: '批量操作成功 {n} 条',
-    bulkResultPartial: '成功 {ok} 条，失败 {fail} 条：{reasons}'
+    bulkResultPartial: '成功 {ok} 条，失败 {fail} 条：{reasons}',
+    publishSyncPending: '发布中…',
+    publishSynced: '已生效',
+    publishSyncDelayed: '同步延迟',
+    conflictModified: '路由已被他人修改，请刷新后重试'
   },
   plugin: {
     list: '插件列表',
@@ -306,7 +340,8 @@ export default {
     runtimeWired: '已接线',
     runtimeUnwired: '未接线',
     runtimeUnwiredTip: '数据面暂未注册该插件实例，绑定后不会实际执行',
-    runtimeUnsupported: '暂不支持'
+    runtimeUnsupported: '暂不支持',
+    statsSinceLoad: '自装载以来：执行 {executed} / 跳过 {skipped} / 异常 {error}'
   },
   monitor: {
     status: '路由状态',
@@ -335,7 +370,12 @@ export default {
     totalRequests: '总请求数',
     chartRequests: '请求量',
     chartErrorRate: '错误率%',
-    chartNoData: '暂无数据'
+    chartNoData: '暂无数据',
+    sourcePrometheus: 'Prometheus',
+    sourceSnapshot: '快照',
+    upstream: '上游',
+    upstreamOk: '正常',
+    upstreamUnreachable: '不可达'
   },
   user: {
     list: '用户列表',
@@ -421,7 +461,22 @@ export default {
     diffMissingPluginDetail: '目标环境未安装该插件',
     diffMissingTargetDetail: '条件指向的目标路由在目标环境不存在',
     diffCycleDetail: '导入后可能形成循环分发链',
-    snapshotCreated: '已自动快照 snapshot_id={id}，可在需要时回滚'
+    snapshotCreated: '已自动快照 snapshot_id={id}，可在需要时回滚',
+    tabEnvDiff: '环境对比',
+    targetEnv: '目标环境',
+    reportEnvironment: '目标环境',
+    reportPackageEnvironment: '路由包来源环境',
+    diffFrom: '环境 A（from）',
+    diffTo: '环境 B（to）',
+    diffRun: '对比',
+    diffOnlyInFrom: '仅 {env} 有',
+    diffOnlyInTo: '仅 {env} 有',
+    diffChanged: '字段变更',
+    diffColField: '字段',
+    diffColFrom: 'A 值',
+    diffColTo: 'B 值',
+    diffUnavailable: '环境对比服务不可用',
+    diffNoChanges: '两环境路由配置一致'
   },
   settings: {
     general: '通用设置',
@@ -452,7 +507,17 @@ export default {
     changeTypeRoute: '路由',
     changeTypePlugin: '插件',
     changesUnavailable: '变更记录接口暂不可用',
-    changesEmpty: '暂无变更记录'
+    changesEmpty: '暂无变更记录',
+    auditAction: '动作',
+    auditActor: '操作人',
+    auditTarget: '对象',
+    auditResult: '结果',
+    auditTime: '时间',
+    auditActionAll: '全部动作',
+    auditRangeStart: '开始时间',
+    auditRangeEnd: '结束时间',
+    auditCompatMode: '兼容模式',
+    auditEmpty: '暂无审计日志'
   },
   emptyState: {
     empty: '暂无数据',

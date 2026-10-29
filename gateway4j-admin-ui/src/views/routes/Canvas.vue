@@ -5,6 +5,8 @@
         <div class="canvas-toolbar">
           <FcButton v-if="canEdit('route')" variant="primary" :loading="saving" @click="save">{{ t('route.canvasSave') }}</FcButton>
           <FcButton v-if="canEdit('route')" variant="secondary" :loading="applying" data-testid="apply-to-tree" @click="applyToTree">{{ t('route.canvasApply') }}</FcButton>
+          <!-- P1-3 应用画布成功后轮询配置同步状态（发布生效确认） -->
+          <PublishSyncStatus ref="syncStatusRef" />
           <FcButton variant="secondary" :disabled="!canUndo" @click="undo">{{ t('route.canvasUndo') }}</FcButton>
           <FcButton variant="secondary" :disabled="!canRedo" @click="redo">{{ t('route.canvasRedo') }}</FcButton>
           <FcSwitch v-model="autoSave" />
@@ -81,15 +83,33 @@
             <div v-else-if="selectedEdge" class="prop-content" data-testid="edge-panel-content">
               <template v-if="ensureEdgeData(selectedEdge)">
               <div class="prop-field">
-                <label>{{ t('route.edgeCondType') }}</label>
+                <label class="cond-type-label">
+                  <span>{{ t('route.edgeCondType') }}</span>
+                  <FcTooltip v-if="selectedEdge.data.condition_type === 'WEIGHT'" :content="t('route.condWeightTip')">
+                    <span class="cond-type-help" data-testid="edge-weight-tip">?</span>
+                  </FcTooltip>
+                </label>
                 <FcSelect
                   v-model="selectedEdge.data.condition_type"
                   data-testid="edge-cond-type"
                   :options="condTypeOptions"
-                  @change="markDirty"
+                  @change="onEdgeCondTypeChange"
                 />
               </div>
-              <div class="prop-field">
+              <!-- P2-4：WEIGHT 权重边 → 条件值区切换为 1~100 数字输入（写入 condition_key，value 留空） -->
+              <div v-if="selectedEdge.data.condition_type === 'WEIGHT'" class="prop-field">
+                <label>{{ t('route.edgeWeight') }}</label>
+                <el-input-number
+                  :model-value="parseWeight(selectedEdge.data.condition_key)"
+                  :min="1"
+                  :max="100"
+                  :step="1"
+                  step-strictly
+                  data-testid="edge-cond-weight"
+                  @update:model-value="(v: number | undefined) => updateEdgeWeight(v)"
+                />
+              </div>
+              <div v-else class="prop-field">
                 <label>{{ t('route.edgeCondValue') }}</label>
                 <FcInput v-model="selectedEdge.data.condition_value" data-testid="edge-cond-value" maxlength="500" @input="markDirty" />
               </div>
@@ -142,6 +162,20 @@
         <p class="diff-conditions" data-testid="apply-conditions-changes">
           {{ t('route.canvasApplyConditionsChanges') }}：{{ applyDiff.conditions_changes ?? 0 }}
         </p>
+
+        <!-- H7b T2：画布 apply 变更说明（可选 —— diff 流已天然留痕，仅在填写时随 payload 携带） -->
+        <div class="diff-group apply-desc" data-testid="apply-desc-block">
+          <div class="diff-group-title">{{ t('env.changeDescLabel') }}（{{ t('common.optional') }}）</div>
+          <el-input
+            v-model="applyChangeDesc"
+            type="textarea"
+            :rows="2"
+            :maxlength="200"
+            show-word-limit
+            :placeholder="t('env.changeDescPlaceholder')"
+            data-testid="apply-desc-input"
+          />
+        </div>
 
         <div class="diff-group" data-testid="apply-group-create">
           <div class="diff-group-title">{{ t('route.canvasApplyGroupCreate') }}（{{ applyDiff.to_create?.length || 0 }}）</div>
@@ -202,10 +236,11 @@ import '@vue-flow/core/dist/theme-default.css'
 import '@vue-flow/controls/dist/style.css'
 import '@vue-flow/minimap/dist/style.css'
 
-import { FcButton, FcTabsPanel, FcSwitch, FcInput, FcSelect, FcDialog, FcTable } from '@/components'
+import { FcButton, FcTabsPanel, FcSwitch, FcInput, FcSelect, FcDialog, FcTable, PublishSyncStatus } from '@/components'
 import { useRoute } from 'vue-router'
 import { getCanvas, saveCanvas, getRoute, applyCanvas } from '@/api/routes'
 import type { CanvasApplyDiff } from '@/api/routes'
+import { parseWeight } from '@/utils/weight'
 
 const { t } = useI18n()
 const { confirm: fcConfirm } = useFcConfirm()
@@ -231,8 +266,38 @@ const condTypeOptions = computed(() => [
   { value: 'PATH', label: t('route.condTypePath') },
   { value: 'QUERY', label: t('route.condTypeQuery') },
   { value: 'BODY', label: t('route.condTypeBody') },
-  { value: 'GROOVY', label: t('route.condTypeGroovy') }
+  { value: 'GROOVY', label: t('route.condTypeGroovy') },
+  // P2-4：权重分流（同优先级候选按权重比例分流，不是请求谓词）
+  { value: 'WEIGHT', label: t('route.condTypeWeight') }
 ])
+
+/** 权重数字输入写回：契约 condition_key=数字字符串、condition_value 留空 */
+function updateEdgeWeight(v: number | undefined) {
+  const edge = selectedEdge.value
+  if (!edge?.data) return
+  if (v === undefined || v === null || Number.isNaN(v)) {
+    edge.data.condition_key = ''
+  } else {
+    edge.data.condition_key = String(Math.min(100, Math.max(1, Math.round(v))))
+  }
+  edge.data.condition_value = ''
+  markDirty()
+}
+
+/** 边条件类型切换：进 WEIGHT 时把既有数值型 condition_value 迁到 condition_key 并清空 value */
+function onEdgeCondTypeChange() {
+  const edge = selectedEdge.value
+  if (!edge?.data) return
+  if (edge.data.condition_type === 'WEIGHT') {
+    if (parseWeight(edge.data.condition_key) === null) {
+      edge.data.condition_key = /^\d+$/.test(String(edge.data.condition_value ?? '').trim())
+        ? String(edge.data.condition_value).trim()
+        : ''
+    }
+    edge.data.condition_value = ''
+  }
+  markDirty()
+}
 
 const connectionError = ref('')
 
@@ -559,6 +624,10 @@ const applyOpen = ref(false)
 const applyDiff = ref<CanvasApplyDiff | null>(null)
 const applyDeleteRows = ref<Array<{ id: string; name: string; _checked: boolean }>>([])
 const applyingConfirm = ref(false)
+// H7b T2：画布 apply 变更说明（可选，画布走 diff 流已天然留痕；仅在填写时随 payload 携带）
+const applyChangeDesc = ref('')
+// P1-3: 应用画布成功后轮询配置同步状态（发布生效确认）
+const syncStatusRef = ref<InstanceType<typeof PublishSyncStatus> | null>(null)
 
 const deleteCheckedIds = computed(() => applyDeleteRows.value.filter(r => r._checked).map(r => r.id))
 
@@ -615,6 +684,8 @@ async function applyToTree() {
     applyDiff.value = diff
     // 建议删除默认不勾选，需用户逐条确认
     applyDeleteRows.value = (diff.to_delete || []).map(d => ({ ...d, _checked: false }))
+    // 每次打开预览都清空上次的变更说明输入
+    applyChangeDesc.value = ''
     applyOpen.value = true
   } catch (e: any) {
     saveError.value = e?.message || t('common.saveFailed')
@@ -630,17 +701,23 @@ async function confirmApply() {
   applyingConfirm.value = true
   saveError.value = ''
   try {
+    // H7b T2：变更说明选填 —— 仅在填写时携带 change_description（payload 保持最小形状）
+    const desc = applyChangeDesc.value.trim()
     await applyCanvas(routeId.value, {
       nodes: nodes.value,
       edges: edges.value,
       dry_run: false,
-      confirm_delete_ids: deleteCheckedIds.value
+      confirm_delete_ids: deleteCheckedIds.value,
+      ...(desc ? { change_description: desc } : {})
     })
     applyOpen.value = false
     ElMessage.success(t('route.canvasApplySuccess'))
     ElMessage.success(t('route.canvasApplyPublishHint'))
+    // P1-3: 落库成功后轮询 sync-status，确认网关已加载新配置（「已生效」）
+    syncStatusRef.value?.start()
     applyDiff.value = null
     applyDeleteRows.value = []
+    applyChangeDesc.value = ''
   } catch (e: any) {
     saveError.value = e?.message || t('common.saveFailed')
   } finally {
@@ -724,6 +801,19 @@ onBeforeRouteLeave(async () => {
   z-index: 1;
 }
 .panel-title { font-size: 13px; font-weight: 600; color: var(--app-text-secondary); margin-bottom: 4px; }
+.cond-type-label { display: inline-flex; align-items: center; gap: 5px; }
+.cond-type-help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  font-size: 10px;
+  color: var(--app-text-secondary);
+  background: var(--app-bg-muted, #f4f4f5);
+  cursor: help;
+}
 .node-type-item {
   display: flex;
   align-items: center;
@@ -812,6 +902,8 @@ onBeforeRouteLeave(async () => {
 .apply-diff { display: flex; flex-direction: column; gap: 16px; }
 .diff-conditions { margin: 0; font-size: 13px; color: var(--app-text-secondary); }
 .diff-group-title { font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--app-text-primary); }
+/* H7b T2：画布 apply 变更说明（可选填） */
+.apply-desc { margin-bottom: 4px; }
 .diff-tip { margin: 0 0 6px; font-size: 12px; color: var(--app-warning, #e6a23c); }
 .diff-empty { margin: 0; font-size: 12px; color: var(--app-text-secondary); }
 </style>

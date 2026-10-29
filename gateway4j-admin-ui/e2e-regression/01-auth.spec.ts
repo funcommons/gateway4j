@@ -150,10 +150,20 @@ test.describe('BL-01 认证与登录', () => {
     })
     await shot('auth', '01-13-remember-me-unchecked')
     expect(checked, '点击"记住我"文案后勾选态应为未勾选').toBe(false)
-    await Promise.all([
-      page.waitForURL(/\/routes/, { timeout: 30_000 }),
-      page.getByRole('button', { name: '登录' }).click(),
-    ])
+    // 本用例不走 login() 辅助（需自驱"记住我"状态）——但 login 限流 10 次/分/IP
+    // 会在此处 429（用例加速后窗口更密），与 login() 同款重试门控
+    for (let attempt = 1; ; attempt++) {
+      try {
+        await Promise.all([
+          page.waitForURL(/\/routes/, { timeout: 30_000 }),
+          page.getByRole('button', { name: '登录' }).click(),
+        ])
+        break
+      } catch (e) {
+        if (attempt >= 3) throw e
+        await page.waitForTimeout(25_000)
+      }
+    }
     await page.waitForTimeout(1500)
     const ls = await page.evaluate(() => localStorage.getItem('gw4j_refresh'))
     const ss = await page.evaluate(() => sessionStorage.getItem('gw4j_refresh'))

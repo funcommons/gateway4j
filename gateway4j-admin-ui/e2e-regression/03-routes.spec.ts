@@ -1,4 +1,4 @@
-import { test, expect, login, shot, writeEvidence, formField, confirmButton, uniq, apiCall } from './helpers'
+import { test, expect, login, shot, writeEvidence, formField, confirmButton, confirmPublish, uniq, apiCall } from './helpers'
 
 /**
  * BL-03 路由管理（列表 + 编辑器）
@@ -212,7 +212,7 @@ test.describe('BL-03 路由管理', () => {
     await page.getByRole('button', { name: '发布', exact: true }).first().click()
     await page.waitForTimeout(900)
     await shot('routes', '03-14-publish-confirm-dialog')
-    await confirmButton(page).click()
+    await confirmPublish(page)
     await page.waitForTimeout(3000)
     await page.reload()
     await page.waitForTimeout(2000)
@@ -245,7 +245,7 @@ test.describe('BL-03 路由管理', () => {
     await page.waitForTimeout(1500)
     await page.getByRole('button', { name: '发布', exact: true }).first().click()
     await page.waitForTimeout(900)
-    await confirmButton(page).click()
+    await confirmPublish(page)
     await page.waitForTimeout(3000)
     await page.reload()
     await page.waitForTimeout(2000)

@@ -3,7 +3,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 
 /** 报告根目录（与 playwright.regression.config.ts 中的 results.json 输出目录一致） */
-export const REPORT_ROOT = path.resolve(process.cwd(), '../test-report/2026-10-29-02')
+export const REPORT_ROOT = path.resolve(process.cwd(), '../test-report/2026-10-29-03')
 export const SHOT_ROOT = path.join(REPORT_ROOT, 'screenshots')
 
 export const CREDENTIALS = { username: 'admin', password: 'admin123' }
@@ -118,7 +118,26 @@ export async function login(page: Page, redirect = '/routes') {
       await page.waitForTimeout(25_000)
     }
   }
-  await page.waitForLoadState('networkidle').catch(() => {})
+  // 注意：不要用 networkidle —— P2-7 起 dashboard/路由页持有 SSE 长连接，
+  // networkidle 永不触发（每次空等 30s 超时，曾把整套件拖到 59 分钟）。
+  await page.waitForTimeout(800)
+}
+
+/** 确认发布动作：P2-4 起发布走 PublishDescriptionDialog（变更说明必填 1~200 字，
+ *  确认按钮 [data-testid=publish-desc-confirm] 填写后才启用）——该弹窗取代了旧
+ *  fc-confirm-dialog。填入说明并点击其确认；若 3s 内未见该弹窗（旧交互/非发布），
+ *  回退点击旧式 fc-confirm-dialog 确认按钮，两者皆无则抛错。 */
+export async function confirmPublish(page: Page, text = 'e2e 自动化发布验证') {
+  const input = page.locator('[data-testid="publish-desc-input"]')
+  try {
+    await input.waitFor({ state: 'visible', timeout: 3000 })
+    await input.fill(text)
+    await page.locator('[data-testid="publish-desc-confirm"]').click()
+    return
+  } catch {
+    // 未见新弹窗，回退旧式确认
+  }
+  await confirmButton(page).click()
 }
 
 /** 生成不重复的测试用名称 */

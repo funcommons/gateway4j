@@ -5,10 +5,11 @@ import path from 'path'
 describe('Destructive action confirmation dialogs', () => {
   it('routes/List.vue: publish() has confirmation', () => {
     const source = fs.readFileSync(path.resolve(__dirname, 'routes/List.vue'), 'utf-8')
-    // publish() should have a confirmation before executing
-    const publishFn = source.match(/async function publish[\s\S]*?^}/m)
+    // publish() should gate execution behind a confirmation — H7b T2 起改为
+    // PublishDescriptionDialog（变更说明必填弹窗，确认门控在弹窗内）
+    const publishFn = source.match(/function publish[\s\S]*?^}/m)
     expect(publishFn).toBeTruthy()
-    expect(publishFn![0]).toMatch(/confirm|Confirm/)
+    expect(publishFn![0]).toMatch(/confirm|Confirm|PublishDescriptionDialog|publishDialogOpen/)
   })
 
   it('routes/List.vue: offline() has confirmation', () => {

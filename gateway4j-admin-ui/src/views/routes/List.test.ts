@@ -203,12 +203,16 @@ describe('List.vue — flatRows computation', () => {
 })
 
 describe('List.vue — actions', () => {
-  it('publish(row) calls publishRoute(row.id) and reloads', async () => {
+  it('publish(row) opens the change-description dialog, confirm sends body and reloads', async () => {
     const initial = [makeRouteNode({ id: 'pub-target', status: 'DRAFT' })]
     const wrapper = await factory({ initial })
     mocks.listRoutes.mockClear()
-    await (wrapper.vm as any).publish({ id: 'pub-target' })
-    expect(mocks.publishRoute).toHaveBeenCalledWith('pub-target')
+    // H7b T2：publish 先开变更说明弹窗，确认后携带 change_description 提交
+    ;(wrapper.vm as any).publish({ id: 'pub-target' })
+    expect(mocks.publishRoute).not.toHaveBeenCalled()
+    expect((wrapper.vm as any).publishDialogOpen).toBe(true)
+    await (wrapper.vm as any).onPublishConfirm('首次发布')
+    expect(mocks.publishRoute).toHaveBeenCalledWith('pub-target', '首次发布')
     expect(mocks.listRoutes).toHaveBeenCalled()
   })
 

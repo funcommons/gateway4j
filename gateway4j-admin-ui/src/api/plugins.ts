@@ -91,6 +91,12 @@ export interface PluginRuntimeStatusItem {
   phase: string
   registered: boolean
   updated_at: number
+  /** P1-2: 自装载以来的执行计数；引擎未上报时缺省（前端需兼容不显示） */
+  stats?: {
+    executed: number
+    skipped: number
+    error: number
+  }
 }
 
 export interface PluginRuntimeStatusResponse {

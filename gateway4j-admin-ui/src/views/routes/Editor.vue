@@ -18,9 +18,28 @@
     </FcSectionCard>
 
     <FcSectionCard v-if="routeData && !loadError && !loading" padding="none">
+      <!-- P1-5 编辑冲突：不自动覆盖表单，给出显式「刷新」入口重拉服务端数据 -->
+      <div v-if="conflict" class="conflict-bar" data-testid="conflict-bar">
+        <span class="conflict-text">{{ t('route.conflictModified') }}</span>
+        <FcButton variant="secondary" size="sm" data-testid="conflict-refresh" @click="reloadAfterConflict">
+          {{ t('common.refresh') }}
+        </FcButton>
+      </div>
       <FcTabsPanel v-model="tab" :tabs="tabs">
         <template #tab-basic>
           <RouteBasicForm ref="basicFormRef" v-model="formBasic" :route-options="dispatchRouteOptions" />
+          <!-- H7b：环境归属（仅环境功能可用时渲染；创建预选顶栏当前环境，编辑可迁移，PATCH 携带才迁移） -->
+          <div v-if="envReady" class="env-field" data-testid="route-env-field">
+            <span class="env-field__label">{{ t('env.switcherLabel') }}</span>
+            <FcSelect
+              v-model="formEnv"
+              :options="env.options"
+              style="max-width: 280px"
+              data-testid="route-env-select"
+              @change="envTouched = true"
+            />
+            <span class="env-field__hint">{{ isEdit ? t('env.envMigrateHint') : t('env.envCreateHint') }}</span>
+          </div>
         </template>
 
         <template #tab-conditions>
@@ -52,6 +71,16 @@
       </template>
     </FcSectionCard>
 
+    <!-- P1-3 发布生效确认：放在卡片外，避免发布后 load() 的 loading 切换把轮询状态卸载掉 -->
+    <PublishSyncStatus v-if="isEdit" ref="syncStatusRef" class="editor-sync-row" />
+
+    <!-- H7b T2：发布变更说明弹窗（必填 1~200 字，确认门控在弹窗内） -->
+    <PublishDescriptionDialog
+      v-model:open="publishDialogOpen"
+      :title="publishModeLabel"
+      @confirm="onPublishConfirm"
+    />
+
   </div>
 </template>
 
@@ -63,7 +92,8 @@ import { ElMessage } from 'element-plus'
 import { useFcConfirm } from '@/composables/useFcConfirm'
 import { usePermission } from '@/composables/usePermission'
 import {
-  FcSectionCard, FcTabsPanel, FcButton, FcStatusBadge, FcSkeleton
+  FcSectionCard, FcTabsPanel, FcButton, FcStatusBadge, FcSkeleton, FcSelect,
+  PublishSyncStatus, PublishDescriptionDialog
 } from '@/components'
 import type { SelectOption } from '@/components/form/_types'
 import RouteBasicForm, { type RouteBasic } from '@/components/RouteBasicForm.vue'
@@ -76,12 +106,17 @@ import {
 } from '@/api/routes'
 import { listBuiltinTypes } from '@/api/plugins'
 import { mapFieldErrors } from '@/api/http'
+import { useEnvironments } from '@/store/environment'
+import { DEFAULT_ENV } from '@/utils/environment'
 
 const { t } = useI18n()
 const { confirm: fcConfirm } = useFcConfirm()
 const { canEdit } = usePermission()
 const route = useRoute()
 const router = useRouter()
+// H7b：环境维度（顶栏共享状态；404 降级 → envReady=false，环境字段整体不渲染）
+const env = useEnvironments()
+const envReady = computed(() => env.available)
 const tabs = computed(() => [
   { value: 'basic', label: t('route.editorTabBasic') },
   { value: 'conditions', label: t('route.editorTabConditions') },
@@ -145,6 +180,23 @@ const dirty = ref(false)
 const publishing = ref(false)
 const offlining = ref(false)
 const basicFormRef = ref<any>(null)
+const syncStatusRef = ref<InstanceType<typeof PublishSyncStatus> | null>(null)
+
+// ===== H7b T2：发布变更说明弹窗状态 =====
+const publishDialogOpen = ref(false)
+const publishModeLabel = computed(() =>
+  (routeStatus.value === 'CHANGING' || routeStatus.value === 'OFFLINE') ? t('common.republish') : t('common.publish'))
+
+// ===== H7b：环境归属（创建预选当前环境；编辑迁移 = PATCH 显式携带 environment）=====
+const formEnv = ref<string>(DEFAULT_ENV)
+/** 打开编辑器/进入新建时的环境基线：只有用户改动过，PATCH 才携带 environment（契约：缺省保持） */
+const initialEnv = ref<string>(DEFAULT_ENV)
+const envTouched = ref(false)
+
+// P1-5 编辑冲突：打开编辑器时记录的 config_version（Long→String，随 payload 传 expected_version）
+const expectedVersion = ref('')
+// 10402 冲突标记：仅提示 + 提供「刷新」，不自动覆盖表单
+const conflict = ref(false)
 
 const routeStatus = computed(() => routeData.value?.status as string | undefined)
 
@@ -220,6 +272,8 @@ async function load() {
       const r = await getRoute(targetId)
       if (myEpoch !== loadEpoch) return
       routeData.value = r
+      // P1-5: 记录加载时的版本号，保存时作为 expected_version 传给后端做冲突校验
+      expectedVersion.value = r?.config_version != null ? String(r.config_version) : ''
       form.value = {
         route_name: r.route_name,
         route_type: r.route_type,
@@ -232,6 +286,10 @@ async function load() {
         conditions: [],
         bindings: []
       }
+      // H7b：记录路由当前环境作为迁移基线（PATCH 仅在用户改动时携带）
+      initialEnv.value = (r as any).environment || DEFAULT_ENV
+      formEnv.value = initialEnv.value
+      envTouched.value = false
     } catch (e: any) {
       if (myEpoch !== loadEpoch) return
       routeData.value = null
@@ -247,6 +305,10 @@ async function load() {
       conditions: [],
       bindings: []
     }
+    // H7b T1：新建预选顶栏当前环境（环境功能降级时保持 default）
+    initialEnv.value = env.available ? env.current : DEFAULT_ENV
+    formEnv.value = initialEnv.value
+    envTouched.value = false
   }
   // Basic form fields are now ready (route_name, route_type, etc.).
   // Unblock save immediately to avoid leaving user staring at a disabled button
@@ -389,17 +451,38 @@ async function save() {
       }))
     }
     if (routeId.value) {
-      await updateRoute(routeId.value, payload)
+      // P1-5 乐观锁：编辑模式携带打开编辑器时的版本号（Long→String 契约），
+      // 后端版本不一致时返回 code=10402（见下方 catch 分支）
+      // H7b：environment 仅在用户显式改动时携带（PATCH 携带则迁移、缺省保持 —— 契约口径）
+      const envChanged = envReady.value && formEnv.value !== initialEnv.value
+      const body = {
+        ...payload,
+        ...(expectedVersion.value ? { expected_version: expectedVersion.value } : {}),
+        ...(envChanged ? { environment: formEnv.value } : {})
+      }
+      await updateRoute(routeId.value, body)
       ElMessage.success(t('route.saveSuccess'))
       dirty.value = false
       await load()
     } else {
-      const r = (await createRoute(payload)) as any
+      // H7b T1：新建时环境随创建携带（环境功能降级时不传，后端缺省 default）
+      const createBody = {
+        ...payload,
+        ...(envReady.value ? { environment: formEnv.value } : {})
+      }
+      const r = (await createRoute(createBody)) as any
       ElMessage.success(t('route.saveSuccess'))
       dirty.value = false
       await router.replace(`/routes/${r.id}`)
     }
   } catch (e: any) {
+    // P1-5: 10402 编辑冲突 — 独立分支，不落通用错误文案；不自动覆盖表单，
+    // 由 conflict-bar 提供「刷新」按钮让用户显式重拉服务端数据
+    if (e?.code === 10402) {
+      conflict.value = true
+      ElMessage.warning(e?.message || t('route.conflictModified'))
+      return
+    }
     const fieldErrs = mapFieldErrors(e)
     if (Object.keys(fieldErrs).length > 0 && basicFormRef.value?.setFieldErrors) {
       basicFormRef.value.setFieldErrors(fieldErrs)
@@ -410,11 +493,22 @@ async function save() {
   }
 }
 
+/** 冲突提示条的「刷新」：重拉服务端数据覆盖表单（用户显式点击才覆盖） */
+async function reloadAfterConflict() {
+  conflict.value = false
+  await load()
+}
+
 onMounted(load)
 
 watch(() => routeId.value, () => {
   dirtyTracking = false
   load()
+})
+
+// H7b T1：新建模式下顶栏切换环境 → 表单预选跟随（用户已手动改过则不覆盖）
+watch(() => env.current, (v) => {
+  if (!isEdit.value && !envTouched.value) formEnv.value = v
 })
 
 onBeforeRouteLeave(async () => {
@@ -423,15 +517,25 @@ onBeforeRouteLeave(async () => {
   }
 })
 
-async function publish() {
+/** H7b T2：发布入口 → 打开变更说明弹窗（必填门控在弹窗内），确认后进 onPublishConfirm */
+function publish() {
+  if (!canEdit('route')) return
+  if (!routeId.value) return
+  publishDialogOpen.value = true
+}
+
+async function onPublishConfirm(description: string) {
   if (!canEdit('route')) return
   if (!routeId.value) return
   if (publishing.value) return
   publishing.value = true
   saveError.value = ''
   try {
-    await publishRoute(routeId.value)
+    await publishRoute(routeId.value, description)
     ElMessage.success(t('route.publishSuccess'))
+    publishDialogOpen.value = false
+    // P1-3: 发布成功后轮询配置同步状态，确认网关「已生效」
+    syncStatusRef.value?.start()
     await load()
   } catch (e: any) {
     saveError.value = e?.message || t('common.actionFailed')
@@ -464,11 +568,40 @@ async function goBack() {
 <style scoped>
 .form-block { padding: 16px; }
 .toolbar { margin-bottom: 12px; }
+/* H7b：环境归属字段（基础信息 Tab 底部，仅环境功能可用时渲染） */
+.env-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 16px 12px;
+}
+.env-field__label {
+  font-size: 13px;
+  color: var(--app-text-primary);
+  flex-shrink: 0;
+}
+.env-field__hint {
+  font-size: 12px;
+  color: var(--app-text-secondary);
+}
 .save-error {
   color: var(--app-danger);
   font-size: 13px;
   margin: 0 auto 0 0;
 }
+.conflict-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 16px;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--app-warning, #e6a23c) 8%, transparent);
+  border-radius: var(--app-radius-sm);
+  font-size: 13px;
+  color: var(--app-warning, #e6a23c);
+}
+.conflict-text { flex: 1; }
+.editor-sync-row { margin-top: 8px; }
 .load-error-state {
   display: flex;
   flex-direction: column;

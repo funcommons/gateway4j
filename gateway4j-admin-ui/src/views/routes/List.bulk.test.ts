@@ -180,8 +180,11 @@ describe('List.vue — 批量操作 runBulk', () => {
     const vm = wrapper.vm as any
     vm.selectedRows = [makeRouteNode({ id: 'a' })]
     mocks.bulkPublishRoutes.mockRejectedValue(new Error('网络错误'))
+    // H7b T2：批量发布先过变更说明弹窗（必填），确认后调批量接口
     await vm.runBulk('publish')
-    expect(mocks.bulkPublishRoutes).toHaveBeenCalledWith(['a'])
+    expect(mocks.bulkPublishRoutes).not.toHaveBeenCalled()
+    await vm.onPublishConfirm('批量发布说明')
+    expect(mocks.bulkPublishRoutes).toHaveBeenCalledWith(['a'], '批量发布说明')
     expect(vm.actionError).toBe('网络错误')
   })
 

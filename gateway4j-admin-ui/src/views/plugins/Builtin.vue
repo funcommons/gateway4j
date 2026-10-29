@@ -38,6 +38,16 @@
               >{{ t('plugin.runtimeUnsupported') }}</FcTag>
             </div>
             <p class="desc">{{ item.description }}</p>
+            <!-- P1-2 插件执行统计：引擎上报 stats 时展示（自装载以来）；缺省不显示 -->
+            <FcTooltip
+              v-if="runtimeStats(item)"
+              :content="t('plugin.statsSinceLoad', runtimeStats(item)!)"
+              placement="top"
+            >
+              <span class="runtime-stats" data-testid="plugin-stats">
+                {{ t('plugin.statsSinceLoad', runtimeStats(item)!) }}
+              </span>
+            </FcTooltip>
             <div class="card-actions">
               <FcButton v-if="canEdit('plugin')" variant="primary" size="sm" @click="openConfig(item)">{{ t('plugin.configForm') }}</FcButton>
               <FcButton v-if="canEdit('plugin') && item.status !== 'ENABLED'" variant="secondary" size="sm" @click="toggleStatus(item)">{{ t('common.enable') }}</FcButton>
@@ -105,23 +115,60 @@ const visibleCategories = computed(() => {
 })
 
 /** 数据面插件接线状态（engine reload 后写入 Redis；available=false 表示状态未知 → 静默降级）。 */
-const runtimeMap = ref<Record<string, { registered: boolean }>>({})
+const runtimeMap = ref<Record<string, { registered: boolean; stats?: PluginStats }>>({})
 const runtimeAvailable = ref(false)
+
+// type alias（非 interface）：可隐式获得 index signature，供 t(key, named) 使用
+type PluginStats = {
+  executed: number
+  skipped: number
+  error: number
+}
 
 async function loadRuntimeStatus() {
   runtimeAvailable.value = false
   runtimeMap.value = {}
   try {
-    const res = (await getRuntimeStatus()) as { available?: boolean; items?: Array<{ plugin_id?: string; registered?: boolean }> } | undefined
+    const res = (await getRuntimeStatus()) as { available?: boolean; items?: Array<{ plugin_id?: string; registered?: boolean; stats?: PluginStats }> } | undefined
     if (!res || res.available !== true) return
-    const map: Record<string, { registered: boolean }> = {}
+    const map: Record<string, { registered: boolean; stats?: PluginStats }> = {}
     for (const it of res.items || []) {
-      if (it && it.plugin_id) map[it.plugin_id] = { registered: !!it.registered }
+      if (it && it.plugin_id) {
+        map[it.plugin_id] = { registered: !!it.registered, stats: it.stats }
+      }
     }
     runtimeMap.value = map
     runtimeAvailable.value = true
   } catch {
     // 接口异常同样按状态未知处理：不显示数据面徽标，不打扰用户
+  }
+}
+
+/**
+ * P1-2 执行统计（自装载以来）：引擎未上报（旧版缺字段）时返回 null → 不展示。
+ * Long→String 契约下计数可能以字符串到达；null/undefined/NaN 视为未上报。
+ */
+function toCount(v: unknown): number | null {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null
+  if (typeof v === 'string' && v.trim() !== '') {
+    const n = Number(v)
+    return Number.isFinite(n) ? n : null
+  }
+  return null
+}
+
+function runtimeStats(item: any): PluginStats | null {
+  const s = runtimeMap.value[item?.plugin_id]?.stats
+  if (!s || typeof s !== 'object') return null
+  const executed = toCount(s.executed)
+  const skipped = toCount(s.skipped)
+  const error = toCount(s.error)
+  // 三个计数都无效 → 视为未上报，不展示
+  if (executed === null && skipped === null && error === null) return null
+  return {
+    executed: executed ?? 0,
+    skipped: skipped ?? 0,
+    error: error ?? 0
   }
 }
 
@@ -229,6 +276,11 @@ async function toggleStatus(plugin: any) {
 .card-header h3 { margin: 0; font-size: 15px; font-weight: 600; color: var(--app-text); }
 .card-actions { display: flex; gap: 8px; }
 .desc { color: var(--app-text-secondary); font-size: 13px; line-height: 1.5; flex: 1; }
+.runtime-stats {
+  font-size: 12px;
+  color: var(--app-text-tertiary, #909399);
+  cursor: default;
+}
 .load-error {
   color: var(--app-danger);
   font-size: 13px;

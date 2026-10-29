@@ -5,13 +5,15 @@ import { mount, flushPromises } from '@vue/test-utils'
 const mocks = vi.hoisted(() => ({
   listRouteStatus: vi.fn(),
   getTopology: vi.fn(),
-  getRouteMetrics: vi.fn()
+  getRouteMetrics: vi.fn(),
+  getRouteTimeseries: vi.fn()
 }))
 
 vi.mock('@/api/misc', () => ({
   listRouteStatus: mocks.listRouteStatus,
   getTopology: mocks.getTopology,
-  getRouteMetrics: mocks.getRouteMetrics
+  getRouteMetrics: mocks.getRouteMetrics,
+  getRouteTimeseries: mocks.getRouteTimeseries
 }))
 
 vi.mock('@vue-flow/core', () => ({
@@ -66,6 +68,8 @@ beforeEach(() => {
     route_id: 'r1',
     data_points: []
   })
+  // P1-6: 时序接口不可用（旧 jar 404）→ 走旧 /metrics 回退路径, 保持本文件断言语义不变
+  mocks.getRouteTimeseries.mockReset().mockRejectedValue(new Error('404 no timeseries'))
   vi.useFakeTimers()
 })
 

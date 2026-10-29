@@ -10,6 +10,8 @@ export interface RouteNode {
   sort_order: number
   remark?: string
   tags?: string
+  /** H7b 环境维度：路由归属环境（缺省/旧后端不下发 → 视为 default） */
+  environment?: string
   config_version: string
   created_at: number
   updated_at: number
@@ -55,9 +57,9 @@ export interface BindingDto {
   sort_order?: number
 }
 
-export function listRoutes(params?: { tag?: string }) {
-  if (params?.tag) {
-    return envelope<RouteNode[]>(http.get('/v1/routes', { params: { tag: params.tag } }))
+export function listRoutes(params?: { tag?: string; environment?: string }) {
+  if (params?.tag || params?.environment) {
+    return envelope<RouteNode[]>(http.get('/v1/routes', { params }))
   }
   return envelope<RouteNode[]>(http.get('/v1/routes'))
 }
@@ -75,6 +77,8 @@ export function createRoute(payload: {
   sort_order?: number
   remark?: string
   tags?: string
+  /** H7b：归属环境（^[a-z0-9_-]{1,20}$），缺省 default；环境功能降级时不传 */
+  environment?: string
   conditions?: RouteConditionDto[]
   plugin_ids?: string[]
   bindings?: Array<{ plugin_id: string; binding_config: string; sort_order?: number }>
@@ -90,9 +94,16 @@ export function updateRoute(id: string, payload: Partial<{
   sort_order: number
   remark: string
   tags: string
+  /**
+   * H7b：PATCH 携带 environment 则迁移环境；缺省（不传）保持原环境。
+   * 仅在用户显式改动环境时携带。
+   */
+  environment?: string
   conditions: RouteConditionDto[]
   plugin_ids: string[]
   bindings: Array<{ plugin_id: string; binding_config: string; sort_order?: number }>
+  /** 乐观锁：打开编辑器时的 config_version（Long→String 契约，传字符串数字）。不传则不做冲突校验 */
+  expected_version: string
 }>) {
   return envelope<RouteDetail>(http.patch(`/v1/routes/${id}`, payload))
 }
@@ -101,7 +112,14 @@ export function deleteRoute(id: string) {
   return http.delete(`/v1/routes/${id}`)
 }
 
-export function publishRoute(id: string) {
+/**
+ * 发布路由。H7b：body 可选 { change_description }（UI 侧必填 1~200 字）；
+ * 旧后端忽略 body —— 不传时保持无 body 调用（兼容）。
+ */
+export function publishRoute(id: string, changeDescription?: string) {
+  if (changeDescription != null && changeDescription !== '') {
+    return http.post(`/v1/routes/${id}/publish`, { change_description: changeDescription })
+  }
   return http.post(`/v1/routes/${id}/publish`)
 }
 
@@ -120,8 +138,12 @@ export interface BulkResult {
   failed: Array<{ id: string; reason: string }>
 }
 
-export function bulkPublishRoutes(ids: string[]) {
-  return envelope<BulkResult>(http.post('/v1/routes/bulk-publish', { ids }))
+/** H7b：批量发布 body 可选 change_description（UI 侧必填） */
+export function bulkPublishRoutes(ids: string[], changeDescription?: string) {
+  const body = (changeDescription != null && changeDescription !== '')
+    ? { ids, change_description: changeDescription }
+    : { ids }
+  return envelope<BulkResult>(http.post('/v1/routes/bulk-publish', body))
 }
 
 export function bulkOfflineRoutes(ids: string[]) {
@@ -159,6 +181,8 @@ export interface CanvasApplyPayload {
   dry_run: boolean
   /** 建议删除列表中用户勾选确认的 id；dry_run=false 时生效 */
   confirm_delete_ids?: string[]
+  /** H7b：变更说明（可选；画布走 diff 流已天然留痕，仅在用户填写时携带） */
+  change_description?: string
 }
 
 /** 画布 → 路由树 diff（dry_run=true 与正式应用共用同一返回结构） */
@@ -207,6 +231,8 @@ export function getPluginChain(routeId: string) {
 export interface RoutePackage {
   version: string
   exported_at: number
+  /** H7b：包来源环境（单环境名 | 'mixed'）；旧包无此字段（视为 default） */
+  environment?: string
   routes: ExportNode[]
 }
 
@@ -222,10 +248,12 @@ export interface ExportNode {
   children: ExportNode[]
 }
 
-export function exportRoutes(routeIds?: string[], status?: string) {
+/** H7b：export 支持按环境导出（包顶层 environment：单环境名 | 'mixed'） */
+export function exportRoutes(routeIds?: string[], status?: string, environment?: string) {
   const params: Record<string, unknown> = {}
   if (routeIds) params.route_ids = routeIds
   if (status) params.status = status
+  if (environment) params.environment = environment
   return envelope<RoutePackage>(http.get('/v1/routes/export', { params }))
 }
 export interface ImportReport {
@@ -234,6 +262,12 @@ export interface ImportReport {
   missing_plugins?: string[]
   missing_targets?: string[]
   cycle_warnings?: string[]
+  /** H7b：本次预检/导入的目标环境（缺省 default） */
+  environment?: string
+  /** H7b：路由包来源环境（旧包 = default） */
+  package_environment?: string
+  /** 预检失败原因（D14：预检失败必须带可读原因） */
+  reason?: string
 }
 
 export interface ImportResult {
@@ -247,8 +281,12 @@ export interface ImportResult {
 export function validateImport(pkg: RoutePackage) {
   return envelope<ImportReport>(http.post('/v1/routes/import/validate', pkg))
 }
-export function importRoutes(pkg: RoutePackage, strategy: 'SKIP' | 'OVERWRITE' | 'ERROR') {
-  return envelope<ImportResult>(http.post('/v1/routes/import', { data: pkg, strategy }))
+/** H7b：body 可选 target_environment（缺省 default）；环境功能降级时不传 */
+export function importRoutes(pkg: RoutePackage, strategy: 'SKIP' | 'OVERWRITE' | 'ERROR', targetEnvironment?: string) {
+  const body = (targetEnvironment != null && targetEnvironment !== '')
+    ? { data: pkg, strategy, target_environment: targetEnvironment }
+    : { data: pkg, strategy }
+  return envelope<ImportResult>(http.post('/v1/routes/import', body))
 }
 
 /** 导入前自动快照（可选能力：后端未实现时该接口 404，调用方需静默跳过） */

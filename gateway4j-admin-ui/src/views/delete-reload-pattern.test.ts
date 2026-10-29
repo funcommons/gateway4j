@@ -17,7 +17,8 @@ describe('Delete-then-reload pattern', () => {
 
   it('routes/List.vue only reloads after successful publish', () => {
     const source = readFileSync('src/views/routes/List.vue', 'utf-8')
-    const publishMatch = source.match(/async function publish[\s\S]*?^}/m)
+    // H7b T2：publish() 只负责开弹窗，提交与重载在 onPublishConfirm（try 内才 reload）
+    const publishMatch = source.match(/async function onPublishConfirm[\s\S]*?^}/m)
     expect(publishMatch).toBeTruthy()
     const fn = publishMatch![0]
     const tryCatch = fn.match(/try\s*{([\s\S]*?)}\s*catch/)

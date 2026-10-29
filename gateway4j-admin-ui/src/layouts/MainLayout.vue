@@ -16,11 +16,15 @@
           <GlobalSearch />
         </template>
         <template #actions>
+          <!-- H7b T1：环境切换器（外观按钮旁；404 降级时整体不渲染） -->
+          <EnvironmentSwitcher />
           <FcThemeSwitcher />
           <FcButton variant="text" @click="onLogout">{{ t('auth.logout') }}</FcButton>
         </template>
       </FcHeader>
     </template>
+    <!-- P2-9 弱口令横幅：顶栏下方常驻，不阻断导航 -->
+    <PasswordStaleBanner />
     <nav
       v-if="$route.meta.titleKey"
       class="breadcrumb-bar"
@@ -47,11 +51,13 @@ import {
   FcSectionHeader,
   FcButton,
   FcThemeSwitcher,
+  EnvironmentSwitcher,
   useSidebarNavItems
 } from '@/components'
 import { useAuthStore } from '@/store/auth'
 import { usePermission } from '@/composables/usePermission'
 import GlobalSearch from '@/components/search/GlobalSearch.vue'
+import PasswordStaleBanner from '@/components/PasswordStaleBanner.vue'
 import { Operation, Connection, Share, Histogram, User, Lock, Box, Grid, Setting } from '@element-plus/icons-vue'
 
 const { t } = useI18n()

@@ -56,6 +56,7 @@ export default {
     unsavedChanges: 'You have unsaved changes. Are you sure you want to leave?',
     confirmPublish: 'Are you sure you want to publish this route?',
     confirmOffline: 'Are you sure you want to take this route offline?',
+    optional: 'Optional',
     confirmDisableUser: 'Are you sure you want to disable this user?',
     confirmDisablePlugin: 'Are you sure you want to disable this plugin?',
     home: 'Home',
@@ -73,7 +74,30 @@ export default {
     submit: 'Sign in',
     title: 'Gateway4j Admin',
     welcome: 'Welcome to Gateway4j',
-    usernamePasswordRequired: 'Please enter username and password'
+    usernamePasswordRequired: 'Please enter username and password',
+    pwdStaleBanner: 'You are using the default password. Please change it now',
+    pwdStaleAction: 'Change now',
+    pwdDialogTitle: 'Change Password',
+    pwdNew: 'New password',
+    pwdNewPlaceholder: 'Enter new password',
+    pwdConfirm: 'Confirm new password',
+    pwdConfirmPlaceholder: 'Enter new password again',
+    pwdMismatch: 'Passwords do not match',
+    pwdRequired: 'Please enter the new password',
+    pwdChanged: 'Password changed'
+  },
+  env: {
+    switcherLabel: 'Environment',
+    switcherTip: 'Admin-plane view filter and route ownership selector; the data-plane environment is defined by the gateway process config and is not affected by this switch',
+    envCol: 'Environment',
+    envCreateHint: 'New routes will belong to the selected environment (default: default)',
+    envMigrateHint: 'Saving with a changed environment migrates the route',
+    changeDescLabel: 'Change Description',
+    changeDescPlaceholder: 'Briefly describe this change (1-200 characters)',
+    changeDescRequired: 'Change description is required (1-200 characters)',
+    changeDescOptional: 'Optional: canvas apply already leaves an audit trail via diff',
+    publishDialogTitle: 'Publish Route',
+    changeDescBulkContext: 'Publishing {n} routes. Please enter a change description'
   },
   sidebar: {
     dashboard: 'Monitor',
@@ -170,6 +194,12 @@ export default {
     condTypeQuery: 'Query',
     condTypeBody: 'Body',
     condTypeGroovy: 'Groovy',
+    condTypeWeight: 'Weight',
+    condWeightTip: 'Candidates at the same priority are split by weight ratio (1-100, not a request predicate)',
+    condWeightTag: 'Weight {n}',
+    condWeightRequired: 'Weight is required (integer 1-100)',
+    condWeightRange: 'Weight must be an integer between {min} and {max}',
+    edgeWeight: 'Weight (1-100)',
     backendNoOutgoing: 'Backend routes cannot be connection source',
     selfLoopNotAllowed: 'Self-connections are not allowed',
     dispatchNeedsEdge: 'Dispatch routes must have at least one connection',
@@ -238,7 +268,11 @@ export default {
     bulkConfirmContent: 'This will apply the action to {n} route(s). Continue?',
     bulkSelected: '{n} selected',
     bulkResultAll: 'Bulk action succeeded for {n} route(s)',
-    bulkResultPartial: '{ok} succeeded, {fail} failed: {reasons}'
+    bulkResultPartial: '{ok} succeeded, {fail} failed: {reasons}',
+    publishSyncPending: 'Publishing…',
+    publishSynced: 'Active',
+    publishSyncDelayed: 'Sync Delayed',
+    conflictModified: 'This route was modified by someone else. Please refresh and retry.'
   },
   plugin: {
     list: 'Plugin List',
@@ -309,7 +343,8 @@ export default {
     runtimeWired: 'Wired',
     runtimeUnwired: 'Not Wired',
     runtimeUnwiredTip: 'The gateway data plane has not registered this plugin instance; bindings will not actually execute',
-    runtimeUnsupported: 'Not Supported'
+    runtimeUnsupported: 'Not Supported',
+    statsSinceLoad: 'Since load: executed {executed} / skipped {skipped} / error {error}'
   },
   monitor: {
     status: 'Route Status',
@@ -338,7 +373,12 @@ export default {
     totalRequests: 'Total Requests',
     chartRequests: 'Requests',
     chartErrorRate: 'Error Rate %',
-    chartNoData: 'No data'
+    chartNoData: 'No data',
+    sourcePrometheus: 'Prometheus',
+    sourceSnapshot: 'Snapshot',
+    upstream: 'Upstream',
+    upstreamOk: 'Reachable',
+    upstreamUnreachable: 'Unreachable'
   },
   user: {
     list: 'User List',
@@ -424,7 +464,22 @@ export default {
     diffMissingPluginDetail: 'This plugin is not installed in the target environment',
     diffMissingTargetDetail: 'The target route referenced by a condition does not exist in the target environment',
     diffCycleDetail: 'Importing may create a circular dispatch chain',
-    snapshotCreated: 'Auto snapshot created snapshot_id={id}; you can roll back if needed'
+    snapshotCreated: 'Auto snapshot created snapshot_id={id}; you can roll back if needed',
+    tabEnvDiff: 'Environment Diff',
+    targetEnv: 'Target Environment',
+    reportEnvironment: 'Target environment',
+    reportPackageEnvironment: 'Package source environment',
+    diffFrom: 'Environment A (from)',
+    diffTo: 'Environment B (to)',
+    diffRun: 'Compare',
+    diffOnlyInFrom: 'Only in {env}',
+    diffOnlyInTo: 'Only in {env}',
+    diffChanged: 'Field Changes',
+    diffColField: 'Field',
+    diffColFrom: 'A Value',
+    diffColTo: 'B Value',
+    diffUnavailable: 'Environment diff service unavailable',
+    diffNoChanges: 'Both environments are identical'
   },
   settings: {
     general: 'General',
@@ -455,6 +510,16 @@ export default {
     changeTypeRoute: 'Route',
     changeTypePlugin: 'Plugin',
     changesUnavailable: 'Change log API is currently unavailable',
+    auditAction: 'Action',
+    auditActor: 'Actor',
+    auditTarget: 'Target',
+    auditResult: 'Result',
+    auditTime: 'Time',
+    auditActionAll: 'All actions',
+    auditRangeStart: 'Start time',
+    auditRangeEnd: 'End time',
+    auditCompatMode: 'Compatibility mode',
+    auditEmpty: 'No audit logs',
     changesEmpty: 'No changes yet'
   },
   emptyState: {

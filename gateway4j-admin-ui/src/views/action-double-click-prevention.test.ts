@@ -6,7 +6,8 @@ import path from 'path'
 // check their respective flag before proceeding to prevent double-invocation.
 
 const checks = [
-  { file: 'routes/Editor.vue', fn: 'publish', flag: 'publishing' },
+  // H7b T2：publish 拆成两段 —— publish() 只开弹窗，真正的提交守卫在 onPublishConfirm
+  { file: 'routes/Editor.vue', fn: 'onPublishConfirm', flag: 'publishing' },
   { file: 'routes/Editor.vue', fn: 'offline', flag: 'offlining' },
   { file: 'routes/ImportExport.vue', fn: 'onExport', flag: 'exporting' },
   { file: 'routes/ImportExport.vue', fn: 'onValidate', flag: 'validating' },

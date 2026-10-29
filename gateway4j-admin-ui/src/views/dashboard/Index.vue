@@ -30,6 +30,17 @@
                 />
               </template>
             </el-table-column>
+            <!-- T5/P2-6 配套：上游健康徽标（reachable=false 红 / true 绿 / 缺省不显示） -->
+            <el-table-column :label="t('monitor.upstream')" width="110">
+              <template #default="{ row }">
+                <FcStatusBadge
+                  v-if="upstreamState(row) !== null"
+                  :tone="upstreamState(row) === true ? 'success' : 'error'"
+                  :label="upstreamState(row) === true ? t('monitor.upstreamOk') : t('monitor.upstreamUnreachable')"
+                  :data-testid="`upstream-${(row as any).route_id}`"
+                />
+              </template>
+            </el-table-column>
             <el-table-column :label="t('monitor.total')">
               <template #default="{ row }">{{ row.total_requests }}</template>
             </el-table-column>
@@ -45,6 +56,13 @@
             <FcSegmented v-model="timeRange" :options="timeRangeOptions" />
             <FcSegmented v-model="granularity" :options="granularityOptions" />
             <label class="auto-refresh-label"><FcSwitch v-model="autoRefresh" /> {{ t('monitor.autoRefresh') }}</label>
+            <!-- P1-6 数据源徽标：prometheus=绿 / snapshot=灰；回退旧 /metrics 时不显示 -->
+            <span
+              v-if="metricsSource"
+              class="source-badge"
+              :class="metricsSource === 'prometheus' ? 'source-badge--prometheus' : 'source-badge--snapshot'"
+              data-testid="metrics-source-badge"
+            >{{ metricsSource === 'prometheus' ? t('monitor.sourcePrometheus') : t('monitor.sourceSnapshot') }}</span>
             <span v-if="lastRefresh" class="last-refresh">{{ t('monitor.lastRefresh') }}：{{ lastRefresh }}</span>
           </div>
 
@@ -96,7 +114,9 @@ import {
   FcSection, FcSectionCard, FcTabsPanel, FcTable, FcStatusBadge,
   FcInput, FcSelect, FcSegmented, FcSwitch, FcSkeleton
 } from '@/components'
-import { listRouteStatus, getTopology, getRouteMetrics } from '@/api/misc'
+import { listRouteStatus, getTopology, getRouteMetrics, getRouteTimeseries } from '@/api/misc'
+import { useEnvironments } from '@/store/environment'
+import { useMonitorStream, type MonitorStreamMetrics } from '@/composables/useMonitorStream'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -147,6 +167,8 @@ const granularity = ref('1m')
 const autoRefresh = ref(true)
 const lastRefresh = ref('')
 const metricsData = ref<any[]>([])
+/** P1-6 时序数据源口径：'prometheus' | 'snapshot'；回退旧 /metrics 时为 ''（不显示徽标） */
+const metricsSource = ref<'prometheus' | 'snapshot' | ''>('')
 const chartRef = ref<HTMLElement | null>(null)
 let chartInstance: echarts.ECharts | null = null
 let refreshTimer: ReturnType<typeof setInterval> | null = null
@@ -189,14 +211,23 @@ const stats = computed(() => {
   // P0-2: 后端从不产出 CIRCUIT_OPEN（healthStatus 只产 HEALTHY/ERROR），「熔断路由数」
   // 是永不存在的假统计 → 改为真实可得的「异常路由数」（status === 'ERROR'）
   const errored = statuses.value.filter((r) => r.status === 'ERROR').length
+  // P2-7: SSE metrics 摘要优先（仅在链路健康时），字段缺省时回退 statuses 聚合值
+  const live = streamMode.value === 'sse' ? streamSummary.value : null
   return [
-    { label: t('monitor.routeTotal'), value: String(statuses.value.length) },
+    { label: t('monitor.routeTotal'), value: String(live && live.total !== undefined ? Number(live.total) || 0 : statuses.value.length) },
     { label: t('monitor.healthy'), value: String(healthy) },
-    { label: t('monitor.errorRoute'), value: String(errored) },
-    { label: t('monitor.totalRequests'), value: String(total) },
+    { label: t('monitor.errorRoute'), value: String(live && live.error !== undefined ? Number(live.error) || 0 : errored) },
+    { label: t('monitor.totalRequests'), value: String(live && live.total_requests !== undefined ? Number(live.total_requests) || 0 : total) },
     { label: t('monitor.errorRate'), value: rate }
   ]
 })
+
+/** T5：行级上游健康三态 → true=正常 / false=不可达 / null=后端未下发（不渲染徽标） */
+function upstreamState(row: any): boolean | null {
+  const u = row?.upstream
+  if (!u || typeof u !== 'object' || typeof u.reachable !== 'boolean') return null
+  return u.reachable
+}
 
 const latestMetric = computed(() => {
   if (metricsData.value.length === 0) return null
@@ -272,16 +303,29 @@ async function load() {
 
 async function loadMetrics(epoch = loadEpoch) {
   if (!selectedRoute.value) return
+  let points: any[] = []
   try {
-    const r: any = await getRouteMetrics(selectedRoute.value, timeRange.value, granularity.value)
+    // P1-6: 优先走时序接口（Prometheus 实时 / 快照兜底，由后端声明 source 口径）
+    const r: any = await getRouteTimeseries(selectedRoute.value, timeRange.value, granularity.value)
     if (epoch !== loadEpoch) return
-    metricsData.value = r.data_points || []
-    // 24 小时制 HH:mm:ss，不随系统 locale 漂移成英文 12 小时制
-    lastRefresh.value = fmtClock(new Date())
+    points = r?.data_points || []
+    metricsSource.value = r?.source === 'snapshot' ? 'snapshot' : 'prometheus'
   } catch {
     if (epoch !== loadEpoch) return
-    metricsData.value = []
+    // 降级：时序接口不可用（新旧混布时旧 jar 404）→ 回退旧 /metrics，大盘不能白屏
+    metricsSource.value = ''
+    try {
+      const legacy: any = await getRouteMetrics(selectedRoute.value, timeRange.value, granularity.value)
+      if (epoch !== loadEpoch) return
+      points = legacy?.data_points || []
+    } catch {
+      if (epoch !== loadEpoch) return
+      points = []
+    }
   }
+  metricsData.value = points
+  // 24 小时制 HH:mm:ss，不随系统 locale 漂移成英文 12 小时制
+  lastRefresh.value = fmtClock(new Date())
   await nextTick()
   renderChart()
 }
@@ -351,6 +395,24 @@ function clearRefreshTimer() {
   }
 }
 
+// ===== P2-7: SSE 实时化（旧 5s 轮询完整保留为降级路径） =====
+const streamSummary = ref<MonitorStreamMetrics | null>(null)
+const {
+  mode: streamMode,
+  connected: streamConnected,
+  start: startStream
+} = useMonitorStream({
+  onMetrics: (m) => { streamSummary.value = m },
+  onConfigChanged: () => { void load() },
+  // 降级链：SSE 放弃 → 确保既有 5s 轮询在跑（摘要回退 statuses 聚合）
+  onFallback: () => { if (autoRefresh.value && !refreshTimer) setupAutoRefresh() }
+})
+
+watch(streamMode, (m) => {
+  // 链路恢复 SSE 时摘要立即让位于推送数据；降级时清掉陈旧摘要
+  if (m !== 'sse') streamSummary.value = null
+})
+
 watch([autoRefresh, selectedRoute], setupAutoRefresh)
 watch([timeRange, granularity], () => loadMetrics())
 watch(tab, (newTab) => {
@@ -359,6 +421,12 @@ watch(tab, (newTab) => {
   }
 })
 
+// ===== H7b T1：顶栏切换环境 → 大盘全量刷新 =====
+// 契约口径：监控接口未定义 environment 参数（固定契约只覆盖 /v1/routes 系列），
+// 这里做「切换即重拉」保证视图新鲜；环境降级（404）时 current 恒为 default，watch 不触发。
+const env = useEnvironments()
+watch(() => env.current, () => { load() })
+
 function onResize() {
   chartInstance?.resize()
 }
@@ -366,6 +434,8 @@ function onResize() {
 onMounted(async () => {
   await load()
   setupAutoRefresh()
+  // P2-7: 订阅监控 SSE（失败自动降级，静默）
+  startStream()
   window.addEventListener('resize', onResize)
 })
 
@@ -397,6 +467,31 @@ onUnmounted(() => {
   border-radius: var(--app-radius-sm);
 }
 .metrics-toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+.source-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  line-height: 1.4;
+}
+.source-badge::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.source-badge--prometheus {
+  color: var(--app-success, #67c23a);
+  background: color-mix(in srgb, var(--app-success, #67c23a) 10%, transparent);
+}
+.source-badge--prometheus::before { background: var(--app-success, #67c23a); }
+.source-badge--snapshot {
+  color: var(--app-text-secondary);
+  background: var(--app-bg-muted, #f4f4f5);
+}
+.source-badge--snapshot::before { background: var(--app-text-tertiary, #909399); }
 .auto-refresh-label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--app-text-secondary); cursor: pointer; }
 .last-refresh { font-size: 12px; color: var(--app-text-secondary); margin-left: auto; }
 .metric-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
