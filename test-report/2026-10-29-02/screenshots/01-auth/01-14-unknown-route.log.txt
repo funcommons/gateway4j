@@ -1,0 +1,42 @@
+用例: 01-14-unknown-route
+时间: 2026-10-28T23:54:39.297Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/login
+200 GET /v1/permissions
+200 GET /v1/routes
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+
+--- Extra ---
+落地 URL: http://localhost:9302/this-path-does-not-exist-zzz; 页面文本: 监控大盘
+路由列表
+路由编排画布
+导入导出
+插件列表
+全局插件
+用户列表
+角色权限
+系统设置
+外观
+退出
+
+404
+
+页面不存在
+
+您访问的页面不存在或已被移除，请检查地址是否正确
+
+返回首页

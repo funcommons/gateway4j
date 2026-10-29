@@ -1,0 +1,25 @@
+用例: 02-08-status-row-click
+时间: 2026-10-28T23:56:17.656Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/plugins/builtin-types
+200 GET /v1/routes
+200 GET /v1/routes/2115497677494018050
+200 GET /v1/routes/2115497677494018050
+200 GET /v1/routes/2115497677494018050/plugins
+200 GET /v1/routes/2115497677494018050/plugin-chain
+
+--- Extra ---
+跳转到: http://localhost:9302/routes/2115497677494018050

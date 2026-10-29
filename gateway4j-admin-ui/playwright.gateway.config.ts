@@ -24,7 +24,7 @@ export default defineConfig({
       {
         outputFile: path.resolve(
           configDir,
-          '../test-report/2026-10-29-01/gateway-data-plane-results.json',
+          '../test-report/2026-10-29-02/gateway-data-plane-results.json',
         ),
       },
     ],
