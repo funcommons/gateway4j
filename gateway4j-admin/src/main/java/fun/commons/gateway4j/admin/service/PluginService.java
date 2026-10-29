@@ -122,11 +122,19 @@ public class PluginService extends ServiceImpl<PluginMapper, Plugin> {
         return detail;
     }
 
+    /**
+     * 创建插件（P2-1 落库修复：GROOVY 类型的 script_content 落 gw_plugin_groovy）。
+     * 此前签名收了 scriptContent 但函数体只处理 GROUP 成员，Groovy 脚本从未持久化，
+     * 重启/重新打开编辑页即丢脚本（数据丢失级缺陷）。
+     */
     @Transactional
     public Plugin createPlugin(Plugin plugin, List<Long> groupMemberIds, String scriptContent) {
-        validateCreateFields(plugin, groupMemberIds);
+        validateCreateFields(plugin, groupMemberIds, scriptContent);
         validatePluginIdUnique(plugin.getPluginId(), null);
         save(plugin);
+        if ("GROOVY".equals(plugin.getPluginType())) {
+            upsertGroovyScript(plugin.getId(), scriptContent);
+        }
         if ("GROUP".equals(plugin.getPluginType()) && groupMemberIds != null) {
             int order = 0;
             for (Long memberId : groupMemberIds) {
@@ -142,8 +150,18 @@ public class PluginService extends ServiceImpl<PluginMapper, Plugin> {
         return plugin;
     }
 
+    /** 兼容旧签名（不更新脚本内容，仅更新 gw_plugin 主行）。 */
     @Transactional
     public void updatePlugin(Plugin plugin) {
+        updatePlugin(plugin, null);
+    }
+
+    /**
+     * 更新插件（P2-1：scriptContent 非 null 时覆盖 gw_plugin_groovy.script_content；
+     * null 表示本次不涉及脚本（PATCH 语义），保留原脚本不清空）。
+     */
+    @Transactional
+    public void updatePlugin(Plugin plugin, String scriptContent) {
         Plugin existing = getById(plugin.getId());
         if (existing == null) {
             throw new BusinessException(ErrorCode.PLUGIN_NOT_FOUND);
@@ -152,6 +170,11 @@ public class PluginService extends ServiceImpl<PluginMapper, Plugin> {
             validatePluginIdUnique(plugin.getPluginId(), plugin.getId());
         }
         updateById(plugin);
+        boolean targetsGroovy = "GROOVY".equals(existing.getPluginType())
+                || "GROOVY".equals(plugin.getPluginType());
+        if (targetsGroovy && scriptContent != null) {
+            upsertGroovyScript(plugin.getId(), scriptContent);
+        }
         publishPluginChange(plugin.getId(), existing.getScope(), existing.getConfigVersion(), "UPDATE");
     }
 
@@ -172,6 +195,9 @@ public class PluginService extends ServiceImpl<PluginMapper, Plugin> {
         getBaseMapper().deleteById(pluginId);
         groupItemMapper.delete(new LambdaQueryWrapper<PluginGroupItem>()
                 .eq(PluginGroupItem::getGroupPluginId, pluginId));
+        // P2-1：脚本行同步清理（gw_plugin_groovy 逻辑删除，避免孤儿脚本残留）
+        groovyMapper.delete(new LambdaQueryWrapper<PluginGroovy>()
+                .eq(PluginGroovy::getPluginId, pluginId));
         bindingMapper.delete(new LambdaQueryWrapper<RoutePluginBinding>()
                 .eq(RoutePluginBinding::getPluginId, pluginId));
         publishPluginChange(pluginId, existing.getScope(), existing.getConfigVersion(), "DELETE");
@@ -224,7 +250,7 @@ public class PluginService extends ServiceImpl<PluginMapper, Plugin> {
         }
     }
 
-    private void validateCreateFields(Plugin plugin, List<Long> groupMemberIds) {
+    private void validateCreateFields(Plugin plugin, List<Long> groupMemberIds, String scriptContent) {
         if (plugin.getPluginName() == null || plugin.getPluginName().isEmpty()) {
             throw new BusinessException(ErrorCode.CONFIG_SYNC_FAILED, "插件名称不能为空");
         }
@@ -239,6 +265,53 @@ public class PluginService extends ServiceImpl<PluginMapper, Plugin> {
         }
         if ("GROUP".equals(plugin.getPluginType()) && (groupMemberIds == null || groupMemberIds.isEmpty())) {
             throw new BusinessException(ErrorCode.CONFIG_SYNC_FAILED, "分组插件必须包含至少一个成员");
+        }
+        // P2-1：契约 5.2 script_content 条件必填——GROOVY 建插件必须带脚本，
+        // 否则落库后编辑页永远拿到空脚本（正是本次修复的数据丢失形态）。
+        if ("GROOVY".equals(plugin.getPluginType())
+                && (scriptContent == null || scriptContent.isBlank())) {
+            throw new BusinessException(ErrorCode.CONFIG_SYNC_FAILED,
+                    "GROOVY 插件必须携带脚本内容（script_content）");
+        }
+    }
+
+    /**
+     * P2-1 落库核心：按 pluginId upsert gw_plugin_groovy（存在则覆盖脚本与 md5，
+     * 不存在则插入；compile_status 复位 PENDING 由数据面/校验流程推进）。
+     */
+    private void upsertGroovyScript(Long pluginId, String scriptContent) {
+        String md5 = md5Hex(scriptContent);
+        PluginGroovy existing = groovyMapper.selectOne(new LambdaQueryWrapper<PluginGroovy>()
+                .eq(PluginGroovy::getPluginId, pluginId));
+        if (existing != null) {
+            existing.setScriptContent(scriptContent);
+            existing.setScriptMd5(md5);
+            existing.setCompileStatus("PENDING");
+            existing.setCompileError(null);
+            groovyMapper.updateById(existing);
+        } else {
+            groovyMapper.insert(PluginGroovy.builder()
+                    .pluginId(pluginId)
+                    .scriptContent(scriptContent)
+                    .scriptMd5(md5)
+                    .compileStatus("PENDING")
+                    .build());
+        }
+    }
+
+    /** 脚本 MD5 指纹（gw_plugin_groovy.script_md5，热更新对比用）。 */
+    private String md5Hex(String content) {
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("MD5");
+            byte[] bytes = digest.digest(content.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(bytes.length * 2);
+            for (byte b : bytes) {
+                sb.append(Character.forDigit((b >> 4) & 0xF, 16)).append(Character.forDigit(b & 0xF, 16));
+            }
+            return sb.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            // JDK 必带 MD5，理论上不可达；失败退空串，不阻断落库
+            return "";
         }
     }
 

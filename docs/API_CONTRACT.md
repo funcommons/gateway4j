@@ -106,7 +106,7 @@
 | 10300 | 权限不足 | - |
 | 10400 | 资源不存在 | `NOT_FOUND` |
 | 10401 | 唯一性冲突（名称重复） | `UNIQUE_CONFLICT` |
-| 10402 | 状态冲突（如删除已发布路由） | `STATE_CONFLICT` |
+| 10402 | 状态冲突（乐观锁版本冲突/如删除已发布路由） | `STATE_CONFLICT` |
 | 10500 | 请求限流 | - |
 | 10501 | 重复提交 | - |
 | 10600 | JAR 插件校验失败 | `PLUGIN_VALIDATION_FAILED` |
@@ -138,6 +138,7 @@
 | access_token | String | 访问令牌，有效期 2h |
 | refresh_token | String | 刷新令牌，有效期 30d |
 | expires_in | Integer | access_token 剩余秒数 |
+| password_stale | Boolean | **P2-9 平铺追加**：当前登录用户口令是否仍为出厂弱口令 admin123。**非阻断提示**——不强制改密、不拦截任何流程，仅供前端展示改密横幅；改密端点见 §7.5/§7.3（改密后下次登录即 false） |
 
 ### 3.2 POST /v1/auth/refresh
 
@@ -244,7 +245,14 @@
 
 修改路由。**需携带 Idempotency-Key**
 
-**请求**：同创建，所有字段可选
+**请求**：同创建，所有字段可选；另支持可选 `expected_version`（Long，P1-5 乐观锁）：
+缺省 = 不校验（兼容旧调用）；携带且 ≠ 当前 `config_version` → `10402 路由已被他人修改，请刷新后重试`。
+画布「应用到路由树」（POST /v1/routes/{id}/canvas/apply）走 diff 流，豁免不校验。
+
+> **PATCH 字段语义（2026-10-29 修复）**：`null`/未携带 = 不修改该项（load-modify-save +
+> 显式字段白名单）。此前 PATCH 只改 `remark` 会把 `status` 静默重置为 DRAFT、并把
+> `sort_order`/`tags`/`config_version` 踩成默认值——已修复；`status`/`route_type`/
+> `config_version` 不经 PATCH 变更（status 只经 publish/offline 端点流转）。
 
 **响应 data**：路由对象
 
@@ -257,6 +265,13 @@
 ### 4.5 POST /v1/routes/{id}/publish
 
 发布路由。**需携带 Idempotency-Key**
+
+**请求**（可选，2026-10-29 起）：`{"change_description": "..."}`（String，**UI 侧必填，
+API 侧可选**——不带 body 的旧调用完全兼容）。携带时随 framework4j-audit 切面
+（logArgs 默认 true）写入审计行 `args_json`（实测定案：`args_json =
+[<route_id>,{"changeDescription":"..."}]`——框架内部 ObjectMapper 序列化，字段名为
+驼峰 `changeDescription`；前端展示变更说明从此读取），审计 `action` 仍为
+`PUBLISH_ROUTE`，审计查询见 §18.3（`GET /v1/audit/logs`）。
 
 **响应 data**：路由对象（status=PUBLISHED）
 
@@ -416,7 +431,7 @@
 | config | String | 否 | 配置参数 JSON |
 | remark | String | 否 | 描述 |
 | group_member_ids | Array<String> | 条件必填 | GROUP 类型时必填 |
-| script_content | String | 条件必填 | GROOVY 类型时必填 |
+| script_content | String | 条件必填 | GROOVY 类型时必填（缺失/空白拒绝，信封 10605 CONFIG_SYNC_FAILED），内容落 `gw_plugin_groovy`（P2-1 落库修复） |
 
 **响应 data**：插件对象
 
@@ -426,11 +441,15 @@
 
 **请求**：同创建，所有字段可选
 
+| 字段 | 语义 |
+|---|---|
+| script_content | **P2-1**：非 null 时覆盖 `gw_plugin_groovy.script_content`（同步更新 script_md5、compile_status 复位 PENDING）；null = 本次不涉及脚本，**保留原脚本不清空**（PATCH 语义） |
+
 **响应 data**：插件对象
 
 ### 5.4 DELETE /v1/plugins/{id}
 
-删除插件（仅 DISABLED/UNINSTALLED 状态可删除，BUILTIN 不可删除）。**需携带 Idempotency-Key**
+删除插件（仅 DISABLED/UNINSTALLED 状态可删除，BUILTIN 不可删除）。**需携带 Idempotency-Key**。P2-1：同步清理 `gw_plugin_groovy` 脚本行与分组成员行。
 
 **响应 data**：null
 
@@ -536,6 +555,7 @@
 | p95_latency_ms | Number | P95 延迟 |
 | p99_latency_ms | Number | P99 延迟 |
 | qps | Number | 当前 QPS |
+| upstream | Object\|null | **P2-6 可选扩展**：上游主动探测结果 `{reachable:Boolean, latency_ms:Number, checked_at:Number(ms)}`；探测未覆盖（非 PUBLISHED BACKEND）、HASH 过期（TTL 90s）、Redis 不可达时为 null。探测详情见 §18.3 |
 
 ### 6.2 GET /v1/monitor/routes/{id}/metrics
 
@@ -1174,3 +1194,229 @@ signature = HMAC-SHA256(secret, accessKey + timestamp + nonce + bodyMd5)
 |---|---|---|---|
 | 钉钉认证 | dingtalk | PRE | 钉钉 SSO OAuth2 登录，回调换取用户信息注入 X-User 头 |
 | 安全水印 | watermark | POST | HTML 响应注入水印 JS（</body> 前），移除 CSP 头 |
+
+---
+
+## 17. P1 修复新增契约（2026-10-29）
+
+### 17.1 GET /v1/config/sync-status（P1-3 发布生效确认）
+
+读网关 reload 水位（Redis `gateway4j:config:sync`，engine 每次 reload 成功后写，TTL 120s）并比对 DB 全局版本（`GREATEST(max gw_route.config_version, max gw_plugin.config_version)`）。
+
+**响应 data**：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| available | Boolean | 网关水位是否已知（Redis key 缺失/TTL 过期/拒连/坏 JSON → false，接口绝不 500） |
+| gateway | Object\|null | 水位内容：`{version:Number, fingerprint:String, updated_at:Number(ms), instance:String}`；available=false 时为 null |
+| db_version | Number | DB 全局最大 config_version（查询失败按 0 降级） |
+| in_sync | Boolean | `gateway.version == db_version`；available=false 时恒为 false（宁报未同步，不误报已生效） |
+
+### 17.2 GET /v1/monitor/timeseries（P1-6 指标时序）
+
+Prometheus 优先：`gateway4j.monitor.prometheus-url` 配置且可达时走 Prometheus HTTP API range query（`sum by (path)` 聚合 `gateway4j_requests_total`/`gateway4j_requests_errors`；分位数取 MetricsPlugin Timer 客户端分位 gauge `gateway4j_request_latency_seconds{quantile="..."}`——非 histogram bucket，`histogram_quantile()` 不适用；quantile 序列缺失时该分位退化 avg）。未配置/查询失败 → 快照平铺（本地 MeterRegistry + Redis 指标快照 `gateway4j:metrics:routes`），接口绝不 500。
+
+**请求参数**：
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| routeId | Number | 是 | 路由 ID |
+| timeRange | String | 否 | 1h/6h/24h/7d，默认 1h |
+| granularity | String | 否 | 1m/5m/1h，默认 1m |
+
+**响应 data**：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| source | String | `prometheus` \| `snapshot` |
+| quantile_fallback | Boolean | 仅 source=prometheus 且 quantile 序列缺失（分位已按 avg 退化）时出现，值为 true |
+| data_points | Array | 数据点（上限 500） |
+| data_points[].timestamp | String | ISO-8601（`Instant.toString()`） |
+| data_points[].total_requests | Number | 累计请求数 |
+| data_points[].error_count | Number | 累计错误数 |
+| data_points[].error_rate | Number | 错误率（total>0 时 errors/total，否则 0） |
+| data_points[].avg_latency_ms | Number | 平均延迟 ms |
+| data_points[].p50_latency_ms | Number | P50 延迟 ms（快照源=avg 退化） |
+| data_points[].p95_latency_ms | Number | P95 延迟 ms（快照源=avg 退化） |
+| data_points[].p99_latency_ms | Number | P99 延迟 ms（快照源=avg 退化） |
+
+> 旧端点 `GET /v1/monitor/routes/{id}/metrics` 保持不动（兼容），其 data_points 亦为上述 8 字段。
+
+### 17.3 写端点限流护栏（P1-8）
+
+四类高危写端点加 `@RateLimit(limit = 30, window = "1m", scope = "ip")`（分布式滑动窗口，Redis 计数；超限 HTTP 429 + `Retry-After`，信封码 10500 TOO_MANY_REQUESTS）：
+
+- 导入类：`POST /v1/routes/import`、`/import/validate`、`/import/snapshot`、`/import/rollback`
+- 批量类：`POST /v1/routes/bulk-publish`、`/bulk-offline`、`/bulk-delete`
+- JAR 上传：`POST /v1/plugins/upload-jar`
+- Groovy 校验：`POST /v1/plugins/validate-groovy`
+
+> 30/min 而非 5/min 的理由：e2e 回归 15 分钟内会打这类端点约 10~20 次，5/min 会误伤回归；30/min 保留防滥用价值。
+> 静态护栏脚本：`node scripts/check-write-guardrails.mjs`（CI 可挂）。
+
+---
+
+## 18. P2 新增契约（2026-10-29）
+
+### 18.1 POST /v1/monitor/route-simulate（P2-6 路由模拟 Debug 工具第一阶）
+
+Apigee Trace-lite：**只回答「这个请求会被谁接住、绑了什么插件」，不做真实转发**。
+匹配语义与数据面 `DynamicRouteLocator` 逐字对齐：仅 `status=PUBLISHED` 路由参与；
+路径谓词 `PathPatternParser.defaultInstance` 解析 `normalizePath(path)` 后 matches；
+DISPATCH 排序在前（order = -1_000_000 + sort_order）、BACKEND 按 sort_order，取顺序
+第一个命中。需 Bearer Token。
+
+**请求**：
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| path | String | 是 | 模拟请求路径，如 `/api/user/1` |
+| method | String | 否 | 回显用（当前 engine 路径谓词不区分方法），默认 GET |
+| headers | Map<String,String> | 否 | DISPATCH HEADER 条件求值输入 |
+| query | Map<String,String> | 否 | DISPATCH QUERY 条件求值输入 |
+
+**响应 data**：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| matched | Boolean | 是否有路由接住请求 |
+| route | Object\|null | 命中路由 `{id, route_name, route_type, path, upstream_url}` |
+| evaluated | Array | 按求值顺序逐路由 trace：`{route_id, route_name, route_type, matched, path_matched, reason}`。`matched`=实际接住（仅胜者 true）；`path_matched`=纯谓词结果；reason 说明落选/命中原因 |
+| dispatch | Object | 仅命中 DISPATCH 时出现：`{conditions:[{condition_type, operator, condition_key, condition_value, priority, matched, reason, target_route_id, target_route_name, target_resolvable}], weight_candidates:[...], resolved_target:Object\|null}`。HEADER/QUERY/PATH 条件现场求值；**BODY/GROOVY 需真实请求上下文，Trace-lite 跳过并注明**；WEIGHT 非请求谓词仅列 `{weight}` 候选不掷点（resolved_target 保持 null） |
+| plugins | Object | 插件链装配预览：`{global_pre:[...], route:[...], global_post:[...]}`。route 段含命中路由的路由级绑定（DISPATCH 时合并目标子路由绑定）：`{plugin_id, plugin_name, plugin_type, plugin_phase, plugin_status, sort_order, binding_config, bound_route_id, bound_route_name}` |
+| request | Object | 回显 `{path, method}` |
+
+### 18.2 GET /v1/monitor/routes/status 行内 `upstream` 扩展（P2-6 上游主动探测第一阶）
+
+见 §6.1 表格 `upstream` 行。探测由管理面 `@Scheduled` 每 **30s** 一轮（fixedDelay）对全部
+PUBLISHED BACKEND 路由 `upstream_url` 发 **HEAD（5s 超时，失败 GET 兜底一次）**，结果写
+Redis HASH `gateway4j:upstream:health`（field=route_id，value
+`{"reachable":Boolean,"latency_ms":Number,"checked_at":Number(ms)}`，key TTL **90s**）。
+可达口径：HTTP 应答 status < 500（含 3xx/4xx——服务在应答即可达）；连接拒绝/超时/5xx =
+不可达。探测调度异常吞掉 + 限频日志（60s 一条），HASH 停摆后自动过期，行内退 null。
+
+### 18.3 GET /v1/audit/logs（P2-6 变更记录升级，契约固定给前端系统设置-变更记录 Tab）
+
+审计日志查询（`audit_log` 表，framework4j-audit JdbcAuditSink 落库，**只读**——写入方
+是框架 Hash Chain append-only，管理面无写路径）。需 Bearer Token。
+
+**请求参数**（全部可选）：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| action | String | 等值过滤（如 CREATE_ROUTE） |
+| actor | String | 等值过滤 |
+| target | String | 对 target_id 模糊（like） |
+| from / to | String | created_at 闭区间，`yyyy-MM-dd`（归一当日全天）或 ISO-8601 |
+| page | Integer | 默认 1 |
+| pageSize | Integer | 默认 20，上限 100 |
+
+**响应**：统一 ApiResponse 信封，data 为全站分页形状（`data.records` / `data.total`，
+排序 id 倒序）：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| records[].id | String | **Long→String 契约**（全局 Jackson 序列化） |
+| records[].action | String | 操作动作 |
+| records[].target_type / target_id | String | 目标 |
+| records[].actor | String | 操作人 |
+| records[].result | String | SUCCESS/ERROR |
+| records[].error_message / ip / trace_id | String | 补充信息 |
+| records[].timestamp / created_at | String | ISO-8601 时间（timestamp=sink 操作时间，created_at=落库时间） |
+| total / size / current / pages | Number | MyBatis-Plus Page 标准字段 |
+
+### 18.4 GET /v1/monitor/stream（P2-7 监控指标 SSE）
+
+`text/event-stream`（SseEmitter，timeout 0 不限时）。**事件两类**（事件名固定给
+`EventSource.addEventListener`），data 均为 JSON 字符串：
+
+| 事件 | 频率 | data |
+|---|---|---|
+| `metrics` | 每 5s 节流（+订阅建立后首个 5s 周期） | `{"routes_total":N,"error_count":N,"total_requests":N,"at":epoch_ms}`（口径同 /v1/monitor/routes/status：异常数=total>0 且 error_rate>0.05 的路由数） |
+| `config_changed` | 挂既有 ConfigChangeEvent | `{"type":"route\|plugin\|global-plugin","at":epoch_ms}` |
+
+**鉴权形态（与全站不同）**：EventSource 无法携带 Authorization 头，本端点**不加
+@RequiresToken**，改用 `?token=<access_token>` 查询参数 + 手工校验（TokenUtils 验签 +
+BEARER 类型 + jti 撤销检查 + Redis nonce 强一致，与拦截器同源收紧）；失败返回 HTTP 401 +
+信封 10200。安全取舍：**token 进 URL 会进访问/代理日志**——本端点只读监控聚合指标，
+泄露面小，且 token 短时效（2h）+ 可撤销；管理面内网场景可接受（生产可在反向代理层
+过滤该路径 query-string 日志加强）。前端用法：
+`new EventSource('/v1/monitor/stream?token=' + accessToken)`。
+
+客户端断开/超时/群发异常由注册表自动踢除清理；广播永不抛出，不影响主流程。
+
+### 18.5 OpenAPI 文档暴露（P2-3）
+
+- `GET /v1/api-docs` 返回 OpenAPI 3.1 JSON（springdoc-openapi-starter-webmvc-ui
+  2.8.9，对齐 Boot 3.5.x）；env 开关 `GATEWAY4J_API_DOCS_ENABLED`（默认 true）。
+- swagger-ui 仅 dev：`springdoc.swagger-ui.enabled` 默认 **false**，env
+  `GATEWAY4J_SWAGGER_UI_ENABLED=true` 开启后访问 `/v1/swagger-ui.html`。
+- **安全取舍**：api-docs 会暴露接口清单——本管理面处于内网、全部业务端点仍需 Bearer
+  Token（springdoc 端点无 @RequiresToken 注解，framework4j TokenInterceptor 为注解驱动，
+  天然放行，无需额外白名单；rate-limit 拦截范围同样不含该路径），暴露面与 Kong Admin
+  API 同级，内网管理面可接受。生产封闭环境可设
+  `GATEWAY4J_API_DOCS_ENABLED=false` 一键关闭。
+
+### 18.6 首启弱口令检测与改密端点（P2-9）
+
+- 登录响应平铺追加 `password_stale`（见 §3.1）。检测口径：用户口令 hash 是否等于
+  bcrypt(admin123)（出厂种子口令，V1.1.0/V1.3.4 种子迁移）。**非阻断**——不强制改密、
+  不拦截任何流程，仅提示（阻断式会破坏既有 e2e 回归并把自动化部署的管理入口锁死）。
+- **改密端点（已存在）**：`POST /v1/users/{id}/reset-password`（body
+  `{new_password}`）或 `PATCH /v1/users/{id}`（body 带 `password` 字段），均走 admin
+  权限（@RequiresToken BEARER）。前端弱口令横幅跳转用其一即可。
+- secret 轮换语义：framework4j v1.2.1 为**单 key HS256，无双 key 过渡**，轮换 = 替换
+  env + 重启 = 全量登出，详见 `docs/SECRET_ROTATION.md`。
+- 凭证已全部外部化（本地栈不设 env 用默认值原样启动）：
+  `GATEWAY4J_DB_PASSWORD` / `GATEWAY4J_JWT_SECRET` / `GATEWAY4J_JWT_HASH_SALT` /
+  `GATEWAY4J_OPEN_API_SECRET`（另有 DB/Redis 主机端口与 Prometheus 地址可选 env）。
+
+### 18.7 P2-2 多环境配套契约（2026-10-29，H7b）
+
+多环境基础（`environment` 字段落库 V1.4.1、engine 按 `gateway4j.env` 过滤装载、
+创建/PATCH/列表/导入导出/复制携带 `environment`，缺省归一 `default`，
+同环境内 `route_name` 唯一）由 P2-2 落地；本节补齐配套查询契约。
+
+#### GET /v1/routes/environment-diff（P2-5 环境间 diff）
+
+对比两个环境中同名路由的配置差异，`route_name` 为对齐键。需 Bearer Token。
+
+**请求参数**（均必填）：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| from | String | 源环境标识（`^[a-z0-9_-]{1,20}$`） |
+| to | String | 目标环境标识 |
+
+**响应 data**：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| from / to | String | 回显环境标识（trim 后） |
+| only_in_from | Array | 仅 from 环境存在：`{id, route_name, environment, route_type, path, upstream_url, status, sort_order, remark}`（id 为 String 契约） |
+| only_in_to | Array | 仅 to 环境存在，结构同上 |
+| changed | Array | 同名但字段不同：`{route_name, fields:{<field>:{from,to}}}` |
+
+逐字段比对字段集：`path` / `upstream_url` / `status` / `sort_order` / `remark`
+（null sort_order 按 0、null remark 按空串归一后比对；`environment` 因两侧环境不同不参与）。
+
+**错误口径**：环境标识缺失/非法白名单、或该环境在 `gw_route` 无任何路由（环境不存在）→
+信封 `10605 CONFIG_SYNC_FAILED`（本管理面业务错误统一 HTTP 200 + 失败信封，
+非 HTTP 400，见 AdminGlobalExceptionHandler 口径）。
+
+#### GET /v1/environments（环境清单，给顶栏环境切换器）
+
+**响应 data**：`{"environments": ["default", "staging", ...]}`
+—— `gw_route` distinct `environment`（逻辑删除行排除）+ 保证含 `default`（空库也返回
+`["default"]`）；排序 `default` 优先、其余字母序。需 Bearer Token。
+
+#### POST /v1/routes/bulk-publish 可选 change_description（P2-4 流程档轻量）
+
+批量发布请求体扩展为 `{ids: [...], change_description?: "..."}`，**UI 侧必填、API 侧
+可选**（旧两参/无 description 调用兼容）。携带时随审计切面写入审计行 `args_json`
+（审计 `action` 仍为 `BULK_PUBLISH_ROUTES`）。单条 publish 同口径见 §4.5。
+
+#### T1 修复：PATCH 不再静默重置 status（既有缺陷）
+
+见 §4.3 补注。回归口径：OFFLINE 路由 `PATCH {remark}` → `status` 仍 OFFLINE、
+`sort_order`/`tags`/`config_version` 不动；PUBLISHED 路由 PATCH 仍被禁改保护拒绝（不变）。

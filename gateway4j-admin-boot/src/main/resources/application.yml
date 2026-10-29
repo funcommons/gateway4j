@@ -18,6 +18,18 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
 
+# P2-3 OpenAPI：/v1/api-docs 暴露 OpenAPI JSON（内网管理面口径）；swagger-ui 仅 dev。
+# 安全取舍（详见 docs/API_CONTRACT.md §16）：api-docs 会暴露接口清单，但管理面本身
+# 处于内网 + 全部业务端点仍需 Bearer Token，暴露面与 Kong Admin API 同级，可接受。
+# env 开关：GATEWAY4J_API_DOCS_ENABLED（默认 true）、GATEWAY4J_SWAGGER_UI_ENABLED（默认 false）。
+springdoc:
+  api-docs:
+    enabled: ${GATEWAY4J_API_DOCS_ENABLED:true}
+    path: /v1/api-docs
+  swagger-ui:
+    enabled: ${GATEWAY4J_SWAGGER_UI_ENABLED:false}
+    path: /v1/swagger-ui.html
+
 logging:
   level:
     fun.commons: info
@@ -34,9 +46,10 @@ framework4j:
     enabled: true
     datasources:
       default:
-        url: jdbc:postgresql://localhost:5432/gateway4j
-        username: admin
-        password: test@2026
+        url: jdbc:postgresql://${GATEWAY4J_DB_HOST:localhost}:${GATEWAY4J_DB_PORT:5432}/${GATEWAY4J_DB_NAME:gateway4j}
+        username: ${GATEWAY4J_DB_USERNAME:admin}
+        # P2-9 凭证外部化：${ENV:默认值} 形态，本地栈不设 env 时用默认值原样启动
+        password: ${GATEWAY4J_DB_PASSWORD:test@2026}
         driver-class-name: org.postgresql.Driver
         druid:
           initial-size: 2
@@ -50,14 +63,17 @@ framework4j:
     enabled: true
     datasources:
       default:
-        host: localhost
-        port: 6379
+        host: ${GATEWAY4J_REDIS_HOST:localhost}
+        port: ${GATEWAY4J_REDIS_PORT:6379}
         database: 0
 
   access-token:
     enabled: true
-    secret-key: gateway4j-dev-secret-key-0123456789abcdef0123456789
-    hash-salt: gateway4j-dev-hash-salt
+    # P2-9：JWT 签名密钥（HS256，≥32 字符）与 Redis Key 加盐外部化。
+    # 生产必须覆盖 GATEWAY4J_JWT_SECRET / GATEWAY4J_JWT_HASH_SALT；
+    # 轮换语义（单 key、轮换=全量登出）见 docs/SECRET_ROTATION.md。
+    secret-key: ${GATEWAY4J_JWT_SECRET:gateway4j-dev-secret-key-0123456789abcdef0123456789}
+    hash-salt: ${GATEWAY4J_JWT_HASH_SALT:gateway4j-dev-hash-salt}
     expire-time: 7200
     redis-name: default
     policies:
@@ -70,17 +86,40 @@ framework4j:
     redis-name: default
 
   # 登录接口自我保护限流（AuthController#login @RateLimit 10 次/分钟/IP）。
-  # 拦截路径收窄到 /v1/auth/**，避免默认 100/min 波及其余管理面接口；
+  # 拦截路径收窄到写操作护栏端点（E1 坑：framework4j 的 path-patterns 同时是拦截器
+  # 注册范围 —— 注解 @RateLimit 只在列于 patterns 的路径上生效，patterns 为空则全部
+  # 注解失效），避免默认 100/min 波及其余管理面只读接口；
   # framework4j 默认白名单含 /v1/auth/login 与 127.0.0.1，会令限流失效，这里显式清空。
+  # P1-8：import/bulk/upload-jar/validate-groovy 四类写端点 30 次/分钟/IP
+  # （回归套件 15 分钟内约打 10~20 次，5/min 会误伤；30/min 保留防滥用价值）。
   rate-limit:
     enabled: true
     redis-name: default
     path-patterns:
       - /v1/auth/**
+      - /v1/routes/import/**
+      - /v1/routes/bulk-*
+      - /v1/plugins/upload-jar
+      - /v1/plugins/validate-groovy
     whitelist-paths: []
     whitelist-ips: []
 
+  audit:
+    # 审计落库（P1-4）：表结构见 V1.4.0__audit_log.sql，列名与 framework4j-audit
+    # JdbcAuditSink 的 INSERT 列序逐字对齐；AuditSink Bean 由 admin 模块显式装配
+    # （见 AuditPersistenceConfiguration —— 框架自带装配条件是 Spring 上下文存在
+    # javax.sql.DataSource Bean，而本项目由 MultiDataSourceManager 托管数据源，
+    # 条件不成立导致此前回落 InMemoryAuditSink，重启即丢）。
+    table-name: audit_log
+
 gateway4j:
   open-api:
-    app-key: gateway4j-open
-    app-secret: dev-test-secret-key
+    app-key: ${GATEWAY4J_OPEN_API_APP_KEY:gateway4j-open}
+    # P2-9：开放 API 签名密钥外部化（生产必须覆盖 GATEWAY4J_OPEN_API_SECRET）
+    app-secret: ${GATEWAY4J_OPEN_API_SECRET:dev-test-secret-key}
+
+  monitor:
+    # P1-6 指标时序：Prometheus HTTP API 地址（如 http://localhost:9090）。
+    # 留空 = 未配置，GET /v1/monitor/timeseries 走快照平铺（source=snapshot）；
+    # 配置但不可达同样自动回退快照，接口不 500。
+    prometheus-url: ${GATEWAY4J_PROMETHEUS_URL:}

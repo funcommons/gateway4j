@@ -22,6 +22,7 @@ class AuthControllerTest {
 
     @Mock private AuthService authService;
     @Mock private RefreshTokenService refreshTokenService;
+    @Mock private fun.commons.gateway4j.admin.service.WeakPasswordDetector weakPasswordDetector;
     @InjectMocks private AuthController controller;
 
     @Test
@@ -31,6 +32,7 @@ class AuthControllerTest {
         when(authService.getUserRoleCodes(1L)).thenReturn(List.of("ROLE_ADMIN"));
         when(refreshTokenService.generateTokenPair(anyMap()))
                 .thenReturn(new TokenPair("at-123", "rt-456", "fam-1", 7200, 2592000));
+        when(weakPasswordDetector.isPasswordStale(user)).thenReturn(false);
 
         Map<String, Object> result = controller.login(new AuthController.LoginRequest("admin", "pass"));
         assertEquals("1", result.get("user_id"));
@@ -39,6 +41,24 @@ class AuthControllerTest {
         assertEquals("at-123", result.get("access_token"));
         assertEquals("rt-456", result.get("refresh_token"));
         assertEquals(7200L, result.get("expires_in"));
+        // P2-9：弱口令提示位（非阻断，仅随登录响应平铺返回）
+        assertEquals(false, result.get("password_stale"));
+    }
+
+    @Test
+    void loginFlagsSeedWeakPassword() {
+        // P2-9：出厂种子口令用户登录 → password_stale=true（提示，不阻断）
+        User stale = User.builder().id(1L).username("admin")
+                .password("$2y$10$QU2Ak2ITzyVjcBiGBM7ks.R6iNZshmePa8e2TETpKjJ.XHBAZJ8ym")
+                .realName("管理员").build();
+        when(authService.authenticate("admin", "admin123")).thenReturn(stale);
+        when(authService.getUserRoleCodes(1L)).thenReturn(List.of("ROLE_ADMIN"));
+        when(refreshTokenService.generateTokenPair(anyMap()))
+                .thenReturn(new TokenPair("at-1", "rt-1", "fam-1", 7200, 2592000));
+        when(weakPasswordDetector.isPasswordStale(stale)).thenReturn(true);
+
+        Map<String, Object> result = controller.login(new AuthController.LoginRequest("admin", "admin123"));
+        assertEquals(Boolean.TRUE, result.get("password_stale"));
     }
 
     @Test

@@ -39,6 +39,20 @@ class DictServiceTest {
         assertEquals(7, result.size());
     }
 
+    /** T4（H5a 遗留）：WEIGHT 收录进 COND_TYPE 字典并带中文标签（不再回落枚举码）。 */
+    @Test
+    void getDictCondTypeIncludesWeightWithLabel() {
+        List<Map<String, String>> result = dictService.getDict("COND_TYPE");
+        assertEquals(6, result.size(), "ConditionType 6 值全收录");
+        Map<String, String> weight = result.stream()
+                .filter(m -> "WEIGHT".equals(m.get("value")))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("COND_TYPE 字典缺 WEIGHT"));
+        assertEquals("权重分流", weight.get("label"));
+        // 既有 5 值标签不受影响
+        assertEquals("请求头条件", result.get(0).get("label"));
+    }
+
     @Test
     void getDictBuiltinPlugin() {
         List<Map<String, String>> result = dictService.getDict("BUILTIN_PLUGIN");

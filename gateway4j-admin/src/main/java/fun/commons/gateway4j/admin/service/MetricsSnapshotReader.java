@@ -15,8 +15,9 @@ import org.springframework.stereotype.Service;
  * MetricsSnapshotPublisher 每 5s 把本 JVM MeterRegistry 按 {@code path} tag
  * 聚合后的指标写入 Redis HASH，key = {@link #METRICS_SNAPSHOT_KEY}，
  * field = meter 的 path tag 原文，value = JSON
- * {"total":N,"errors":N,"latency_ms_sum":F,"latency_count":N,"updated_at":epoch_ms}，
- * 每轮写完 EXPIRE 60。</p>
+ * {"total":N,"errors":N,"latency_ms_sum":F,"latency_count":N,"active":N,"updated_at":epoch_ms}，
+ * 每轮写完 EXPIRE 60。{@code active} 字段为 H1 扩展（在途请求数，构建 Gauge），
+ * 读取侧对旧格式缺字段一律回退 0。</p>
  *
  * <p>本类只补本地注册表的空缺：管理台 JVM 没有流量经过，本地 MeterRegistry
  * 恒为空，真实指标都在数据面 JVM。key 不存在 / field 不存在 / Redis 拒连 /
@@ -31,7 +32,7 @@ public class MetricsSnapshotReader {
     public static final String METRICS_SNAPSHOT_KEY = "gateway4j:metrics:routes";
 
     /** 全 0 快照（快照不可用时的降级值）。 */
-    public static final MetricsSnapshot ZERO = new MetricsSnapshot(0L, 0L, 0d, 0L);
+    public static final MetricsSnapshot ZERO = new MetricsSnapshot(0L, 0L, 0d, 0L, 0L);
 
     private final MultiRedisManager multiRedisManager;
     private final ObjectMapper objectMapper;
@@ -65,7 +66,8 @@ public class MetricsSnapshotReader {
                     node.path("total").asLong(0L),
                     node.path("errors").asLong(0L),
                     node.path("latency_ms_sum").asDouble(0d),
-                    node.path("latency_count").asLong(0L));
+                    node.path("latency_count").asLong(0L),
+                    node.path("active").asLong(0L));
         } catch (Exception e) {
             // Redis 连接失败 / 数据源缺失等一律按 0 处理，绝不 500
             log.warn("[指标快照] 读取失败（key={} field={}），按 0 处理: {}",
@@ -75,9 +77,10 @@ public class MetricsSnapshotReader {
     }
 
     /**
-     * 快照分量（只读值对象）。total/errors/latency_count 为整数，latency_ms_sum
-     * 为毫秒（可带小数）。
+     * 快照分量（只读值对象）。total/errors/latency_count/active 为整数，latency_ms_sum
+     * 为毫秒（可带小数）。active = 在途请求数（旧版数据面无此字段，读取回退 0）。
      */
-    public record MetricsSnapshot(long total, long errors, double latencyMsSum, long latencyCount) {
+    public record MetricsSnapshot(long total, long errors, double latencyMsSum, long latencyCount,
+                                  long active) {
     }
 }

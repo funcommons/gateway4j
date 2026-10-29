@@ -2,16 +2,14 @@ package fun.commons.gateway4j.admin.controller;
 
 import fun.commons.framework4j.accesstoken.annotation.RequiresToken;
 import fun.commons.gateway4j.common.mapper.RouteConditionMapper;
-import fun.commons.gateway4j.admin.service.MetricsSnapshotReader;
+import fun.commons.gateway4j.admin.service.MonitorTimeseriesService;
 import fun.commons.gateway4j.admin.service.RouteService;
+import fun.commons.gateway4j.admin.service.RouteSimulateService;
+import fun.commons.gateway4j.admin.service.UpstreamHealthProbe;
 import fun.commons.gateway4j.common.model.Route;
 import fun.commons.gateway4j.common.model.RouteCondition;
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Instant;
 import java.util.*;
 
 @RestController
@@ -19,17 +17,22 @@ import java.util.*;
 @RequiresToken("BEARER")
 public class MonitorController {
 
-    private final MeterRegistry meterRegistry;
     private final RouteService routeService;
     private final RouteConditionMapper conditionMapper;
-    private final MetricsSnapshotReader snapshotReader;
+    private final MonitorTimeseriesService timeseriesService;
+    private final RouteSimulateService routeSimulateService;
+    private final UpstreamHealthProbe upstreamHealthProbe;
 
-    public MonitorController(MeterRegistry meterRegistry, RouteService routeService,
-                             RouteConditionMapper conditionMapper, MetricsSnapshotReader snapshotReader) {
-        this.meterRegistry = meterRegistry;
+    public MonitorController(RouteService routeService,
+                             RouteConditionMapper conditionMapper,
+                             MonitorTimeseriesService timeseriesService,
+                             RouteSimulateService routeSimulateService,
+                             UpstreamHealthProbe upstreamHealthProbe) {
         this.routeService = routeService;
         this.conditionMapper = conditionMapper;
-        this.snapshotReader = snapshotReader;
+        this.timeseriesService = timeseriesService;
+        this.routeSimulateService = routeSimulateService;
+        this.upstreamHealthProbe = upstreamHealthProbe;
     }
 
     @GetMapping("/routes/status")
@@ -42,50 +45,63 @@ public class MonitorController {
             routes = routeService.listRoutes(null, null, null);
         }
 
+        // P2-6：上游主动探测健康态一次性读全（HASH entries），行内按 route_id 取
+        Map<String, Map<String, Object>> upstreamHealth = upstreamHealthProbe.readAll();
+
         List<Map<String, Object>> result = new ArrayList<>();
         for (Route route : routes) {
-            result.add(buildStatus(route));
+            Map<String, Object> status = buildStatus(route);
+            // 可选扩展字段：探测未覆盖（非 PUBLISHED BACKEND）/HASH 过期时为 null
+            status.put("upstream", upstreamHealth.get(String.valueOf(route.getId())));
+            result.add(status);
         }
         return result;
     }
 
+    /**
+     * 路由模拟（P2-6 Debug 工具第一阶，Apigee Trace-lite）：只回答「这个请求会被
+     * 谁接住、绑了哪些插件」，不做真实转发。匹配语义与数据面 DynamicRouteLocator
+     * 逐字对齐（仅 PUBLISHED、PathPattern 匹配、DISPATCH 优先排序），DISPATCH 条件
+     * 逐条求值输出 trace（BODY/GROOVY 跳过并说明），插件链装配预览三段返回。
+     */
+    @PostMapping("/route-simulate")
+    public Map<String, Object> routeSimulate(@RequestBody RouteSimulateRequest request) {
+        return routeSimulateService.simulate(request.path(), request.method(),
+                request.headers(), request.query());
+    }
+
+    /**
+     * 路由指标（兼容端点，响应形状不变：route_id/time_range/granularity/data_points）。
+     * 时序合成本体已平移至 {@link MonitorTimeseriesService}（snapshot 路径复用），
+     * Prometheus 优先的新端点见 {@link #timeseries}。
+     */
     @GetMapping("/routes/{id}/metrics")
     public Map<String, Object> routeMetrics(@PathVariable Long id,
                                             @RequestParam(defaultValue = "1h") String timeRange,
                                             @RequestParam(defaultValue = "1m") String granularity) {
         Route route = routeService.getById(id);
         String path = route != null ? route.getPath() : null;
-        double total = path != null ? sumByPath(path, "requests.total") : 0;
-        double errors = path != null ? sumByPath(path, "requests.errors") : 0;
-        double avgLatency = path != null ? avgLatencyByPath(path) : 0;
-        double[] percentiles = path != null ? latencyPercentilesByPath(path) : new double[]{0, 0, 0};
 
-        int points = pointsFor(timeRange, granularity);
-        long now = System.currentTimeMillis();
-        long stepMs = stepMsFor(granularity);
-
-        List<Map<String, Object>> dataPoints = new ArrayList<>();
-        for (int i = points - 1; i >= 0; i--) {
-            Map<String, Object> dp = new LinkedHashMap<>();
-            // ISO-8601 字符串（带时区语义）：前端 new Date(iso) 直解；裸 epoch 毫秒被
-            // framework4j Long→String 契约序列化成 "1793..." 后 new Date(str) 是 Invalid Date
-            dp.put("timestamp", Instant.ofEpochMilli(now - (long) i * stepMs).toString());
-            dp.put("total_requests", (long) total);
-            dp.put("error_count", (long) errors);
-            dp.put("error_rate", total > 0 ? errors / total : 0.0);
-            dp.put("avg_latency_ms", avgLatency);
-            dp.put("p50_latency_ms", percentiles[0]);
-            dp.put("p95_latency_ms", percentiles[1]);
-            dp.put("p99_latency_ms", percentiles[2]);
-            dataPoints.add(dp);
-        }
-
+        Map<String, Object> flat = timeseriesService.snapshotFlatPoints(path, timeRange, granularity);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("route_id", String.valueOf(id));
-        result.put("time_range", timeRange);
-        result.put("granularity", granularity);
-        result.put("data_points", dataPoints);
+        result.put("time_range", flat.get("time_range"));
+        result.put("granularity", flat.get("granularity"));
+        result.put("data_points", flat.get("data_points"));
         return result;
+    }
+
+    /**
+     * 路由指标时序（P1-6）：Prometheus 优先（gateway4j.monitor.prometheus-url 配置且
+     * 可达时 source=prometheus），未配置/查询失败回退快照平铺（source=snapshot）。
+     * 契约：{"source":"prometheus|snapshot","data_points":[{timestamp(ISO),
+     * total_requests,error_count,error_rate,avg_latency_ms,p50/p95/p99_latency_ms}]}。
+     */
+    @GetMapping("/timeseries")
+    public Map<String, Object> timeseries(@RequestParam Long routeId,
+                                          @RequestParam(defaultValue = "1h") String timeRange,
+                                          @RequestParam(defaultValue = "1m") String granularity) {
+        return timeseriesService.timeseries(routeId, timeRange, granularity);
     }
 
     @GetMapping("/topology")
@@ -126,139 +142,34 @@ public class MonitorController {
     }
 
     private Map<String, Object> buildStatus(Route route) {
-        double total = sumByPath(route.getPath(), "requests.total");
-        double errors = sumByPath(route.getPath(), "requests.errors");
+        MonitorTimeseriesService.PathMetrics metrics = timeseriesService.pathStatusMetrics(route.getPath());
+
         Map<String, Object> status = new LinkedHashMap<>();
         status.put("route_id", String.valueOf(route.getId()));
         status.put("route_name", route.getRouteName());
-        status.put("status", healthStatus(route));
-        status.put("active_connections", 0);
-        status.put("total_requests", (long) total);
-        status.put("error_count", (long) errors);
-        status.put("error_rate", total > 0 ? errors / total : 0.0);
+        status.put("status", metrics.total() > 0 && metrics.errorRate() > 0.05 ? "ERROR" : "HEALTHY");
+        // P1-1：active_connections 不再硬编码 0 —— 读数据面指标快照的 active 字段
+        // （在途请求数；旧版快照缺该字段时 MetricsSnapshotReader 回退 0）
+        status.put("active_connections", metrics.active());
+        status.put("total_requests", metrics.total());
+        status.put("error_count", metrics.errors());
+        status.put("error_rate", metrics.errorRate());
         return status;
     }
 
     private String healthStatus(Route route) {
-        double total = sumByPath(route.getPath(), "requests.total");
-        double errors = sumByPath(route.getPath(), "requests.errors");
-        if (total > 0 && errors / total > 0.05) {
+        MonitorTimeseriesService.PathMetrics metrics = timeseriesService.pathStatusMetrics(route.getPath());
+        if (metrics.total() > 0 && metrics.errorRate() > 0.05) {
             return "ERROR";
         }
         return "HEALTHY";
     }
 
-    private double sumByPath(String path, String meterSuffix) {
-        if (path == null) {
-            return 0;
-        }
-        String normalized = normalizePath(path);
-        double sum = 0;
-        for (io.micrometer.core.instrument.Meter meter : meterRegistry.getMeters()) {
-            if (meter.getId().getName().endsWith(meterSuffix)
-                    && normalized.equals(meter.getId().getTag("path"))
-                    && meter instanceof Counter counter) {
-                sum += counter.count();
-            }
-        }
-        // 跨 JVM 兜底：本 JVM（管理台）没有流量，真实指标在数据面 JVM，由
-        // MetricsSnapshotPublisher 每 5s 写入 Redis。生产中两者互斥（数据面走本地、
-        // 管理台走快照），相加无双算风险；快照不可用时返回全 0。
-        MetricsSnapshotReader.MetricsSnapshot snapshot = snapshotReader.readByPath(normalized);
-        if ("requests.total".equals(meterSuffix)) {
-            sum += snapshot.total();
-        } else if ("requests.errors".equals(meterSuffix)) {
-            sum += snapshot.errors();
-        }
-        return sum;
-    }
-
-    private double avgLatencyByPath(String path) {
-        if (path == null) {
-            return 0;
-        }
-        String normalized = normalizePath(path);
-        double totalTime = 0;
-        long count = 0;
-        for (io.micrometer.core.instrument.Meter meter : meterRegistry.getMeters()) {
-            if (meter.getId().getName().endsWith("request.latency")
-                    && normalized.equals(meter.getId().getTag("path"))
-                    && meter instanceof Timer timer) {
-                totalTime += timer.totalTime(java.util.concurrent.TimeUnit.MILLISECONDS);
-                count += timer.count();
-            }
-        }
-        // 跨 JVM 兜底：分子/分母同时叠加 Redis 快照分量，均值口径保持一致
-        MetricsSnapshotReader.MetricsSnapshot snapshot = snapshotReader.readByPath(normalized);
-        totalTime += snapshot.latencyMsSum();
-        count += snapshot.latencyCount();
-        return count > 0 ? totalTime / count : 0;
-    }
-
-    private double[] latencyPercentilesByPath(String path) {
-        String normalized = normalizePath(path);
-        // Redis 快照只有总耗时/次数分量，没有分位数 → 本地注册表无数据时
-        // p50/p95/p99 只能降级为 0（可接受的降级）
-        double p50 = 0, p95 = 0, p99 = 0;
-        double totalTime = 0;
-        long count = 0;
-        for (io.micrometer.core.instrument.Meter meter : meterRegistry.getMeters()) {
-            if (meter.getId().getName().endsWith("request.latency")
-                    && normalized.equals(meter.getId().getTag("path"))
-                    && meter instanceof Timer timer) {
-                totalTime += timer.totalTime(java.util.concurrent.TimeUnit.MILLISECONDS);
-                count += timer.count();
-                try {
-                    var snapshot = timer.takeSnapshot();
-                    var values = snapshot.percentileValues();
-                    if (values.length >= 3) {
-                        p50 += values[0].value(java.util.concurrent.TimeUnit.MILLISECONDS);
-                        p95 += values[1].value(java.util.concurrent.TimeUnit.MILLISECONDS);
-                        p99 += values[2].value(java.util.concurrent.TimeUnit.MILLISECONDS);
-                    }
-                } catch (Exception ignored) {
-                    // percentiles not published for this timer
-                }
-            }
-        }
-        if (p50 == 0 && p95 == 0 && p99 == 0) {
-            double avg = count > 0 ? totalTime / count : 0;
-            return new double[]{avg, avg, avg};
-        }
-        return new double[]{p50, p95, p99};
-    }
-
-    private int pointsFor(String timeRange, String granularity) {
-        long rangeMs = rangeMsFor(timeRange);
-        long stepMs = stepMsFor(granularity);
-        int points = (int) Math.max(1, rangeMs / stepMs);
-        return Math.min(points, 500);
-    }
-
-    private long rangeMsFor(String timeRange) {
-        return switch (timeRange) {
-            case "6h" -> 6 * 3600_000L;
-            case "24h" -> 24 * 3600_000L;
-            case "7d" -> 7 * 24 * 3600_000L;
-            default -> 3600_000L;
-        };
-    }
-
-    private long stepMsFor(String granularity) {
-        return switch (granularity) {
-            case "5m" -> 5 * 60_000L;
-            case "1h" -> 3600_000L;
-            default -> 60_000L;
-        };
-    }
-
-    private String normalizePath(String path) {
-        if (path == null) return "unknown";
-        String normalized = path.replaceAll("/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", "/{id}");
-        normalized = normalized.replaceAll("/\\d+", "/{id}");
-        if (normalized.length() > 100) {
-            normalized = normalized.substring(0, 100);
-        }
-        return normalized;
-    }
+    /** 路由模拟请求体（path 必填；headers/query 为 DISPATCH 条件求值输入）。 */
+    public record RouteSimulateRequest(
+            String path,
+            String method,
+            Map<String, String> headers,
+            Map<String, String> query
+    ) {}
 }

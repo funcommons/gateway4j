@@ -324,4 +324,109 @@ class PluginServiceTest {
         assertEquals(expectedId, event.getConfigId());
         assertEquals(expectedChangeType, event.getChangeType());
     }
+
+    // ==================== P2-1：GROOVY 脚本落库（gw_plugin_groovy） ====================
+
+    @Test
+    void createGroovyPluginPersistsScript() {
+        // P2-1 数据丢失缺陷回归：plugin_type=GROOVY 时 script_content 必须落 gw_plugin_groovy
+        testPlugin.setPluginType("GROOVY");
+        when(pluginMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        when(pluginMapper.insert(any(Plugin.class))).thenAnswer(invocation -> {
+            Plugin p = invocation.getArgument(0);
+            p.setId(9L);
+            return 1;
+        });
+        when(groovyMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
+
+        pluginService.createPlugin(testPlugin, null, "def greet() { 'hi' }");
+
+        ArgumentCaptor<fun.commons.gateway4j.common.model.PluginGroovy> groovyCaptor =
+                ArgumentCaptor.forClass(fun.commons.gateway4j.common.model.PluginGroovy.class);
+        verify(groovyMapper).insert(groovyCaptor.capture());
+        fun.commons.gateway4j.common.model.PluginGroovy saved = groovyCaptor.getValue();
+        assertEquals(9L, saved.getPluginId());
+        assertEquals("def greet() { 'hi' }", saved.getScriptContent());
+        assertNotNull(saved.getScriptMd5());
+        assertEquals(32, saved.getScriptMd5().length());
+        assertEquals("PENDING", saved.getCompileStatus());
+    }
+
+    @Test
+    void createGroovyPluginWithoutScriptThrows() {
+        // 契约 5.2：script_content 对 GROOVY 条件必填——缺失直接拒绝，防止落空脚本
+        testPlugin.setPluginType("GROOVY");
+        assertThrows(BusinessException.class,
+                () -> pluginService.createPlugin(testPlugin, null, null));
+        assertThrows(BusinessException.class,
+                () -> pluginService.createPlugin(testPlugin, null, "   "));
+        verify(pluginMapper, never()).insert(any(Plugin.class));
+        verify(groovyMapper, never()).insert(any(fun.commons.gateway4j.common.model.PluginGroovy.class));
+    }
+
+    @Test
+    void createNonGroovyPluginDoesNotTouchGroovyTable() {
+        when(pluginMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        when(pluginMapper.insert(any(Plugin.class))).thenAnswer(invocation -> {
+            Plugin p = invocation.getArgument(0);
+            p.setId(1L);
+            return 1;
+        });
+
+        pluginService.createPlugin(testPlugin, null, null);
+
+        verifyNoInteractions(groovyMapper);
+    }
+
+    @Test
+    void updateGroovyPluginOverwritesScript() {
+        testPlugin.setPluginType("GROOVY");
+        when(pluginMapper.selectById(1L)).thenReturn(testPlugin);
+        when(pluginMapper.updateById(any(Plugin.class))).thenReturn(1);
+        fun.commons.gateway4j.common.model.PluginGroovy existing =
+                fun.commons.gateway4j.common.model.PluginGroovy.builder()
+                        .id(100L).pluginId(1L).scriptContent("old").scriptMd5("oldmd5")
+                        .compileStatus("SUCCESS").compileError(null)
+                        .build();
+        when(groovyMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(existing);
+        when(groovyMapper.updateById(any(fun.commons.gateway4j.common.model.PluginGroovy.class))).thenReturn(1);
+
+        Plugin scriptUpdate = new Plugin();
+        scriptUpdate.setId(1L);
+        pluginService.updatePlugin(scriptUpdate, "def x = 2");
+
+        ArgumentCaptor<fun.commons.gateway4j.common.model.PluginGroovy> captor =
+                ArgumentCaptor.forClass(fun.commons.gateway4j.common.model.PluginGroovy.class);
+        verify(groovyMapper).updateById(captor.capture());
+        assertEquals("def x = 2", captor.getValue().getScriptContent());
+        assertNotEquals("oldmd5", captor.getValue().getScriptMd5());
+        assertEquals("PENDING", captor.getValue().getCompileStatus());
+    }
+
+    @Test
+    void updatePluginWithNullScriptKeepsExistingScript() {
+        // PATCH 语义：script_content=null 表示本次不涉及脚本，绝不能清空原脚本
+        testPlugin.setPluginType("GROOVY");
+        when(pluginMapper.selectById(1L)).thenReturn(testPlugin);
+        when(pluginMapper.updateById(any(Plugin.class))).thenReturn(1);
+
+        Plugin update = new Plugin();
+        update.setId(1L);
+        update.setPluginName("renamed");
+        pluginService.updatePlugin(update, null);
+
+        verifyNoInteractions(groovyMapper);
+    }
+
+    @Test
+    void deletePluginCleansGroovyRow() {
+        testPlugin.setPluginType("GROOVY");
+        testPlugin.setStatus("DISABLED");
+        when(pluginMapper.selectById(1L)).thenReturn(testPlugin);
+        when(pluginMapper.deleteById(1L)).thenReturn(1);
+
+        pluginService.deletePlugin(1L);
+
+        verify(groovyMapper).delete(any(LambdaQueryWrapper.class));
+    }
 }

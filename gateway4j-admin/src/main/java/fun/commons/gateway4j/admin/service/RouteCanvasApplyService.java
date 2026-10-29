@@ -186,6 +186,10 @@ public class RouteCanvasApplyService {
                     .parentRouteId(parentId)
                     .status("DRAFT")
                     .sortOrder(createdIds.size() + 1)
+                    // T5（P2-2 遗留）：画布新建子路由继承父路由环境（缺省 default），
+                    // 否则 staging 父路由的子路由会被 @Builder.Default 落到 default，
+                    // 与父路由分家且可能撞 default 环境的同名唯一索引
+                    .environment(Route.environmentOr(parent.getEnvironment()))
                     .build();
             routeService.save(route);
             createdIds.add(String.valueOf(route.getId()));

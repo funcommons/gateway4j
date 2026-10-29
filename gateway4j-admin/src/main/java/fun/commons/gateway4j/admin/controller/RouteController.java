@@ -3,8 +3,10 @@ package fun.commons.gateway4j.admin.controller;
 import com.fasterxml.jackson.databind.JsonNode;
 import fun.commons.framework4j.accesstoken.annotation.RequiresToken;
 import fun.commons.framework4j.audit.annotation.Auditable;
+import fun.commons.framework4j.ratelimit.annotation.RateLimit;
 import fun.commons.gateway4j.admin.service.ImportSnapshotService;
 import fun.commons.gateway4j.admin.service.RouteBindingService;
+import fun.commons.gateway4j.admin.service.RouteEnvironmentDiffService;
 import fun.commons.gateway4j.admin.service.RouteCanvasApplyService;
 import fun.commons.gateway4j.admin.service.RouteCanvasService;
 import fun.commons.gateway4j.admin.service.RoutePackage;
@@ -44,26 +46,30 @@ public class RouteController {
     private final RouteBindingService routeBindingService;
     private final RouteTransferService routeTransferService;
     private final ImportSnapshotService importSnapshotService;
+    private final RouteEnvironmentDiffService routeEnvironmentDiffService;
 
     public RouteController(RouteService routeService, RouteCanvasService routeCanvasService,
                            RouteCanvasApplyService routeCanvasApplyService,
                            RouteBindingService routeBindingService,
                            RouteTransferService routeTransferService,
-                           ImportSnapshotService importSnapshotService) {
+                           ImportSnapshotService importSnapshotService,
+                           RouteEnvironmentDiffService routeEnvironmentDiffService) {
         this.routeService = routeService;
         this.routeCanvasService = routeCanvasService;
         this.routeCanvasApplyService = routeCanvasApplyService;
         this.routeBindingService = routeBindingService;
         this.routeTransferService = routeTransferService;
         this.importSnapshotService = importSnapshotService;
+        this.routeEnvironmentDiffService = routeEnvironmentDiffService;
     }
 
     @GetMapping
     public List<Map<String, Object>> listRoutes(@RequestParam(required = false) String routeType,
                                                 @RequestParam(required = false) String status,
                                                 @RequestParam(required = false) String keyword,
-                                                @RequestParam(required = false) String tag) {
-        return routeService.listRouteTree(routeType, status, keyword, tag);
+                                                @RequestParam(required = false) String tag,
+                                                @RequestParam(required = false) String environment) {
+        return routeService.listRouteTree(routeType, status, keyword, tag, environment);
     }
 
     /** 路由详情（修复 D3：前端编辑回显依赖此接口）。 */
@@ -88,6 +94,8 @@ public class RouteController {
                 .sortOrder(request.sortOrder() != null ? request.sortOrder() : 1)
                 .remark(request.remark())
                 .tags(request.tags() != null ? request.tags() : "")
+                // P2-2 多环境：可选 environment，缺省由 RouteService 归一为 default
+                .environment(request.environment())
                 .build();
         return routeService.createRouteWithBindings(route, request.conditions(),
                 toBindings(request.bindings(), request.pluginIds()));
@@ -96,8 +104,29 @@ public class RouteController {
     @PatchMapping("/{id}")
     @Auditable(action = "UPDATE_ROUTE", targetType = "ROUTE", targetIdSpel = "#id")
     public Route updateRoute(@PathVariable Long id, @Valid @RequestBody RouteUpdateRequest request) {
+        // P1-5 乐观锁：expected_version 可缺省（不校验，兼容旧调用）；携带且 ≠ 当前
+        // config_version → 10402（与 ApiCode.STATE_CONFLICT 同码，语义即状态冲突）。
+        // 画布「应用到路由树」（/canvas/apply）走 diff 流、天然并发安全，豁免不校验。
+        if (request.expectedVersion() != null) {
+            Route current = routeService.getById(id);
+            if (current != null) {
+                long currentVersion = current.getConfigVersion() != null ? current.getConfigVersion() : 0L;
+                if (request.expectedVersion() != currentVersion) {
+                    throw new BusinessException(ErrorCode.ROUTE_VERSION_CONFLICT);
+                }
+            }
+        }
         Route route = new Route();
         route.setId(id);
+        // T1 修复（H7a 发现的既有隐蔽缺陷）：先抵消 Lombok @Builder.Default 在
+        // new Route() 时注入的默认值（status=DRAFT、sort_order=0、tags=""、
+        // config_version=0、environment=default），让「null = 请求未携带」语义成立
+        // ——否则 PATCH 只改备注会把 OFFLINE 路由静默重置为 DRAFT，并把
+        // sort_order/tags/config_version 踩成默认值。服务层再做白名单拷贝兜底。
+        route.setStatus(null);
+        route.setSortOrder(null);
+        route.setTags(null);
+        route.setConfigVersion(null);
         if (request.routeName() != null) route.setRouteName(request.routeName());
         if (request.path() != null) route.setPath(request.path());
         if (request.upstreamUrl() != null) route.setUpstreamUrl(request.upstreamUrl());
@@ -105,6 +134,10 @@ public class RouteController {
         if (request.sortOrder() != null) route.setSortOrder(request.sortOrder());
         if (request.remark() != null) route.setRemark(request.remark());
         if (request.tags() != null) route.setTags(request.tags());
+        // P2-2 多环境：不携带 environment = 维持既有环境不变。必须显式置 null——
+        // Route 的 @Builder.Default 字段在 new Route() 时已带 "default"，不置 null
+        // 会让 updateById 把既有环境踩回 default（MyBatis-Plus 只跳过 null 字段）。
+        route.setEnvironment(request.environment());
         routeService.updateRouteWithBindings(route, request.conditions(),
                 toBindings(request.bindings(), request.pluginIds()));
         return routeService.getById(id);
@@ -132,9 +165,19 @@ public class RouteController {
 
     @PostMapping("/{id}/publish")
     @Auditable(action = "PUBLISH_ROUTE", targetType = "ROUTE", targetIdSpel = "#id")
-    public Route publishRoute(@PathVariable Long id) {
+    public Route publishRoute(@PathVariable Long id,
+                              @RequestBody(required = false) PublishRequest request) {
+        // P2-4 流程档轻量：可选 change_description 随方法参数被 framework4j-audit
+        // 切面（logArgs 默认 true）序列化进审计行 args_json——审计 action 仍为
+        // PUBLISH_ROUTE，不带 body 的旧调用完全兼容。
         routeService.publishRoute(id);
         return routeService.getById(id);
+    }
+
+    /** P2-5 环境间 diff：route_name 对齐，逐字段比对（见 RouteEnvironmentDiffService）。 */
+    @GetMapping("/environment-diff")
+    public Map<String, Object> environmentDiff(@RequestParam String from, @RequestParam String to) {
+        return routeEnvironmentDiffService.diff(from, to);
     }
 
     @PostMapping("/{id}/offline")
@@ -195,6 +238,7 @@ public class RouteController {
     /** 把当前全量路由（含 conditions/bindings/tags）序列化存档，返回 {snapshot_id, route_count}。 */
     @PostMapping("/import/snapshot")
     @Auditable(action = "CREATE_IMPORT_SNAPSHOT", targetType = "ROUTE")
+    @RateLimit(limit = 30, window = "1m", scope = "ip")
     public Map<String, Object> createImportSnapshot() {
         return importSnapshotService.createSnapshot();
     }
@@ -202,6 +246,7 @@ public class RouteController {
     /** 事务内清空当前路由数据并按快照恢复，返回 {restored:N}。 */
     @PostMapping("/import/rollback")
     @Auditable(action = "ROLLBACK_IMPORT_SNAPSHOT", targetType = "ROUTE")
+    @RateLimit(limit = 30, window = "1m", scope = "ip")
     public Map<String, Object> rollbackImport(@RequestBody RollbackRequest request) {
         return importSnapshotService.rollback(request.snapshotId());
     }
@@ -218,6 +263,7 @@ public class RouteController {
     /** 批量发布（逐个执行单条逻辑：仅 DRAFT/OFFLINE 可发布），返回 {succeeded, failed}。 */
     @PostMapping("/bulk-publish")
     @Auditable(action = "BULK_PUBLISH_ROUTES", targetType = "ROUTE")
+    @RateLimit(limit = 30, window = "1m", scope = "ip")
     public Map<String, Object> bulkPublish(@RequestBody BulkIdsRequest request) {
         return bulkExecute(request.ids(), routeService::publishRoute);
     }
@@ -225,6 +271,7 @@ public class RouteController {
     /** 批量下线（仅 PUBLISHED 可下线）。 */
     @PostMapping("/bulk-offline")
     @Auditable(action = "BULK_OFFLINE_ROUTES", targetType = "ROUTE")
+    @RateLimit(limit = 30, window = "1m", scope = "ip")
     public Map<String, Object> bulkOffline(@RequestBody BulkIdsRequest request) {
         return bulkExecute(request.ids(), routeService::offlineRoute);
     }
@@ -232,6 +279,7 @@ public class RouteController {
     /** 批量删除（PUBLISHED 不可删、被引用不可删——同单条逻辑，失败记入 failed）。 */
     @PostMapping("/bulk-delete")
     @Auditable(action = "BULK_DELETE_ROUTES", targetType = "ROUTE")
+    @RateLimit(limit = 30, window = "1m", scope = "ip")
     public Map<String, Object> bulkDelete(@RequestBody BulkIdsRequest request) {
         return bulkExecute(request.ids(), routeService::deleteRoute);
     }
@@ -334,19 +382,23 @@ public class RouteController {
 
     @GetMapping("/export")
     public RoutePackage exportRoutes(@RequestParam(required = false) List<Long> routeIds,
-                                     @RequestParam(required = false) String status) {
-        return routeTransferService.exportRoutes(routeIds, status);
+                                     @RequestParam(required = false) String status,
+                                     @RequestParam(required = false) String environment) {
+        return routeTransferService.exportRoutes(routeIds, status, environment);
     }
 
     @PostMapping("/import")
     @Auditable(action = "IMPORT_ROUTES", targetType = "ROUTE")
+    @RateLimit(limit = 30, window = "1m", scope = "ip")
     public Map<String, Object> importRoutes(@RequestBody ImportRequest request) {
-        return routeTransferService.importRoutes(request.data(), request.strategy());
+        return routeTransferService.importRoutes(request.data(), request.strategy(), request.targetEnvironment());
     }
 
     @PostMapping("/import/validate")
-    public Map<String, Object> validateImport(@RequestBody RoutePackage data) {
-        return routeTransferService.validateImport(data);
+    @RateLimit(limit = 30, window = "1m", scope = "ip")
+    public Map<String, Object> validateImport(@RequestBody RoutePackage data,
+                                              @RequestParam(required = false) String environment) {
+        return routeTransferService.validateImport(data, environment);
     }
 
     @ValidBackendRouteCreate
@@ -369,6 +421,8 @@ public class RouteController {
             String remark,
             @Size(max = 200, message = "标签最长 200 字符")
             String tags,
+            @Pattern(regexp = "^[a-z0-9_-]{1,20}$", message = "环境标识须为 1-20 位小写字母、数字、下划线或中划线")
+            String environment,
             List<RouteCondition> conditions,
             List<Long> pluginIds,
             List<BindingRequest> bindings
@@ -389,9 +443,13 @@ public class RouteController {
             String remark,
             @Size(max = 200, message = "标签最长 200 字符")
             String tags,
+            @Pattern(regexp = "^[a-z0-9_-]{1,20}$", message = "环境标识须为 1-20 位小写字母、数字、下划线或中划线")
+            String environment,
             List<RouteCondition> conditions,
             List<Long> pluginIds,
-            List<BindingRequest> bindings
+            List<BindingRequest> bindings,
+            /** P1-5 乐观锁：可缺省 = 不校验；携带且 ≠ 当前 config_version → 10402。 */
+            Long expectedVersion
     ) {}
 
     public record BindingRequest(Long pluginId, String bindingConfig) {}
@@ -412,11 +470,29 @@ public class RouteController {
 
     public record SortBindingsRequest(String pluginPhase, List<Long> bindingIds) {}
 
-    public record ImportRequest(RoutePackage data, String strategy) {}
+    /** P2-2 多环境：target_environment 可选（缺省 default）；旧包（无 environment 字段）同样落 default。 */
+    public record ImportRequest(RoutePackage data, String strategy, String targetEnvironment) {
+        /** 旧两参构造（存量调用方兼容）。 */
+        public ImportRequest(RoutePackage data, String strategy) {
+            this(data, strategy, null);
+        }
+    }
 
     /** 阶段二 T2：回滚请求。 */
     public record RollbackRequest(Long snapshotId) {}
 
-    /** 阶段二 T3：批量操作请求（ids 为路由 id 数组）。 */
-    public record BulkIdsRequest(List<Long> ids) {}
+    /**
+     * 阶段二 T3：批量操作请求（ids 为路由 id 数组）。
+     * P2-4 流程档轻量：可选 change_description 随请求进入审计行 args_json
+     * （action=BULK_PUBLISH_ROUTES），缺省兼容旧调用。
+     */
+    public record BulkIdsRequest(List<Long> ids, String changeDescription) {
+        /** 旧单参构造（存量调用方兼容）。 */
+        public BulkIdsRequest(List<Long> ids) {
+            this(ids, null);
+        }
+    }
+
+    /** P2-4 流程档轻量：发布变更说明（可选——UI 侧必填，API 侧可选，兼容旧调用）。 */
+    public record PublishRequest(String changeDescription) {}
 }

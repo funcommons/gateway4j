@@ -297,4 +297,134 @@ class RouteTransferServiceTest {
         assertEquals(false, result.get("is_valid"));
         assertFalse(((List<?>) result.get("cycle_warnings")).isEmpty());
     }
+
+    // ==================== P2-2 多环境：导出指纹 / 导入目标环境 / 旧包兼容 ====================
+
+    private Route envRoute(long id, String name, String environment) {
+        Route r = Route.builder().id(id).routeName(name).routeType("BACKEND")
+                .path("/" + name).upstreamUrl("http://" + name).sortOrder(0).build();
+        r.setEnvironment(environment);
+        return r;
+    }
+
+    @Test
+    void exportSingleEnvironmentFingerprint() {
+        when(routeService.listRoutes(null, null, null)).thenReturn(List.of(envRoute(1L, "b1", "default")));
+        when(routeService.listByIds(anySet())).thenReturn(List.of(envRoute(1L, "b1", "default")));
+        when(conditionMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+        when(bindingMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+
+        RoutePackage pkg = transferService.exportRoutes(null, null);
+        assertEquals("default", pkg.environment(), "单环境导出指纹为该环境标识");
+    }
+
+    @Test
+    void exportMixedEnvironmentFingerprint() {
+        when(routeService.listRoutes(null, null, null))
+                .thenReturn(List.of(envRoute(1L, "b1", "default"), envRoute(2L, "b2", "staging")));
+        when(routeService.listByIds(anySet()))
+                .thenReturn(List.of(envRoute(1L, "b1", "default"), envRoute(2L, "b2", "staging")));
+        when(conditionMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+        when(bindingMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+
+        RoutePackage pkg = transferService.exportRoutes(null, null);
+        assertEquals("mixed", pkg.environment(), "混合环境导出指纹为 mixed");
+    }
+
+    @Test
+    void importLegacyPackageWithoutEnvironmentLandsInDefault() {
+        RoutePackage.RouteNode node = new RoutePackage.RouteNode(
+                "legacy", "BACKEND", "/api/l", "http://l:8080", 0, null, List.of(), List.of(), List.of());
+        // 旧包：environment 组件为 null（Jackson 反序列化旧 JSON 的等价形态）
+        RoutePackage pkg = new RoutePackage("1.0", 0L, List.of(node), null);
+
+        when(routeService.getOne(any(LambdaQueryWrapper.class), eq(false))).thenReturn(null);
+        when(routeService.save(any(Route.class))).thenAnswer(inv -> {
+            inv.getArgument(0, Route.class).setId(300L);
+            return true;
+        });
+        when(pluginMapper.selectList(null)).thenReturn(List.of());
+
+        Map<String, Object> result = transferService.importRoutes(pkg, "SKIP");
+        assertEquals(1, result.get("created"));
+        assertEquals("default", result.get("environment"), "旧包目标环境 = default");
+        assertEquals("default", result.get("package_environment"));
+        org.mockito.ArgumentCaptor<Route> captor = org.mockito.ArgumentCaptor.forClass(Route.class);
+        verify(routeService).save(captor.capture());
+        assertEquals("default", captor.getValue().getEnvironment(), "旧包导入落 default 环境");
+    }
+
+    @Test
+    void importWithTargetEnvironmentCreatesInThatEnvironment() {
+        RoutePackage.RouteNode node = new RoutePackage.RouteNode(
+                "stg", "BACKEND", "/api/s", "http://s:8080", 0, null, List.of(), List.of(), List.of());
+        RoutePackage pkg = new RoutePackage("1.0", 0L, List.of(node), "default");
+
+        when(routeService.getOne(any(LambdaQueryWrapper.class), eq(false))).thenReturn(null);
+        when(routeService.save(any(Route.class))).thenAnswer(inv -> {
+            inv.getArgument(0, Route.class).setId(301L);
+            return true;
+        });
+        when(pluginMapper.selectList(null)).thenReturn(List.of());
+
+        Map<String, Object> result = transferService.importRoutes(pkg, "SKIP", "staging");
+        assertEquals("staging", result.get("environment"), "目标环境取请求参数");
+        org.mockito.ArgumentCaptor<Route> captor = org.mockito.ArgumentCaptor.forClass(Route.class);
+        verify(routeService).save(captor.capture());
+        assertEquals("staging", captor.getValue().getEnvironment());
+    }
+
+    @Test
+    void importSameNameInDifferentEnvironmentTreatedAsNew() {
+        // default 环境已有 b1；导入目标 staging → 同名视为新增
+        RoutePackage.RouteNode node = new RoutePackage.RouteNode(
+                "b1", "BACKEND", "/api/a", "http://a:8080", 0, null, List.of(), List.of(), List.of());
+        RoutePackage pkg = new RoutePackage("1.0", 0L, List.of(node), "default");
+
+        when(routeService.getOne(any(LambdaQueryWrapper.class), eq(false))).thenReturn(null);
+        when(routeService.save(any(Route.class))).thenAnswer(inv -> {
+            inv.getArgument(0, Route.class).setId(302L);
+            return true;
+        });
+        when(pluginMapper.selectList(null)).thenReturn(List.of());
+
+        Map<String, Object> result = transferService.importRoutes(pkg, "SKIP", "staging");
+        assertEquals(1, result.get("created"), "环境不同即视为新增");
+        assertEquals(0, result.get("skipped"));
+    }
+
+    @Test
+    void importRejectsInvalidTargetEnvironment() {
+        RoutePackage pkg = new RoutePackage("1.0", 0L, List.of());
+        assertThrows(BusinessException.class,
+                () -> transferService.importRoutes(pkg, "SKIP", "INVALID ENV"));
+    }
+
+    @Test
+    void validateImportShowsTargetAndPackageEnvironment() {
+        RoutePackage.RouteNode node = new RoutePackage.RouteNode(
+                "b1", "BACKEND", "/api/a", "http://a:8080", 0, null, List.of(), List.of(), List.of());
+        when(routeService.getOne(any(LambdaQueryWrapper.class), eq(false))).thenReturn(null);
+
+        // 旧包 + 缺省目标：environment=default，package_environment=default
+        Map<String, Object> legacy = transferService.validateImport(new RoutePackage("1.0", 0L, List.of(node)));
+        assertEquals("default", legacy.get("environment"));
+        assertEquals("default", legacy.get("package_environment"));
+
+        // 旧包 + 指定目标 staging：conflicts 按 staging 环境内比对
+        Map<String, Object> targeted = transferService.validateImport(
+                new RoutePackage("1.0", 0L, List.of(node), null), "staging");
+        assertEquals("staging", targeted.get("environment"));
+        assertEquals("default", targeted.get("package_environment"));
+        assertTrue(((List<?>) targeted.get("conflicts")).isEmpty(),
+                "default 环境的同名路由不应算入 staging 的 conflicts");
+    }
+
+    @Test
+    void exportEmptyWithEnvironmentFilterCarriesFingerprint() {
+        when(routeService.listRoutes(null, null, null, null, "staging")).thenReturn(List.of());
+        RoutePackage pkg = transferService.exportRoutes(null, null, "staging");
+        assertEquals("staging", pkg.environment());
+        assertTrue(pkg.routes().isEmpty());
+    }
 }

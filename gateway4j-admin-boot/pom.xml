@@ -133,6 +133,14 @@
             <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
 
+        <!-- P2-3 OpenAPI：springdoc-openapi（2.8.x 对齐 Boot 3.5.x）。
+             /v1/api-docs 暴露接口清单；swagger-ui 默认关（application.yml env 开关，仅 dev）。 -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>2.8.9</version>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-log4j2</artifactId>
@@ -151,6 +159,22 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- 启动冒烟测试（Testcontainers）：版本由 spring-boot-dependencies BOM 托管 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -180,13 +204,16 @@
             </plugin>
         </plugins>
         <resources>
+            <!-- P2-9：application.yml 关闭 Maven filtering——yml 里的 ${ENV:default} 是
+                 Spring 运行时占位符，若交给 maven-resources-plugin 处理，构建机上同名
+                 -D 属性会在打包期被替换并固化进 jar（env 外部化失效）。 -->
             <resource>
                 <directory>src/main/resources</directory>
                 <includes>
                     <include>*.yaml</include>
                     <include>*.yml</include>
                 </includes>
-                <filtering>true</filtering>
+                <filtering>false</filtering>
             </resource>
             <resource>
                 <directory>src/main/resources</directory>

@@ -53,11 +53,18 @@ public class RouteService extends ServiceImpl<RouteMapper, Route> {
         return listRoutes(routeType, status, keyword, null);
     }
 
+    public List<Route> listRoutes(String routeType, String status, String keyword, String tag) {
+        return listRoutes(routeType, status, keyword, tag, null);
+    }
+
     /**
      * 路由列表（阶段二 T4：tag 精确筛选——tags 为逗号分隔字符串，
      * 命中其中一项即返回，如 tags="prod,pay" 时 tag=prod 命中）。
+     *
+     * <p>P2-2 多环境：environment 可选精确筛选；null/blank = 不过滤（全环境），
+     * 与多环境前的列表行为一致。</p>
      */
-    public List<Route> listRoutes(String routeType, String status, String keyword, String tag) {
+    public List<Route> listRoutes(String routeType, String status, String keyword, String tag, String environment) {
         LambdaQueryWrapper<Route> wrapper = new LambdaQueryWrapper<Route>()
                 .orderByAsc(Route::getSortOrder);
         if (routeType != null) {
@@ -74,6 +81,9 @@ public class RouteService extends ServiceImpl<RouteMapper, Route> {
             wrapper.apply("(',' || tags || ',') LIKE {0}",
                     "%," + escapeLike(tag) + ",%");
         }
+        if (environment != null && !environment.isEmpty()) {
+            wrapper.eq(Route::getEnvironment, environment);
+        }
         return list(wrapper);
     }
 
@@ -85,9 +95,14 @@ public class RouteService extends ServiceImpl<RouteMapper, Route> {
         return listRouteTree(routeType, status, keyword, null);
     }
 
-    /** 路由树（阶段二 T4：tag 精确筛选，节点附带 tags 字段）。 */
     public List<Map<String, Object>> listRouteTree(String routeType, String status, String keyword, String tag) {
-        List<Route> all = listRoutes(routeType, status, keyword, tag);
+        return listRouteTree(routeType, status, keyword, tag, null);
+    }
+
+    /** 路由树（P2-2 多环境：可选 environment 精确筛选，节点附带 environment 字段）。 */
+    public List<Map<String, Object>> listRouteTree(String routeType, String status, String keyword,
+                                                   String tag, String environment) {
+        List<Route> all = listRoutes(routeType, status, keyword, tag, environment);
         Map<Long, List<RoutePluginBinding>> bindingsByRoute = new HashMap<>();
         for (RoutePluginBinding b : bindingMapper.selectList(null)) {
             bindingsByRoute.computeIfAbsent(b.getRouteId(), k -> new ArrayList<>()).add(b);
@@ -129,6 +144,10 @@ public class RouteService extends ServiceImpl<RouteMapper, Route> {
         node.put("sort_order", route.getSortOrder());
         node.put("remark", route.getRemark());
         node.put("tags", route.getTags() != null ? route.getTags() : "");
+        // P2-2 多环境：节点携带 environment（null 归一 default，兼容迁移前存量行）。
+        // 注意用 common 的 Route.environmentOr——admin 侧不得引用 engine 的 ConfigService
+        //（无 spring-cloud-gateway classpath，类加载即 NoClassDefFoundError）。
+        node.put("environment", fun.commons.gateway4j.common.model.Route.environmentOr(route.getEnvironment()));
         node.put("config_version", route.getConfigVersion() != null ? String.valueOf(route.getConfigVersion()) : "0");
         node.put("created_at", route.getCreatedAt() != null ? route.getCreatedAt().toInstant().toEpochMilli() : 0L);
         node.put("updated_at", route.getUpdatedAt() != null ? route.getUpdatedAt().toInstant().toEpochMilli() : 0L);
@@ -167,6 +186,8 @@ public class RouteService extends ServiceImpl<RouteMapper, Route> {
     @Transactional
     public Route createRouteWithBindings(Route route, List<RouteCondition> conditions, List<BindingInput> bindings) {
         validateRequiredFields(route, conditions);
+        // P2-2 多环境：缺省落 default；非法值在入库前拒绝（白名单 ^[a-z0-9_-]{1,20}$）
+        route.setEnvironment(normalizeEnvironment(route.getEnvironment()));
         save(route);
         if (conditions != null && !conditions.isEmpty()) {
             for (RouteCondition cond : conditions) {
@@ -210,7 +231,14 @@ public class RouteService extends ServiceImpl<RouteMapper, Route> {
             throw new BusinessException(ErrorCode.CONFIG_SYNC_FAILED,
                     "已发布路由不可直接修改，请先下线");
         }
-        updateById(route);
+        // T1（H7a 发现的既有隐蔽缺陷）修复：load-modify-save + 显式字段白名单。
+        // 入参 route 多由 `new Route()` 构造，Lombok @Builder.Default 字段在无参构造时
+        // 已带默认值（status=DRAFT、sort_order=0、tags=""、config_version=0）——直接
+        // updateById 会把这些未携带字段的既有值静默覆盖（如 PATCH 只改备注却把 OFFLINE
+        // 路由重置为 DRAFT、sort_order/乐观锁版本清零）。因此只把「PATCH 可修改字段」
+        // 从入参拷到 existing（null = 请求未携带，不覆盖既有值），其余一律维持 DB 现值。
+        applyPatchableFields(existing, route);
+        updateById(existing);
         if (conditions != null) {
             conditionMapper.delete(new LambdaQueryWrapper<RouteCondition>()
                     .eq(RouteCondition::getRouteId, route.getId()));
@@ -237,6 +265,41 @@ public class RouteService extends ServiceImpl<RouteMapper, Route> {
             }
         }
         publishRouteChange(route.getId(), existing.getConfigVersion(), "UPDATE");
+    }
+
+    /**
+     * PATCH 可修改字段白名单拷贝：把入参中非 null 的字段覆盖到既有实体上。
+     * <p>
+     * 只收 route_name/path/upstream_url/parent_route_id/sort_order/remark/tags/environment
+     * —— status 只经 publish/offline 端点变更、route_type 创建后不可改、config_version
+     * 只由乐观锁与发布流水推进，均不得经 PATCH 传入（入参里即便携带 @Builder.Default
+     * 的默认值也会被忽略）。environment 携带时校验白名单（P2-2），缺省不动既有环境。
+     */
+    private void applyPatchableFields(Route target, Route patch) {
+        if (patch.getRouteName() != null) {
+            target.setRouteName(patch.getRouteName());
+        }
+        if (patch.getPath() != null) {
+            target.setPath(patch.getPath());
+        }
+        if (patch.getUpstreamUrl() != null) {
+            target.setUpstreamUrl(patch.getUpstreamUrl());
+        }
+        if (patch.getParentRouteId() != null) {
+            target.setParentRouteId(patch.getParentRouteId());
+        }
+        if (patch.getSortOrder() != null) {
+            target.setSortOrder(patch.getSortOrder());
+        }
+        if (patch.getRemark() != null) {
+            target.setRemark(patch.getRemark());
+        }
+        if (patch.getTags() != null) {
+            target.setTags(patch.getTags());
+        }
+        if (patch.getEnvironment() != null) {
+            target.setEnvironment(normalizeEnvironment(patch.getEnvironment()));
+        }
     }
 
     @Transactional
@@ -382,6 +445,24 @@ public class RouteService extends ServiceImpl<RouteMapper, Route> {
         return raw.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
+    // ==================== P2-2 多环境 ====================
+
+    /**
+     * environment 归一：null/blank → default（向后兼容旧请求/旧导入包）；
+     * 非白名单（^[a-z0-9_-]{1,20}$）→ 业务异常。
+     */
+    public static String normalizeEnvironment(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return Route.DEFAULT_ENVIRONMENT;
+        }
+        String value = raw.trim();
+        if (!value.matches(Route.ENVIRONMENT_PATTERN)) {
+            throw new BusinessException(ErrorCode.CONFIG_SYNC_FAILED,
+                    "environment 须为 1-20 位小写字母、数字、下划线或中划线（^[a-z0-9_-]{1,20}$）");
+        }
+        return value;
+    }
+
     // ==================== 阶段二 T3：路由复制 ====================
 
     /**
@@ -403,6 +484,8 @@ public class RouteService extends ServiceImpl<RouteMapper, Route> {
                 .sortOrder(source.getSortOrder())
                 .remark(source.getRemark())
                 .tags(source.getTags())
+                // P2-2 多环境：副本留在源路由的环境内（否则 default 会与源环境同名冲突）
+                .environment(source.getEnvironment())
                 .build();
         save(copy);
         for (RouteCondition cond : conditionMapper.selectList(new LambdaQueryWrapper<RouteCondition>()

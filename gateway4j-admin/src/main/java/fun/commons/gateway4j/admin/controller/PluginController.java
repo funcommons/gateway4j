@@ -3,6 +3,7 @@ package fun.commons.gateway4j.admin.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import fun.commons.framework4j.accesstoken.annotation.RequiresToken;
 import fun.commons.framework4j.audit.annotation.Auditable;
+import fun.commons.framework4j.ratelimit.annotation.RateLimit;
 import fun.commons.framework4j.web.ApiResponse;
 import fun.commons.gateway4j.admin.service.BuiltinPluginTypeService;
 import fun.commons.gateway4j.admin.service.PluginService;
@@ -76,7 +77,8 @@ public class PluginController {
         if (request.config() != null) plugin.setConfig(request.config());
         if (request.sortOrder() != null) plugin.setSortOrder(request.sortOrder());
         if (request.remark() != null) plugin.setRemark(request.remark());
-        pluginService.updatePlugin(plugin);
+        // P2-1：script_content 非 null 时覆盖 gw_plugin_groovy（null = 本次不涉及脚本）
+        pluginService.updatePlugin(plugin, request.scriptContent());
         return pluginService.getById(id);
     }
 
@@ -126,6 +128,7 @@ public class PluginController {
 
     @PostMapping(value = "/upload-jar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Auditable(action = "UPLOAD_JAR", targetType = "PLUGIN")
+    @RateLimit(limit = 30, window = "1m", scope = "ip")
     public Plugin uploadJar(@RequestPart("file") MultipartFile file,
                             @RequestParam("plugin_name") String pluginName,
                             @RequestParam("plugin_id") String pluginId,
@@ -137,6 +140,7 @@ public class PluginController {
     }
 
     @PostMapping("/validate-groovy")
+    @RateLimit(limit = 30, window = "1m", scope = "ip")
     public Map<String, Object> validateGroovy(@RequestBody ValidateGroovyRequest request) {
         return pluginUploadService.validateGroovy(request.scriptContent());
     }
@@ -158,7 +162,8 @@ public class PluginController {
             String pluginName,
             String config,
             Integer sortOrder,
-            String remark
+            String remark,
+            String scriptContent
     ) {}
 
     public record GlobalSortRequest(

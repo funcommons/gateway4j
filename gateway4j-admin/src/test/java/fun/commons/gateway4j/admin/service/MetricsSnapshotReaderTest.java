@@ -116,4 +116,24 @@ class MetricsSnapshotReaderTest {
         assertEquals(0.0, snapshot.latencyMsSum());
         assertEquals(0L, snapshot.latencyCount());
     }
+
+    /** P1-1：快照含 active 字段（H1 扩展契约）→ 原样读出在途请求数。 */
+    @Test
+    void readsActiveFieldWhenPresent() {
+        when(hashOperations.get(KEY, PATH)).thenReturn(
+                "{\"total\":3,\"errors\":1,\"latency_ms_sum\":150.5,\"latency_count\":2,\"active\":7,\"updated_at\":1}");
+
+        MetricsSnapshotReader.MetricsSnapshot snapshot = reader.readByPath(PATH);
+
+        assertEquals(7L, snapshot.active());
+    }
+
+    /** 旧版快照缺 active 字段 → 回退 0（向后兼容）。 */
+    @Test
+    void missingActiveFieldFallsBackToZero() {
+        when(hashOperations.get(KEY, PATH)).thenReturn(
+                "{\"total\":3,\"errors\":1,\"latency_ms_sum\":150.5,\"latency_count\":2,\"updated_at\":1}");
+
+        assertEquals(0L, reader.readByPath(PATH).active());
+    }
 }

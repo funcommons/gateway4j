@@ -41,6 +41,16 @@ class RouteServiceTest {
         routeService = new RouteService(conditionMapper, bindingMapper, routeValidator, pluginService, eventPublisher);
         setBaseMapper(routeService, routeMapper);
 
+        // 纯单测无 MyBatis-Plus 启动流程：手动注册 Route 的 TableInfo，
+        // 否则 LambdaQueryWrapper 解析 Route::getEnvironment 时报
+        // "can not find lambda cache for this entity"
+        if (com.baomidou.mybatisplus.core.metadata.TableInfoHelper.getTableInfo(Route.class) == null) {
+            com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                    new org.apache.ibatis.builder.MapperBuilderAssistant(
+                            new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""),
+                    Route.class);
+        }
+
         testRoute = Route.builder()
                 .id(1L).routeName("test-route").routeType("BACKEND")
                 .path("/api/users").upstreamUrl("http://users:8080")
@@ -164,6 +174,89 @@ class RouteServiceTest {
         Route update = new Route();
         update.setId(999L);
         assertThrows(BusinessException.class, () -> routeService.updateRoute(update, null, null));
+    }
+
+    // ==================== T1：PATCH 静默重置 status（既有缺陷回归） ====================
+
+    /**
+     * T1 回归：OFFLINE 路由只 PATCH remark → status 仍 OFFLINE，sort_order/tags/
+     * config_version 维持既有值。服务层改为 load-modify-save + 白名单拷贝：
+     * 只收 PATCH 可修改字段，status/route_type/config_version 一律不采信入参
+     * （null = 请求未携带，由控制器抵消 @Builder.Default 后保证）。
+     */
+    @Test
+    void updateRoutePatchRemarkKeepsOfflineStatusAndUntouchedFields() {
+        Route existing = Route.builder().id(1L).routeName("api").routeType("BACKEND")
+                .path("/api").upstreamUrl("http://api").status("OFFLINE")
+                .sortOrder(5).tags("prod,pay").remark("旧").configVersion(7L).build();
+        when(routeMapper.selectById(1L)).thenReturn(existing);
+        when(routeMapper.updateById(any(Route.class))).thenReturn(1);
+
+        // 控制器契约：null = 请求未携带（控制器已抵消 @Builder.Default 默认值）
+        Route patch = new Route();
+        patch.setId(1L);
+        patch.setStatus(null);
+        patch.setSortOrder(null);
+        patch.setTags(null);
+        patch.setConfigVersion(null);
+        patch.setEnvironment(null);
+        patch.setRemark("只改备注");
+        routeService.updateRoute(patch, null, null);
+
+        org.mockito.ArgumentCaptor<Route> captor =
+                org.mockito.ArgumentCaptor.forClass(Route.class);
+        verify(routeMapper).updateById(captor.capture());
+        Route saved = captor.getValue();
+        assertSame(existing, saved, "应 load-modify-save：更新落在既有实体上");
+        assertEquals("OFFLINE", saved.getStatus(), "PATCH remark 不得把 OFFLINE 重置为 DRAFT");
+        assertEquals(Integer.valueOf(5), saved.getSortOrder(), "未携带 sort_order 不得被默认 0 覆盖");
+        assertEquals("prod,pay", saved.getTags(), "未携带 tags 不得被默认空串覆盖");
+        assertEquals(Long.valueOf(7L), saved.getConfigVersion(), "乐观锁版本不得被默认 0 清零");
+        assertEquals("只改备注", saved.getRemark());
+        assertEquals("/api", saved.getPath());
+    }
+
+    /** T1 回归：PUBLISHED 禁改保护不因重构松动（PATCH 仍拒绝、不落任何更新）。 */
+    @Test
+    void updateRouteStillRejectsPublishedRoute() {
+        Route existing = Route.builder().id(1L).routeName("api").routeType("BACKEND")
+                .status("PUBLISHED").sortOrder(2).build();
+        when(routeMapper.selectById(1L)).thenReturn(existing);
+
+        Route patch = new Route();
+        patch.setId(1L);
+        patch.setStatus(null);
+        patch.setSortOrder(null);
+        patch.setTags(null);
+        patch.setEnvironment(null);
+        patch.setRemark("x");
+        assertThrows(BusinessException.class, () -> routeService.updateRoute(patch, null, null));
+        verify(routeMapper, never()).updateById(any(Route.class));
+    }
+
+    /** T1：PATCH 显式携带的合法字段仍正常落库（白名单不放走合法更新）。 */
+    @Test
+    void updateRouteAppliesExplicitlyCarriedFields() {
+        Route existing = Route.builder().id(1L).routeName("api").routeType("BACKEND")
+                .path("/old").upstreamUrl("http://old").status("DRAFT")
+                .sortOrder(1).configVersion(2L).build();
+        when(routeMapper.selectById(1L)).thenReturn(existing);
+        when(routeMapper.updateById(any(Route.class))).thenReturn(1);
+
+        Route patch = new Route();
+        patch.setId(1L);
+        patch.setPath("/new");
+        patch.setUpstreamUrl("http://new");
+        patch.setSortOrder(9);
+        patch.setTags("gray");
+        routeService.updateRoute(patch, null, null);
+
+        assertEquals("/new", existing.getPath());
+        assertEquals("http://new", existing.getUpstreamUrl());
+        assertEquals(Integer.valueOf(9), existing.getSortOrder());
+        assertEquals("gray", existing.getTags());
+        assertEquals("DRAFT", existing.getStatus(), "入参即便携带也不得改 status");
+        assertEquals(Long.valueOf(2L), existing.getConfigVersion(), "config_version 不经 PATCH 变更");
     }
 
     @Test
@@ -311,5 +404,115 @@ class RouteServiceTest {
     void duplicateRouteNotFoundThrows() {
         when(routeMapper.selectById(404L)).thenReturn(null);
         assertThrows(BusinessException.class, () -> routeService.duplicateRoute(404L));
+    }
+
+    // ==================== P2-2 多环境：CRUD env 缺省/校验/筛选/复制继承 ====================
+
+    @Test
+    void createRouteDefaultsEnvironmentToDefault() {
+        when(routeMapper.insert(any(Route.class))).thenAnswer(invocation -> {
+            Route r = invocation.getArgument(0);
+            r.setId(2L);
+            return 1;
+        });
+
+        Route created = routeService.createRoute(
+                Route.builder().routeName("no_env").routeType("BACKEND")
+                        .path("/a").upstreamUrl("http://a").build(),
+                null, null);
+
+        assertEquals("default", created.getEnvironment(), "缺省 environment 落 default");
+    }
+
+    @Test
+    void createRouteKeepsCustomEnvironment() {
+        when(routeMapper.insert(any(Route.class))).thenAnswer(invocation -> {
+            Route r = invocation.getArgument(0);
+            r.setId(2L);
+            return 1;
+        });
+
+        Route created = routeService.createRoute(
+                Route.builder().routeName("stg").routeType("BACKEND")
+                        .path("/a").upstreamUrl("http://a").environment("staging").build(),
+                null, null);
+
+        assertEquals("staging", created.getEnvironment());
+    }
+
+    @Test
+    void createRouteRejectsInvalidEnvironment() {
+        Route bad = Route.builder().routeName("bad").routeType("BACKEND")
+                .path("/a").upstreamUrl("http://a").environment("PROD X!").build();
+        assertThrows(BusinessException.class, () -> routeService.createRoute(bad, null, null));
+        verify(routeMapper, never()).insert(any(Route.class));
+    }
+
+    @Test
+    void updateRouteWithoutEnvironmentKeepsExisting() {
+        when(routeMapper.selectById(1L)).thenReturn(testRoute);
+        when(routeMapper.updateById(any(Route.class))).thenReturn(1);
+        when(conditionMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+
+        // 控制器契约：请求不带 environment 时显式置 null（抵消 @Builder.Default 的 new 默认值）
+        Route patch = new Route();
+        patch.setId(1L);
+        patch.setRemark("只改备注");
+        patch.setEnvironment(null);
+        routeService.updateRoute(patch, List.of(), null);
+
+        assertNull(patch.getEnvironment(), "服务层不得给未携带 environment 的更新注入环境");
+    }
+
+    @Test
+    void updateRouteWithEnvironmentValidates() {
+        when(routeMapper.selectById(1L)).thenReturn(testRoute);
+
+        Route patch = new Route();
+        patch.setId(1L);
+        patch.setEnvironment("BAD NAME");
+        assertThrows(BusinessException.class, () -> routeService.updateRoute(patch, null, null));
+    }
+
+    @Test
+    void listRoutesFiltersByEnvironment() {
+        when(routeMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+
+        routeService.listRoutes(null, null, null, null, "staging");
+
+        org.mockito.ArgumentCaptor<LambdaQueryWrapper<Route>> captor =
+                org.mockito.ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+        verify(routeMapper).selectList(captor.capture());
+        LambdaQueryWrapper<Route> wrapper = captor.getValue();
+        assertTrue(wrapper.getSqlSegment().contains("environment"),
+                "wrapper 应含 environment 列条件，实际: " + wrapper.getSqlSegment());
+        assertTrue(wrapper.getParamNameValuePairs().containsValue("staging"),
+                "wrapper 参数应含 staging，实际: " + wrapper.getParamNameValuePairs());
+    }
+
+    @Test
+    void duplicateRouteInheritsEnvironment() {
+        Route source = Route.builder().id(1L).routeName("api").routeType("BACKEND")
+                .path("/api").upstreamUrl("http://api").environment("staging").build();
+        when(routeMapper.selectById(1L)).thenReturn(source);
+        when(routeMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        when(routeMapper.insert(any(Route.class))).thenAnswer(invocation -> {
+            Route r = invocation.getArgument(0);
+            r.setId(202L);
+            return 1;
+        });
+        when(conditionMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+        when(bindingMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+
+        Route copy = routeService.duplicateRoute(1L);
+
+        assertEquals("staging", copy.getEnvironment(), "副本留在源路由环境内");
+    }
+
+    @Test
+    void normalizeEnvironmentHandlesNullBlankAndTrims() {
+        assertEquals("default", RouteService.normalizeEnvironment(null));
+        assertEquals("default", RouteService.normalizeEnvironment("  "));
+        assertEquals("prod", RouteService.normalizeEnvironment(" prod "));
     }
 }

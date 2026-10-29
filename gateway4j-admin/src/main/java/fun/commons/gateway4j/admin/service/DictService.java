@@ -31,7 +31,11 @@ public class DictService {
             case "PLUGIN_STATUS" -> ofEnum(PluginStatus.values(), Map.of("ENABLED", "已启用", "DISABLED", "已禁用"));
             case "COND_TYPE" -> ofEnum(ConditionType.values(), Map.of(
                     "HEADER", "请求头条件", "PATH", "路径条件", "QUERY", "查询参数条件",
-                    "BODY", "请求体条件", "GROOVY", "Groovy 脚本条件"));
+                    "BODY", "请求体条件", "GROOVY", "Groovy 脚本条件",
+                    // H5a 遗留收录：ConditionType.values() 自 WEIGHT 起含 6 值，
+                    // 此前缺标签回落为枚举码「WEIGHT」；校验侧无白名单（条件类型
+                    // 全程字符串透传），字典仅影响展示。
+                    "WEIGHT", "权重分流"));
             case "COND_OPERATOR" -> ofEnum(ConditionOperator.values(), Map.of(
                     "EQ", "等于", "NE", "不等于", "CONTAINS", "包含", "REGEX", "正则匹配",
                     "EXISTS", "存在", "GT", "大于", "LT", "小于"));

@@ -39,6 +39,12 @@
             <groupId>com.github.funcommons.framework4j</groupId>
             <artifactId>framework4j-audit</artifactId>
         </dependency>
+        <!-- P1-4 审计落库：AuditPersistenceConfiguration 需从 MultiDataSourceManager
+             取默认数据源构造 JdbcAuditSink（运行时由 admin-boot 传递提供，版本由根 POM 管理）。 -->
+        <dependency>
+            <groupId>com.github.funcommons.framework4j</groupId>
+            <artifactId>framework4j-datasource</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.github.funcommons.framework4j</groupId>
             <artifactId>framework4j-web</artifactId>

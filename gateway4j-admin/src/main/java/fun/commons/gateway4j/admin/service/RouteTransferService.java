@@ -52,16 +52,31 @@ public class RouteTransferService {
     // ==================== 导出 ====================
 
     public RoutePackage exportRoutes(List<Long> routeIds, String status) {
+        return exportRoutes(routeIds, status, null);
+    }
+
+    /**
+     * 导出（P2-2 多环境）：environment 可选筛选（null = 全环境）；导出包顶层
+     * 携带 environment 指纹——所选路由同属一个环境时为该环境标识，混合导出为
+     * "mixed"，供导入侧预检展示与审计。
+     */
+    public RoutePackage exportRoutes(List<Long> routeIds, String status, String environment) {
+        boolean envFilter = environment != null && !environment.isEmpty();
         List<Route> routes;
         if (routeIds != null && !routeIds.isEmpty()) {
             routes = routeService.listByIds(routeIds);
         } else if (status != null && !status.isEmpty()) {
-            routes = routeService.listRoutes(null, status, null);
+            routes = envFilter
+                    ? routeService.listRoutes(null, status, null, null, environment)
+                    : routeService.listRoutes(null, status, null);
         } else {
-            routes = routeService.listRoutes(null, null, null);
+            routes = envFilter
+                    ? routeService.listRoutes(null, null, null, null, environment)
+                    : routeService.listRoutes(null, null, null);
         }
         if (routes.isEmpty()) {
-            return new RoutePackage("1.0", System.currentTimeMillis(), List.of());
+            return new RoutePackage("1.0", System.currentTimeMillis(), List.of(),
+                    envFilter ? environment : null);
         }
 
         Set<Long> includeIds = collectWithDescendants(routes);
@@ -102,7 +117,18 @@ public class RouteTransferService {
         List<RoutePackage.RouteNode> nodes = roots.stream()
                 .map(r -> toNode(r, childrenMap, condByRoute, bindByRoute, pluginById, nameById))
                 .toList();
-        return new RoutePackage("1.0", System.currentTimeMillis(), nodes);
+        // 环境指纹：请求显式指定 environment 时以其为准（筛选结果必然同环境）；
+        // 否则按所选路由去重——单环境取该值，混合环境 "mixed"。
+        String fingerprint;
+        if (environment != null && !environment.isEmpty()) {
+            fingerprint = environment;
+        } else {
+            java.util.Set<String> envs = all.stream()
+                    .map(RouteTransferService::environmentOf)
+                    .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+            fingerprint = envs.size() == 1 ? envs.iterator().next() : MIXED_ENVIRONMENT;
+        }
+        return new RoutePackage("1.0", System.currentTimeMillis(), nodes, fingerprint);
     }
 
     private Set<Long> collectWithDescendants(List<Route> roots) {
@@ -156,12 +182,24 @@ public class RouteTransferService {
 
     @Transactional
     public Map<String, Object> importRoutes(RoutePackage pkg, String strategy) {
+        return importRoutes(pkg, strategy, null);
+    }
+
+    /**
+     * 导入（P2-2 多环境）：目标环境 = 请求可选参数（缺省/旧包 = default）。
+     * 冲突比对收敛在目标环境内——同 environment 内同名即冲突（SKIP/OVERWRITE/ERROR
+     * 语义不变），环境不同即视为新增（对应 (environment, route_name) 联合唯一索引）。
+     * 新建路由落目标环境；OVERWRITE 命中的既有路由不改变其环境。
+     */
+    @Transactional
+    public Map<String, Object> importRoutes(RoutePackage pkg, String strategy, String targetEnvironment) {
         if (pkg == null || pkg.routes() == null) {
             throw new BusinessException(ErrorCode.CONFIG_SYNC_FAILED, "导入包不能为空");
         }
         if (!List.of("SKIP", "OVERWRITE", "ERROR").contains(strategy)) {
             throw new BusinessException(ErrorCode.CONFIG_SYNC_FAILED, "strategy 必须为 SKIP/OVERWRITE/ERROR");
         }
+        String targetEnv = RouteService.normalizeEnvironment(targetEnvironment);
 
         List<RoutePackage.RouteNode> flat = new ArrayList<>();
         flatten(pkg.routes(), null, flat);
@@ -170,12 +208,12 @@ public class RouteTransferService {
         List<Map<String, Object>> errors = new ArrayList<>();
         Map<String, Long> idByName = new HashMap<>();
 
-        // 第一遍：建/改路由主体
+        // 第一遍：建/改路由主体（仅在目标环境内比对同名）
         for (RoutePackage.RouteNode node : flat) {
-            Route existing = findByName(node.routeName());
+            Route existing = findByNameInEnv(node.routeName(), targetEnv);
             try {
                 if (existing == null) {
-                    Route route = buildRoute(node);
+                    Route route = buildRoute(node, targetEnv);
                     routeService.save(route);
                     idByName.put(node.routeName(), route.getId());
                     created++;
@@ -201,11 +239,13 @@ public class RouteTransferService {
         for (RoutePackage.RouteNode node : flat) {
             Long routeId = idByName.get(node.routeName());
             if (routeId == null) continue;
-            wireConditions(routeId, node, idByName, errors);
+            wireConditions(routeId, node, idByName, targetEnv, errors);
             wireBindings(routeId, node, pluginByPid, errors);
         }
 
         Map<String, Object> result = new LinkedHashMap<>();
+        result.put("environment", targetEnv);
+        result.put("package_environment", packageEnvironmentOf(pkg));
         result.put("total", flat.size());
         result.put("created", created);
         result.put("updated", updated);
@@ -215,12 +255,14 @@ public class RouteTransferService {
     }
 
     private void wireConditions(Long routeId, RoutePackage.RouteNode node,
-                                Map<String, Long> idByName, List<Map<String, Object>> errors) {
+                                Map<String, Long> idByName, String environment,
+                                List<Map<String, Object>> errors) {
         if (node.conditions() == null) return;
         for (RoutePackage.ConditionNode c : node.conditions()) {
             Long targetId = idByName.get(c.targetRouteKey());
             if (targetId == null) {
-                Route target = findByName(c.targetRouteKey());
+                // 条件目标与环境约束一致：只在目标环境内找（跨环境引用视为目标缺失）
+                Route target = findByNameInEnv(c.targetRouteKey(), environment);
                 targetId = target != null ? target.getId() : null;
             }
             if (targetId == null) {
@@ -265,6 +307,16 @@ public class RouteTransferService {
     // ==================== 预检 ====================
 
     public Map<String, Object> validateImport(RoutePackage pkg) {
+        return validateImport(pkg, null);
+    }
+
+    /**
+     * 预检（P2-2 多环境）：返回体新增 {@code environment}（目标环境，缺省 default）
+     * 与 {@code package_environment}（包内指纹，旧包为 default）；conflicts 按
+     * 目标环境内同名比对——环境不同的同名路由不冲突，将按新增处理。
+     */
+    public Map<String, Object> validateImport(RoutePackage pkg, String targetEnvironment) {
+        String targetEnv = RouteService.normalizeEnvironment(targetEnvironment);
         List<String> conflicts = new ArrayList<>();
         List<String> missingPlugins = new ArrayList<>();
         List<String> missingTargets = new ArrayList<>();
@@ -273,6 +325,8 @@ public class RouteTransferService {
         if (pkg == null || pkg.routes() == null) {
             return Map.of("is_valid", false, "conflicts", conflicts,
                     "missing_plugins", missingPlugins, "missing_targets", missingTargets,
+                    "environment", targetEnv,
+                    "package_environment", packageEnvironmentOf(pkg),
                     "cycle_warnings", List.of("导入包为空"));
         }
 
@@ -282,7 +336,7 @@ public class RouteTransferService {
                 .collect(Collectors.toSet());
 
         for (RoutePackage.RouteNode node : flat) {
-            if (findByName(node.routeName()) != null) {
+            if (findByNameInEnv(node.routeName(), targetEnv) != null) {
                 conflicts.add(node.routeName());
             }
             if (node.plugins() != null) {
@@ -296,7 +350,7 @@ public class RouteTransferService {
                 for (RoutePackage.ConditionNode c : node.conditions()) {
                     String key = c.targetRouteKey();
                     if (key == null) continue;
-                    if (!namesInPkg.contains(key) && findByName(key) == null
+                    if (!namesInPkg.contains(key) && findByNameInEnv(key, targetEnv) == null
                             && !missingTargets.contains(key)) {
                         missingTargets.add(key);
                     }
@@ -334,6 +388,8 @@ public class RouteTransferService {
         boolean valid = missingPlugins.isEmpty() && missingTargets.isEmpty() && cycleWarnings.isEmpty();
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("is_valid", valid);
+        result.put("environment", targetEnv);
+        result.put("package_environment", packageEnvironmentOf(pkg));
         result.put("conflicts", conflicts);
         result.put("missing_plugins", missingPlugins);
         result.put("missing_targets", missingTargets);
@@ -342,6 +398,22 @@ public class RouteTransferService {
     }
 
     // ==================== 内部工具 ====================
+
+    /** P2-2 多环境：混合环境导出的顶层指纹值。 */
+    public static final String MIXED_ENVIRONMENT = "mixed";
+
+    /** 路由行的有效环境：null/blank 归一 default（向后兼容旧包/存量行；口径在 common）。 */
+    private static String environmentOf(Route route) {
+        return route == null ? Route.DEFAULT_ENVIRONMENT : Route.environmentOr(route.getEnvironment());
+    }
+
+    /** 包内环境指纹：旧包（无该字段）按 default 展示。 */
+    private static String packageEnvironmentOf(RoutePackage pkg) {
+        if (pkg == null || pkg.environment() == null || pkg.environment().isBlank()) {
+            return Route.DEFAULT_ENVIRONMENT;
+        }
+        return pkg.environment();
+    }
 
     private void flatten(List<RoutePackage.RouteNode> nodes, String parentName,
                          List<RoutePackage.RouteNode> out) {
@@ -352,10 +424,12 @@ public class RouteTransferService {
         }
     }
 
-    private Route findByName(String routeName) {
+    /** P2-2 多环境：目标环境内的同名路由（唯一索引 (environment, route_name) 口径）。 */
+    private Route findByNameInEnv(String routeName, String environment) {
         if (routeName == null) return null;
         return routeService.getOne(new LambdaQueryWrapper<Route>()
-                .eq(Route::getRouteName, routeName), false);
+                .eq(Route::getRouteName, routeName)
+                .eq(Route::getEnvironment, environment), false);
     }
 
     private Plugin findPluginByPid(String pluginId) {
@@ -369,7 +443,7 @@ public class RouteTransferService {
                 .collect(Collectors.toMap(Plugin::getPluginId, p -> p, (a, b) -> a));
     }
 
-    private Route buildRoute(RoutePackage.RouteNode node) {
+    private Route buildRoute(RoutePackage.RouteNode node, String environment) {
         return Route.builder()
                 .routeName(node.routeName())
                 .routeType(node.routeType())
@@ -377,6 +451,8 @@ public class RouteTransferService {
                 .upstreamUrl(node.upstreamUrl())
                 .sortOrder(node.sortOrder() != null ? node.sortOrder() : 0)
                 .remark(node.remark())
+                // P2-2 多环境：新建路由落目标环境（旧包/缺省参数 = default）
+                .environment(environment)
                 .status("DRAFT")
                 .build();
     }
@@ -387,6 +463,7 @@ public class RouteTransferService {
         existing.setUpstreamUrl(node.upstreamUrl());
         if (node.sortOrder() != null) existing.setSortOrder(node.sortOrder());
         if (node.remark() != null) existing.setRemark(node.remark());
+        // 注意：OVERWRITE 不改变既有路由的 environment（环境迁移不走导入通道）
         existing.setStatus("DRAFT");
     }
 

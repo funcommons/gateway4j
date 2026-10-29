@@ -3,6 +3,7 @@ package fun.commons.gateway4j.admin.controller;
 import fun.commons.gateway4j.admin.service.ImportSnapshotService;
 import fun.commons.gateway4j.admin.service.RouteBindingService;
 import fun.commons.gateway4j.admin.service.RouteCanvasApplyService;
+import fun.commons.gateway4j.admin.service.RouteEnvironmentDiffService;
 import fun.commons.gateway4j.admin.service.RouteCanvasService;
 import fun.commons.gateway4j.admin.service.RoutePackage;
 import fun.commons.gateway4j.admin.service.RouteService;
@@ -36,21 +37,22 @@ class RouteControllerTest {
     @Mock private RouteBindingService routeBindingService;
     @Mock private RouteTransferService routeTransferService;
     @Mock private ImportSnapshotService importSnapshotService;
+    @Mock private RouteEnvironmentDiffService routeEnvironmentDiffService;
     @InjectMocks private RouteController controller;
 
     @Test
     void listRoutes() {
-        when(routeService.listRouteTree(null, null, null, null)).thenReturn(List.of());
-        List<Map<String, Object>> result = controller.listRoutes(null, null, null, null);
+        when(routeService.listRouteTree(null, null, null, null, null)).thenReturn(List.of());
+        List<Map<String, Object>> result = controller.listRoutes(null, null, null, null, null);
         assertNotNull(result);
-        verify(routeService).listRouteTree(null, null, null, null);
+        verify(routeService).listRouteTree(null, null, null, null, null);
     }
 
     @Test
     void listRoutesWithFilters() {
-        when(routeService.listRouteTree("BACKEND", "DRAFT", "api", "prod")).thenReturn(List.of());
-        List<Map<String, Object>> result = controller.listRoutes("BACKEND", "DRAFT", "api", "prod");
-        verify(routeService).listRouteTree("BACKEND", "DRAFT", "api", "prod");
+        when(routeService.listRouteTree("BACKEND", "DRAFT", "api", "prod", null)).thenReturn(List.of());
+        List<Map<String, Object>> result = controller.listRoutes("BACKEND", "DRAFT", "api", "prod", null);
+        verify(routeService).listRouteTree("BACKEND", "DRAFT", "api", "prod", null);
     }
 
     @Test
@@ -60,7 +62,7 @@ class RouteControllerTest {
 
         RouteController.RouteCreateRequest request = new RouteController.RouteCreateRequest(
                 "test", "BACKEND", "/api/users", "http://users:8080",
-                null, 0, null, "prod", null, null, null);
+                null, 0, null, "prod", null, null, null, null);
         Route result = controller.createRoute(request);
         assertNotNull(result);
         verify(routeService).createRouteWithBindings(any(Route.class), isNull(), isNull());
@@ -72,8 +74,89 @@ class RouteControllerTest {
         when(routeService.getById(1L)).thenReturn(existing);
 
         RouteController.RouteUpdateRequest request = new RouteController.RouteUpdateRequest(
-                "new-name", null, null, null, null, null, "prod", null, null, null);
+                "new-name", null, null, null, null, null, "prod", null, null, null, null, null);
         Route result = controller.updateRoute(1L, request);
+        verify(routeService).updateRouteWithBindings(any(Route.class), isNull(), isNull());
+    }
+
+    /** P2-2 多环境：PATCH 不带 environment → 传给服务的实体 environment 必须为 null（不踩既有环境）。 */
+    @Test
+    void updateRouteWithoutEnvironmentPassesNullToService() {
+        Route existing = Route.builder().id(1L).routeName("old").environment("staging").build();
+        when(routeService.getById(1L)).thenReturn(existing);
+
+        RouteController.RouteUpdateRequest request = new RouteController.RouteUpdateRequest(
+                "new-name", null, null, null, null, null, null, null, null, null, null, null);
+        controller.updateRoute(1L, request);
+
+        org.mockito.ArgumentCaptor<Route> captor = org.mockito.ArgumentCaptor.forClass(Route.class);
+        verify(routeService).updateRouteWithBindings(captor.capture(), isNull(), isNull());
+        assertNull(captor.getValue().getEnvironment(), "不带 environment 的更新不得注入默认值");
+    }
+
+    /** P2-2 多环境：PATCH 携带 environment → 透传给服务（环境迁移）。 */
+    @Test
+    void updateRouteWithEnvironmentPassesThrough() {
+        Route existing = Route.builder().id(1L).routeName("old").environment("default").build();
+        when(routeService.getById(1L)).thenReturn(existing);
+
+        RouteController.RouteUpdateRequest request = new RouteController.RouteUpdateRequest(
+                "new-name", null, null, null, null, null, null, "staging", null, null, null, null);
+        controller.updateRoute(1L, request);
+
+        org.mockito.ArgumentCaptor<Route> captor = org.mockito.ArgumentCaptor.forClass(Route.class);
+        verify(routeService).updateRouteWithBindings(captor.capture(), isNull(), isNull());
+        assertEquals("staging", captor.getValue().getEnvironment());
+    }
+
+    // ==================== P1-5 乐观锁（expected_version） ====================
+
+    /** 缺省放行：expected_version 不携带 → 不校验版本，兼容旧调用。 */
+    @Test
+    void updateRouteWithoutExpectedVersionSkipsVersionCheck() {
+        // getById 若被调用也返回 null → 版本检查跳过，仍继续走更新
+        RouteController.RouteUpdateRequest request = new RouteController.RouteUpdateRequest(
+                null, "/api/new", null, null, null, null, null, null, null, null, null, null);
+        Route result = controller.updateRoute(1L, request);
+        verify(routeService).updateRouteWithBindings(any(Route.class), isNull(), isNull());
+    }
+
+    /** 匹配放行：expected_version = 当前 config_version → 正常更新。 */
+    @Test
+    void updateRouteWithMatchingVersionPasses() {
+        Route existing = Route.builder().id(1L).routeName("old").configVersion(3L).build();
+        when(routeService.getById(1L)).thenReturn(existing);
+
+        RouteController.RouteUpdateRequest request = new RouteController.RouteUpdateRequest(
+                "new-name", null, null, null, null, null, null, null, null, null, null, 3L);
+        Route result = controller.updateRoute(1L, request);
+        verify(routeService).updateRouteWithBindings(any(Route.class), isNull(), isNull());
+    }
+
+    /** 不匹配拒绝：expected_version ≠ 当前 config_version → 10402 版本冲突。 */
+    @Test
+    void updateRouteWithStaleVersionThrows10402() {
+        Route existing = Route.builder().id(1L).routeName("old").configVersion(5L).build();
+        when(routeService.getById(1L)).thenReturn(existing);
+
+        RouteController.RouteUpdateRequest request = new RouteController.RouteUpdateRequest(
+                "new-name", null, null, null, null, null, null, null, null, null, null, 3L);
+        BusinessException e = assertThrows(BusinessException.class, () -> controller.updateRoute(1L, request));
+        assertEquals(10402, e.getCode());
+        assertEquals("路由已被他人修改，请刷新后重试", e.getMessage());
+        verify(routeService, never()).updateRouteWithBindings(any(), any(), any());
+    }
+
+    /**
+     * 缺省 + 无该路由：expected_version 携带但路由不存在 → 版本检查放行（跳过），
+     * 由 service 层抛 ROUTE_NOT_FOUND（此处 mock 下不抛，仅验证不 10402、不中断）。
+     */
+    @Test
+    void updateRouteVersionCheckSkippedWhenRouteMissing() {
+        when(routeService.getById(1L)).thenReturn(null);
+        RouteController.RouteUpdateRequest request = new RouteController.RouteUpdateRequest(
+                null, null, null, null, null, null, null, null, null, null, null, 3L);
+        assertDoesNotThrow(() -> controller.updateRoute(1L, request));
         verify(routeService).updateRouteWithBindings(any(Route.class), isNull(), isNull());
     }
 
@@ -88,8 +171,73 @@ class RouteControllerTest {
         Route route = Route.builder().id(1L).status("PUBLISHED").build();
         when(routeService.getById(1L)).thenReturn(route);
 
-        Route result = controller.publishRoute(1L);
+        Route result = controller.publishRoute(1L, null);
         verify(routeService).publishRoute(1L);
+    }
+
+    /** P2-4 流程档轻量：publish 可选 body change_description 兼容（无 body 亦可）。 */
+    @Test
+    void publishRouteWithChangeDescription() {
+        Route route = Route.builder().id(1L).status("PUBLISHED").build();
+        when(routeService.getById(1L)).thenReturn(route);
+
+        Route result = controller.publishRoute(1L,
+                new RouteController.PublishRequest("修复 /api/users 前缀遗漏"));
+        verify(routeService).publishRoute(1L);
+        assertNotNull(result);
+    }
+
+    // ==================== P2-5 环境间 diff ====================
+
+    @Test
+    void environmentDiffDelegatesToService() {
+        Map<String, Object> report = Map.of(
+                "from", "default", "to", "staging",
+                "only_in_from", List.of(), "only_in_to", List.of(), "changed", List.of());
+        when(routeEnvironmentDiffService.diff("default", "staging")).thenReturn(report);
+
+        Map<String, Object> result = controller.environmentDiff("default", "staging");
+        assertEquals("default", result.get("from"));
+        assertEquals("staging", result.get("to"));
+        verify(routeEnvironmentDiffService).diff("default", "staging");
+    }
+
+    // ==================== T1：PATCH 静默重置 status（既有缺陷回归） ====================
+
+    /**
+     * T1 回归：PATCH 只携带 remark 时，传给服务的实体必须把 @Builder.Default 注入的
+     * 默认值（status=DRAFT/sort_order=0/tags=""/config_version=0）置 null——
+     * 否则 MyBatis-Plus updateById 会把 OFFLINE 路由静默重置为 DRAFT。
+     */
+    @Test
+    void updateRouteOnlyRemarkPatchCarriesNoBuilderDefaults() {
+        Route existing = Route.builder().id(1L).routeName("old").status("OFFLINE").build();
+        when(routeService.getById(1L)).thenReturn(existing);
+
+        RouteController.RouteUpdateRequest request = new RouteController.RouteUpdateRequest(
+                null, null, null, null, null, "只改备注", null, null, null, null, null, null);
+        controller.updateRoute(1L, request);
+
+        org.mockito.ArgumentCaptor<Route> captor = org.mockito.ArgumentCaptor.forClass(Route.class);
+        verify(routeService).updateRouteWithBindings(captor.capture(), isNull(), isNull());
+        Route patch = captor.getValue();
+        assertNull(patch.getStatus(), "PATCH 未携带 status → 实体不得带 @Builder.Default 的 DRAFT");
+        assertNull(patch.getSortOrder(), "PATCH 未携带 sort_order → 不得带默认 0");
+        assertNull(patch.getTags(), "PATCH 未携带 tags → 不得带默认空串");
+        assertNull(patch.getConfigVersion(), "PATCH 未携带 config_version → 不得带默认 0");
+        assertEquals("只改备注", patch.getRemark());
+    }
+
+    /** P2-4 流程档轻量：bulk-publish 可选 change_description（缺省兼容旧调用）。 */
+    @Test
+    void bulkPublishWithChangeDescription() {
+        doNothing().when(routeService).publishRoute(7L);
+
+        Map<String, Object> result = controller.bulkPublish(
+                new RouteController.BulkIdsRequest(List.of(7L), "割接窗口发布"));
+
+        assertEquals(1, ((List<?>) result.get("succeeded")).size());
+        verify(routeService).publishRoute(7L);
     }
 
     @Test
@@ -256,29 +404,29 @@ class RouteControllerTest {
     @Test
     void exportRoutes() {
         RoutePackage pkg = new RoutePackage("1.0", 0L, List.of());
-        when(routeTransferService.exportRoutes(null, null)).thenReturn(pkg);
-        RoutePackage result = controller.exportRoutes(null, null);
+        when(routeTransferService.exportRoutes(null, null, null)).thenReturn(pkg);
+        RoutePackage result = controller.exportRoutes(null, null, null);
         assertEquals("1.0", result.version());
-        verify(routeTransferService).exportRoutes(null, null);
+        verify(routeTransferService).exportRoutes(null, null, null);
     }
 
     @Test
     void importRoutes() {
         RoutePackage pkg = new RoutePackage("1.0", 0L, List.of());
-        when(routeTransferService.importRoutes(pkg, "SKIP")).thenReturn(Map.of("total", 0));
+        when(routeTransferService.importRoutes(pkg, "SKIP", null)).thenReturn(Map.of("total", 0));
         Map<String, Object> result = controller.importRoutes(
                 new RouteController.ImportRequest(pkg, "SKIP"));
         assertEquals(0, result.get("total"));
-        verify(routeTransferService).importRoutes(pkg, "SKIP");
+        verify(routeTransferService).importRoutes(pkg, "SKIP", null);
     }
 
     @Test
     void validateImport() {
         RoutePackage pkg = new RoutePackage("1.0", 0L, List.of());
-        when(routeTransferService.validateImport(pkg)).thenReturn(Map.of("is_valid", true));
-        Map<String, Object> result = controller.validateImport(pkg);
+        when(routeTransferService.validateImport(pkg, null)).thenReturn(Map.of("is_valid", true));
+        Map<String, Object> result = controller.validateImport(pkg, null);
         assertEquals(true, result.get("is_valid"));
-        verify(routeTransferService).validateImport(pkg);
+        verify(routeTransferService).validateImport(pkg, null);
     }
 
     // ==================== 阶段二 ====================

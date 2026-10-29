@@ -89,9 +89,21 @@ class PluginControllerTest {
         when(pluginService.getById(1L)).thenReturn(existing);
 
         PluginController.PluginUpdateRequest request = new PluginController.PluginUpdateRequest(
-                "new-name", null, null, null);
+                "new-name", null, null, null, null);
         Plugin result = controller.updatePlugin(1L, request);
-        verify(pluginService).updatePlugin(any(Plugin.class));
+        verify(pluginService).updatePlugin(any(Plugin.class), eq(null));
+    }
+
+    @Test
+    void updatePluginPassesScriptContentThrough() {
+        // P2-1：PATCH 请求里的 script_content 透传到 service（落 gw_plugin_groovy）
+        Plugin existing = Plugin.builder().id(1L).pluginName("g").pluginType("GROOVY").build();
+        when(pluginService.getById(1L)).thenReturn(existing);
+
+        PluginController.PluginUpdateRequest request = new PluginController.PluginUpdateRequest(
+                null, null, null, null, "def y = 2");
+        controller.updatePlugin(1L, request);
+        verify(pluginService).updatePlugin(any(Plugin.class), eq("def y = 2"));
     }
 
     @Test

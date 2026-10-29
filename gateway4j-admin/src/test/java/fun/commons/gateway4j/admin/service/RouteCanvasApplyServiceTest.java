@@ -184,4 +184,50 @@ class RouteCanvasApplyServiceTest {
         List<?> errors = (List<?>) report.get("errors");
         assertEquals(1, errors.size());
     }
+
+    // ==================== T5（P2-2 遗留）：画布新建子路由继承父路由环境 ====================
+
+    /** 父路由环境 staging → 新建子路由留在 staging（不再落 @Builder.Default 的 default）。 */
+    @Test
+    void applyCreatesChildInParentEnvironment() {
+        parent.setEnvironment("staging");
+        when(routeService.getById(100L)).thenReturn(parent);
+        when(routeService.list(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+        when(routeService.list()).thenReturn(List.of(parent));
+        when(routeService.save(any(Route.class))).thenAnswer(invocation -> {
+            Route r = invocation.getArgument(0);
+            r.setId(301L);
+            return true;
+        });
+
+        service.applyCanvas(100L, new CanvasApplyRequest(
+                List.of(backendNode("n_1", "pay", "/pay", "http://pay")),
+                List.of(), false, null));
+
+        ArgumentCaptor<Route> captor = ArgumentCaptor.forClass(Route.class);
+        verify(routeService).save(captor.capture());
+        assertEquals("staging", captor.getValue().getEnvironment(), "画布新建子路由继承父路由环境");
+    }
+
+    /** 父路由环境缺失（存量行 null）→ 子路由归一 default，与全站口径一致。 */
+    @Test
+    void applyCreatesChildInDefaultWhenParentEnvironmentMissing() {
+        parent.setEnvironment(null);
+        when(routeService.getById(100L)).thenReturn(parent);
+        when(routeService.list(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+        when(routeService.list()).thenReturn(List.of(parent));
+        when(routeService.save(any(Route.class))).thenAnswer(invocation -> {
+            Route r = invocation.getArgument(0);
+            r.setId(302L);
+            return true;
+        });
+
+        service.applyCanvas(100L, new CanvasApplyRequest(
+                List.of(backendNode("n_1", "pay", "/pay", "http://pay")),
+                List.of(), false, null));
+
+        ArgumentCaptor<Route> captor = ArgumentCaptor.forClass(Route.class);
+        verify(routeService).save(captor.capture());
+        assertEquals("default", captor.getValue().getEnvironment());
+    }
 }

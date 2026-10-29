@@ -73,6 +73,8 @@ public class ImportSnapshotService {
     public record SnapshotRoute(String routeName, String routeType, String path, String upstreamUrl,
                                 String status, Integer sortOrder, String remark, String tags,
                                 String parentRouteName,
+                                /** P2-2 多环境（T5）：快照原路由环境；旧快照（V1.4.2 前）反序列化为 null → 回滚落 default。 */
+                                String environment,
                                 List<SnapshotCondition> conditions,
                                 List<SnapshotBinding> bindings) {}
 
@@ -115,10 +117,11 @@ public class ImportSnapshotService {
             nodes.add(new SnapshotRoute(r.getRouteName(), r.getRouteType(), r.getPath(),
                     r.getUpstreamUrl(), r.getStatus(), r.getSortOrder(), r.getRemark(),
                     r.getTags(), r.getParentRouteId() != null ? nameById.get(r.getParentRouteId()) : null,
+                    r.getEnvironment(),
                     conds, binds));
         }
 
-        SnapshotPackage pkg = new SnapshotPackage("1.0", System.currentTimeMillis(), nodes);
+        SnapshotPackage pkg = new SnapshotPackage("1.1", System.currentTimeMillis(), nodes);
         ImportSnapshot snapshot = ImportSnapshot.builder()
                 .snapshotData(JsonUtils.toCompactJson(pkg))
                 .routeCount(routes.size())
@@ -253,6 +256,9 @@ public class ImportSnapshotService {
                 .sortOrder(sr.sortOrder() != null ? sr.sortOrder() : 0)
                 .remark(sr.remark())
                 .tags(sr.tags())
+                // T5（P2-2 遗留）：回滚还原快照原路由环境；旧快照无 environment 字段
+                // （反序列化为 null）时归一 default，与迁移前存量行为一致
+                .environment(Route.environmentOr(sr.environment()))
                 .build();
         routeService.save(route);
         eventPublisher.publishEvent(new ConfigChangeEvent(this, "ROUTE", route.getId(),
