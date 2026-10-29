@@ -20,7 +20,8 @@ export function listRouteStatus(routeId?: string) {
 }
 
 export interface RouteMetricsPoint {
-  timestamp: number
+  /** ISO-8601 字符串（后端 Instant.toString()），前端 new Date(iso) 直解 */
+  timestamp: string
   total_requests: number
   error_count: number
   error_rate: number

@@ -169,16 +169,30 @@ const routeOptions = computed(() =>
   statuses.value.map((s) => ({ value: s.route_id, label: s.route_name }))
 )
 
+// 时间格式化：手写 pad 补零（项目无 dayjs 依赖），24 小时制、不依赖运行环境 locale
+function fmtClock(d: Date): string {
+  const pad = (n: number) => (n < 10 ? '0' + n : '' + n)
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+function fmtDateTime(d: Date): string {
+  const pad = (n: number) => (n < 10 ? '0' + n : '' + n)
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${fmtClock(d)}`
+}
+
 const stats = computed(() => {
-  const total = statuses.value.reduce((s, r) => s + (r.total_requests || 0), 0)
-  const err = statuses.value.reduce((s, r) => s + (r.error_count || 0), 0)
+  // total_requests/error_count 按契约可能仍是字符串 (framework4j Long→String);
+  // Number() 保证求和不退化成字符串拼接 (0 + "0" => "00")
+  const total = statuses.value.reduce((s, r) => s + (Number(r.total_requests) || 0), 0)
+  const err = statuses.value.reduce((s, r) => s + (Number(r.error_count) || 0), 0)
   const rate = total > 0 ? ((err / total) * 100).toFixed(2) + '%' : '0%'
   const healthy = statuses.value.filter((r) => r.status === 'HEALTHY').length
-  const circuitOpen = statuses.value.filter((r) => r.status === 'CIRCUIT_OPEN').length
+  // P0-2: 后端从不产出 CIRCUIT_OPEN（healthStatus 只产 HEALTHY/ERROR），「熔断路由数」
+  // 是永不存在的假统计 → 改为真实可得的「异常路由数」（status === 'ERROR'）
+  const errored = statuses.value.filter((r) => r.status === 'ERROR').length
   return [
     { label: t('monitor.routeTotal'), value: String(statuses.value.length) },
     { label: t('monitor.healthy'), value: String(healthy) },
-    { label: t('monitor.circuitOpen'), value: String(circuitOpen) },
+    { label: t('monitor.errorRoute'), value: String(errored) },
     { label: t('monitor.totalRequests'), value: String(total) },
     { label: t('monitor.errorRate'), value: rate }
   ]
@@ -262,7 +276,8 @@ async function loadMetrics(epoch = loadEpoch) {
     const r: any = await getRouteMetrics(selectedRoute.value, timeRange.value, granularity.value)
     if (epoch !== loadEpoch) return
     metricsData.value = r.data_points || []
-    lastRefresh.value = new Date().toLocaleTimeString()
+    // 24 小时制 HH:mm:ss，不随系统 locale 漂移成英文 12 小时制
+    lastRefresh.value = fmtClock(new Date())
   } catch {
     if (epoch !== loadEpoch) return
     metricsData.value = []
@@ -286,7 +301,16 @@ function renderChart() {
     }, true)
     return
   }
-  const timestamps = metricsData.value.map((p: any) => new Date(p.timestamp).toLocaleTimeString())
+  // 后端 timestamp 为 ISO-8601 字符串（旧契约是裸 epoch 毫秒，被 Long→String 序列化成
+  // "1793..." 后 new Date(str) 为 Invalid Date）；ISO 直解 + Invalid 兜底空串
+  const dates = metricsData.value.map((p: any) => new Date(p.timestamp))
+  const validDates = dates.filter((d) => !Number.isNaN(d.getTime()))
+  const spansDays = validDates.length > 1
+    && validDates.some((d) => d.toDateString() !== validDates[0].toDateString())
+  const timestamps = dates.map((d) => {
+    if (Number.isNaN(d.getTime())) return ''
+    return spansDays ? fmtDateTime(d) : fmtClock(d)
+  })
   const requests = metricsData.value.map((p: any) => p.total_requests ?? 0)
   const p50 = metricsData.value.map((p: any) => p.p50_latency_ms ?? p.avg_latency_ms ?? 0)
   const p95 = metricsData.value.map((p: any) => p.p95_latency_ms ?? 0)

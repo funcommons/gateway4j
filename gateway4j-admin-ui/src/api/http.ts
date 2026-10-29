@@ -102,6 +102,40 @@ export function normalizePagination<T>(payload: T): T {
   return out as T
 }
 
+// ===== P0-2: 监控指标数值归一 =====
+// framework4j-web 契约: Long 统一序列化为字符串. 监控载荷的 total_requests / error_count
+// (Long) 以 "0" 形式到达前端, 直接 `+` 求和会退化为字符串拼接 (0 + "0" => "0" 再 + "0" => "00",
+// 12 条路由即得 13 个 0). 对监控形状载荷统一 Number() 化.
+// 注意: timestamp 故意不在归一列表 —— 后端 MonitorController 以 ISO-8601 字符串输出
+// (Instant.toString()), 前端 new Date(iso) 直解; Number 化反而得 NaN.
+export const METRIC_NUMERIC_KEYS = ['total_requests', 'error_count', 'error_rate', 'active_connections'] as const
+
+export function normalizeNumericFields<T>(payload: T, keys: readonly string[] = METRIC_NUMERIC_KEYS): T {
+  if (Array.isArray(payload)) {
+    return payload.map((item) => normalizeNumericFields(item, keys)) as unknown as T
+  }
+  if (!payload || typeof payload !== 'object') return payload
+  const o = payload as Record<string, unknown>
+  // 形状门禁 (同 normalizePagination 风格): 仅处理监控指标形状的载荷 —
+  //   a) /monitor/routes/status 列表项: 对象上出现任一指标键;
+  //   b) /monitor/routes/{id}/metrics: 容器对象带 data_points 数组.
+  // 其余载荷原样透传, 不做任何改写.
+  const isMetricShape = keys.some((k) => k in o) || Array.isArray(o.data_points)
+  if (!isMetricShape) return payload
+  const out: Record<string, unknown> = { ...o }
+  for (const k of keys) {
+    const v = out[k]
+    if (typeof v === 'string' && v.trim() !== '' && Number.isFinite(Number(v))) {
+      out[k] = Number(v)
+    }
+  }
+  // metrics 容器: 递归归一时序点 (timestamp 保持 ISO 字符串, 交由 new Date() 直解)
+  if (Array.isArray(out.data_points)) {
+    out.data_points = (out.data_points as unknown[]).map((it) => normalizeNumericFields(it, keys))
+  }
+  return out as T
+}
+
 /**
  * Map BusinessError.errors[] to a field→message record for el-form integration.
  * Returns {} for non-BusinessError or when no field errors are present.
@@ -203,8 +237,8 @@ export async function envelope<T = unknown>(p: Promise<unknown>): Promise<T> {
     if ((r.code ?? 0) !== 0) {
       throw new BusinessError(r.code ?? -1, toDisplayMessage(r.code, r.message, GENERIC_ERROR_MESSAGE), r.retry_after, r.error)
     }
-    return normalizePagination(r.data) as T
+    return normalizeNumericFields(normalizePagination(r.data)) as T
   }
-  // 无信封载荷: 分页形状时归一分页元数据 (其余原样透传)
-  return normalizePagination(r) as T
+  // 无信封载荷: 分页形状时归一分页元数据, 监控形状时归一指标数值 (其余原样透传)
+  return normalizeNumericFields(normalizePagination(r)) as T
 }

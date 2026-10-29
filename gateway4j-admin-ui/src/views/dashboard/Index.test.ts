@@ -45,7 +45,7 @@ const i18n = createI18n({
     'zh-CN': {
       monitor: {
         total: '总请求数', errorRate: '错误率',
-        routeTotal: '路由总数', healthy: '健康路由', circuitOpen: '熔断路由', totalRequests: '总请求数',
+        routeTotal: '路由总数', healthy: '健康路由', circuitOpen: '熔断路由', errorRoute: '异常路由', totalRequests: '总请求数',
         tabStatus: '路由状态', tabMetrics: '指标趋势', tabTopology: '路由拓扑',
         chartRequests: '请求量', chartErrorRate: '错误率%', chartNoData: '暂无数据',
         latency: '延迟', requests: '请求量', timeRange: '时间范围',
@@ -107,7 +107,7 @@ describe('Index.vue — stats computed', () => {
     expect(vm.stats.length).toBe(5)
     expect(vm.stats[0]).toEqual({ label: '路由总数', value: '0' })
     expect(vm.stats[1]).toEqual({ label: '健康路由', value: '0' })
-    expect(vm.stats[2]).toEqual({ label: '熔断路由', value: '0' })
+    expect(vm.stats[2]).toEqual({ label: '异常路由', value: '0' })
     expect(vm.stats[3]).toEqual({ label: '总请求数', value: '0' })
     expect(vm.stats[4]).toEqual({ label: '错误率', value: '0%' })
   })
@@ -122,6 +122,49 @@ describe('Index.vue — stats computed', () => {
     const vm = wrapper.vm as any
     const total = vm.stats.find((s: any) => s.label === '总请求数')
     expect(total?.value).toBe('150')
+  })
+
+  it('P0-2: sums string total_requests ("0") as numbers — no "000..." concatenation', async () => {
+    // framework4j 契约: Long → 字符串. 修复前 `s + (r.total_requests || 0)` 退化为拼接,
+    // 初始 0 + 12 条路由各拼一个 "0" = 13 个 0.
+    mocks.listRouteStatus.mockResolvedValue(
+      Array.from({ length: 12 }, (_, i) => ({
+        route_id: `r${i}`, route_name: `R${i}`, status: 'HEALTHY',
+        total_requests: '0', error_count: '0', error_rate: 0
+      }))
+    )
+    const wrapper = factory()
+    await flushPromises()
+    const vm = wrapper.vm as any
+    const total = vm.stats.find((s: any) => s.label === '总请求数')
+    expect(total?.value).toBe('0')
+    expect(String(total?.value)).not.toContain('00')
+  })
+
+  it('P0-2: sums string total_requests numerically ("100" + "50" = 150)', async () => {
+    mocks.listRouteStatus.mockResolvedValue([
+      { route_id: 'r1', route_name: 'A', status: 'HEALTHY', total_requests: '100', error_count: '0', error_rate: 0 },
+      { route_id: 'r2', route_name: 'B', status: 'ERROR', total_requests: '50', error_count: '5', error_rate: 0.1 }
+    ])
+    const wrapper = factory()
+    await flushPromises()
+    const vm = wrapper.vm as any
+    expect(vm.stats.find((s: any) => s.label === '总请求数')?.value).toBe('150')
+    // 错误率 = 5 / 150
+    expect(vm.stats.find((s: any) => s.label === '错误率')?.value).toBe('3.33%')
+  })
+
+  it('P0-2: counts ERROR routes (real value) instead of never-emitted CIRCUIT_OPEN', async () => {
+    mocks.listRouteStatus.mockResolvedValue([
+      { route_id: 'r1', status: 'HEALTHY', total_requests: '0', error_count: '0', error_rate: 0 },
+      { route_id: 'r2', status: 'ERROR', total_requests: '0', error_count: '0', error_rate: 0 },
+      { route_id: 'r3', status: 'ERROR', total_requests: '0', error_count: '0', error_rate: 0 }
+    ])
+    const wrapper = factory()
+    await flushPromises()
+    const vm = wrapper.vm as any
+    expect(vm.stats.find((s: any) => s.label === '异常路由')?.value).toBe('2')
+    expect(vm.stats.find((s: any) => s.label === '熔断路由')).toBeUndefined()
   })
 
   it('counts healthy routes correctly', async () => {

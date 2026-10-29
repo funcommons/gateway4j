@@ -21,4 +21,13 @@ describe('dashboard/Index.vue — last refresh timestamp', () => {
     )
     expect(loadMetricsFn).toMatch(/lastRefresh/)
   })
+
+  it('P0-2: formats lastRefresh via fmtClock (24h HH:mm:ss), not locale-dependent toLocaleTimeString', () => {
+    const loadMetricsFn = source.substring(
+      source.indexOf('async function loadMetrics'),
+      source.indexOf('function renderChart')
+    )
+    expect(loadMetricsFn).toMatch(/fmtClock\(new Date\(\)\)/)
+    expect(source).not.toMatch(/toLocaleTimeString/)
+  })
 })

@@ -555,7 +555,7 @@
 | route_id | String | 路由 ID |
 | time_range | String | 时间范围 |
 | data_points | Array | 指标数据点 |
-| data_points[].timestamp | Long | 时间戳 |
+| data_points[].timestamp | String | 时间戳，ISO-8601（`Instant.toString()`，如 `2026-10-29T07:30:00Z`）；前端 `new Date(iso)` 直解 |
 | data_points[].qps | Number | QPS |
 | data_points[].latency_p50 | Number | P50 延迟 |
 | data_points[].latency_p99 | Number | P99 延迟 |

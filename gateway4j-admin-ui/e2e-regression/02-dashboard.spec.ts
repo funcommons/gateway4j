@@ -18,6 +18,14 @@ test.describe('BL-02 监控大盘', () => {
     await expect(cards.first()).toBeVisible()
     const n = await cards.count()
     expect(n, '监控大盘应至少渲染 1 张统计卡片').toBeGreaterThan(0)
+    // P0-2: 总请求数必须是单个数字（Long→String 契约下字符串求和不得退化为 "000..." 拼接）
+    const totalCard = page.locator('.stat', { hasText: '总请求数' })
+    if (await totalCard.isVisible().catch(() => false)) {
+      const totalText = (await totalCard.locator('.stat-value').textContent()) ?? ''
+      expect(totalText.trim(), '总请求数应为纯整数，不得出现连续 0 拼接').toMatch(/^\d+$/)
+      expect(totalText.trim(), '总请求数不得出现 13 个 0 式拼接').not.toMatch(/^0{2,}$/)
+      writeEvidence('dashboard', '02-01-dashboard-stat-cards', diag, `总请求数文本: ${totalText.trim()}`)
+    }
     await shot('dashboard', '02-01-dashboard-stat-cards')
     writeEvidence('dashboard', '02-01-dashboard-stat-cards', diag, `统计卡片数量: ${n}`)
   })
@@ -141,7 +149,11 @@ test.describe('BL-02 监控大盘', () => {
     const visible = await last.isVisible().catch(() => false)
     await shot('dashboard', '02-10-auto-refresh-last-refresh')
     expect(visible, '开启自动刷新后应显示"最近刷新"时间').toBe(true)
-    writeEvidence('dashboard', '02-10-auto-refresh-last-refresh', diag)
+    // P0-2: 最近刷新必须是 24 小时制 HH:mm:ss，不允许 locale 漂移出的 12 小时制（如 1:31:28 AM）
+    const lastText = await last.textContent()
+    expect(lastText ?? '', '最近刷新时间应为 24 小时制 HH:mm:ss').toMatch(/\d{2}:\d{2}:\d{2}/)
+    expect(lastText ?? '', '最近刷新时间不得出现 12 小时制 AM/PM').not.toMatch(/[AP]M/i)
+    writeEvidence('dashboard', '02-10-auto-refresh-last-refresh', diag, `最近刷新文本: ${lastText}`)
   })
 
   test('02-11 拓扑 Tab：节点数量与后端 /v1/monitor/topology 返回一致', async ({ page, shot, diag }) => {
