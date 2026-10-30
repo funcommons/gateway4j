@@ -16,15 +16,20 @@ defineOptions({ name: 'FcFormItem' })
  *     <FcFormItem prop="name" label="姓名">...</FcFormItem>
  *   </el-form>
  */
-import { useAttrs } from 'vue'
+import { computed, useAttrs } from 'vue'
 
 interface Props {
   /** 标签文案. */
   label?: string
   /** 字段名 (el-form 校验用). */
   prop?: string
-  /** 必填星号 (仅视觉, 校验仍由 el-form rules 控制). */
-  required?: boolean
+  /**
+   * ⚠️ 故意不声明 `required`：Vue 对 Boolean prop 有缺省转型（未传也是 false），
+   * 而显式 required=false 会压死 el-form-item 从 rules 推导必填的语义——
+   * 必填星号/校验展示全部失效（2026-10-30 e2e 03-07/06-08 二分实锤）。
+   * 调用方显式传 required 时经 attrs 透传，未传则由 el-form-item 自行推导。
+   * 同理 error 只在显式传入时下发（error watcher 会重置校验态）。
+   */
   /** 错误文案 (覆盖 el-form 注入的错误). */
   error?: string
   /** 标签宽度. */
@@ -33,20 +38,26 @@ interface Props {
   hint?: string
 }
 
-withDefaults(defineProps<Props>(), {
-  required: false,
-})
+const props = defineProps<Props>()
 
 const attrs = useAttrs()
+/**
+ * required / error 只在显式传入时下发给 el-form-item：
+ * - 显式 :required="false" 会压死 rules 推导的必填校验（EP 语义：未传才推导）；
+ * - 显式 :error=undefined 会触发 EP 的 error watcher，把校验态重置回 validating，
+ *   校验错误永远不渲染（2026-10-30 e2e 03-07/06-08 二分实锤）。
+ */
+const formItemProps = computed(() => ({
+  ...attrs,
+  ...(props.error !== undefined ? { error: props.error } : {}),
+}))
 </script>
 
 <template>
   <el-form-item
-    v-bind="attrs"
+    v-bind="formItemProps"
     :prop="prop"
     :label="label"
-    :required="required"
-    :error="error"
     :label-width="labelWidth"
     class="fc-form-item"
   >

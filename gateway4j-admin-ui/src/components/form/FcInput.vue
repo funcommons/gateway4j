@@ -1,5 +1,5 @@
 <script setup lang="ts">
-defineOptions({ name: 'FcInput' })
+defineOptions({ name: 'FcInput', inheritAttrs: false })
 /**
  * FcInput — el-input 薄封装 (SDK).
  *
@@ -65,6 +65,23 @@ const emit = defineEmits<{
 }>()
 
 const attrs = useAttrs()
+/**
+ * attrs 拆分透传：class/style 留在 .fc-input 包装层（保持布局类调用方语义），
+ * 其余（id / data-testid / 原生属性）给内部 el-input 落到原生控件 —— 单份。
+ * 不拆分会双份透传（隐式 fallthrough + 手动 v-bind），Playwright 严格模式
+ * 对重复 data-testid 直接抛错（2026-10-30 e2e 03-14/03-15 实锤）。
+ */
+const rootAttrs = computed<Record<string, unknown>>(() => ({
+  class: (attrs as Record<string, unknown>).class,
+  style: (attrs as Record<string, unknown>).style,
+}))
+const inputAttrs = computed(() => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { class: _c, style: _s, ...rest } = attrs as Record<string, unknown>
+  return rest
+})
+/** el-input 的 rows 只收 number；公开 prop 宽容 string，绑定前归一。 */
+const rowsBound = computed(() => (props.rows == null ? undefined : Number(props.rows)))
 const listeners = computed(() => ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   'update:modelValue': (v: any) => emit('update:modelValue', v),
@@ -78,9 +95,9 @@ const listeners = computed(() => ({
 </script>
 
 <template>
-  <div class="fc-input" :class="{ 'has-error': !!error, [`size-${size}`]: true }">
+  <div class="fc-input" v-bind="rootAttrs" :class="{ 'has-error': !!error, [`size-${size}`]: true }">
     <el-input
-      v-bind="attrs"
+      v-bind="inputAttrs"
       :model-value="modelValue"
       :placeholder="placeholder"
       :clearable="clearable"
@@ -90,6 +107,7 @@ const listeners = computed(() => ({
       :size="size"
       :maxlength="maxlength"
       :show-word-limit="!!maxlength"
+      :rows="rowsBound"
       :autosize="autosize"
       :prefix-icon="prefixIcon as any"
       v-on="listeners"
