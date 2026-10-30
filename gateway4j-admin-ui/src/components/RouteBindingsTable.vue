@@ -16,12 +16,12 @@
 
     <FcDialog v-model:open="dialogOpen" :title="t('route.bindDialogTitle')" width="560px">
       <el-form label-width="100px">
-        <el-form-item :label="t('route.bindPluginLabel')">
+        <FcFormItem :label="t('route.bindPluginLabel')">
           <FcSelect v-model="bindingForm.plugin_id" :options="pluginOptions" filterable />
-        </el-form-item>
-        <el-form-item :label="t('route.bindingConfig')">
-          <el-input v-model="bindingForm.binding_config" type="textarea" :rows="3" maxlength="10000" placeholder='{"key":"value"}' />
-        </el-form-item>
+        </FcFormItem>
+        <FcFormItem :label="t('route.bindingConfig')">
+          <FcInput v-model="bindingForm.binding_config" type="textarea" :rows="3" maxlength="10000" placeholder='{"key":"value"}' />
+        </FcFormItem>
       </el-form>
       <template #footer>
         <FcButton @click="dialogOpen = false">{{ t('common.cancel') }}</FcButton>
@@ -35,7 +35,7 @@
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { FcTable, FcButton, FcDialog, FcSelect } from '@/components'
+import { FcTable, FcButton, FcDialog, FcSelect, FcInput, FcFormItem } from '@/components'
 import type { SelectOption } from '@/components/form/_types'
 
 const { t } = useI18n()

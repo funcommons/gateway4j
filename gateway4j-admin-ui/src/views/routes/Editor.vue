@@ -595,10 +595,10 @@ async function goBack() {
   gap: 12px;
   margin: 12px 16px;
   padding: 8px 12px;
-  background: color-mix(in srgb, var(--app-warning, #e6a23c) 8%, transparent);
+  background: color-mix(in srgb, var(--app-warning) 8%, transparent);
   border-radius: var(--app-radius-sm);
   font-size: 13px;
-  color: var(--app-warning, #e6a23c);
+  color: var(--app-warning);
 }
 .conflict-text { flex: 1; }
 .editor-sync-row { margin-top: 8px; }
@@ -614,19 +614,19 @@ async function goBack() {
 }
 .load-error-state p { margin: 0; }
 .route-list-warning {
-  color: var(--app-warning, #e6a23c);
+  color: var(--app-warning);
   font-size: 13px;
   margin: 0 0 12px;
   padding: 8px 12px;
-  background: color-mix(in srgb, #e6a23c 8%, transparent);
+  background: color-mix(in srgb, var(--app-warning) 8%, transparent);
   border-radius: var(--app-radius-sm);
 }
 .secondary-error {
-  color: var(--app-warning, #e6a23c);
+  color: var(--app-warning);
   font-size: 13px;
   margin: 0 0 12px;
   padding: 8px 12px;
-  background: color-mix(in srgb, #e6a23c 8%, transparent);
+  background: color-mix(in srgb, var(--app-warning) 8%, transparent);
   border-radius: var(--app-radius-sm);
 }
 </style>

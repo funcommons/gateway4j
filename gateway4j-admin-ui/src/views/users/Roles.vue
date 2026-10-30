@@ -11,10 +11,10 @@
             <FcTable :data="roles" :loading="rolesLoading" stripe>
               <el-table-column prop="role_code" :label="t('role.code')" width="160" />
               <el-table-column prop="role_name" :label="t('role.name')" />
-              <el-table-column label="备注">
+              <el-table-column :label="t('role.remark')">
                 <template #default="{ row }">{{ (row as any).remark || '-' }}</template>
               </el-table-column>
-              <el-table-column v-if="canManage" label="操作" width="280" fixed="right">
+              <el-table-column v-if="canManage" :label="t('route.actionLabel')" width="280" fixed="right">
                 <template #default="{ row }">
                   <FcButton variant="text" size="sm" data-testid="role-grant" @click="openGrant(row as any)">授权</FcButton>
                   <FcButton variant="text" size="sm" data-testid="role-members" @click="openMembers(row as any)">成员</FcButton>
@@ -56,15 +56,15 @@
     <!-- 新建/编辑角色 -->
     <FcDialog v-model:open="formOpen" :title="roleForm.id ? '编辑角色' : '新建角色'" width="460px">
       <el-form :model="roleForm" :rules="roleRules" label-width="100px" ref="roleFormRef">
-        <el-form-item label="角色编码" prop="role_code">
-          <FcInput v-model="roleForm.role_code" :disabled="!!roleForm.id" maxlength="50" placeholder="如 ROLE_AUDITOR" />
-        </el-form-item>
-        <el-form-item label="角色名称" prop="role_name">
+        <FcFormItem :label="t('role.codeLabel')" prop="role_code">
+          <FcInput v-model="roleForm.role_code" :disabled="!!roleForm.id" maxlength="50" :placeholder="t('role.codePlaceholder')" />
+        </FcFormItem>
+        <FcFormItem :label="t('role.nameLabel')" prop="role_name">
           <FcInput v-model="roleForm.role_name" maxlength="50" />
-        </el-form-item>
-        <el-form-item label="备注">
+        </FcFormItem>
+        <FcFormItem :label="t('role.remark')">
           <FcInput v-model="roleForm.remark" type="textarea" :rows="3" maxlength="200" />
-        </el-form-item>
+        </FcFormItem>
       </el-form>
       <p v-if="formError" class="dialog-error" data-testid="save-error">{{ formError }}</p>
       <template #footer>
@@ -151,7 +151,7 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import {
   FcSection, FcTabsPanel, FcTable, FcEmpty, FcButton, FcInput, FcDialog,
-  FcConfirm, FcSkeleton
+  FcConfirm, FcFormItem, FcSkeleton
 } from '@/components'
 import {
   listRoles, listPermissions,

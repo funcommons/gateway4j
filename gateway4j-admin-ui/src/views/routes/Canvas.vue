@@ -166,7 +166,7 @@
         <!-- H7b T2：画布 apply 变更说明（可选 —— diff 流已天然留痕，仅在填写时随 payload 携带） -->
         <div class="diff-group apply-desc" data-testid="apply-desc-block">
           <div class="diff-group-title">{{ t('env.changeDescLabel') }}（{{ t('common.optional') }}）</div>
-          <el-input
+          <FcInput
             v-model="applyChangeDesc"
             type="textarea"
             :rows="2"
@@ -811,7 +811,7 @@ onBeforeRouteLeave(async () => {
   border-radius: 50%;
   font-size: 10px;
   color: var(--app-text-secondary);
-  background: var(--app-bg-muted, #f4f4f5);
+  background: var(--app-bg-muted);
   cursor: help;
 }
 .node-type-item {
@@ -820,19 +820,19 @@ onBeforeRouteLeave(async () => {
   gap: 8px;
   padding: 8px 10px;
   border: 1px dashed var(--app-border);
-  border-radius: 6px;
+  border-radius: var(--app-radius-button);
   cursor: grab;
   font-size: 13px;
   user-select: none;
   transition: border-color 0.15s, background 0.15s;
 }
-.node-type-item:hover { border-color: var(--app-primary); background: var(--app-primary-light, #f0f5ff); }
-.node-icon { width: 20px; height: 20px; border-radius: 4px; display: inline-block; }
-.icon-dispatch { background: #409eff; }
-.icon-backend { background: #67c23a; }
-.icon-plugin { background: #e6a23c; }
+.node-type-item:hover { border-color: var(--app-primary); background: color-mix(in srgb, var(--app-primary) 12%, transparent); }
+.node-icon { width: 20px; height: 20px; border-radius: var(--app-radius-sm); display: inline-block; }
+.icon-dispatch { background: var(--app-primary); }
+.icon-backend { background: var(--app-success); }
+.icon-plugin { background: var(--app-warning); }
 .node-label { font-size: 13px; }
-.canvas-shell { flex: 1; min-height: 600px; border: 1px solid var(--app-border); border-radius: 8px; position: relative; }
+.canvas-shell { flex: 1; min-height: 600px; border: 1px solid var(--app-border); border-radius: var(--app-radius-md); position: relative; }
 .canvas-empty {
   position: absolute;
   inset: 0;
@@ -843,7 +843,7 @@ onBeforeRouteLeave(async () => {
   gap: 12px;
   pointer-events: none;
   z-index: 5;
-  color: var(--app-text-secondary, #909399);
+  color: var(--app-text-secondary);
 }
 .canvas-empty svg { width: 48px; height: 48px; opacity: 0.55; }
 .canvas-empty p { margin: 0; font-size: 13px; }
@@ -868,10 +868,10 @@ onBeforeRouteLeave(async () => {
   top: 8px;
   left: 50%;
   transform: translateX(-50%);
-  background: var(--app-danger, #f56c6c);
-  color: #fff;
+  background: var(--app-danger);
+  color: var(--app-text-inverse);
   padding: 4px 12px;
-  border-radius: 4px;
+  border-radius: var(--app-radius-sm);
   font-size: 12px;
   z-index: 10;
 }
@@ -880,10 +880,10 @@ onBeforeRouteLeave(async () => {
   top: 40px;
   left: 50%;
   transform: translateX(-50%);
-  background: var(--app-warning, #e6a23c);
-  color: #fff;
+  background: var(--app-warning);
+  color: var(--app-text-inverse);
   padding: 4px 12px;
-  border-radius: 4px;
+  border-radius: var(--app-radius-sm);
   font-size: 12px;
   z-index: 10;
 }
@@ -892,10 +892,10 @@ onBeforeRouteLeave(async () => {
   top: 72px;
   left: 50%;
   transform: translateX(-50%);
-  background: var(--app-warning, #e6a23c);
-  color: #fff;
+  background: var(--app-warning);
+  color: var(--app-text-inverse);
   padding: 4px 12px;
-  border-radius: 4px;
+  border-radius: var(--app-radius-sm);
   font-size: 12px;
   z-index: 10;
 }
@@ -904,6 +904,6 @@ onBeforeRouteLeave(async () => {
 .diff-group-title { font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--app-text-primary); }
 /* H7b T2：画布 apply 变更说明（可选填） */
 .apply-desc { margin-bottom: 4px; }
-.diff-tip { margin: 0 0 6px; font-size: 12px; color: var(--app-warning, #e6a23c); }
+.diff-tip { margin: 0 0 6px; font-size: 12px; color: var(--app-warning); }
 .diff-empty { margin: 0; font-size: 12px; color: var(--app-text-secondary); }
 </style>

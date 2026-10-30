@@ -5,18 +5,18 @@
         <template #tab-export>
           <el-form label-width="100px">
             <!-- H7b：按环境导出（默认顶栏当前环境；环境功能降级时隐藏） -->
-            <el-form-item v-if="envReady" :label="t('env.switcherLabel')">
+            <FcFormItem v-if="envReady" :label="t('env.switcherLabel')">
               <FcSelect
                 v-model="exportEnv"
                 :options="env.options"
                 style="max-width: 280px"
                 data-testid="export-env-select"
               />
-            </el-form-item>
-            <el-form-item :label="t('importExport.status')">
+            </FcFormItem>
+            <FcFormItem :label="t('importExport.status')">
               <FcSelect v-model="status" :options="statusOpts" clearable :placeholder="t('common.search')" />
-            </el-form-item>
-            <el-form-item :label="t('route.name')">
+            </FcFormItem>
+            <FcFormItem :label="t('route.name')">
               <FcInput v-model="routeKeyword" :placeholder="t('importExport.routeKeywordPlaceholder')" clearable style="margin-bottom: 8px" />
               <FcSkeleton v-if="routesLoading" variant="text" :rows="4" />
               <FcTable v-else :data="filteredRoutes" max-height="240" stripe @selection-change="onRouteSelect">
@@ -26,34 +26,34 @@
                   <template #default="{ row }">{{ row.route_type === 'DISPATCH' ? t('route.typeDispatch') : t('route.typeBackend') }}</template>
                 </el-table-column>
               </FcTable>
-            </el-form-item>
-            <el-form-item>
+            </FcFormItem>
+            <FcFormItem>
               <FcButton v-if="canEdit('route')" variant="primary" :loading="exporting" @click="onExport">{{ t('importExport.downloadPackage') }}</FcButton>
-            </el-form-item>
+            </FcFormItem>
           </el-form>
         </template>
 
         <template #tab-import>
           <el-form label-width="100px">
-            <el-form-item :label="t('importExport.routePackage')">
-              <el-input v-model="jsonText" type="textarea" :rows="12" maxlength="100000" placeholder='{"version":"1.0","routes":[…]}' />
-            </el-form-item>
-            <el-form-item :label="t('importExport.strategy')">
+            <FcFormItem :label="t('importExport.routePackage')">
+              <FcInput v-model="jsonText" type="textarea" :rows="12" maxlength="100000" placeholder='{"version":"1.0","routes":[…]}' />
+            </FcFormItem>
+            <FcFormItem :label="t('importExport.strategy')">
               <FcSegmented v-model="strategy" :options="strategies" />
-            </el-form-item>
+            </FcFormItem>
             <!-- H7b T1：导入目标环境（默认顶栏当前环境；环境功能降级时不渲染、不携带） -->
-            <el-form-item v-if="envReady" :label="t('importExport.targetEnv')">
+            <FcFormItem v-if="envReady" :label="t('importExport.targetEnv')">
               <FcSelect
                 v-model="targetEnv"
                 :options="env.options"
                 style="max-width: 280px"
                 data-testid="import-target-env"
               />
-            </el-form-item>
-            <el-form-item>
+            </FcFormItem>
+            <FcFormItem>
               <FcButton v-if="canEdit('route')" variant="secondary" :loading="validating" @click="onValidate">{{ t('importExport.preCheck') }}</FcButton>
               <FcButton v-if="canEdit('route')" variant="primary" :loading="importing" @click="onImport" style="margin-left: 8px">{{ t('importExport.doImport') }}</FcButton>
-            </el-form-item>
+            </FcFormItem>
           </el-form>
 
           <FcEmpty v-if="!report" :title="t('importExport.preCheckHint')" />
@@ -188,7 +188,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import {
-  FcSection, FcTabsPanel, FcInput, FcSelect, FcSegmented,
+  FcSection, FcTabsPanel, FcFormItem, FcInput, FcSelect, FcSegmented,
   FcButton, FcEmpty, FcTable, FcSkeleton, FcTag
 } from '@/components'
 import { exportRoutes, validateImport, importRoutes, listRoutes, createImportSnapshot } from '@/api/routes'

@@ -13,31 +13,31 @@
       <FcTabsPanel v-model="tab" :tabs="tabs">
         <template #tab-basic>
           <el-form :model="form" :rules="formRules" label-width="120px" ref="formRef">
-            <el-form-item :label="t('plugin.name')" prop="plugin_name"><FcInput v-model="form.plugin_name" :disabled="isEdit" maxlength="50" /></el-form-item>
-            <el-form-item :label="t('plugin.id')" prop="plugin_id"><FcInput v-model="form.plugin_id" :disabled="isEdit" maxlength="50" /></el-form-item>
-            <el-form-item :label="t('plugin.type')" prop="plugin_type">
+            <FcFormItem :label="t('plugin.name')" prop="plugin_name"><FcInput v-model="form.plugin_name" :disabled="isEdit" maxlength="50" /></FcFormItem>
+            <FcFormItem :label="t('plugin.id')" prop="plugin_id"><FcInput v-model="form.plugin_id" :disabled="isEdit" maxlength="50" /></FcFormItem>
+            <FcFormItem :label="t('plugin.type')" prop="plugin_type">
               <FcSegmented v-model="form.plugin_type" :options="typeOpts" :disabled="isEdit" />
-            </el-form-item>
-            <el-form-item :label="t('plugin.phase')" prop="plugin_phase">
+            </FcFormItem>
+            <FcFormItem :label="t('plugin.phase')" prop="plugin_phase">
               <FcSegmented v-model="form.plugin_phase" :options="phaseOpts" />
-            </el-form-item>
-            <el-form-item :label="t('plugin.scope')">
+            </FcFormItem>
+            <FcFormItem :label="t('plugin.scope')">
               <FcSegmented v-model="form.scope" :options="scopeOpts" />
-            </el-form-item>
-            <el-form-item :label="t('plugin.editorConfigJson')" prop="config">
-              <el-input v-model="form.config" type="textarea" :rows="6" maxlength="10000" />
-            </el-form-item>
-            <el-form-item :label="t('plugin.sortOrder')" prop="sort_order">
+            </FcFormItem>
+            <FcFormItem :label="t('plugin.editorConfigJson')" prop="config">
+              <FcInput v-model="form.config" type="textarea" :rows="6" maxlength="10000" />
+            </FcFormItem>
+            <FcFormItem :label="t('plugin.sortOrder')" prop="sort_order">
               <el-input-number v-model="form.sort_order" :min="1" :max="9999" />
-            </el-form-item>
-            <el-form-item :label="t('plugin.remark')">
-              <el-input v-model="form.remark" type="textarea" :rows="3" maxlength="200" show-word-limit />
-            </el-form-item>
+            </FcFormItem>
+            <FcFormItem :label="t('plugin.remark')">
+              <FcInput v-model="form.remark" type="textarea" :rows="3" maxlength="200" show-word-limit />
+            </FcFormItem>
           </el-form>
         </template>
 
         <template #tab-groovy v-if="form.plugin_type === 'GROOVY'">
-          <el-input v-model="form.script_content" type="textarea" :rows="14" maxlength="65536" placeholder="def x = 1; return true" />
+          <FcInput v-model="form.script_content" type="textarea" :rows="14" maxlength="65536" placeholder="def x = 1; return true" />
           <FcButton variant="secondary" style="margin-top: 8px" @click="validateGroovyScript">{{ t('plugin.validate') }}</FcButton>
           <div v-if="groovyResult" class="hint">{{ groovyResult }}</div>
         </template>
@@ -69,7 +69,7 @@ import { ElMessage } from 'element-plus'
 import { useFcConfirm } from '@/composables/useFcConfirm'
 import { usePermission } from '@/composables/usePermission'
 import {
-  FcSectionCard, FcTabsPanel, FcInput, FcSegmented, FcButton, FcDropZone, FcSkeleton, FcSelect
+  FcSectionCard, FcTabsPanel, FcInput, FcFormItem, FcSegmented, FcButton, FcDropZone, FcSkeleton, FcSelect
 } from '@/components'
 import { createPlugin, updatePlugin, getPlugin, validateGroovy, listPlugins } from '@/api/plugins'
 import { mapFieldErrors } from '@/api/http'
@@ -372,7 +372,7 @@ async function goBack() {
 </script>
 
 <style scoped>
-.hint { padding: 8px 12px; background: var(--app-bg-muted); border-radius: 6px; font-size: 13px; }
+.hint { padding: 8px 12px; background: var(--app-bg-muted); border-radius: var(--app-radius-sm); font-size: 13px; }
 .save-error {
   color: var(--app-danger);
   font-size: 13px;

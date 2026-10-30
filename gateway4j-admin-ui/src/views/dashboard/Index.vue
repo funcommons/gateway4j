@@ -457,7 +457,7 @@ onUnmounted(() => {
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
 .stat-label { color: var(--app-text-secondary); font-size: 13px; }
 .stat-value { font-size: 24px; font-weight: 700; color: var(--app-text); margin-top: 4px; }
-.topo-shell { height: 600px; border: 1px solid var(--app-border); border-radius: 8px; }
+.topo-shell { height: 600px; border: 1px solid var(--app-border); border-radius: var(--app-radius-md); }
 .load-error {
   color: var(--app-danger);
   font-size: 13px;
@@ -483,21 +483,21 @@ onUnmounted(() => {
   border-radius: 50%;
 }
 .source-badge--prometheus {
-  color: var(--app-success, #67c23a);
-  background: color-mix(in srgb, var(--app-success, #67c23a) 10%, transparent);
+  color: var(--app-success);
+  background: color-mix(in srgb, var(--app-success) 10%, transparent);
 }
-.source-badge--prometheus::before { background: var(--app-success, #67c23a); }
+.source-badge--prometheus::before { background: var(--app-success); }
 .source-badge--snapshot {
   color: var(--app-text-secondary);
-  background: var(--app-bg-muted, #f4f4f5);
+  background: var(--app-bg-muted);
 }
-.source-badge--snapshot::before { background: var(--app-text-tertiary, #909399); }
+.source-badge--snapshot::before { background: var(--app-text-secondary); }
 .auto-refresh-label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--app-text-secondary); cursor: pointer; }
 .last-refresh { font-size: 12px; color: var(--app-text-secondary); margin-left: auto; }
 .metric-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
 .metric-label { color: var(--app-text-secondary); font-size: 12px; }
 .metric-value { font-size: 20px; font-weight: 700; color: var(--app-text); margin-top: 4px; }
-.trend-chart { height: 400px; border: 1px solid var(--app-border); border-radius: 8px; }
+.trend-chart { height: 400px; border: 1px solid var(--app-border); border-radius: var(--app-radius-md); }
 .status-toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
 </style>
 

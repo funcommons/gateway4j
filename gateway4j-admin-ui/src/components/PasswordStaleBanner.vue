@@ -20,7 +20,7 @@
     append-to-body
   >
     <el-form label-width="110px" @submit.prevent>
-      <el-form-item :label="t('auth.pwdNew')" data-testid="pwd-new-item">
+      <FcFormItem :label="t('auth.pwdNew')" data-testid="pwd-new-item">
         <FcInput
           v-model="newPwd"
           type="password"
@@ -30,8 +30,8 @@
           :placeholder="t('auth.pwdNewPlaceholder')"
           data-testid="pwd-new-input"
         />
-      </el-form-item>
-      <el-form-item :label="t('auth.pwdConfirm')">
+      </FcFormItem>
+      <FcFormItem :label="t('auth.pwdConfirm')">
         <FcInput
           v-model="confirmPwd"
           type="password"
@@ -42,7 +42,7 @@
           :error="mismatchHint"
           data-testid="pwd-confirm-input"
         />
-      </el-form-item>
+      </FcFormItem>
       <p v-if="submitError" class="pwd-stale-error" data-testid="pwd-stale-error">{{ submitError }}</p>
     </el-form>
     <template #footer>
@@ -58,7 +58,7 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { FcButton, FcInput, FcDialog } from '@/components'
+import { FcButton, FcFormItem, FcInput, FcDialog } from '@/components'
 import { useAuthStore } from '@/store/auth'
 import { updateUser } from '@/api/misc'
 import { mapFieldErrors } from '@/api/http'

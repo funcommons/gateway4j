@@ -10,7 +10,7 @@
  */
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { FcDialog, FcButton } from '@/components'
+import { FcDialog, FcInput, FcButton } from '@/components'
 
 defineOptions({ name: 'PublishDescriptionDialog' })
 
@@ -74,13 +74,12 @@ function onConfirm() {
     <div class="publish-desc" data-testid="publish-desc-dialog">
       <p v-if="context" class="publish-desc__context" data-testid="publish-desc-context">{{ context }}</p>
       <label class="publish-desc__label" for="publish-desc-input">{{ t('env.changeDescLabel') }}</label>
-      <el-input
+      <FcInput
         id="publish-desc-input"
         v-model="desc"
         type="textarea"
         :rows="3"
         :maxlength="DESC_MAX"
-        show-word-limit
         :placeholder="t('env.changeDescPlaceholder')"
         data-testid="publish-desc-input"
       />

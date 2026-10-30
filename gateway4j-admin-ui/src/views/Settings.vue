@@ -8,12 +8,12 @@
           <FcSkeleton v-if="loading" variant="text" :rows="3" />
           <template v-else>
           <el-form :model="generalForm" label-width="160px">
-            <el-form-item :label="t('settings.siteName')">
+            <FcFormItem :label="t('settings.siteName')">
               <FcInput v-model="generalForm.site_name" maxlength="50" />
-            </el-form-item>
-            <el-form-item :label="t('settings.language')">
+            </FcFormItem>
+            <FcFormItem :label="t('settings.language')">
               <FcSelect v-model="generalForm.language" :options="langOpts" />
-            </el-form-item>
+            </FcFormItem>
           </el-form>
           <p v-if="saveError" class="save-error" data-testid="save-error">{{ saveError }}</p>
           <FcButton v-if="canEdit('system')" variant="primary" :loading="saving" @click="saveGeneral">{{ t('common.save') }}</FcButton>
@@ -25,12 +25,12 @@
           <FcSkeleton v-if="loading" variant="text" :rows="3" />
           <template v-else>
           <el-form :model="securityForm" :rules="securityFormRules" label-width="160px" ref="securityFormRef">
-            <el-form-item :label="t('settings.tokenExpiry')" prop="token_expiry_hours">
+            <FcFormItem :label="t('settings.tokenExpiry')" prop="token_expiry_hours">
               <el-input-number v-model="securityForm.token_expiry_hours" :min="1" :max="8760" />
-            </el-form-item>
-            <el-form-item :label="t('settings.refreshExpiry')" prop="refresh_expiry_days">
+            </FcFormItem>
+            <FcFormItem :label="t('settings.refreshExpiry')" prop="refresh_expiry_days">
               <el-input-number v-model="securityForm.refresh_expiry_days" :min="1" :max="365" />
-            </el-form-item>
+            </FcFormItem>
           </el-form>
           <p v-if="saveError" class="save-error" data-testid="save-error">{{ saveError }}</p>
           <FcButton v-if="canEdit('system')" variant="primary" :loading="saving" @click="saveSecurity">{{ t('common.save') }}</FcButton>
@@ -168,8 +168,8 @@ import { ElMessage } from 'element-plus'
 import { useFcConfirm } from '@/composables/useFcConfirm'
 import { usePermission } from '@/composables/usePermission'
 import {
-  FcSection, FcTabsPanel, FcInput, FcSelect, FcButton, FcTable, FcEmpty, FcSkeleton,
-  FcTag, FcStatusBadge, FcPagination
+  FcSection, FcTabsPanel, FcInput, FcSelect, FcButton, FcTable, FcEmpty, FcFormItem,
+  FcSkeleton, FcTag, FcStatusBadge, FcPagination
 } from '@/components'
 import {
   getDict, getConfig, saveConfig, listChanges, listAuditLogs,
@@ -504,7 +504,7 @@ onBeforeRouteLeave(async () => {
   margin-right: auto;
   font-size: 12px;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--app-radius-full, 9999px);
   color: var(--app-text-secondary);
   background: var(--app-bg-muted, #f4f4f5);
 }

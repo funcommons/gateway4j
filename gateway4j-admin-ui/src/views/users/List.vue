@@ -53,14 +53,14 @@
 
     <FcDialog v-model:open="open" :title="isEdit ? t('user.editTitle') : t('user.createTitle')" width="480px">
       <el-form :model="form" :rules="formRules" label-width="100px" ref="formRef">
-        <el-form-item :label="t('user.name')" prop="username"><FcInput v-model="form.username" :disabled="isEdit" maxlength="50" /></el-form-item>
-        <el-form-item v-if="!isEdit" :label="t('user.password')" prop="password"><FcInput v-model="form.password" type="password" maxlength="100" /></el-form-item>
-        <el-form-item v-if="isEdit" :label="t('user.newPassword')" prop="password"><FcInput v-model="form.password" type="password" :placeholder="t('user.newPasswordHint')" maxlength="100" /></el-form-item>
-        <el-form-item :label="t('user.realName')"><FcInput v-model="form.real_name" maxlength="50" /></el-form-item>
-        <el-form-item :label="t('user.phone')" prop="phone"><FcInput v-model="form.phone" maxlength="20" /></el-form-item>
-        <el-form-item :label="t('user.roles')">
+        <FcFormItem :label="t('user.name')" prop="username"><FcInput v-model="form.username" :disabled="isEdit" maxlength="50" /></FcFormItem>
+        <FcFormItem v-if="!isEdit" :label="t('user.password')" prop="password"><FcInput v-model="form.password" type="password" maxlength="100" /></FcFormItem>
+        <FcFormItem v-if="isEdit" :label="t('user.newPassword')" prop="password"><FcInput v-model="form.password" type="password" :placeholder="t('user.newPasswordHint')" maxlength="100" /></FcFormItem>
+        <FcFormItem :label="t('user.realName')"><FcInput v-model="form.real_name" maxlength="50" /></FcFormItem>
+        <FcFormItem :label="t('user.phone')" prop="phone"><FcInput v-model="form.phone" maxlength="20" /></FcFormItem>
+        <FcFormItem :label="t('user.roles')">
           <FcSelect v-model="form.role_codes" multiple :options="roleOptions" />
-        </el-form-item>
+        </FcFormItem>
       </el-form>
       <p v-if="actionError && open" class="dialog-error" data-testid="dialog-error">{{ actionError }}</p>
       <template #footer>
@@ -71,7 +71,7 @@
 
     <FcDialog v-model:open="resetOpen" :title="t('user.resetPassword')" width="380px">
       <el-form label-width="100px">
-        <el-form-item :label="t('user.newPassword')"><FcInput v-model="newPwd" type="password" maxlength="100" /></el-form-item>
+        <FcFormItem :label="t('user.newPassword')"><FcInput v-model="newPwd" type="password" maxlength="100" /></FcFormItem>
       </el-form>
       <p v-if="actionError && resetOpen" class="dialog-error" data-testid="dialog-error">{{ actionError }}</p>
       <template #footer>
@@ -91,7 +91,7 @@ import { usePermission } from '@/composables/usePermission'
 import { useDebounce } from '@/composables'
 import {
   FcSection, FcFilterBar, FcInput, FcSelect, FcTable, FcTag, FcStatusBadge,
-  FcButton, FcConfirm, FcDialog, FcPagination, FcSkeleton
+  FcButton, FcConfirm, FcDialog, FcFormItem, FcPagination, FcSkeleton
 } from '@/components'
 import type { SelectOption } from '@/components/form/_types'
 import { listUsers, createUser, updateUser, deleteUser, resetPassword } from '@/api/misc'

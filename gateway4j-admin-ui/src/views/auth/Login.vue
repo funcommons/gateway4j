@@ -4,26 +4,26 @@
       <h2 class="title">{{ t('auth.title') }}</h2>
       <p class="subtitle">{{ t('auth.welcome') }}</p>
       <el-form :model="form" :rules="rules" label-width="0" size="large" @keydown.enter.prevent="submit">
-        <el-form-item prop="username">
+        <FcFormItem prop="username">
           <FcInput v-model="form.username" :placeholder="t('auth.username')" clearable maxlength="50">
             <template #prefix><el-icon><EpIconUser /></el-icon></template>
           </FcInput>
-        </el-form-item>
-        <el-form-item prop="password">
+        </FcFormItem>
+        <FcFormItem prop="password">
           <FcInput v-model="form.password" type="password" :placeholder="t('auth.password')" show-password>
             <template #prefix><el-icon><EpIconLock /></el-icon></template>
           </FcInput>
-        </el-form-item>
-        <el-form-item>
+        </FcFormItem>
+        <FcFormItem>
           <div class="remember-row">
             <el-checkbox v-model="remember" :label="t('auth.remember')" />
           </div>
-        </el-form-item>
-        <el-form-item>
+        </FcFormItem>
+        <FcFormItem>
           <FcButton variant="primary" :loading="loading" @click="submit" style="width: 100%">
             {{ t('auth.submit') }}
           </FcButton>
-        </el-form-item>
+        </FcFormItem>
       </el-form>
       <p v-if="error" class="auth-error">{{ error }}</p>
     </FcSectionCard>
@@ -34,7 +34,7 @@
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { FcSectionCard, FcInput, FcButton } from '@/components'
+import { FcSectionCard, FcFormItem, FcInput, FcButton } from '@/components'
 import { useAuthStore } from '@/store/auth'
 
 const { t } = useI18n()

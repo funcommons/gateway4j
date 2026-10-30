@@ -4,12 +4,14 @@
   <div v-else>
     <div v-for="(value, key) in schema.config_schema.properties" :key="key">
       <FcFormItem :label="value.title || key">
-        <el-select v-if="value.type === 'string' && value.enum" v-model="model[key]" style="width: 100%">
-          <el-option v-for="o in value.enum" :key="o" :label="o" :value="o" />
-        </el-select>
+        <FcSelect
+          v-if="value.type === 'string' && value.enum"
+          v-model="model[key]"
+          :options="value.enum.map((o: string) => ({ value: o, label: o }))"
+        />
         <FcInput v-else-if="(value.type || 'string') === 'string'" v-model="model[key]" :placeholder="value.title" maxlength="500" />
         <el-input-number v-else-if="value.type === 'integer' || value.type === 'number'" v-model="model[key]" :min="value.minimum" :max="value.maximum" :step="value.type === 'number' ? 0.01 : 1" style="width: 100%" />
-        <el-switch v-else-if="value.type === 'boolean'" v-model="model[key]" />
+        <FcSwitch v-else-if="value.type === 'boolean'" v-model="model[key]" />
         <FcSelect
           v-else-if="value.type === 'array'"
           v-model="model[key]"
@@ -32,7 +34,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { FcFormItem, FcInput, FcEmpty, FcSelect } from '@/components'
+import { FcFormItem, FcInput, FcEmpty, FcSelect, FcSwitch } from '@/components'
 import { getBuiltinSchema } from '@/api/plugins'
 
 const { t } = useI18n()

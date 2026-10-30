@@ -282,7 +282,7 @@ defineExpose({ onAdd, onDelete, updateTargetRoute, local })
   border-radius: 50%;
   font-size: 11px;
   color: var(--app-text-secondary);
-  background: var(--app-bg-muted, #f4f4f5);
+  background: var(--app-bg-muted);
   cursor: help;
   flex: none;
 }

@@ -116,7 +116,7 @@
   font-size: 13px;
   margin: 0 0 12px;
   padding: 8px 12px;
-  background: var(--app-bg-muted, #f5f7fa);
+  background: var(--app-bg-muted);
   border-radius: var(--app-radius-sm);
 }
 .action-error {
@@ -136,17 +136,17 @@
   border-radius: var(--app-radius-sm);
 }
 .grouped-view { display: flex; flex-direction: column; gap: 16px; }
-.plugin-group { border: 1px solid var(--app-border); border-radius: 8px; overflow: hidden; }
+.plugin-group { border: 1px solid var(--app-border); border-radius: var(--app-radius-md); overflow: hidden; }
 .group-header {
   display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px; background: var(--app-bg-secondary, #f5f7fa);
+  padding: 8px 12px; background: var(--app-bg-muted);
   font-size: 14px; font-weight: 600;
 }
 .group-count { font-size: 12px; color: var(--app-text-secondary); font-weight: 400; }
 .group-items { display: flex; flex-wrap: wrap; gap: 12px; padding: 12px; }
 .plugin-card {
   width: 200px; padding: 12px; border: 1px solid var(--app-border);
-  border-radius: 6px; display: flex; flex-direction: column; gap: 6px;
+  border-radius: var(--app-radius-sm); display: flex; flex-direction: column; gap: 6px;
 }
 .card-name { font-size: 14px; font-weight: 500; }
 .card-id { font-size: 12px; color: var(--app-text-secondary); }

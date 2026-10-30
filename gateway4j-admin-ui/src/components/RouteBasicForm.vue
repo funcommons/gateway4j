@@ -1,36 +1,36 @@
 <template>
   <el-form :model="local" :rules="formRules" label-width="120px" class="form-block" ref="formRef">
-    <el-form-item :label="t('route.name')" prop="route_name">
+    <FcFormItem :label="t('route.name')" prop="route_name">
       <FcInput v-model="local.route_name" maxlength="50" />
-    </el-form-item>
-    <el-form-item :label="t('route.type')" prop="route_type">
+    </FcFormItem>
+    <FcFormItem :label="t('route.type')" prop="route_type">
       <FcSegmented v-model="local.route_type" :options="typeOptions" />
-    </el-form-item>
-    <el-form-item v-if="local.route_type === 'DISPATCH' && routeOptions?.length" :label="t('route.parentRoute')">
+    </FcFormItem>
+    <FcFormItem v-if="local.route_type === 'DISPATCH' && routeOptions?.length" :label="t('route.parentRoute')">
       <FcSelect v-model="local.parent_route_id" :options="routeOptions" clearable :placeholder="t('route.parentRoutePlaceholder')" />
-    </el-form-item>
-    <el-form-item v-if="local.route_type === 'BACKEND'" :label="t('route.path')" prop="path">
+    </FcFormItem>
+    <FcFormItem v-if="local.route_type === 'BACKEND'" :label="t('route.path')" prop="path">
       <FcInput v-model="local.path" placeholder="/api/example" maxlength="500" />
-    </el-form-item>
-    <el-form-item v-if="local.route_type === 'BACKEND'" :label="t('route.upstream')" prop="upstream_url">
+    </FcFormItem>
+    <FcFormItem v-if="local.route_type === 'BACKEND'" :label="t('route.upstream')" prop="upstream_url">
       <FcInput v-model="local.upstream_url" placeholder="http://backend:8080" maxlength="500" />
-    </el-form-item>
-    <el-form-item :label="t('route.sort')" prop="sort_order">
+    </FcFormItem>
+    <FcFormItem :label="t('route.sort')" prop="sort_order">
       <el-input-number v-model="local.sort_order" :min="1" :max="9999" />
-    </el-form-item>
-    <el-form-item :label="t('route.remark')" prop="remark">
-      <el-input v-model="local.remark" type="textarea" :rows="3" maxlength="200" />
-    </el-form-item>
-    <el-form-item :label="t('route.tags')" prop="tags">
+    </FcFormItem>
+    <FcFormItem :label="t('route.remark')" prop="remark">
+      <FcInput v-model="local.remark" type="textarea" :rows="3" maxlength="200" />
+    </FcFormItem>
+    <FcFormItem :label="t('route.tags')" prop="tags">
       <FcInput v-model="local.tags" :placeholder="t('route.tagsPlaceholder')" maxlength="200" />
-    </el-form-item>
+    </FcFormItem>
   </el-form>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { FcInput, FcSegmented, FcSelect } from '@/components'
+import { FcInput, FcFormItem, FcSegmented, FcSelect } from '@/components'
 import type { SelectOption } from '@/components/form/_types'
 
 export interface RouteBasic {
