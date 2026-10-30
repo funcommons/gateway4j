@@ -1,0 +1,25 @@
+用例: 01-06-session-persists-after-reload
+时间: 2026-10-30T06:25:52.128Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMzQ4NzQ4MjQ2LCJub25jZSI6IjYyMjZjYjk3LWFkMDktNDAyMS04YjE3LWM2Y2U5ZGNlZGVkMyIsImlhdCI6MTc5MzM0MTU0ODI0NiwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiJjYjJhY2JlZS0yOWM1LTQ4NmYtYjE5MC0wNThiYTMxOTU2M2QifQ.Nh7KL4ieoMTBq5_Tj6ykmT790Q17pyZsB1Ddt0d-EMU :: net::ERR_ABORTED
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/login
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/routes
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMzQ4NzQ4MjQ2LCJub25jZSI6IjYyMjZjYjk3LWFkMDktNDAyMS04YjE3LWM2Y2U5ZGNlZGVkMyIsImlhdCI6MTc5MzM0MTU0ODI0NiwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiJjYjJhY2JlZS0yOWM1LTQ4NmYtYjE5MC0wNThiYTMxOTU2M2QifQ.Nh7KL4ieoMTBq5_Tj6ykmT790Q17pyZsB1Ddt0d-EMU
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/routes

@@ -1,0 +1,25 @@
+用例: 01-13-remember-me-storage
+时间: 2026-10-30T06:27:10.504Z
+
+--- Console Errors ---
+Failed to load resource: the server responded with a status of 429 (Too Many Requests)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+429 POST http://localhost:9302/v1/auth/login
+
+--- 后端 API 调用记录 (status METHOD path) ---
+429 POST /v1/auth/login
+200 POST /v1/auth/login
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/routes
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMzQ4ODI4NDYwLCJub25jZSI6ImI5MmY1ZDI1LTZiMDgtNGVlMS04NmI0LTRlNTQxMzQxZmJiZiIsImlhdCI6MTc5MzM0MTYyODQ2MCwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiJhNzJhMmM2Yi0xY2FkLTQ1MjQtOWI4ZS00OTdmMjM0ZTU4NjkifQ.qRBgpNtlwUpBo9OWN2tgmwNqW2WUro4Oy8AslumOJwI
+
+--- Extra ---
+勾选态=false / localStorage=无 / sessionStorage=有

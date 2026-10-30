@@ -1,0 +1,46 @@
+用例: 03-17-delete-verified
+时间: 2026-10-30T06:32:29.607Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMzQ5MTMyMjAwLCJub25jZSI6IjNmNDBkZjZkLWI3YzAtNDc1My1iMThlLTI1NzFmYjhiMmZmZiIsImlhdCI6MTc5MzM0MTkzMjIwMCwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiI1ZmVhZjQyNy1mYzViLTQ0MTMtYTYxYi1hM2Q0ODAwMDY3ZDkifQ.0tPZNMMxMnCWUaO_IQJkyMhvxstf97PafUi-IAbIbTI :: net::ERR_ABORTED
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMzQ5MTM4NDMzLCJub25jZSI6IjJkYWUzOTljLTFhNWUtNDU4YS05M2MyLWRjYzFlNGZlNzI3YiIsImlhdCI6MTc5MzM0MTkzODQzMywiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiIzMzYxNTViMi04NGI4LTQyYTctYTYxZi1lNmIzODk5NTYyMGQifQ.jtAAQyNFNxlWUsaLIqDv6phaDutzUi9g3uaB3rpygTI :: net::ERR_ABORTED
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/plugins/builtin-types
+200 GET /v1/environments
+200 GET /v1/routes
+200 POST /v1/routes
+200 GET /v1/routes
+200 GET /v1/routes/2116055565481250817
+200 GET /v1/routes/2116055565481250817
+200 GET /v1/routes/2116055565481250817/plugins
+200 GET /v1/routes/2116055565481250817/plugin-chain
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/routes
+200 GET /v1/routes?environment=default
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMzQ5MTM4NDMzLCJub25jZSI6IjJkYWUzOTljLTFhNWUtNDU4YS05M2MyLWRjYzFlNGZlNzI3YiIsImlhdCI6MTc5MzM0MTkzODQzMywiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiIzMzYxNTViMi04NGI4LTQyYTctYTYxZi1lNmIzODk5NTYyMGQifQ.jtAAQyNFNxlWUsaLIqDv6phaDutzUi9g3uaB3rpygTI
+200 DELETE /v1/routes/2116055565481250817
+200 GET /v1/routes?environment=default
+200 GET /v1/routes?environment=default
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/routes
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMzQ5MTQ1NjMzLCJub25jZSI6IjVhMmEwMzkxLTdlNmItNGZhNS04ZWM0LTU5MmY1NzE0YWYxYiIsImlhdCI6MTc5MzM0MTk0NTYzMywiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiI1ZDBiODI0OS0xODQwLTQxOTctOWYwYy0yOTlmODAwZTBhNWYifQ.gFpLQC9Y9Sw0OZRS0aNtuITTlmaxJL08lShSbl-rYM0
+200 GET /v1/routes?environment=default
+
+--- Extra ---
+删除后仍能搜到的行数: 0

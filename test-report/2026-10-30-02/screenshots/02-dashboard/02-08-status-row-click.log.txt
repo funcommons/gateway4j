@@ -1,0 +1,25 @@
+用例: 02-08-status-row-click
+时间: 2026-10-30T06:28:55.938Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMzQ4OTMwMzg2LCJub25jZSI6ImRkMDBiYTI5LWY5OGQtNGRhZS05ZTk1LWM0NDU5OTQ3NTNjMCIsImlhdCI6MTc5MzM0MTczMDM4NiwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiJmNWNkMWVmMS00NmMyLTQ4MWYtYmVjYS1hZjQ1MTZmNzI2ZTQifQ.CbdOR4AFpA4TwIEGNyAJGECAIb2Vq6jVWX5MiOM5ieQ :: net::ERR_ABORTED
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/plugins/builtin-types
+200 GET /v1/routes
+200 GET /v1/routes/-106
+200 GET /v1/routes/-106
+200 GET /v1/routes/-106/plugins
+200 GET /v1/routes/-106/plugin-chain
+
+--- Extra ---
+跳转到: http://localhost:9302/routes/-106

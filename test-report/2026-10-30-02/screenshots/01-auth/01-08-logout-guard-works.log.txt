@@ -1,0 +1,20 @@
+用例: 01-08-logout-guard-works
+时间: 2026-10-30T06:26:00.043Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMzQ4NzU2Njk3LCJub25jZSI6IjhjMjIxMGE3LWIzZjAtNDdhMy05ZmE3LTZlNmU1ODA2NjU0NiIsImlhdCI6MTc5MzM0MTU1NjY5NywiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiIwMDM3MzE5ZC0wMDI3LTQxZTEtYWUzYS03ZGRjY2FhZjFmN2YifQ.O72abHaS-ba67QlEkMebpEdclIUo8851S2f5dnq76TY :: net::ERR_ABORTED
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/login
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/routes

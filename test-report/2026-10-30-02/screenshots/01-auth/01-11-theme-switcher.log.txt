@@ -1,0 +1,21 @@
+用例: 01-11-theme-switcher
+时间: 2026-10-30T06:26:09.221Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/login
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/routes
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMzQ4NzY2NDA1LCJub25jZSI6ImJkZGUyN2Q5LWM1OWEtNDcyZC1iYjYzLWI4MzMzMjVmNGZiNSIsImlhdCI6MTc5MzM0MTU2NjQwNSwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiIyZmE1Mjc3NC02M2M1LTQyNDQtYjJiMC1jMGRhZWNlZGEyZGEifQ.YAqV3vuBXLr_S0sVxsFVKNMqSgJ2VO7bQMIQZMHo1B0

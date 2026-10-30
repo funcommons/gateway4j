@@ -1,0 +1,17 @@
+用例: 02-02-tab-route-status
+时间: 2026-10-30T06:27:25.711Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMzQ4ODQyNTE3LCJub25jZSI6IjAyZWVkNjZiLWM3ZGEtNDQyZC1iMDM0LWQ3OGI2MjgyNWFjNCIsImlhdCI6MTc5MzM0MTY0MjUxNywiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiIyMDUzY2ZiYy0zMmMxLTQ0N2YtYTNmNS1hNDZkNzE0MGE1MTUifQ.2lfqWPWpzlalDmLPR3S3VmIMj3pp5OmadU-dicMZruk

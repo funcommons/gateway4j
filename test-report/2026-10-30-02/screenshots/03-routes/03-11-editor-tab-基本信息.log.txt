@@ -1,0 +1,24 @@
+用例: 03-11-editor-tab-基本信息
+时间: 2026-10-30T06:31:13.140Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMzQ5MDY5MDU3LCJub25jZSI6IjBhYTk5ZWQxLWJkZTQtNDUxYy04MzNlLWU3ODc5N2Q1MDRkOSIsImlhdCI6MTc5MzM0MTg2OTA1NywiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiIxYTIwYzJiZC0zZmY1LTQ4NGMtODQzOC03MWVjZDg3NGJhM2MifQ.edi54oUMGr3ZCq7hdjOmJtEpuUiAYI4KGVvwxWElVC4 :: net::ERR_ABORTED
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/plugins/builtin-types
+200 GET /v1/environments
+200 GET /v1/routes
+
+--- Extra ---
+Tab "基本信息" 未找到

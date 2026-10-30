@@ -1,0 +1,21 @@
+用例: 01-10-header-rendered
+时间: 2026-10-30T06:26:06.175Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/login
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/routes
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMzQ4NzYzMzYxLCJub25jZSI6IjcyODJkYTlmLWFjNTAtNDE4Yy05ZTBiLWU4OGJlYzg5MjE2NCIsImlhdCI6MTc5MzM0MTU2MzM2MSwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiIzNWZkMjE0YS1lZGNhLTQ1YzktYmQ1ZC05ZDA0NDQ2MDQyMWMifQ.oOLL8BmwX3e_Wg7Z3uVA19-2iAFQOWcGtb9dm-JClyI

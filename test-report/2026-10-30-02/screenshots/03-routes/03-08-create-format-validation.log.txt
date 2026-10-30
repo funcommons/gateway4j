@@ -1,0 +1,25 @@
+用例: 03-08-create-format-validation
+时间: 2026-10-30T06:30:57.880Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMzQ5MDUxMjI0LCJub25jZSI6ImY1ZDQ1OTQzLTMzZmEtNDVjMC05NzFjLWM2OTk3MGIxZWQ2NCIsImlhdCI6MTc5MzM0MTg1MTIyNCwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiJlMmNiN2FhMS1hYzQ3LTQ2ZTktYWMyZi0zYmRlMGQ0NWNhMTYifQ.7aEKIp71KZABElzHfe0-yeiWWMXE9InnLC8DUjZvf2E :: net::ERR_ABORTED
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/plugins/builtin-types
+200 GET /v1/environments
+200 GET /v1/routes
+200 GET /v1/routes?page=1&page_size=200
+
+--- Extra ---
+校验错误条数=3; 库中同名非法路由条数=0; 保存后 URL=http://localhost:9302/routes/new

@@ -1,0 +1,17 @@
+用例: 02-04-status-segment-filter
+时间: 2026-10-30T06:27:35.907Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMzQ4ODUyMDcxLCJub25jZSI6ImNiM2RkMjhhLWQyNmYtNDI3Zi04MDExLTdkNmE5Nzc0NWY1MiIsImlhdCI6MTc5MzM0MTY1MjA3MSwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiIyMjM3YWY5MC00YmFiLTQxMzUtYjFkYi1jZTc5YTM0OGMzYjQifQ.vzdL8vp9QJBhFL0mRBHMRGOo6f-Fm4c8svXBRYinK8A

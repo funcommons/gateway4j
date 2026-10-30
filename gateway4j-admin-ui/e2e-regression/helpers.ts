@@ -3,7 +3,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 
 /** 报告根目录（与 playwright.regression.config.ts 中的 results.json 输出目录一致） */
-export const REPORT_ROOT = path.resolve(process.cwd(), '../test-report/2026-10-29-03')
+export const REPORT_ROOT = path.resolve(process.cwd(), '../test-report/2026-10-30-02')
 export const SHOT_ROOT = path.join(REPORT_ROOT, 'screenshots')
 
 export const CREDENTIALS = { username: 'admin', password: 'admin123' }

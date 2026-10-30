@@ -1,0 +1,31 @@
+用例: 04-03-empty-canvas-no-hint
+时间: 2026-10-30T06:32:52.344Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 PUT /v1/routes/-100/canvas
+
+--- Extra ---
+画布节点数=12; .canvas-shell 文本="持久化验证节点
+user_service
+order_service
+product_service
+payment_service
+BACKEND
+BACKEND
+BACKEND
+BACKEND
+BACKEND
+BACKEND
+BACKE"

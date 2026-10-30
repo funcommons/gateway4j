@@ -1,0 +1,22 @@
+用例: 03-13-patch-update
+时间: 2026-10-30T06:31:24.764Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzMzQ5MDgyMjA2LCJub25jZSI6IjNiZmM5ZTVmLTVhNWUtNDZmYi1iYThlLTA2ZDU1YTc5NWRjYiIsImlhdCI6MTc5MzM0MTg4MjIwNiwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiJhOWNlYzdhZS0xMjJmLTRjMTctYTdjOS1lOWJlNmQ0MmIxZWQifQ.KhG8acbcTfM0SDnuIZ5U58y683O4I5rr4CCR0oZd7uM
+200 POST /v1/routes
+200 PATCH /v1/routes/2116055349080330241
+
+--- Extra ---
+创建 status=200; PATCH status=200 payload={"id":"2116055349080330241","route_name":"e2e_patch_mvulgdx2757","route_type":"BACKEND","path":"/e2e/e2e_patch_mvulgdx2757/**","upstream_url":"http://127.0.0.1:19000","status":"DRAFT","parent_route_id
