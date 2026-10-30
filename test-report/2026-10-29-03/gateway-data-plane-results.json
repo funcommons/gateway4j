@@ -91,22 +91,16 @@
                   "errors": [],
                   "stdout": [
                     {
-                      "text": "[env] worker pid=40764 RUN=mvt8g6x2\n"
+                      "text": "[env] worker pid=4023 RUN=mvuf2dbl\n"
                     },
                     {
                       "text": "[setup] 10 条路由已发布，等待网关指纹轮询生效…\n"
                     },
                     {
-                      "text": "[setup] key-auth 拦截 已生效（缺 key http=401）\n"
-                    },
-                    {
-                      "text": "[setup] basic-auth 拦截 已生效（无凭据 http=401）\n"
-                    },
-                    {
-                      "text": "[setup] jwt 拦截 已生效（无 token http=401）\n"
-                    },
-                    {
                       "text": "[setup] waf 拦截 已生效（reject http=403）\n"
+                    },
+                    {
+                      "text": "[setup] key-auth 拦截 已生效（缺 key http=401）\n"
                     },
                     {
                       "text": "[setup] oauth2 拦截 已生效（无 token http=302）\n"
@@ -115,18 +109,24 @@
                       "text": "[setup] sign 拦截 已生效（缺签名头 http=401）\n"
                     },
                     {
-                      "text": "[setup] 对照路由生效 已生效（http=200）\n"
+                      "text": "[setup] jwt 拦截 已生效（无 token http=401）\n"
+                    },
+                    {
+                      "text": "[setup] basic-auth 拦截 已生效（无凭据 http=401）\n"
                     },
                     {
                       "text": "[setup] sentinel 生效 已生效（http=200）\n"
                     },
                     {
                       "text": "[setup] circuit-breaker 生效 已生效（http=200）\n"
+                    },
+                    {
+                      "text": "[setup] 对照路由生效 已生效（http=200）\n"
                     }
                   ],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-10-29T07:39:34.030Z",
+                  "startTime": "2026-10-30T03:32:32.633Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -155,12 +155,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 12,
+                  "duration": 14,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-10-29T07:39:36.346Z",
+                  "startTime": "2026-10-30T03:32:35.113Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -189,12 +189,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 20,
+                  "duration": 19,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-10-29T07:39:36.362Z",
+                  "startTime": "2026-10-30T03:32:35.130Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -228,7 +228,7 @@
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-10-29T07:39:36.386Z",
+                  "startTime": "2026-10-30T03:32:35.153Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -257,7 +257,7 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 30,
+                  "duration": 36,
                   "errors": [],
                   "stdout": [
                     {
@@ -266,7 +266,7 @@
                   ],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-10-29T07:39:36.400Z",
+                  "startTime": "2026-10-30T03:32:35.168Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -295,7 +295,7 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 19,
+                  "duration": 28,
                   "errors": [],
                   "stdout": [
                     {
@@ -304,7 +304,7 @@
                   ],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-10-29T07:39:36.434Z",
+                  "startTime": "2026-10-30T03:32:35.207Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -333,7 +333,7 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 28,
+                  "duration": 31,
                   "errors": [],
                   "stdout": [
                     {
@@ -342,7 +342,7 @@
                   ],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-10-29T07:39:36.457Z",
+                  "startTime": "2026-10-30T03:32:35.238Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -371,12 +371,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 200,
+                  "duration": 534,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-10-29T07:39:36.491Z",
+                  "startTime": "2026-10-30T03:32:35.275Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -405,7 +405,7 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 31,
+                  "duration": 32,
                   "errors": [],
                   "stdout": [
                     {
@@ -414,7 +414,7 @@
                   ],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-10-29T07:39:36.694Z",
+                  "startTime": "2026-10-30T03:32:35.813Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -443,12 +443,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 7,
+                  "duration": 16,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-10-29T07:39:36.729Z",
+                  "startTime": "2026-10-30T03:32:35.849Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -485,22 +485,22 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 97,
+                  "duration": 114,
                   "errors": [],
                   "stdout": [
                     {
-                      "text": "[env] worker pid=40764 RUN=mvt8g9c2\n"
+                      "text": "[env] worker pid=4023 RUN=mvuf2g5p\n"
                     },
                     {
-                      "text": "[场景1] route=gwtest_base_mvt8g9c2_ll7 id=2115710132166848513 config_version=3（基线 max=2）\n"
+                      "text": "[场景1] route=gwtest_base_mvuf2g5p_igk0 id=2116010357041369089 config_version=3（基线 max=2）\n"
                     },
                     {
-                      "text": "[场景1] OK http=200 body={\"echo\":true,\"tag\":\"gw-echo-19001\",\"mode\":\"echo\",\"path\":\"/e2e/gw/mvt8g9c2b1/ping\",\"method\":\"GET\",\"header_x_echo\":\"scenario1\",\"header_x_ver\":null,\"header_x_user\":null,\"header_x_username\":null,\"header_x\n"
+                      "text": "[场景1] OK http=200 body={\"echo\":true,\"tag\":\"gw-echo-19001\",\"mode\":\"echo\",\"path\":\"/e2e/gw/mvuf2g5pb1/ping\",\"method\":\"GET\",\"header_x_echo\":\"scenario1\",\"header_x_ver\":null,\"header_x_user\":null,\"header_x_username\":null,\"header_x\n"
                     }
                   ],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-10-29T07:39:37.157Z",
+                  "startTime": "2026-10-30T03:32:36.305Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -529,11 +529,11 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 2254,
+                  "duration": 246,
                   "errors": [],
                   "stdout": [
                     {
-                      "text": "[场景2] routes a=2115710132582084610 b=2115710132619833346 dispatch=2115710132661776386 v=3（基线 max=2）\n"
+                      "text": "[场景2] routes a=2116010357477576705 b=2116010357511131137 dispatch=2116010357553074177 v=3（基线 max=2）\n"
                     },
                     {
                       "text": "[场景2] 实测 x-ver=v1 → http=200 tag=gw-echo-19002；x-ver=v2 → http=200 tag=gw-echo-19003\n"
@@ -541,7 +541,7 @@
                   ],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-10-29T07:39:38.246Z",
+                  "startTime": "2026-10-30T03:32:37.434Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -570,11 +570,11 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 122,
+                  "duration": 141,
                   "errors": [],
                   "stdout": [
                     {
-                      "text": "[场景3] route=gwtest_s3_mvt8g9c2_gq4z id=2115710142057017345 config_version=5\n"
+                      "text": "[场景3] route=gwtest_s3_mvuf2g5p_ftpq id=2116010358538735618 config_version=5\n"
                     },
                     {
                       "text": "[场景3] 下线前已生效 http=200\n"
@@ -588,7 +588,7 @@
                   ],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-10-29T07:39:40.504Z",
+                  "startTime": "2026-10-30T03:32:37.684Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -621,12 +621,12 @@
                   "errors": [],
                   "stdout": [
                     {
-                      "text": "[场景4] 实际响应 http=404 body={\"code\":404,\"message\":\"Not Found: No static resource e2e/gw/definitely-not-registered-mvt8g9c2/deep/path.\",\"data\":null,\"success\":false,\"fail\":true}\n"
+                      "text": "[场景4] 实际响应 http=404 body={\"code\":404,\"message\":\"Not Found: No static resource e2e/gw/definitely-not-registered-mvuf2g5p/deep/path.\",\"data\":null,\"success\":false,\"fail\":true}\n"
                     }
                   ],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-10-29T07:39:40.629Z",
+                  "startTime": "2026-10-30T03:32:37.828Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -655,22 +655,22 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 133,
+                  "duration": 156,
                   "errors": [],
                   "stdout": [
                     {
                       "text": "[场景5] ENABLED 插件: e2e_gvy_mvt88gsh990(ROUTE/PRE), e2e_gvy_mvsady09264(ROUTE/PRE), e2e_gvy_mvsegewg27(ROUTE/PRE), e2e_gvy_mvss6fkp405(ROUTE/PRE), e2e_gvy_mvt62p3f262(ROUTE/PRE), security(GLOBAL/PRE), logging(GLOBAL/PRE), logging-post(GLOBAL/POST), tracing(GLOBAL/PRE), tracing-post(GLOBAL/POST), metrics(GLOBAL/PRE), metrics-post(GLOBAL/POST)\n"
                     },
                     {
-                      "text": "[场景5] route=gwtest_plugin_mvt8g9c2_b7t4 插件=gwtest_mock_mvt8g9c2_140m config_version=5\n"
+                      "text": "[场景5] route=gwtest_plugin_mvuf2g5p_dcnu 插件=gwtest_mock_mvuf2g5p_adth config_version=5\n"
                     },
                     {
-                      "text": "[场景5] Mock 未短路（实际响应 http=200 body={\"echo\":true,\"tag\":\"gw-echo-19001\",\"mode\":\"echo\",\"path\":\"/e2e/gw/mvt8g9c2p5/ping\",\"method\":\"GET\",\"header_x_echo\":null,\"header_x_ver\":null,\"header_x_user\":null,\"header_x_username\":null,\"header_x_oauth2），降级判据：绑定成功(true) + 转发仍通(tag=gw-echo-19001)；插件链行为无法黑盒断言\n"
+                      "text": "[场景5] Mock 未短路（实际响应 http=200 body={\"echo\":true,\"tag\":\"gw-echo-19001\",\"mode\":\"echo\",\"path\":\"/e2e/gw/mvuf2g5pp5/ping\",\"method\":\"GET\",\"header_x_echo\":null,\"header_x_ver\":null,\"header_x_user\":null,\"header_x_username\":null,\"header_x_oauth2），降级判据：绑定成功(true) + 转发仍通(tag=gw-echo-19001)；插件链行为无法黑盒断言\n"
                     }
                   ],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-10-29T07:39:40.635Z",
+                  "startTime": "2026-10-30T03:32:37.834Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -688,8 +688,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-10-29T07:39:33.758Z",
-    "duration": 7090.501,
+    "startTime": "2026-10-30T03:32:32.416Z",
+    "duration": 5658.171,
     "expected": 15,
     "skipped": 0,
     "unexpected": 0,
