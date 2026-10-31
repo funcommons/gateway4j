@@ -156,7 +156,7 @@ describe('List.vue — 批量操作 runBulk', () => {
     await vm.runBulk('delete')
     expect(mocks.fcConfirm).toHaveBeenCalled()
     expect(mocks.bulkDeleteRoutes).toHaveBeenCalledWith(['a', 'b'])
-    expect(ElMessage.success).toHaveBeenCalledWith('批量操作成功 2 条')
+    expect(ElMessage.success).toHaveBeenCalledWith(expect.objectContaining({ message: '批量操作成功 2 条' }))
     expect(vm.actionError).toBe('')
     expect(vm.selectedRows).toEqual([])
   })
@@ -171,7 +171,7 @@ describe('List.vue — 批量操作 runBulk', () => {
       failed: [{ id: 'b', reason: '存在子路由，不可删除' }]
     })
     await vm.runBulk('delete')
-    expect(ElMessage.warning).toHaveBeenCalledWith('成功 1 条，失败 1 条：存在子路由，不可删除')
+    expect(ElMessage.warning).toHaveBeenCalledWith(expect.objectContaining({ message: '成功 1 条，失败 1 条：存在子路由，不可删除' }))
     expect(vm.actionError).toBe('成功 1 条，失败 1 条：存在子路由，不可删除')
   })
 
@@ -206,7 +206,7 @@ describe('List.vue — 复制 duplicate', () => {
     mocks.listRoutes.mockClear()
     await vm.duplicate(makeRouteNode({ id: 'src-1', route_name: 'src' }))
     expect(mocks.duplicateRoute).toHaveBeenCalledWith('src-1')
-    expect(ElMessage.success).toHaveBeenCalledWith('已复制为新路由 route-1-copy')
+    expect(ElMessage.success).toHaveBeenCalledWith(expect.objectContaining({ message: '已复制为新路由 route-1-copy' }))
     expect(mocks.listRoutes).toHaveBeenCalled()
   })
 

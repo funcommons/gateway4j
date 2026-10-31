@@ -131,6 +131,11 @@ export default {
     pathPattern: '请输入合法路径',
     upstreamRequired: '请输入后端地址',
     upstreamPattern: '请输入合法后端地址',
+    help: {
+      name: '2-50 位字母、数字或下划线，创建后不可修改；仅作内部标识，不参与请求转发',
+      path: '必须以 / 开头且不能包含空格；支持 * 通配，例如 /api/**',
+      upstream: '填写完整的后端服务地址，需带 http:// 或 https:// 协议头且不含空格，例如 http://backend:8080'
+    },
     remarkMaxLength: '描述不超过 200 字',
     sortOrderRange: '排序值范围 1-9999',
     maxBindingsReached: '单路由插件不可超过 20',
@@ -231,6 +236,7 @@ export default {
     dispatchNeedsConditions: '分发路由必须至少添加一条分发条件',
     validationFailed: '路由校验失败',
     unsavedChanges: '有未保存的更改，确定离开吗？',
+    discardChanges: '放弃当前未保存的修改？确定后将恢复为最近一次保存的内容。',
     canvasSave: '保存画布',
     canvasUndo: '撤销',
     canvasRedo: '重做',
@@ -307,6 +313,11 @@ export default {
     nameRequired: '请输入插件名称',
     namePattern: '插件名称需 2-50 位字母数字下划线',
     idRequired: '请输入插件标识',
+    help: {
+      id: '插件的唯一标识，创建后不可修改；建议用小写字母、数字与中划线，需全局唯一',
+      script: '在沙箱中编译执行：仅可导入白名单类，禁止 System / Runtime / ProcessBuilder / Class 等类与 exit / forName / evaluate 等方法名；上限 64KB',
+      jar: '仅接受 .jar 包，单个文件不超过 50MB；由独立 ClassLoader 装载，与内置插件互不影响'
+    },
     phaseRequired: '请选择插件阶段',
     sortOrderRange: '排序值范围 1-9999',
     sortOrder: '排序值',
@@ -319,6 +330,7 @@ export default {
     enableSuccess: '插件已启用',
     disableSuccess: '插件已禁用',
     deleteSuccess: '插件已删除',
+    createTitle: '新建插件',
     categorySecurity: '安全认证',
     categoryRateLimit: '限流熔断',
     categoryTrafficRewrite: '流量改写',
@@ -391,6 +403,10 @@ export default {
     resetPassword: '重置密码',
     searchPlaceholder: '搜索用户',
     newPasswordHint: '留空则不修改',
+    help: {
+      username: '2-30 位字母、数字或下划线，全局唯一；创建后不可修改',
+      password: '至少 8 位，建议字母与数字组合使用；服务端以 BCrypt 加密存储，仅管理员可重置'
+    },
     nameRequired: '请输入用户名',
     namePattern: '用户名需 2-30 位字母数字下划线',
     passwordRequired: '请输入密码',
@@ -417,6 +433,11 @@ export default {
     typeMenu: '菜单',
     typeButton: '按钮',
     typeApi: '接口',
+    saveSuccess: '保存成功',
+    deleteSuccess: '删除成功',
+    grantSuccess: '授权成功',
+    typeAll: '全部',
+    typeFilter: '权限类型',
     members: '成员',
     memberTitle: '成员管理',
     membersLoadFailed: '成员加载失败',
@@ -502,6 +523,10 @@ export default {
     language: '语言',
     tokenExpiryRange: 'Token 过期时间范围 1-720 小时',
     refreshExpiryRange: 'Refresh Token 过期时间范围 1-365 天',
+    help: {
+      tokenExpiry: 'Access Token 有效期，单位小时，范围 1-720；到期后由 Refresh Token 自动换发新令牌',
+      refreshExpiry: 'Refresh Token 有效期，单位天，范围 1-365；到期后必须重新认证才能访问网关'
+    },
     saveSuccess: '设置已保存',
     tabChanges: '变更记录',
     changeTime: '时间',
@@ -529,5 +554,27 @@ export default {
     processing: '处理中',
     search: '搜索',
     'no-result': '无匹配结果'
+  },
+  // SDK 通用交互文案（FcFormDraftBanner 等组件内置文案走这里的 key）
+  ux: {
+    'command-palette': {
+      trigger: '命令面板',
+      placeholder: '输入命令或页面名称…',
+      empty: '无匹配命令',
+      groupNav: '页面跳转',
+      groupAction: '快捷动作',
+      toggleTheme: '切换主题'
+    },
+    'error-boundary': {
+      title: '页面渲染失败',
+      fallback: '当前页面加载出错，请点击重试；若反复失败，请联系管理员。',
+      retry: '重试',
+      reset: '重置'
+    },
+    draft: {
+      'banner-restore': '当前表单有未保存的修改，离开前请先保存，或放弃修改以恢复最近一次保存的内容。',
+      'banner-discard': '放弃修改',
+      'banner-restore-btn': '恢复已保存内容'
+    }
   }
 }

@@ -134,6 +134,11 @@ export default {
     pathPattern: 'Please enter a valid path',
     upstreamRequired: 'Please enter upstream URL',
     upstreamPattern: 'Please enter a valid HTTP(S) URL',
+    help: {
+      name: '2-50 letters, digits or underscores; immutable after creation. Used as an internal identifier only, never part of the forwarded request.',
+      path: 'Must start with / and contain no spaces; * wildcards are supported, e.g. /api/**',
+      upstream: 'Full backend service URL including the http:// or https:// scheme and no spaces, e.g. http://backend:8080'
+    },
     remarkMaxLength: 'Description must not exceed 200 characters',
     sortOrderRange: 'Sort order must be 1-9999',
     maxBindingsReached: 'Plugins per route cannot exceed 20',
@@ -234,6 +239,7 @@ export default {
     dispatchNeedsConditions: 'Dispatch routes must have at least one condition',
     validationFailed: 'Route validation failed',
     unsavedChanges: 'You have unsaved changes. Are you sure you want to leave?',
+    discardChanges: 'Discard your unsaved changes? The form will be restored to the last saved version.',
     canvasSave: 'Save Canvas',
     canvasUndo: 'Undo',
     canvasRedo: 'Redo',
@@ -310,6 +316,11 @@ export default {
     nameRequired: 'Please enter plugin name',
     namePattern: 'Plugin name must be 2-50 alphanumeric characters',
     idRequired: 'Please enter plugin ID',
+    help: {
+      id: 'Unique plugin identifier, immutable after creation; lowercase letters, digits and hyphens are recommended and it must be globally unique',
+      script: 'Compiled and executed inside a sandbox: only whitelisted classes may be imported, and classes such as System / Runtime / ProcessBuilder / Class as well as methods such as exit / forName / evaluate are rejected; 64KB max',
+      jar: 'Only .jar packages are accepted, max 50MB each; loaded by an isolated ClassLoader and independent from built-in plugins'
+    },
     phaseRequired: 'Please select plugin phase',
     sortOrderRange: 'Sort order must be 1-9999',
     sortOrder: 'Sort Order',
@@ -322,6 +333,7 @@ export default {
     enableSuccess: 'Plugin enabled',
     disableSuccess: 'Plugin disabled',
     deleteSuccess: 'Plugin deleted',
+    createTitle: 'New Plugin',
     categorySecurity: 'Security & Auth',
     categoryRateLimit: 'Rate Limiting & Circuit Breaking',
     categoryTrafficRewrite: 'Traffic Rewrite',
@@ -394,6 +406,10 @@ export default {
     resetPassword: 'Reset Password',
     searchPlaceholder: 'Search user',
     newPasswordHint: 'Leave empty to keep current',
+    help: {
+      username: '2-30 letters, digits or underscores, globally unique; immutable after creation',
+      password: 'At least 8 characters; mixing letters and digits is recommended. Stored BCrypt-hashed server-side and resettable by administrators only'
+    },
     nameRequired: 'Please enter username',
     namePattern: 'Username must be 2-30 alphanumeric characters',
     passwordRequired: 'Please enter password',
@@ -420,6 +436,11 @@ export default {
     typeMenu: 'Menu',
     typeButton: 'Button',
     typeApi: 'API',
+    saveSuccess: 'Saved successfully',
+    deleteSuccess: 'Deleted successfully',
+    grantSuccess: 'Permissions granted',
+    typeAll: 'All',
+    typeFilter: 'Permission type',
     members: 'Members',
     memberTitle: 'Manage Members',
     membersLoadFailed: 'Failed to load members',
@@ -505,6 +526,10 @@ export default {
     language: 'Language',
     tokenExpiryRange: 'Token expiry must be 1-720 hours',
     refreshExpiryRange: 'Refresh token expiry must be 1-365 days',
+    help: {
+      tokenExpiry: 'Access Token lifetime in hours (1-720); a new token is issued automatically by the Refresh Token once it expires',
+      refreshExpiry: 'Refresh Token lifetime in days (1-365); once it expires the user must authenticate again to reach the gateway'
+    },
     saveSuccess: 'Settings saved',
     tabChanges: 'Changes',
     changeTime: 'Time',
@@ -532,5 +557,27 @@ export default {
     processing: 'Processing',
     search: 'Search',
     'no-result': 'No results'
+  },
+  // Shared SDK interaction copy (FcFormDraftBanner and friends read these keys)
+  ux: {
+    'command-palette': {
+      trigger: 'Command palette',
+      placeholder: 'Type a command or page name…',
+      empty: 'No matching commands',
+      groupNav: 'Navigation',
+      groupAction: 'Quick actions',
+      toggleTheme: 'Toggle theme'
+    },
+    'error-boundary': {
+      title: 'Failed to render this page',
+      fallback: 'This page failed to render. Click retry; contact an administrator if the problem persists.',
+      retry: 'Retry',
+      reset: 'Reset'
+    },
+    draft: {
+      'banner-restore': 'This form has unsaved changes. Save before leaving, or discard the changes to restore the last saved version.',
+      'banner-discard': 'Discard changes',
+      'banner-restore-btn': 'Restore saved version'
+    }
   }
 }

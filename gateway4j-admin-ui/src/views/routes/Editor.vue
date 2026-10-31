@@ -18,6 +18,15 @@
     </FcSectionCard>
 
     <FcSectionCard v-if="routeData && !loadError && !loading" padding="none">
+      <!-- 未保存修改提示（FcFormDraftBanner）：后端暂无表单草稿快照接口，只保留「放弃修改」 -->
+      <div class="draft-banner-slot">
+        <FcFormDraftBanner
+          :visible="dirty"
+          data-testid="route-draft-banner"
+          @discard="discardChanges"
+          @restore="discardChanges"
+        />
+      </div>
       <!-- P1-5 编辑冲突：不自动覆盖表单，给出显式「刷新」入口重拉服务端数据 -->
       <div v-if="conflict" class="conflict-bar" data-testid="conflict-bar">
         <span class="conflict-text">{{ t('route.conflictModified') }}</span>
@@ -88,12 +97,11 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
 import { useFcConfirm } from '@/composables/useFcConfirm'
 import { usePermission } from '@/composables/usePermission'
 import {
-  FcSectionCard, FcTabsPanel, FcButton, FcStatusBadge, FcSkeleton, FcSelect,
-  PublishSyncStatus, PublishDescriptionDialog
+  FcSectionCard, FcTabsPanel, FcButton, FcStatusBadge, FcSkeleton, FcSelect, FcFormDraftBanner,
+  PublishSyncStatus, PublishDescriptionDialog, toast
 } from '@/components'
 import type { SelectOption } from '@/components/form/_types'
 import RouteBasicForm, { type RouteBasic } from '@/components/RouteBasicForm.vue'
@@ -461,7 +469,7 @@ async function save() {
         ...(envChanged ? { environment: formEnv.value } : {})
       }
       await updateRoute(routeId.value, body)
-      ElMessage.success(t('route.saveSuccess'))
+      toast.success(t('route.saveSuccess'))
       dirty.value = false
       await load()
     } else {
@@ -471,7 +479,7 @@ async function save() {
         ...(envReady.value ? { environment: formEnv.value } : {})
       }
       const r = (await createRoute(createBody)) as any
-      ElMessage.success(t('route.saveSuccess'))
+      toast.success(t('route.saveSuccess'))
       dirty.value = false
       await router.replace(`/routes/${r.id}`)
     }
@@ -480,7 +488,7 @@ async function save() {
     // 由 conflict-bar 提供「刷新」按钮让用户显式重拉服务端数据
     if (e?.code === 10402) {
       conflict.value = true
-      ElMessage.warning(e?.message || t('route.conflictModified'))
+      toast.warning(e?.message || t('route.conflictModified'))
       return
     }
     const fieldErrs = mapFieldErrors(e)
@@ -495,6 +503,18 @@ async function save() {
 
 /** 冲突提示条的「刷新」：重拉服务端数据覆盖表单（用户显式点击才覆盖） */
 async function reloadAfterConflict() {
+  conflict.value = false
+  await load()
+}
+
+/**
+ * 放弃未保存的修改（FcFormDraftBanner 的「放弃修改」）：
+ * 后端没有表单草稿快照接口，所以「放弃 / 恢复」都落到既有的重置逻辑 load()——
+ * 重新拉取服务端数据覆盖表单并清空 dirty（不做任何后端草稿 API 臆造）。
+ */
+async function discardChanges() {
+  if (loading.value) return
+  if (!await fcConfirm({ title: t('route.discardChanges'), variant: 'danger' })) return
   conflict.value = false
   await load()
 }
@@ -532,7 +552,7 @@ async function onPublishConfirm(description: string) {
   saveError.value = ''
   try {
     await publishRoute(routeId.value, description)
-    ElMessage.success(t('route.publishSuccess'))
+    toast.success(t('route.publishSuccess'))
     publishDialogOpen.value = false
     // P1-3: 发布成功后轮询配置同步状态，确认网关「已生效」
     syncStatusRef.value?.start()
@@ -552,7 +572,7 @@ async function offline() {
   saveError.value = ''
   try {
     await offlineRoute(routeId.value)
-    ElMessage.success(t('route.offlineSuccess'))
+    toast.success(t('route.offlineSuccess'))
     await load()
   } catch (e: any) {
     saveError.value = e?.message || t('common.actionFailed')
@@ -602,6 +622,15 @@ async function goBack() {
 }
 .conflict-text { flex: 1; }
 .editor-sync-row { margin-top: 8px; }
+/* 未保存修改提示条（FcFormDraftBanner） */
+.draft-banner-slot {
+  margin: 12px 16px 0;
+}
+/* 后端暂无表单草稿快照接口 → SDK 内置的「恢复」按钮没有数据源，
+   隐藏它，只保留「放弃修改」（走既有的 load() 重置逻辑）。 */
+.draft-banner-slot :deep(.fc-draft-banner__btn--primary) {
+  display: none;
+}
 .load-error-state {
   display: flex;
   flex-direction: column;

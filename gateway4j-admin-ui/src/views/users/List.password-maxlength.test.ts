@@ -5,24 +5,36 @@ import path from 'path'
 describe('User List — password maxlength', () => {
   const src = fs.readFileSync(path.resolve(__dirname, 'List.vue'), 'utf-8')
 
+  /**
+   * 表单项按 <FcFormItem 切块 —— 字段块可跨多行（label 插槽 / help 提示），
+   * 单行匹配在多行表单结构下会漏判，故按块定位后再断言控件约束。
+   */
+  function formItemBlock(marker: string): string {
+    const blocks = src.split('<FcFormItem')
+    return blocks.find(b => b.includes(marker)) ?? ''
+  }
+
   it('create password input has maxlength matching VARCHAR(100)', () => {
     // Password field in create mode
-    const lines = src.split('\n')
-    const createPwdLine = lines.find(l => l.includes('user.password') && l.includes('type="password"') && !l.includes('newPassword') && l.includes('maxlength'))
-    expect(createPwdLine).toBeTruthy()
+    const block = formItemBlock("t('user.password')")
+    expect(block).toBeTruthy()
+    expect(block).toContain('type="password"')
+    expect(block).toMatch(/maxlength="100"/)
   })
 
   it('edit password input has maxlength', () => {
     // Password field in edit mode (newPassword)
-    const lines = src.split('\n')
-    const editPwdLine = lines.find(l => l.includes('newPassword') && l.includes('type="password"') && l.includes('maxlength'))
-    expect(editPwdLine).toBeTruthy()
+    const block = formItemBlock("t('user.newPassword')")
+    expect(block).toBeTruthy()
+    expect(block).toContain('type="password"')
+    expect(block).toMatch(/maxlength="100"/)
   })
 
   it('reset password input has maxlength', () => {
     // Password field in reset dialog
-    const lines = src.split('\n')
-    const resetPwdLine = lines.find(l => l.includes('newPwd') && l.includes('type="password"') && l.includes('maxlength'))
-    expect(resetPwdLine).toBeTruthy()
+    const block = formItemBlock('newPwd')
+    expect(block).toBeTruthy()
+    expect(block).toContain('type="password"')
+    expect(block).toMatch(/maxlength="100"/)
   })
 })

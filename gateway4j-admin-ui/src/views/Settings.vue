@@ -27,9 +27,11 @@
           <el-form :model="securityForm" :rules="securityFormRules" label-width="160px" ref="securityFormRef">
             <FcFormItem :label="t('settings.tokenExpiry')" prop="token_expiry_hours">
               <el-input-number v-model="securityForm.token_expiry_hours" :min="1" :max="8760" />
+              <FcHelpTip content-key="settings.help.tokenExpiry" />
             </FcFormItem>
             <FcFormItem :label="t('settings.refreshExpiry')" prop="refresh_expiry_days">
               <el-input-number v-model="securityForm.refresh_expiry_days" :min="1" :max="365" />
+              <FcHelpTip content-key="settings.help.refreshExpiry" />
             </FcFormItem>
           </el-form>
           <p v-if="saveError" class="save-error" data-testid="save-error">{{ saveError }}</p>
@@ -164,12 +166,11 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
 import { useFcConfirm } from '@/composables/useFcConfirm'
 import { usePermission } from '@/composables/usePermission'
 import {
-  FcSection, FcTabsPanel, FcInput, FcSelect, FcButton, FcTable, FcEmpty, FcFormItem,
-  FcSkeleton, FcTag, FcStatusBadge, FcPagination
+  FcSection, FcTabsPanel, FcInput, FcSelect, FcButton, FcTable, FcEmpty, FcFormItem, FcSkeleton,
+  FcTag, FcStatusBadge, FcPagination, FcHelpTip, toast
 } from '@/components'
 import {
   getDict, getConfig, saveConfig, listChanges, listAuditLogs,
@@ -273,7 +274,7 @@ async function saveGeneral() {
       site_name: generalForm.value.site_name,
       language: generalForm.value.language
     })
-    ElMessage.success(t('settings.saveSuccess'))
+    toast.success(t('settings.saveSuccess'))
     dirty.value = false
     locale.value = generalForm.value.language
     localStorage.setItem('gw4j_lang', generalForm.value.language)
@@ -300,7 +301,7 @@ async function saveSecurity() {
       token_expiry_hours: securityForm.value.token_expiry_hours,
       refresh_expiry_days: securityForm.value.refresh_expiry_days
     })
-    ElMessage.success(t('settings.saveSuccess'))
+    toast.success(t('settings.saveSuccess'))
     dirty.value = false
   } catch (e: any) {
     const fieldErrs = mapFieldErrors(e)

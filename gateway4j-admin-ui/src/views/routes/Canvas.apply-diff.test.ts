@@ -138,8 +138,8 @@ describe('Canvas.vue — 应用到路由树', () => {
     })
     // 成功后关闭弹窗并提示可发布
     expect(vm.applyOpen).toBe(false)
-    expect(ElMessage.success).toHaveBeenCalledWith('画布已应用到路由树')
-    expect(ElMessage.success).toHaveBeenCalledWith('路由树已更新，可发布生效')
+    expect(ElMessage.success).toHaveBeenCalledWith(expect.objectContaining({ message: '画布已应用到路由树' }))
+    expect(ElMessage.success).toHaveBeenCalledWith(expect.objectContaining({ message: '路由树已更新，可发布生效' }))
   })
 
   it('empty diff shows info hint and does not open the dialog', async () => {
@@ -149,7 +149,7 @@ describe('Canvas.vue — 应用到路由树', () => {
     await vm.applyToTree()
     expect(vm.applyOpen).toBe(false)
     expect(vm.applyDiff).toBeNull()
-    expect(ElMessage.info).toHaveBeenCalledWith('画布与路由树一致，无需应用')
+    expect(ElMessage.info).toHaveBeenCalledWith(expect.objectContaining({ message: '画布与路由树一致，无需应用' }))
   })
 
   it('dry_run failure surfaces through the existing save-error display', async () => {

@@ -53,9 +53,27 @@
 
     <FcDialog v-model:open="open" :title="isEdit ? t('user.editTitle') : t('user.createTitle')" width="480px">
       <el-form :model="form" :rules="formRules" label-width="100px" ref="formRef">
-        <FcFormItem :label="t('user.name')" prop="username"><FcInput v-model="form.username" :disabled="isEdit" maxlength="50" /></FcFormItem>
-        <FcFormItem v-if="!isEdit" :label="t('user.password')" prop="password"><FcInput v-model="form.password" type="password" maxlength="100" /></FcFormItem>
-        <FcFormItem v-if="isEdit" :label="t('user.newPassword')" prop="password"><FcInput v-model="form.password" type="password" :placeholder="t('user.newPasswordHint')" maxlength="100" /></FcFormItem>
+        <FcFormItem :label="t('user.name')" prop="username">
+          <template #label>
+            <span>{{ t('user.name') }}</span>
+            <FcHelpTip content-key="user.help.username" />
+          </template>
+          <FcInput v-model="form.username" :disabled="isEdit" maxlength="50" />
+        </FcFormItem>
+        <FcFormItem v-if="!isEdit" :label="t('user.password')" prop="password">
+          <template #label>
+            <span>{{ t('user.password') }}</span>
+            <FcHelpTip content-key="user.help.password" />
+          </template>
+          <FcInput v-model="form.password" type="password" maxlength="100" />
+        </FcFormItem>
+        <FcFormItem v-if="isEdit" :label="t('user.newPassword')" prop="password">
+          <template #label>
+            <span>{{ t('user.newPassword') }}</span>
+            <FcHelpTip content-key="user.help.password" />
+          </template>
+          <FcInput v-model="form.password" type="password" :placeholder="t('user.newPasswordHint')" maxlength="100" />
+        </FcFormItem>
         <FcFormItem :label="t('user.realName')"><FcInput v-model="form.real_name" maxlength="50" /></FcFormItem>
         <FcFormItem :label="t('user.phone')" prop="phone"><FcInput v-model="form.phone" maxlength="20" /></FcFormItem>
         <FcFormItem :label="t('user.roles')">
@@ -71,7 +89,13 @@
 
     <FcDialog v-model:open="resetOpen" :title="t('user.resetPassword')" width="380px">
       <el-form label-width="100px">
-        <FcFormItem :label="t('user.newPassword')"><FcInput v-model="newPwd" type="password" maxlength="100" /></FcFormItem>
+        <FcFormItem :label="t('user.newPassword')">
+          <template #label>
+            <span>{{ t('user.newPassword') }}</span>
+            <FcHelpTip content-key="user.help.password" />
+          </template>
+          <FcInput v-model="newPwd" type="password" maxlength="100" />
+        </FcFormItem>
       </el-form>
       <p v-if="actionError && resetOpen" class="dialog-error" data-testid="dialog-error">{{ actionError }}</p>
       <template #footer>
@@ -85,13 +109,12 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
 import { useFcConfirm } from '@/composables/useFcConfirm'
 import { usePermission } from '@/composables/usePermission'
 import { useDebounce } from '@/composables'
 import {
-  FcSection, FcFilterBar, FcInput, FcSelect, FcTable, FcTag, FcStatusBadge,
-  FcButton, FcConfirm, FcDialog, FcFormItem, FcPagination, FcSkeleton
+  FcSection, FcFilterBar, FcInput, FcSelect, FcTable, FcTag, FcStatusBadge, FcButton, FcConfirm,
+  FcDialog, FcFormItem, FcHelpTip, FcPagination, FcSkeleton, toast
 } from '@/components'
 import type { SelectOption } from '@/components/form/_types'
 import { listUsers, createUser, updateUser, deleteUser, resetPassword } from '@/api/misc'
@@ -208,7 +231,7 @@ async function save() {
     } else {
       await createUser(form.value)
     }
-    ElMessage.success(t('user.saveSuccess'))
+    toast.success(t('user.saveSuccess'))
     open.value = false
     form.value = { username: '', password: '', real_name: '', phone: '', role_codes: ['ROLE_OPS'] }
     reload()
@@ -234,7 +257,7 @@ async function toggleStatus(row: any) {
   actionError.value = ''
   try {
     await updateUser(row.id, { status: newStatus })
-    ElMessage.success(t('user.statusUpdateSuccess'))
+    toast.success(t('user.statusUpdateSuccess'))
     reload()
   } catch (e: any) {
     actionError.value = e?.message || t('common.actionFailed')
@@ -246,7 +269,7 @@ async function del(r: any) {
   actionError.value = ''
   try {
     await deleteUser(r.id)
-    ElMessage.success(t('user.deleteSuccess'))
+    toast.success(t('user.deleteSuccess'))
     reload()
   } catch (e: any) {
     actionError.value = e?.message || t('common.actionFailed')
@@ -261,7 +284,7 @@ async function doReset() {
   actionError.value = ''
   try {
     await resetPassword(targetUser.value.id, newPwd.value)
-    ElMessage.success(t('user.resetSuccess'))
+    toast.success(t('user.resetSuccess'))
     resetOpen.value = false
   } catch (e: any) {
     actionError.value = e?.message || t('common.actionFailed')

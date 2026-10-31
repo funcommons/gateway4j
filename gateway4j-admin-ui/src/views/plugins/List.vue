@@ -156,14 +156,13 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
 import { useFcConfirm } from '@/composables/useFcConfirm'
 import { usePermission } from '@/composables/usePermission'
 import { useRouter } from 'vue-router'
 import { useDebounce } from '@/composables'
 import {
-  FcSection, FcFilterBar, FcInput, FcSelect, FcTable, FcTag,
-  FcStatusBadge, FcButton, FcConfirm, FcPagination, FcEmpty, FcSkeleton
+  FcSection, FcFilterBar, FcInput, FcSelect, FcTable, FcTag, FcStatusBadge, FcButton, FcConfirm,
+  FcPagination, FcEmpty, FcSkeleton, toast
 } from '@/components'
 import {
   listPlugins, enablePlugin, disablePlugin, deletePlugin
@@ -258,7 +257,7 @@ async function enable(r: any) {
   actionError.value = ''
   try {
     await enablePlugin(r.instance_id || r.id)
-    ElMessage.success(t('plugin.enableSuccess'))
+    toast.success(t('plugin.enableSuccess'))
     reload()
   } catch (e: any) {
     actionError.value = e?.message || t('common.actionFailed')
@@ -270,7 +269,7 @@ async function disable(r: any) {
   actionError.value = ''
   try {
     await disablePlugin(r.instance_id || r.id)
-    ElMessage.success(t('plugin.disableSuccess'))
+    toast.success(t('plugin.disableSuccess'))
     reload()
   } catch (e: any) {
     actionError.value = e?.message || t('common.actionFailed')
@@ -281,7 +280,7 @@ async function del(r: any) {
   actionError.value = ''
   try {
     await deletePlugin(r.instance_id || r.id)
-    ElMessage.success(t('plugin.deleteSuccess'))
+    toast.success(t('plugin.deleteSuccess'))
     reload()
   } catch (e: any) {
     actionError.value = e?.message || t('common.actionFailed')

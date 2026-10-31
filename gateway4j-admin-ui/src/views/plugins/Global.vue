@@ -61,11 +61,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
 import { useFcConfirm } from '@/composables/useFcConfirm'
 import { usePermission } from '@/composables/usePermission'
 import {
-  FcSection, FcTabsPanel, FcTag, FcSwitch, FcEmpty, FcSkeleton
+  FcSection, FcTabsPanel, FcTag, FcSwitch, FcEmpty, FcSkeleton, toast
 } from '@/components'
 import { listGlobalPlugins, sortGlobalPlugins, enablePlugin, disablePlugin } from '@/api/plugins'
 
@@ -124,10 +123,10 @@ async function togglePlugin(plugin: any) {
   try {
     if (plugin.status === 'ENABLED') {
       await disablePlugin(plugin.instance_id || plugin.id)
-      ElMessage.success(t('plugin.disableSuccess'))
+      toast.success(t('plugin.disableSuccess'))
     } else {
       await enablePlugin(plugin.instance_id || plugin.id)
-      ElMessage.success(t('plugin.enableSuccess'))
+      toast.success(t('plugin.enableSuccess'))
     }
     await load()
   } catch (e: any) {
@@ -141,7 +140,7 @@ async function saveSort(phase: string, items: any[]) {
   const pluginIds = items.map((i: any) => i.instance_id || i.id)
   try {
     await sortGlobalPlugins(phase, pluginIds)
-    ElMessage.success(t('plugin.saveSuccess'))
+    toast.success(t('plugin.saveSuccess'))
     await load()
   } catch (e: any) {
     const errMsg = e?.message || t('common.sortFailed')

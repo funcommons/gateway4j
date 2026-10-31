@@ -40,7 +40,17 @@
         <template #tab-permissions>
           <p v-if="permissionsLoadError" class="load-error" data-testid="permissions-load-error">{{ permissionsLoadError }}</p>
           <template v-else>
-            <FcTable :data="permissions" :loading="permissionsLoading" stripe>
+            <!-- 权限类型筛选：语义单选（全部/菜单/按钮/接口） -->
+            <div class="permission-type-filter" data-testid="permission-type-filter">
+              <span class="permission-type-filter__label">{{ t('role.typeFilter') }}</span>
+              <FcRadioGroup
+                v-model="permissionType"
+                :options="permissionTypeOptions"
+                variant="button"
+                size="small"
+              />
+            </div>
+            <FcTable :data="filteredPermissions" :loading="permissionsLoading" stripe>
               <el-table-column prop="permission_code" :label="t('role.permission')" width="200" />
               <el-table-column prop="permission_name" :label="t('role.name')" />
               <el-table-column :label="t('role.type')" width="120">
@@ -48,6 +58,7 @@
               </el-table-column>
             </FcTable>
             <FcEmpty v-if="!permissions.length" :title="t('role.noPermissions')" />
+            <FcEmpty v-else-if="!filteredPermissions.length" :title="t('common.empty')" />
           </template>
         </template>
       </FcTabsPanel>
@@ -148,11 +159,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
 import {
-  FcSection, FcTabsPanel, FcTable, FcEmpty, FcButton, FcInput, FcDialog,
-  FcConfirm, FcFormItem, FcSkeleton
+  FcSection, FcTabsPanel, FcTable, FcEmpty, FcButton, FcInput, FcDialog, FcConfirm, FcFormItem,
+  FcSkeleton, FcRadioGroup, toast
 } from '@/components'
+import type { RadioValue } from '@/components/form/radioContext'
 import {
   listRoles, listPermissions,
   createRole, updateRole, deleteRole,
@@ -176,6 +187,20 @@ const tabs = computed(() => [
 ])
 const roles = ref<any[]>([])
 const permissions = ref<any[]>([])
+
+// 权限类型筛选（语义单选）：''=全部，MENU/BUTTON/API 按 resource_type 过滤
+const permissionType = ref<RadioValue>('')
+const permissionTypeOptions = computed(() => [
+  { value: '', label: t('role.typeAll') },
+  { value: 'MENU', label: t('role.typeMenu') },
+  { value: 'BUTTON', label: t('role.typeButton') },
+  { value: 'API', label: t('role.typeApi') }
+])
+const filteredPermissions = computed(() => {
+  const type = permissionType.value
+  if (!type) return permissions.value
+  return permissions.value.filter(p => String(p?.resource_type) === String(type))
+})
 const rolesLoading = ref(true)
 const permissionsLoading = ref(true)
 const rolesLoadError = ref('')
@@ -269,7 +294,7 @@ async function saveRole() {
     } else {
       await createRole({ role_code: roleForm.value.role_code, role_name: roleForm.value.role_name, remark: roleForm.value.remark || undefined })
     }
-    ElMessage.success('保存成功')
+    toast.success(t('role.saveSuccess'))
     formOpen.value = false
     await loadRolesOnly()
   } catch (e: any) {
@@ -283,7 +308,7 @@ async function del(row: any) {
   actionError.value = ''
   try {
     await deleteRole(row.id)
-    ElMessage.success('删除成功')
+    toast.success(t('role.deleteSuccess'))
     await loadRolesOnly()
   } catch (e: any) {
     actionError.value = e?.message || '删除失败'
@@ -364,7 +389,7 @@ async function saveGrant() {
   try {
     // 提交全量权限列表
     await updateRolePermissions(grantRole.value.id, checked.value)
-    ElMessage.success('授权成功')
+    toast.success(t('role.grantSuccess'))
     grantOpen.value = false
   } catch (e: any) {
     grantError.value = e?.message || '保存失败'
@@ -433,7 +458,7 @@ async function saveMembers() {
   try {
     // 全量提交当前选中成员
     await updateRoleUsers(memberRole.value.id, [...memberIds.value])
-    ElMessage.success('保存成功')
+    toast.success(t('role.saveSuccess'))
     memberOpen.value = false
   } catch (e: any) {
     memberError.value = e?.message || '保存失败'
@@ -468,6 +493,17 @@ onMounted(loadAll)
   margin: 8px 0 0;
 }
 .roles-toolbar { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+.permission-type-filter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.permission-type-filter__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-text-secondary);
+}
 .grant-toolbar {
   display: flex;
   align-items: center;

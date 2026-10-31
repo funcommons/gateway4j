@@ -10,7 +10,7 @@ describe('plugins/Global.vue — action feedback', () => {
       source.indexOf('async function togglePlugin'),
       source.indexOf('async function saveSort')
     )
-    expect(toggleFn).toMatch(/ElMessage\.success/)
+    expect(toggleFn).toMatch(/toast\.success/)
   })
 
   it('shows success message after saveSort', () => {
@@ -18,6 +18,6 @@ describe('plugins/Global.vue — action feedback', () => {
       source.indexOf('async function saveSort'),
       source.indexOf('function onDragStart')
     )
-    expect(sortFn).toMatch(/ElMessage\.success/)
+    expect(sortFn).toMatch(/toast\.success/)
   })
 })

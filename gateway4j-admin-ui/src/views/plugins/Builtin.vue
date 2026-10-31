@@ -76,11 +76,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
 import { useFcConfirm } from '@/composables/useFcConfirm'
 import { usePermission } from '@/composables/usePermission'
 import {
-  FcSection, FcSectionCard, FcInput, FcTag, FcButton, FcEmpty, FcDialog, FcSkeleton, FcStatusBadge, FcTooltip
+  FcSection, FcSectionCard, FcInput, FcTag, FcButton, FcEmpty, FcDialog, FcSkeleton, FcStatusBadge,
+  FcTooltip, toast
 } from '@/components'
 import PluginDynamicForm from '@/components/PluginDynamicForm.vue'
 import { listBuiltinTypes, updatePlugin, enablePlugin, disablePlugin, validateConfig, getRuntimeStatus } from '@/api/plugins'
@@ -232,7 +232,7 @@ async function saveConfig() {
       return
     }
     await updatePlugin(selected.value.instance_id || selected.value.id, { config: configStr })
-    ElMessage.success(t('plugin.saveSuccess'))
+    toast.success(t('plugin.saveSuccess'))
     dialog.value = false
   } catch (e: any) {
     saveError.value = e?.message || t('common.saveFailed')
@@ -248,10 +248,10 @@ async function toggleStatus(plugin: any) {
   try {
     if (plugin.status === 'ENABLED') {
       await disablePlugin(plugin.instance_id || plugin.id)
-      ElMessage.success(t('plugin.disableSuccess'))
+      toast.success(t('plugin.disableSuccess'))
     } else {
       await enablePlugin(plugin.instance_id || plugin.id)
-      ElMessage.success(t('plugin.enableSuccess'))
+      toast.success(t('plugin.enableSuccess'))
     }
     await load()
   } catch (e: any) {

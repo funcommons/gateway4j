@@ -224,7 +224,6 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
 import { useFcConfirm } from '@/composables/useFcConfirm'
 import { usePermission } from '@/composables/usePermission'
 import { VueFlow } from '@vue-flow/core'
@@ -236,7 +235,9 @@ import '@vue-flow/core/dist/theme-default.css'
 import '@vue-flow/controls/dist/style.css'
 import '@vue-flow/minimap/dist/style.css'
 
-import { FcButton, FcTabsPanel, FcSwitch, FcInput, FcSelect, FcDialog, FcTable, PublishSyncStatus } from '@/components'
+import {
+  FcButton, FcTabsPanel, FcSwitch, FcInput, FcSelect, FcDialog, FcTable, PublishSyncStatus, toast
+} from '@/components'
 import { useRoute } from 'vue-router'
 import { getCanvas, saveCanvas, getRoute, applyCanvas } from '@/api/routes'
 import type { CanvasApplyDiff } from '@/api/routes'
@@ -608,7 +609,7 @@ async function save() {
   saveError.value = ''
   try {
     await saveCanvas(routeId.value, { nodes: nodes.value, edges: edges.value })
-    ElMessage.success(t('route.saveSuccess'))
+    toast.success(t('route.saveSuccess'))
     dirty = false
     if (autoSaveTimer) { clearTimeout(autoSaveTimer); autoSaveTimer = null }
   } catch (e: any) {
@@ -678,7 +679,7 @@ async function applyToTree() {
       dry_run: true
     })
     if (isEmptyDiff(diff)) {
-      ElMessage.info(t('route.canvasApplyNoDiff'))
+      toast.info(t('route.canvasApplyNoDiff'))
       return
     }
     applyDiff.value = diff
@@ -711,8 +712,8 @@ async function confirmApply() {
       ...(desc ? { change_description: desc } : {})
     })
     applyOpen.value = false
-    ElMessage.success(t('route.canvasApplySuccess'))
-    ElMessage.success(t('route.canvasApplyPublishHint'))
+    toast.success(t('route.canvasApplySuccess'))
+    toast.success(t('route.canvasApplyPublishHint'))
     // P1-3: 落库成功后轮询 sync-status，确认网关已加载新配置（「已生效」）
     syncStatusRef.value?.start()
     applyDiff.value = null

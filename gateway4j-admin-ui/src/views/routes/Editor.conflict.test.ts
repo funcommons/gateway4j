@@ -138,7 +138,7 @@ describe('Editor.vue — P1-5 编辑冲突（code=10402）', () => {
     await fillValidForm(vm)
     await vm.save()
     await flushPromises()
-    expect(ElMessage.warning).toHaveBeenCalledWith('路由已被他人修改，请刷新后重试')
+    expect(ElMessage.warning).toHaveBeenCalledWith(expect.objectContaining({ message: '路由已被他人修改，请刷新后重试' }))
     // 冲突条可见（含「刷新」按钮），且不走 saveError 通用文案
     expect(vm.conflict).toBe(true)
     expect(vm.saveError).toBe('')

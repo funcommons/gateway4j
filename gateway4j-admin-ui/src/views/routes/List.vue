@@ -127,15 +127,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
 import { useFcConfirm } from '@/composables/useFcConfirm'
 import { usePermission } from '@/composables/usePermission'
 import { useMonitorStream } from '@/composables/useMonitorStream'
 import { useRouter } from 'vue-router'
 import {
-  FcSection, FcFilterBar, FcFilterBarDivider, FcFilterButton,
-  FcTable, FcTag, FcStatusBadge, FcInput, FcButton, FcConfirm, FcEmpty, FcSkeleton,
-  PublishSyncStatus, PublishDescriptionDialog, EnvTag
+  FcSection, FcFilterBar, FcFilterBarDivider, FcFilterButton, FcTable, FcTag, FcStatusBadge,
+  FcInput, FcButton, FcConfirm, FcEmpty, FcSkeleton, PublishSyncStatus, PublishDescriptionDialog,
+  EnvTag, toast
 } from '@/components'
 import { listRoutes, publishRoute, offlineRoute, deleteRoute, duplicateRoute, bulkPublishRoutes, bulkOfflineRoutes, bulkDeleteRoutes } from '@/api/routes'
 import type { RouteNode, BulkResult } from '@/api/routes'
@@ -325,9 +324,9 @@ async function onPublishConfirm(description: string) {
       const res = await bulkPublishRoutes(ids, description)
       const { ok, fail, reasons } = summarizeBulk(res)
       if (fail === 0) {
-        ElMessage.success(t('route.bulkResultAll', { n: ok }))
+        toast.success(t('route.bulkResultAll', { n: ok }))
       } else {
-        ElMessage.warning(t('route.bulkResultPartial', { ok, fail, reasons }))
+        toast.warning(t('route.bulkResultPartial', { ok, fail, reasons }))
         actionError.value = t('route.bulkResultPartial', { ok, fail, reasons })
       }
       // P1-3: 批量发布只做一次生效轮询，有任一条成功即开始确认
@@ -337,7 +336,7 @@ async function onPublishConfirm(description: string) {
       const target = pendingPublishRoute.value
       if (!target) return
       await publishRoute(target.id, description)
-      ElMessage.success(t('route.publishSuccess'))
+      toast.success(t('route.publishSuccess'))
       syncStatusRef.value?.start()
     }
     reload()
@@ -351,7 +350,7 @@ async function offline(r: RouteNode) {
   actionError.value = ''
   try {
     await offlineRoute(r.id)
-    ElMessage.success(t('route.offlineSuccess'))
+    toast.success(t('route.offlineSuccess'))
     reload()
   } catch (e: any) {
     actionError.value = e?.message || t('common.actionFailed')
@@ -362,7 +361,7 @@ async function del(r: RouteNode) {
   actionError.value = ''
   try {
     await deleteRoute(r.id)
-    ElMessage.success(t('route.deleteSuccess'))
+    toast.success(t('route.deleteSuccess'))
     reload()
   } catch (e: any) {
     actionError.value = e?.message || t('common.actionFailed')
@@ -375,7 +374,7 @@ async function duplicate(r: RouteNode) {
   actionError.value = ''
   try {
     const created = await duplicateRoute(r.id) as any
-    ElMessage.success(t('route.duplicateSuccess', { name: created?.route_name || r.route_name }))
+    toast.success(t('route.duplicateSuccess', { name: created?.route_name || r.route_name }))
     reload()
   } catch (e: any) {
     actionError.value = e?.message || t('common.actionFailed')
@@ -408,9 +407,9 @@ async function runBulk(kind: 'publish' | 'offline' | 'delete') {
     const res = await fn(ids)
     const { ok, fail, reasons } = summarizeBulk(res)
     if (fail === 0) {
-      ElMessage.success(t('route.bulkResultAll', { n: ok }))
+      toast.success(t('route.bulkResultAll', { n: ok }))
     } else {
-      ElMessage.warning(t('route.bulkResultPartial', { ok, fail, reasons }))
+      toast.warning(t('route.bulkResultPartial', { ok, fail, reasons }))
       actionError.value = t('route.bulkResultPartial', { ok, fail, reasons })
     }
     selectedRows.value = []

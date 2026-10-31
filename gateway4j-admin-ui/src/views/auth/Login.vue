@@ -6,12 +6,12 @@
       <el-form :model="form" :rules="rules" label-width="0" size="large" @keydown.enter.prevent="submit">
         <FcFormItem prop="username">
           <FcInput v-model="form.username" :placeholder="t('auth.username')" clearable maxlength="50">
-            <template #prefix><el-icon><EpIconUser /></el-icon></template>
+            <template #prefix><FcIcon><EpIconUser /></FcIcon></template>
           </FcInput>
         </FcFormItem>
         <FcFormItem prop="password">
           <FcInput v-model="form.password" type="password" :placeholder="t('auth.password')" show-password>
-            <template #prefix><el-icon><EpIconLock /></el-icon></template>
+            <template #prefix><FcIcon><EpIconLock /></FcIcon></template>
           </FcInput>
         </FcFormItem>
         <FcFormItem>
@@ -34,7 +34,7 @@
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { FcSectionCard, FcFormItem, FcInput, FcButton } from '@/components'
+import { FcSectionCard, FcFormItem, FcInput, FcButton, FcIcon } from '@/components'
 import { useAuthStore } from '@/store/auth'
 
 const { t } = useI18n()

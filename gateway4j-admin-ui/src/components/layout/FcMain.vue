@@ -5,6 +5,10 @@
 // Vue 3 会静默丢弃没有出口的具名插槽, 所以这里必须显式渲染两个 outlet,
 // 否则全站侧边栏/顶栏消失 (D1).
 // 默认 slot 未传时, 回退到 <router-view> + <keep-alive> + <transition>.
+// 默认 slot (或内置 router-view 回退) 整体包在 FcErrorBoundary 里:
+// 业务视图渲染异常时展示兜底 UI (重试/重置), 而不是整页白屏.
+
+import FcErrorBoundary from '../utils/FcErrorBoundary.vue'
 
 export interface FcMainProps {
   keepAlive?: boolean
@@ -27,16 +31,18 @@ const props = withDefaults(defineProps<FcMainProps>(), {
         <slot name="header" />
       </header>
       <main class="fc-main">
-        <slot>
-          <router-view v-slot="{ Component }">
-            <transition :name="transitionName" mode="out-in">
-              <keep-alive v-if="keepAlive">
-                <component :is="Component" />
-              </keep-alive>
-              <component v-else :is="Component" />
-            </transition>
-          </router-view>
-        </slot>
+        <FcErrorBoundary class="fc-main__boundary">
+          <slot>
+            <router-view v-slot="{ Component }">
+              <transition :name="transitionName" mode="out-in">
+                <keep-alive v-if="keepAlive">
+                  <component :is="Component" />
+                </keep-alive>
+                <component v-else :is="Component" />
+              </transition>
+            </router-view>
+          </slot>
+        </FcErrorBoundary>
       </main>
     </div>
   </div>
@@ -77,6 +83,12 @@ const props = withDefaults(defineProps<FcMainProps>(), {
   background: var(--app-main-bg, var(--app-bg-page));
   color: var(--app-text);
   transition: background 0.25s ease, color 0.25s ease;
+}
+/* 错误边界包裹层: 撑满主内容区 (flex:1 + min-height:0), 让业务页的
+   百分比高度 (如 404 页 min-height:100%) 仍能解析; 内部 DOM 类名不变. */
+.fc-main__boundary {
+  flex: 1;
+  min-height: 0;
 }
 .fade-enter-active,
 .fade-leave-active {

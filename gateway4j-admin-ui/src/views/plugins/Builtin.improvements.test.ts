@@ -25,7 +25,7 @@ describe('plugins/Builtin.vue — improvements', () => {
       source.indexOf('async function toggleStatus'),
       source.indexOf('</script>')
     )
-    expect(toggleFn).toMatch(/ElMessage\.success|statusUpdateSuccess/)
+    expect(toggleFn).toMatch(/toast\.success|statusUpdateSuccess/)
   })
 
   it('imports FcSkeleton', () => {

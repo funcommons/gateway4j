@@ -1,6 +1,10 @@
 <template>
   <el-form :model="local" :rules="formRules" label-width="120px" class="form-block" ref="formRef">
     <FcFormItem :label="t('route.name')" prop="route_name">
+      <template #label>
+        <span>{{ t('route.name') }}</span>
+        <FcHelpTip content-key="route.help.name" />
+      </template>
       <FcInput v-model="local.route_name" maxlength="50" />
     </FcFormItem>
     <FcFormItem :label="t('route.type')" prop="route_type">
@@ -10,9 +14,17 @@
       <FcSelect v-model="local.parent_route_id" :options="routeOptions" clearable :placeholder="t('route.parentRoutePlaceholder')" />
     </FcFormItem>
     <FcFormItem v-if="local.route_type === 'BACKEND'" :label="t('route.path')" prop="path">
+      <template #label>
+        <span>{{ t('route.path') }}</span>
+        <FcHelpTip content-key="route.help.path" />
+      </template>
       <FcInput v-model="local.path" placeholder="/api/example" maxlength="500" />
     </FcFormItem>
     <FcFormItem v-if="local.route_type === 'BACKEND'" :label="t('route.upstream')" prop="upstream_url">
+      <template #label>
+        <span>{{ t('route.upstream') }}</span>
+        <FcHelpTip content-key="route.help.upstream" />
+      </template>
       <FcInput v-model="local.upstream_url" placeholder="http://backend:8080" maxlength="500" />
     </FcFormItem>
     <FcFormItem :label="t('route.sort')" prop="sort_order">
@@ -30,7 +42,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { FcInput, FcFormItem, FcSegmented, FcSelect } from '@/components'
+import { FcInput, FcFormItem, FcSegmented, FcSelect, FcHelpTip } from '@/components'
 import type { SelectOption } from '@/components/form/_types'
 
 export interface RouteBasic {

@@ -14,7 +14,13 @@
         <template #tab-basic>
           <el-form :model="form" :rules="formRules" label-width="120px" ref="formRef">
             <FcFormItem :label="t('plugin.name')" prop="plugin_name"><FcInput v-model="form.plugin_name" :disabled="isEdit" maxlength="50" /></FcFormItem>
-            <FcFormItem :label="t('plugin.id')" prop="plugin_id"><FcInput v-model="form.plugin_id" :disabled="isEdit" maxlength="50" /></FcFormItem>
+            <FcFormItem :label="t('plugin.id')" prop="plugin_id">
+              <template #label>
+                <span>{{ t('plugin.id') }}</span>
+                <FcHelpTip content-key="plugin.help.id" />
+              </template>
+              <FcInput v-model="form.plugin_id" :disabled="isEdit" maxlength="50" />
+            </FcFormItem>
             <FcFormItem :label="t('plugin.type')" prop="plugin_type">
               <FcSegmented v-model="form.plugin_type" :options="typeOpts" :disabled="isEdit" />
             </FcFormItem>
@@ -37,13 +43,19 @@
         </template>
 
         <template #tab-groovy v-if="form.plugin_type === 'GROOVY'">
-          <FcInput v-model="form.script_content" type="textarea" :rows="14" maxlength="65536" placeholder="def x = 1; return true" />
+          <div class="field-with-help">
+            <FcInput v-model="form.script_content" type="textarea" :rows="14" maxlength="65536" placeholder="def x = 1; return true" />
+            <FcHelpTip content-key="plugin.help.script" />
+          </div>
           <FcButton variant="secondary" style="margin-top: 8px" @click="validateGroovyScript">{{ t('plugin.validate') }}</FcButton>
           <div v-if="groovyResult" class="hint">{{ groovyResult }}</div>
         </template>
 
         <template #tab-jar v-if="form.plugin_type === 'JAR'">
-          <FcDropZone accept=".jar" :max-size="MAX_JAR_SIZE" :multiple="false" @drop="onJar" data-testid="jar-dropzone" />
+          <div class="field-with-help">
+            <FcDropZone accept=".jar" :max-size="MAX_JAR_SIZE" :multiple="false" @drop="onJar" data-testid="jar-dropzone" />
+            <FcHelpTip content-key="plugin.help.jar" />
+          </div>
           <div v-if="form.jar_file" class="hint">{{ t('plugin.editorJarSelected') }}：{{ form.jar_file.name }} ({{ Math.round((form.jar_file.size || 0) / 1024) }} KB)</div>
         </template>
 
@@ -65,11 +77,11 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
 import { useFcConfirm } from '@/composables/useFcConfirm'
 import { usePermission } from '@/composables/usePermission'
 import {
-  FcSectionCard, FcTabsPanel, FcInput, FcFormItem, FcSegmented, FcButton, FcDropZone, FcSkeleton, FcSelect
+  FcSectionCard, FcTabsPanel, FcInput, FcFormItem, FcSegmented, FcButton, FcDropZone, FcSkeleton,
+  FcSelect, FcHelpTip, toast
 } from '@/components'
 import { createPlugin, updatePlugin, getPlugin, validateGroovy, listPlugins } from '@/api/plugins'
 import { mapFieldErrors } from '@/api/http'
@@ -281,7 +293,7 @@ async function save() {
         }
         await updatePlugin(pluginId.value!, payload)
       }
-      ElMessage.success(t('plugin.saveSuccess'))
+      toast.success(t('plugin.saveSuccess'))
       dirty.value = false
       await loadPlugin()
     } else {
@@ -321,7 +333,7 @@ async function save() {
           group_member_ids: form.value.plugin_type === 'GROUP' ? form.value.group_member_ids : undefined
         })
       }
-      ElMessage.success(t('plugin.saveSuccess'))
+      toast.success(t('plugin.saveSuccess'))
       await router.push('/plugins')
     }
   } catch (e: any) {
@@ -373,6 +385,9 @@ async function goBack() {
 
 <style scoped>
 .hint { padding: 8px 12px; background: var(--app-bg-muted); border-radius: var(--app-radius-sm); font-size: 13px; }
+/* 控件 + 字段帮助图标同行（Groovy 脚本 / JAR 文件） */
+.field-with-help { display: flex; align-items: flex-start; gap: 8px; }
+.field-with-help > :first-child { flex: 1; min-width: 0; }
 .save-error {
   color: var(--app-danger);
   font-size: 13px;

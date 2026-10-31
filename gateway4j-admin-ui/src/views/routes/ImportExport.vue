@@ -186,10 +186,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
 import {
-  FcSection, FcTabsPanel, FcFormItem, FcInput, FcSelect, FcSegmented,
-  FcButton, FcEmpty, FcTable, FcSkeleton, FcTag
+  FcSection, FcTabsPanel, FcFormItem, FcInput, FcSelect, FcSegmented, FcButton, FcEmpty, FcTable,
+  FcSkeleton, FcTag, toast
 } from '@/components'
 import { exportRoutes, validateImport, importRoutes, listRoutes, createImportSnapshot } from '@/api/routes'
 import { getEnvironmentDiff } from '@/api/environment'
@@ -301,7 +300,7 @@ async function onExport() {
     a.download = `routes-${Date.now()}.json`
     a.click()
     URL.revokeObjectURL(url)
-    ElMessage.success(t('importExport.exportSuccess'))
+    toast.success(t('importExport.exportSuccess'))
   } catch (e: any) {
     actionError.value = e?.message || t('common.exportFailed')
   } finally {
@@ -434,9 +433,9 @@ async function onImport() {
       strategy.value,
       ...(envReady.value ? [targetEnv.value] as const : [])
     )
-    ElMessage.success(t('importExport.importSuccess'))
+    toast.success(t('importExport.importSuccess'))
     if (snapshotId) {
-      ElMessage.success(t('importExport.snapshotCreated', { id: snapshotId }))
+      toast.success(t('importExport.snapshotCreated', { id: snapshotId }))
     }
   } catch (e: any) {
     actionError.value = e?.message || t('common.importFailed')

@@ -190,7 +190,7 @@ describe('ImportExport.vue — 导入前自动快照', () => {
     expect(mocks.importRoutes).toHaveBeenCalled()
     // 导入不受快照探测影响，且不出现快照提示
     expect(vm.result).toEqual({ total: 3, created: 3, updated: 0, skipped: 0, errors: [] })
-    expect(ElMessage.success).not.toHaveBeenCalledWith(expect.stringContaining('snapshot_id'))
+    expect(ElMessage.success).not.toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('snapshot_id') }))
   })
 
   it('snapshots before import and reports snapshot_id on success', async () => {
@@ -204,7 +204,7 @@ describe('ImportExport.vue — 导入前自动快照', () => {
     const [snapshotOrder] = mocks.createImportSnapshot.mock.invocationCallOrder
     const [importOrder] = mocks.importRoutes.mock.invocationCallOrder
     expect(snapshotOrder).toBeLessThan(importOrder)
-    expect(ElMessage.success).toHaveBeenCalledWith('已自动快照 snapshot_id=snap-42，可在需要时回滚')
+    expect(ElMessage.success).toHaveBeenCalledWith(expect.objectContaining({ message: '已自动快照 snapshot_id=snap-42，可在需要时回滚' }))
   })
 
   it('import failure does not surface snapshot errors', async () => {

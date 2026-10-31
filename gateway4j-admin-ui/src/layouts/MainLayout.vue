@@ -18,6 +18,18 @@
         <template #actions>
           <!-- H7b T1：环境切换器（外观按钮旁；404 降级时整体不渲染） -->
           <EnvironmentSwitcher />
+          <!-- 命令面板入口（⌘/Ctrl + J，与 ⌘K 全局搜索并存） -->
+          <FcButton
+            variant="secondary"
+            class="command-palette-trigger"
+            data-testid="command-palette-trigger"
+            @click="paletteOpen = true"
+          >
+            <span class="command-palette-trigger__content">
+              <FcIcon name="ri-command-line" />
+              <span>{{ t('ux.command-palette.trigger') }}</span>
+            </span>
+          </FcButton>
           <FcThemeSwitcher />
           <FcButton variant="text" @click="onLogout">{{ t('auth.logout') }}</FcButton>
         </template>
@@ -37,6 +49,8 @@
     <FcSectionHeader v-if="$route.meta.titleKey" :title="t(($route.meta.titleKey as string))" :back="false" />
     <router-view />
   </FcMain>
+  <!-- 命令面板挂在 FcMain 之外 (fixed 定位, 不受 .fc-main 的 overflow 影响) -->
+  <GlobalCommandPalette v-model:open="paletteOpen" />
 </template>
 
 <script setup lang="ts">
@@ -50,6 +64,7 @@ import {
   FcHeader,
   FcSectionHeader,
   FcButton,
+  FcIcon,
   FcThemeSwitcher,
   EnvironmentSwitcher,
   useSidebarNavItems
@@ -57,6 +72,7 @@ import {
 import { useAuthStore } from '@/store/auth'
 import { usePermission } from '@/composables/usePermission'
 import GlobalSearch from '@/components/search/GlobalSearch.vue'
+import GlobalCommandPalette from '@/components/GlobalCommandPalette.vue'
 import PasswordStaleBanner from '@/components/PasswordStaleBanner.vue'
 import { Operation, Connection, Share, Histogram, User, Lock, Box, Grid, Setting } from '@element-plus/icons-vue'
 
@@ -66,6 +82,8 @@ const { hasPermission } = usePermission()
 const router = useRouter()
 const route = useRoute()
 const collapsed = ref(false)
+/** 命令面板开关 (⌘/Ctrl + J 或顶栏按钮唤起) */
+const paletteOpen = ref(false)
 
 const SIDEBAR_ROUTE_MAP: Record<string, string> = {
   Dashboard: '/dashboard',
@@ -120,6 +138,11 @@ async function goHome() {
 </script>
 
 <style scoped>
+.command-palette-trigger__content {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
 .breadcrumb-bar {
   display: flex;
   align-items: center;
