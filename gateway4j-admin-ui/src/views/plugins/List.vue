@@ -54,7 +54,7 @@
           <el-table-column :label="t('plugin.status')" width="100">
             <template #default="{ row }">
               <FcStatusBadge
-                :tone="row.status === 'ENABLED' ? 'success' : row.status === 'UNINSTALLED' ? 'warning' : 'neutral'"
+                :tone="row.status === 'ENABLED' ? 'success' : row.status === 'UNINSTALLED' ? 'pending' : 'neutral'"
                 :label="row.status === 'ENABLED' ? t('plugin.statusEnabled') : row.status === 'UNINSTALLED' ? t('plugin.statusUninstalled') : t('plugin.statusDisabled')"
                 :dot="row.status === 'ENABLED'"
               />
@@ -89,7 +89,7 @@
               <div class="card-name">{{ item.plugin_name }}</div>
               <div class="card-id">{{ item.plugin_id }}</div>
               <FcStatusBadge
-                :tone="item.status === 'ENABLED' ? 'success' : item.status === 'UNINSTALLED' ? 'warning' : 'neutral'"
+                :tone="item.status === 'ENABLED' ? 'success' : item.status === 'UNINSTALLED' ? 'pending' : 'neutral'"
                 :label="item.status === 'ENABLED' ? t('plugin.statusEnabled') : item.status === 'UNINSTALLED' ? t('plugin.statusUninstalled') : t('plugin.statusDisabled')"
               />
               <div class="card-actions">

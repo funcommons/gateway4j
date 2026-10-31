@@ -350,4 +350,10 @@ export function useBodyScrollLock(lock: Ref<boolean> | ComputedRef<boolean> | bo
 
 export { usePermission } from './usePermission'
 
+
+// ===== SDK 配套 composables（源自 ldx2 sdk 快照 2026-10-31）=====
+export { useFocusTrap } from './useFocusTrap'
+export { useCommandPaletteState } from './useCommandPaletteState'
+export { useKeyboardShortcut } from './useKeyboardShortcut'
+
 export default {}
