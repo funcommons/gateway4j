@@ -1,0 +1,24 @@
+用例: 03-18-dispatch-type-parent-select
+时间: 2026-10-31T04:46:00.023Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNDI5MTU0NDEyLCJub25jZSI6ImRkMTAzZjIwLWY4MmMtNGI2Mi1iNTQzLThmN2QyNjdmNTRlMSIsImlhdCI6MTc5MzQyMTk1NDQxMiwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiIwODJhNjY5Yi05ZGE2LTRhYjgtOTc0Yy0yNjQ2NjZhNjJhYWIifQ.RJtKkYsbIDWL4HUXqgPjfGCLgp5fArS7pb1YT8c66ks :: net::ERR_ABORTED
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/plugins/builtin-types
+200 GET /v1/environments
+200 GET /v1/routes
+
+--- Extra ---
+已切换到分发类型: true

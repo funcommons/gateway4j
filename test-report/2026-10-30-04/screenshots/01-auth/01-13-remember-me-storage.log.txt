@@ -1,0 +1,24 @@
+用例: 01-13-remember-me-storage
+时间: 2026-10-31T04:40:34.942Z
+
+--- Console Errors ---
+Failed to load resource: the server responded with a status of 429 (Too Many Requests)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+429 POST http://localhost:9302/v1/auth/login
+
+--- 后端 API 调用记录 (status METHOD path) ---
+429 POST /v1/auth/login
+200 POST /v1/auth/login
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/routes
+
+--- Extra ---
+勾选态=false / localStorage=无 / sessionStorage=有

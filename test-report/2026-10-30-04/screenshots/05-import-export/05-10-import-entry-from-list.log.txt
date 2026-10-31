@@ -1,0 +1,21 @@
+用例: 05-10-import-entry-from-list
+时间: 2026-10-31T04:48:55.901Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/routes
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNDI5MzMzOTM4LCJub25jZSI6IjQ3Y2Y5MzA3LWVjMTEtNDQxMy05ODAzLWIyOTcyMGZiODdhMiIsImlhdCI6MTc5MzQyMjEzMzkzOCwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiI1OTAzYzY5YS00Nzg1LTQ3NTktYmJhOS00NjNjMmFlYmE3ZGMifQ.nL9nfhJ4RhTiMGcw_bSKJvqQFf0vwsWhSY8O0cYiRFg

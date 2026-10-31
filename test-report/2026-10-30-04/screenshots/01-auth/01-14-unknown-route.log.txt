@@ -1,0 +1,45 @@
+用例: 01-14-unknown-route
+时间: 2026-10-31T04:40:39.049Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNDI4ODM1MTkxLCJub25jZSI6IjNiZGE4MmMxLWM1NzgtNDhhMS04ZjYyLTA5OTc0NDI1NWI3MyIsImlhdCI6MTc5MzQyMTYzNTE5MSwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiI4NTQzOWEyNi0wNWEwLTQyOWItYWNhOC1kYWVkMDVkMTE3MWMifQ.oFHFjsHGkSR_HZ0r90T751zerY_KRjhfHsZwEnoZsdg :: net::ERR_ABORTED
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/login
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/routes
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/environments
+
+--- Extra ---
+落地 URL: http://localhost:9302/this-path-does-not-exist-zzz; 页面文本: 监控大盘
+路由列表
+路由编排画布
+导入导出
+插件列表
+全局插件
+用户列表
+角色权限
+系统设置
+命令面板
+外观
+退出
+
+404
+
+页面不存在
+
+您访问的页面不存在或已被移除，请检查地址是否正确
+
+返回首页

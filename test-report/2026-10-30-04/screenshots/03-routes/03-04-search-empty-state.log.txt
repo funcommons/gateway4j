@@ -1,0 +1,17 @@
+用例: 03-04-search-empty-state
+时间: 2026-10-31T04:43:07.981Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/routes?environment=default

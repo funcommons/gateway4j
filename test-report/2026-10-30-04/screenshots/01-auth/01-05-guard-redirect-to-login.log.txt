@@ -1,0 +1,20 @@
+用例: 01-05-guard-redirect-to-login
+时间: 2026-10-31T04:39:12.383Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+(无)
+
+--- Extra ---
+断言: 未登录访问 /dashboard 应重定向到 /login

@@ -1,0 +1,25 @@
+用例: 06-10-plugin-enabled-verified
+时间: 2026-10-31T04:50:52.408Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/plugins/2116392095445241857/enable
+200 GET /v1/plugins?page=1&page_size=20
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/plugins?page=1&page_size=20
+
+--- Extra ---
+启用前="e2e_gvy_mvvx97g5652 e2e_gvy_mvvx97g5652 Groovy 前置 路由级 已禁用 编辑 启用 删除" / 启用后="跟踪插件 tracing 内置 前置 全局 已启用 编辑 禁用"

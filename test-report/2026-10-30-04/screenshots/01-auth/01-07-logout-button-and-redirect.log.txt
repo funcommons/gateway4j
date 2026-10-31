@@ -1,0 +1,20 @@
+用例: 01-07-logout-button-and-redirect
+时间: 2026-10-31T04:39:20.834Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNDI4NzU2Nzc4LCJub25jZSI6ImVkOTBjMjk1LTMyY2ItNGJmMi05NzRkLTNkYWEyMzgxNzNmYSIsImlhdCI6MTc5MzQyMTU1Njc3OCwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiI1ZjE5ZDA3ZS04NWY2LTQ0YTAtOTEyZi01YWEzZmJlMWI4YzgifQ.n8N9Qx3GLrx5gy7aDsXAgHDnBASYajWDSpSoMuz-xWI :: net::ERR_ABORTED
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/login
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/routes

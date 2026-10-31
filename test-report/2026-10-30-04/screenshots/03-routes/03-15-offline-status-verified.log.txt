@@ -1,0 +1,57 @@
+用例: 03-15-offline-status-verified
+时间: 2026-10-31T04:45:32.203Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNDI5MTA3MjU0LCJub25jZSI6ImY3NDNiZGIzLTM1ZTgtNDgzYy1hYzhmLTcwMDNiODk4ZTlmYiIsImlhdCI6MTc5MzQyMTkwNzI1NCwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiI1NzAwMDVlZC1lNjM5LTQ2YWQtYTBlZS1mY2QzZGU3YmIyZGMifQ.OQ5g6O_PhhLLfEGlLETGRFslsPmXHR2RcLJahFUc0as :: net::ERR_ABORTED
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNDI5MTEzNTAxLCJub25jZSI6IjE4OTJmNTIzLWEzNTYtNDMzYS04Nzc4LTBlYTk4ZjYzOGQ3NCIsImlhdCI6MTc5MzQyMTkxMzUwMSwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiIxZTEwNTc4OS1lYzMxLTQ3NTItYTM1OS1hNzNjZmI3MWViNjcifQ.Uk7mMzvnW6_0cpP8DTXoqgijpfZPmrQ7JlzdbcCp0fk :: net::ERR_ABORTED
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNDI5MTIwMjU3LCJub25jZSI6IjNiMTBiY2EwLTIyYWMtNGI1Zi04YmYyLTg3OWIxN2EyMDE3OCIsImlhdCI6MTc5MzQyMTkyMDI1NywiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiI5MjlhNmQyOS01Yjg4LTQzYjAtODdmYy0xY2M4MDZkYzQ5MzYifQ.U6OnolGIwXFmr4Efp5EZb1Kt9eT7ZPJru2Um_iSd-TY :: net::ERR_ABORTED
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/plugins/builtin-types
+200 GET /v1/environments
+200 GET /v1/routes
+200 POST /v1/routes
+200 GET /v1/routes
+200 GET /v1/routes/2116391005219803138
+200 GET /v1/routes/2116391005219803138
+200 GET /v1/routes/2116391005219803138/plugins
+200 GET /v1/routes/2116391005219803138/plugin-chain
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/routes
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNDI5MTEzNTAxLCJub25jZSI6IjE4OTJmNTIzLWEzNTYtNDMzYS04Nzc4LTBlYTk4ZjYzOGQ3NCIsImlhdCI6MTc5MzQyMTkxMzUwMSwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiIxZTEwNTc4OS1lYzMxLTQ3NTItYTM1OS1hNzNjZmI3MWViNjcifQ.Uk7mMzvnW6_0cpP8DTXoqgijpfZPmrQ7JlzdbcCp0fk
+200 GET /v1/routes?environment=default
+200 POST /v1/routes/2116391005219803138/publish
+200 GET /v1/config/sync-status
+200 GET /v1/routes?environment=default
+200 GET /v1/routes?environment=default
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/routes
+200 GET /v1/routes?environment=default
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNDI5MTIwMjU3LCJub25jZSI6IjNiMTBiY2EwLTIyYWMtNGI1Zi04YmYyLTg3OWIxN2EyMDE3OCIsImlhdCI6MTc5MzQyMTkyMDI1NywiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiI5MjlhNmQyOS01Yjg4LTQzYjAtODdmYy0xY2M4MDZkYzQ5MzYifQ.U6OnolGIwXFmr4Efp5EZb1Kt9eT7ZPJru2Um_iSd-TY
+200 POST /v1/routes/2116391005219803138/offline
+200 GET /v1/routes?environment=default
+200 GET /v1/routes?environment=default
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/routes
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNDI5MTI4MjMxLCJub25jZSI6IjdkMTczYmIzLWY5YzktNDBlMi1iM2UxLWEyMzAwOGI5ZWRkNiIsImlhdCI6MTc5MzQyMTkyODIzMSwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiJiZDI3NDUzMy0wMWU0LTQxMGItODUwYi00MTg0ZmMxOTkyM2QifQ.0JLBqnhvZKx44txHYVjpEioMgykbm40uFQptayUdIQw
+200 GET /v1/routes?environment=default
+
+--- Extra ---
+下线后行内容:  e2e_off_mvvx3ln2360 后置 /e2e/e2e_off_mvvx3ln2360/** default — 已下线 编辑 画布 复制 重新发布 删除
