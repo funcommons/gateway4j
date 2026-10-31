@@ -21,7 +21,7 @@ type TooltipPlacement = 'top' | 'top-start' | 'top-end'
   | 'left' | 'left-start' | 'left-end'
   | 'right' | 'right-start' | 'right-end'
 
-interface Props {
+export interface FcTooltipProps {
   /** 提示文案. */
   content?: string
   /** 位置. 默认 'top'. */
@@ -40,7 +40,7 @@ interface Props {
   light?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcTooltipProps>(), {
   placement: 'top',
   variant: 'default',
   disabled: false,

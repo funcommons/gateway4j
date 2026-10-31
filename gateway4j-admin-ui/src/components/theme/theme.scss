@@ -1,6 +1,6 @@
 // sdk/theme/theme.scss
 // SDK 主题/品牌统一入口 - SDK 用户只需 import 一次:
-//   import '@/components/sdk/theme/theme.scss'
+//   import '@/components/theme/theme.scss'
 //
 // 包含:
 //   1. brand 相关 mixin (define-brand / primary-stairs / brand-dark-surface / brand-overrides)
@@ -13,6 +13,8 @@
 
 @use 'mixins' as *;
 @use 'brands';
+@use 'element-classes';
+@use 'button-classes';
 
 @use '@/styles/themes' as *;
 @use '@/styles/app-aliases' as *;

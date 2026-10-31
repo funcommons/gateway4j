@@ -1,3 +1,19 @@
+// ============================================================
+// SDK 组件库（按目录 barrel 聚合，源自 ldx2 sdk 快照 2026-10-31）
+// 注意：本项目 SDK 平铺在 src/components/ 下（无 sdk/ 中间层），
+//       故子目录 barrel 走 './<dir>' 相对路径；各子目录 index.ts 为自治 barrel。
+// ============================================================
+export * from './data'
+export * from './display'
+export * from './feedback'
+export * from './form'
+export * from './layout'
+export * from './navigation'
+export * from './overlay'
+export * from './section'
+export * from './theme'
+export * from './utils'
+
 export { default as FcSection } from './section/FcSection.vue'
 export { default as FcSectionHeader } from './section/FcSectionHeader.vue'
 export { default as FcSectionCard } from './display/FcSectionCard.vue'

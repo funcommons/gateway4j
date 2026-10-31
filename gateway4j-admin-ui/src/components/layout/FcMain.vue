@@ -6,12 +6,12 @@
 // 否则全站侧边栏/顶栏消失 (D1).
 // 默认 slot 未传时, 回退到 <router-view> + <keep-alive> + <transition>.
 
-interface Props {
+export interface FcMainProps {
   keepAlive?: boolean
   transitionName?: string
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcMainProps>(), {
   keepAlive: true,
   transitionName: 'fade',
 })

@@ -20,12 +20,12 @@ defineOptions({ name: 'FcButton', inheritAttrs: false })
  *   <FcButton type="primary" plain :icon="Check">勾选</FcButton>
  *   <FcButton circle :icon="Edit" />
  */
-import { computed, useAttrs } from 'vue'
+import { computed, useAttrs, type Component } from 'vue'
 
 type ButtonVariant = 'primary' | 'secondary' | 'text' | 'danger'
 type ButtonSize = 'sm' | 'md' | 'lg' | 'small' | 'default' | 'large'
 
-interface Props {
+export interface FcButtonProps {
   /** 视觉变体 (语义糖; 显式 type 优先). */
   variant?: ButtonVariant
   /** 尺寸 (FC 命名). */
@@ -33,7 +33,7 @@ interface Props {
   /** EP 原生 type (优先于 variant). */
   type?: 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'default'
   /** 前置图标. */
-  icon?: unknown
+  icon?: Component | string
   /** 加载中. */
   loading?: boolean
   /** 禁用. */
@@ -54,7 +54,7 @@ interface Props {
   epSize?: 'large' | 'default' | 'small'
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcButtonProps>(), {
   variant: 'primary',
   size: 'md',
   loading: false,
@@ -104,7 +104,7 @@ const listeners = {
     v-bind="attrs"
     :type="resolvedType"
     :size="resolvedSize"
-    :icon="icon as any"
+    :icon="icon"
     :loading="loading"
     :disabled="disabled"
     :circle="circle"
@@ -135,9 +135,9 @@ const listeners = {
 .fc-button.size-lg { font-size: 14px; }
 
 .fc-button.variant-primary:not(.is-text-like):not(.is-plain) {
-  background: var(--app-primary, #409eff);
-  border-color: var(--app-primary, #409eff);
-  color: var(--app-on-primary, #fff);
+  background: var(--app-primary);
+  border-color: var(--app-primary);
+  color: var(--app-on-primary);
 
   &:hover:not(.is-disabled) {
     filter: brightness(0.95);
@@ -146,9 +146,11 @@ const listeners = {
 }
 
 .fc-button.variant-danger:not(.is-text-like):not(.is-plain) {
-  background: var(--app-color-danger, #ff3b30);
-  border-color: var(--app-color-danger, #ff3b30);
-  color: #fff;
+  /* 危险底压深一档 (76% danger + black, 色相不变): 白字 ≥4.5:1 (规则 40),
+     #f56c6c 原值只有 2.90:1 */
+  background: color-mix(in srgb, var(--el-color-danger) 76%, black);
+  border-color: color-mix(in srgb, var(--el-color-danger) 76%, black);
+  color: var(--app-on-primary, #fff);
 
   &:hover:not(.is-disabled) {
     filter: brightness(0.95);

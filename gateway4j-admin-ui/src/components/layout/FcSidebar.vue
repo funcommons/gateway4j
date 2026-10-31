@@ -17,9 +17,9 @@ defineOptions({ name: 'FcSidebar' })
  *   </FcSidebar>
  */
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { useResponsive } from '@/composables'
+import { useResponsive } from '../utils/useResponsive'
 
-interface Props {
+export interface FcSidebarProps {
   /** 受控: 外部 v-model 传入. 不传则内部自管. */
   collapsed?: boolean
   /** 非受控模式初值. 仅在 collapsed 没传时生效. */
@@ -34,7 +34,7 @@ interface Props {
   enableDrag?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcSidebarProps>(), {
   collapsed: undefined,
   defaultCollapsed: false,
   width: 240,
@@ -79,11 +79,15 @@ const sidebarStyle = computed(() => ({
 }))
 
 function toggle() {
-  if (props.forceCollapsed !== undefined) return  // 强制态下不允许 toggle
+  // 仅 forceCollapsed=true 时禁止 toggle (强制折叠); false/undefined 都允许.
+  // 这样 host 可以用 forceCollapsed=false 显式"控制权交回"给我们 (受控折叠).
+  if (props.forceCollapsed === true) return
   const next = !innerCollapsed.value
   innerCollapsed.value = next
+  // 只 emit update:collapsed (collapsed 状态变化);
+  // 不再 emit toggle-sidebar (留给 FcHeader.hamburger 用, 避免 host 同时监听
+  // 两个事件导致的 toggle 翻覆盖 — 表现为需要按两次按钮才能切换折叠态).
   emit('update:collapsed', next)
-  emit('toggle-sidebar')
 }
 
 // ---- Drag handle ----
@@ -149,7 +153,7 @@ defineExpose({
     <slot name="footer" />
 
     <button
-      v-if="!isMobile && props.forceCollapsed === undefined"
+      v-if="!isMobile && props.forceCollapsed !== true"
       type="button"
       class="fc-sidebar__toggle"
       :title="effectiveCollapsed ? 'Expand' : 'Collapse'"

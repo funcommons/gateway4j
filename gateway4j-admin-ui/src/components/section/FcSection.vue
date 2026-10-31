@@ -1,5 +1,5 @@
 <script setup lang="ts">defineOptions({ name: 'FcSection' })
-interface Props {
+export interface FcSectionProps {
   noHeaderBorder?: boolean
   /** 内边距档位. 默认 inherit (沿用 .fc-main .fc-section 全局响应式 padding) */
   padding?: 'inherit' | 'none' | 'sm' | 'md' | 'lg'
@@ -8,7 +8,7 @@ interface Props {
   /** 是否可 hover 交互 (整张卡片轻微浮起). 默认 false */
   hover?: boolean
 }
-withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<FcSectionProps>(), {
   noHeaderBorder: false,
   padding: 'inherit',
   shadow: 'md',
@@ -35,6 +35,7 @@ withDefaults(defineProps<Props>(), {
     <div class="fc-section__body">
       <slot />
     </div>
+    <!-- footer slot（gateway4j 保留能力：ldx2 快照版未含此插槽）-->
     <div
       v-if="$slots.footer"
       class="fc-section__footer"
@@ -53,7 +54,8 @@ withDefaults(defineProps<Props>(), {
   border-radius: var(--app-radius-card);
   box-shadow: var(--app-shadow-md);
   border: 1px solid var(--el-border-color-extra-light);
-  transition: all var(--transition-base);
+  transition: background-color var(--transition-base), border-color var(--transition-base),
+    box-shadow var(--transition-base), border-radius var(--transition-base);
 }
 .fc-section__header {
   border-bottom: 1px solid var(--el-border-color-extra-light);
@@ -65,14 +67,6 @@ withDefaults(defineProps<Props>(), {
   display: flex;
   flex-direction: column;
   min-width: 0;
-}
-.fc-section__footer {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding-top: 12px;
-  margin-top: 12px;
-  border-top: 1px solid var(--el-border-color-extra-light);
 }
 
 /* ---- opt-in modifier: padding 覆盖全局 .fc-main .fc-section ---- */
@@ -119,5 +113,14 @@ withDefaults(defineProps<Props>(), {
 .fc-section :deep(.el-descriptions .el-descriptions__table) {
   border-collapse: separate;
   border-spacing: 0;
+}
+
+.fc-section__footer {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding-top: 12px;
+  margin-top: 12px;
+  border-top: 1px solid var(--el-border-color-extra-light);
 }
 </style>

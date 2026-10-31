@@ -2,7 +2,7 @@
 // FcNavGroup — 薄壳: 包 Element Plus <el-menu>, 提供 activePath / select 接口.
 // 业务侧在 FcSidebar 的 default slot 里塞 <el-sub-menu> / <el-menu-item> 树.
 
-interface Props {
+export interface FcNavGroupProps {
   activePath?: string
   mode?: 'horizontal' | 'vertical'
   collapse?: boolean
@@ -11,7 +11,7 @@ interface Props {
   accordion?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcNavGroupProps>(), {
   activePath: '',
   mode: 'vertical',
   collapse: false,

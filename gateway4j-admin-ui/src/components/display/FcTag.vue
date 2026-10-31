@@ -25,7 +25,7 @@ import { computed } from 'vue'
 
 type TagColor = 'primary' | 'gray' | 'success' | 'warning' | 'danger' | 'brand'
 
-interface Props {
+export interface FcTagProps {
   /** 颜色 tone. */
   color?: TagColor
   /** 尺寸. */
@@ -40,7 +40,7 @@ interface Props {
   selected?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcTagProps>(), {
   color: 'primary',
   size: 'sm',
   solid: false,
@@ -87,7 +87,7 @@ const classes = computed(() => [
       :aria-label="'close'"
       @click.stop="!disabled && emit('close')"
     >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
         <path d="M18 6 6 18M6 6l12 12" stroke-linecap="round"/>
       </svg>
     </button>

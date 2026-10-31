@@ -6,7 +6,7 @@
 
 // Hamburger 按钮在移动端自动显示, 点击 emit('toggle-sidebar') 让 host 决定
 // (打开 el-drawer 侧栏 / 折叠态切换等).
-import { useResponsive } from '@/composables'
+import { useResponsive } from '../utils/useResponsive'
 
 const emit = defineEmits<{
   'toggle-sidebar': []

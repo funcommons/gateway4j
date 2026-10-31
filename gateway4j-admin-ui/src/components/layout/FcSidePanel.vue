@@ -10,11 +10,11 @@
  *   透明化 (border/shadow/radius/bg 全 neutralize), 让 el-drawer 当唯一外框.
  */
 import { computed } from 'vue'
-import FcSection from '../section/FcSection.vue'
-import FcDrawer from '../overlay/FcDrawer.vue'
-import { useResponsive } from '@/composables'
+import FcSection from '@/components/section/FcSection.vue'
+import FcDrawer from '@/components/overlay/FcDrawer.vue'
+import { useResponsive } from '../utils/useResponsive'
 
-interface Props {
+export interface FcSidePanelProps {
   /** 桌面端宽度 / 抽屉宽度. 数字按 px, 字符串原样传给 CSS. 默认 280px. */
   width?: string | number
   /** 浮动按钮图标 class (remix-icon). 默认侧拉门图标. */
@@ -25,7 +25,7 @@ interface Props {
   drawerDirection?: 'rtl' | 'ltr' | 'ttb' | 'btt'
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcSidePanelProps>(), {
   width: 280,
   fabIcon: 'ri-side-bar-fill',
   drawerTitle: '',

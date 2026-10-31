@@ -1,5 +1,5 @@
 <template>
-  <div class="fc-tabs-panel">
+  <div class="fc-tabs-panel" :class="{ 'fc-tabs-panel--card': card }">
     <!-- Tab 栏 -->
     <div v-if="showTabsBar" class="fc-tabs">
       <button
@@ -43,17 +43,27 @@ export interface TabItem {
   disabled?: boolean
 }
 
-interface Props {
+export interface FcTabsPanelProps {
   /** tab 列表 */
   tabs: TabItem[]
   /** 当前激活的 tab value (v-model) */
   modelValue: string
   /** 是否显示 tab 栏 (单 tab 时可隐藏) */
   showTabsBar?: boolean
+  /**
+   * 是否启用卡片视觉 (与 FcSection 同等).
+   * true 时:
+   *   - tab 行与 content 之间多 12px 间距
+   *   - .fc-tabs-content 加 bg + border-radius + box-shadow + border (标准卡片)
+   *   - .fc-tab-pane padding=0 (内部卡片自己决定)
+   * 默认 false (保留原裸样式, 不破坏其它页面).
+   */
+  card?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcTabsPanelProps>(), {
   showTabsBar: true,
+  card: false,
 })
 
 const emit = defineEmits<{
@@ -137,5 +147,23 @@ function onTabClick(t: TabItem) {
   border-top: 1px solid var(--app-separator, #e5e5e5);
   background: var(--app-bg-page, #fafafa);
   flex-shrink: 0;
+}
+
+/* ---- opt-in: 卡片视觉 (与 FcSection 同等) ---- */
+.fc-tabs-panel--card .fc-tabs {
+  margin-bottom: 12px;       // tab 行 ↔ content 间距
+}
+
+.fc-tabs-panel--card .fc-tabs-content {
+  background: var(--el-bg-color);
+  border-radius: var(--app-radius-card, 8px);
+  box-shadow: var(--app-shadow-md);
+  border: 1px solid var(--el-border-color-extra-light);
+  overflow: hidden;
+  min-height: 200px;
+}
+
+.fc-tabs-panel--card .fc-tab-pane {
+  padding: 0;                // 内部卡片自带 padding (FcSection padding="none" 接管), 不叠
 }
 </style>

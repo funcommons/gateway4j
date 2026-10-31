@@ -18,13 +18,13 @@ defineOptions({ name: 'FcFilterButton' })
  *
  * 历史: 由 components/common/FilterButton.vue 迁入, 加 Fc 前缀.
  */
-interface Props {
+export interface FcFilterButtonProps {
   /** 当前激活 (is-active class). 默认 false */
   active?: boolean
   /** 禁用 */
   disabled?: boolean
 }
-withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<FcFilterButtonProps>(), {
   active: false,
   disabled: false,
 })

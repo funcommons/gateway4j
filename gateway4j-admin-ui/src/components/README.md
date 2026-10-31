@@ -13,10 +13,17 @@ Vue 3 + Element Plus + 多品牌多主题的统一组件层。
 在 `main.ts` 顶部加一行（包含 EP 覆写 + 8 个 brand 样式 + light/dark 主题）：
 
 ```ts
-import '@/components/sdk/theme/theme.scss'
+import '@/components/theme/theme.scss'
 ```
 
 ⚠️ **不要**再单独引入 Element Plus 主题覆写 SCSS（已在 `theme.scss` 内置）；EP 原生 CSS 仍需引入：`import 'element-plus/dist/index.css'`。
+
+⚠️ **必须走 `theme.scss` 这一个入口，不要拆开 cherry-pick 子文件**（如只引 `brands` / `element-classes`）。
+`theme.scss` 是 SDK 全局样式的唯一注册点 — 后续新增的全局 class 文件（如 `_button-classes.scss`）
+只会挂到 `theme.scss`。宿主项目如果绕过它自己拼 import 链，新增样式会静默缺失，页面"样式没生效"但没有任何报错。
+真实案例：本仓库 `src/styles/index.scss` 曾直引 `element-classes`，导致 `_button-classes.scss`
+只注册到 `theme.scss` 后 app 端完全没加载（2026-07 踩坑记录）。如果宿主确实需要自有样式入口，
+每次 SDK 升级后对比一遍 `theme.scss` 的 `@use` 清单，确认没有漏挂新文件。
 
 ### 第 2 步：用 FcThemeProvider 包 App
 
@@ -30,7 +37,7 @@ import '@/components/sdk/theme/theme.scss'
 </template>
 
 <script setup lang="ts">
-import { FcThemeProvider } from '@/components/sdk'
+import { FcThemeProvider } from '@/components'
 </script>
 ```
 
@@ -70,20 +77,21 @@ import { FcThemeProvider } from '@/components/sdk'
   </FcFilterBar>
 
   <FcSection>
-    <FcTable :data="rows" :loading="loading">
+    <el-table class="fc-table" :data="rows" row-key="id" v-loading="loading">
       <el-table-column prop="name" :label="t('col.name')" />
       <el-table-column :label="t('col.actions')">
         <template #default="{ row }">
           <FcButton variant="text" size="sm" @click="edit(row)">{{ t('common.edit') }}</FcButton>
         </template>
       </el-table-column>
-    </FcTable>
+      <template #empty><FcEmpty /></template>
+    </el-table>
     <FcPagination v-model:current-page="page" :total="total" />
   </FcSection>
 </template>
 
 <script setup lang="ts">
-import { FcSectionHeader, FcSection, FcFilterBar, FcFilterButton, FcTable, FcButton, FcPagination } from '@/components/sdk'
+import { FcSectionHeader, FcSection, FcFilterBar, FcFilterButton, FcEmpty, FcButton, FcPagination } from '@/components'
 </script>
 ```
 
@@ -113,12 +121,27 @@ import { FcSectionHeader, FcSection, FcFilterBar, FcFilterButton, FcTable, FcBut
 | 分类 | 组件 |
 |---|---|
 | **section** 区段容器 | FcSection · FcSectionHeader |
-| **display** 展示原子 | FcSectionCard · FcEmpty · FcSkeleton · FcTag · FcTagGroup · FcAvatar · FcImage |
-| **data** 数据承载 | FcStatusBadge · FcReorderableGrid · FcTable |
+| **display** 展示原子 | FcSectionCard · FcEmpty · FcSkeleton · FcTag · FcTagGroup · FcAvatar · FcImage · FcIcon |
+| **data** 数据承载 | FcStatusBadge · FcReorderableGrid |
 | **layout** 布局骨架 | FcHeader · FcMain · FcSidebar · FcSidebarNav · FcNavGroup · FcSidePanel |
 | **navigation** 导航筛选 | FcFilterBar · FcFilterBarDivider · FcFilterButton · FcSegmented · FcTabsPanel · FcPagination |
 | **overlay** 浮层交互 | FcDialog · FcDrawer · FcPopover · FcTooltip · FcConfirm · FcContextMenu · FcPicker · FcPickerGroup · FcImagePicker |
-| **form** 表单输入 | FcDropZone · FcButton · FcInput · FcSelect · FcFormItem · FcSwitch |
+| **form** 表单输入 | FcDropZone · FcButton · FcSelect · FcSwitch · FcRadioGroup · FcRadio · FcRadioButton |
+| **form global classes** EP 原生外观 | `el-input.fc-input` · `el-form-item.fc-form-item` · `el-slider.fc-slider` · `el-table.fc-table` |
+| **theme** 主题品牌 | FcThemeProvider · FcThemeSwitcher |
+
+### 两种引入方式
+
+```ts
+// 全量入口 — 一处导入所有组件
+import { FcButton, FcEmpty } from '@/components'
+
+// 按目录入口 — 树摇更友好, 且 copy 单个子目录即自带导出清单
+import { FcButton } from '@/components/form'
+import { FcEmpty } from '@/components/display'
+```
+
+子目录 `data` `display` `form` `layout` `navigation` `overlay` `section` `theme` `utils` 各有自治 `index.ts`（导出该目录的组件 + Props 类型 + composables），主 `index.ts` 只做聚合。
 
 ---
 
@@ -342,38 +365,28 @@ emit：`update:tags`。expose：`focus()`。
 
 emit：`update:modelValue` / `change` / `remove` / `reorder`。expose：`slots` / `setSlot` / `remove`。
 
-### FcTable
+### el-table + `fc-table` (全局 class, 非组件)
 
-**替代 `el-table`**。声明式 columns 配置 + 数据，或插槽式自定义列；统一表头/空态/边框/loading 蒙层。
+**替代原 FcTable 薄封装** (已删除 — wrapper 的声明式 columns / loading prop 业务零使用,
+且 props/emits 同步层是持续的维护负担). 直接用 EP 原生 el-table + `fc-table` class,
+视觉 (表头 bg / 行高 48 / 圆角 / hover / 边框色) 由全局样式统一.
 
 ```vue
-<!-- 声明式 -->
-<FcTable :data="rows" :columns="cols" :loading="loading" @row-click="onRow" />
-
-<!-- 插槽式 (自定义单元格 slot) -->
-<FcTable :data="rows" :loading="loading">
+<el-table class="fc-table" :data="rows" row-key="id" stripe highlight-current-row v-loading="loading" @row-click="onRow">
   <el-table-column prop="name" label="姓名" />
   <el-table-column label="操作">
     <template #default="{ row }"><FcButton size="sm" @click="edit(row)">编辑</FcButton></template>
   </el-table-column>
-</FcTable>
+  <template #empty><FcEmpty /></template>
+</el-table>
 ```
 
-| prop | 类型 | 默认 |
-|---|---|---|
-| `data` | `Record<string, unknown>[]` | — |
-| `columns` | `TableColumn[]` | — (不传则纯插槽式) |
-| `loading` | `boolean` | `false` |
-| `rowKey` | `string \| (row) => string \| number` | `'id'` |
-| `stripe` / `border` / `headerBg` | `boolean` | `false` |
-| `highlightCurrentRow` | `boolean` | `true` |
-| `rowHeight` | `number` | `48` |
-| `height` / `maxHeight` | `number \| string` | — |
-| `emptyType` / `emptyText` | — | `'empty'` / — |
-
-`TableColumn` 字段：`prop` / `label` / `width` / `minWidth` / `align` / `headerAlign` / `fixed` / `sortable` / `overflow` (默认 true) / `formatter`。
-
-槽位：`default`（追加自定义 el-table-column）。emit：`row-click` / `row-dblclick` / `selection-change` / `sort-change` / `select` / `select-all`。
+约定：
+- `class="fc-table"` 必带 (ESLint error 级强制), 否则表格无 SDK 外观.
+- `row-key="id"` 按数据主键写; `stripe` / `highlight-current-row` 推荐带上 (原 FcTable 默认行为).
+- 空态写 `<template #empty><FcEmpty /></template>` (EP 原生 slot, FcEmpty 可带 type/title).
+- loading 用 EP `v-loading` 指令, 不要自己包蒙层.
+- `el-table-column` 是 EP 内部子件, ESLint 放行.
 
 ---
 
@@ -458,7 +471,7 @@ emit：`click`。
 **最小用法**（一行生成 NavItem[]）：
 
 ```ts
-import { useSidebarNavItems } from '@/components/sdk'
+import { useSidebarNavItems } from '@/components'
 import { resolveIcon } from '@/utils'
 import { isFeatureEnabled } from '@/config/features'
 import { Files, MagicStick, Wallet } from '@element-plus/icons-vue'
@@ -507,7 +520,7 @@ const navItems = useSidebarNavItems({
 **底层纯函数**（自己写 composable 时复用）：
 
 ```ts
-import { filterRoutes, buildNavItems } from '@/components/sdk'
+import { filterRoutes, buildNavItems } from '@/components'
 
 // filterRoutes: 同步过滤路由
 const accessible = filterRoutes(router.getRoutes(), {
@@ -936,30 +949,73 @@ emit：`click`。
 
 **el-button → FcButton 映射**：`type=primary→variant=primary` / `type=default→variant=secondary` / `type=text→variant=text` / `type=danger→variant=danger` / `size=small→size=sm`。
 
-### FcInput
+### 原生 `<button>` + `fc-button-*` class（全局 class，非组件）
 
-`el-input` 薄封装。统一 placeholder、错误态、清空按钮、prefix/suffix 槽。
+FcButton 覆盖大部分场景（loading / EP 集成）。必须用原生 `<button>` 时，带 `fc-button` 系列 class 获得 SDK 统一外观，**不要自己写 `.btn-*` SCSS**（历史教训：`btn-cancel` 曾在 6 个文件里定义出 3 种长相）。
 
-```vue
-<FcInput v-model="val" placeholder="请输入" clearable />
-<FcInput v-model="email" error="邮箱格式错误" />
-<FcInput v-model="kw" @enter="search">
-  <template #prefix><el-icon><Search /></el-icon></template>
-</FcInput>
+组合方式：`fc-button` 基础 + 变体（必填）+ 尺寸（默认 md 可省）+ 修饰符。
+
+| 变体 | 语义 | 视觉 |
+|---|---|---|
+| `fc-button-primary` | 主要 | primary 底 + 白字 |
+| `fc-button-secondary` | 次要（填充） | muted 灰底 |
+| `fc-button-outline` | 次要（描边） | 透明底 + border，hover 变 primary |
+| `fc-button-danger` | 危险 | danger 底 + 白字 |
+| `fc-button-text` | 文字按钮 | 无底无边框，primary 字色（表格行操作） |
+| `fc-button-text-danger` | 危险文字 | 同上，danger 字色（表格行删除） |
+| `fc-button-dashed` | 虚线触发 | dashed border（新建卡片/添加入口） |
+
+| 尺寸 | 高度 | 字号 | 用途 |
+|---|---|---|---|
+| `fc-button-xs` | 24px | 12px | 表格行 / 紧凑操作 |
+| `fc-button-sm` | 28px | 12px | 弹窗底部 |
+| `fc-button-md` | 32px | 13px | 默认，可省略 |
+| `fc-button-lg` | 40px | 14px | 页面主 CTA |
+
+修饰符：`fc-button-icon`（正方形，宽高=尺寸高度）· `fc-button-circle`（全圆角）· `fc-button-block`（占满父宽）。内嵌 svg 自动 `1em` 跟字号缩放。
+
+```html
+<button class="fc-button fc-button-primary fc-button-sm">保存</button>
+<button class="fc-button fc-button-outline fc-button-sm">取消</button>
+<button class="fc-button fc-button-text fc-button-xs">编辑</button>
+<button class="fc-button fc-button-text-danger fc-button-xs">删除</button>
+<button class="fc-button fc-button-outline fc-button-icon fc-button-xs fc-button-circle"><i class="ri-edit-line" /></button>
+<button class="fc-button fc-button-dashed fc-button-block fc-button-lg">+ 新建分组</button>
 ```
 
-| prop | 类型 | 默认 |
-|---|---|---|
-| `modelValue` | `string \| number \| undefined` | — |
-| `error` | `string` | — (有值时显红边 + 下方文案) |
-| `placeholder` / `clearable` / `disabled` / `readonly` | — | — |
-| `type` | `'text' \| 'password' \| 'textarea' \| 'number'` | `'text'` |
-| `prefixIcon` | EP icon | — |
-| `size` | `'small' \| 'default' \| 'large'` | `'default'` |
-| `maxlength` | `number` | — (同时启用 show-word-limit) |
-| `autosize` | `boolean \| { minRows?, maxRows? }` | — |
+实现要点（改 SDK 时别踩）：
 
-槽位：`prefix` / `suffix` / `prepend` / `append`。emit：`update:modelValue` / `enter` / `input` / `change` / `clear`。
+- 样式在 `theme/_button-classes.scss`。注意 **el-button 渲染出来也是原生 `<button>`** 且 FcButton 给它挂 `fc-button` class，所以每条规则都带 `:not(.el-button)` 排除 EP 实例 — 漏掉的话 base 的 height/padding 会以更高特异性压掉 EP 的 size 变体（2026-07 踩坑记录）。
+- 已注册进 `theme.scss`；宿主若绕过 `theme.scss` 自有样式入口，需同步补 `@use`（见第 1 步警告）。
+- ESLint `prefer-fc-button`（warn 级）：原生 button 不带 `fc-button*` class 即警告，带任意 `fc-button-*` 即放行。
+
+### EP 原生组件 + 全局 fc-* class
+
+`el-input`、`el-form-item`、`el-slider`、`el-table` 保留 Element Plus 原生 API，不增加同名 Vue 薄封装。必须带对应的 SDK 全局 class，以统一主题样式：
+
+| EP 组件 | 必需 class | 统一内容 |
+|---|---|---|
+| `el-input` | `fc-input` | 宽度、错误态 |
+| `el-form-item` | `fc-form-item` | label、校验错误文案 |
+| `el-slider` | `fc-slider` | 宽度、禁用态 |
+| `el-table` | `fc-table` | 表头、行高 48、圆角、hover、边框色（详见 data 章节） |
+
+```vue
+<el-input v-model="name" class="fc-input" maxlength="50" show-word-limit />
+<el-form-item class="fc-form-item" label="姓名" prop="name">
+  <el-input v-model="name" class="fc-input" />
+</el-form-item>
+<el-slider v-model="volume" class="fc-slider" :min="0" :max="100" />
+```
+
+需要手动错误态时，给输入组件增加 `has-error`，错误文案使用 `fc-input__error`；辅助文案使用 `fc-form-item__hint`：
+
+```vue
+<el-input v-model="email" class="fc-input has-error" />
+<div class="fc-input__error">邮箱格式错误</div>
+```
+
+这些 class 随 `@/components/theme/theme.scss` 一并加载。业务不得省略 class，也不要重新封装仅转发 EP props/events/slots 的组件。
 
 ### FcSelect
 
@@ -983,31 +1039,6 @@ emit：`click`。
 | `emptyText` | `string` | `'无数据'` |
 
 槽位：`prefix` / `empty`。emit：`update:modelValue` / `change` / `search` / `clear` / `visible-change`。导出类型：`SelectOption<V>`。
-
-### FcFormItem
-
-`el-form-item` 薄封装。统一 label 字号、必填星号、错误样式。
-
-```vue
-<FcFormItem label="姓名" required error="必填">
-  <FcInput v-model="name" />
-</FcFormItem>
-
-<el-form :model="form" :rules="rules">
-  <FcFormItem prop="name" label="姓名">...</FcFormItem>
-</el-form>
-```
-
-| prop | 类型 | 默认 |
-|---|---|---|
-| `label` | `string` | — |
-| `prop` | `string` | el-form 校验用 |
-| `required` | `boolean` | `false` |
-| `error` | `string` | 覆盖 el-form 注入 |
-| `labelWidth` | `string \| number` | — |
-| `hint` | `string` | 右对齐提示 |
-
-槽位：`default` / `label` / `error`。
 
 ### FcSwitch
 
@@ -1063,7 +1094,7 @@ SDK 自带 8 个 brand + light/dark 主题切换。**SDK 用户不需要 copy �
 
 **1. 引入 SCSS（main.ts）**：
 ```ts
-import '@/components/sdk/theme/theme.scss'
+import '@/components/theme/theme.scss'
 ```
 
 **2. 用 FcThemeProvider 包 App（App.vue）**：
@@ -1179,7 +1210,7 @@ emit：`update:brand` / `update:theme` / `reset`。内置 8 个 brand swatch + 2
         {{ t.label }}
       </FcFilterButton>
       <FcFilterBarDivider />
-      <FcInput v-model="keyword" :placeholder="t('common.search')" clearable @enter="onSearch" />
+      <el-input v-model="keyword" class="fc-input" :placeholder="t('common.search')" clearable @keyup.enter="onSearch" />
     </FcFilterBar>
 
     <FcSection>
@@ -1210,8 +1241,8 @@ import { ref } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import {
   FcSectionHeader, FcSection, FcFilterBar, FcFilterBarDivider, FcFilterButton,
-  FcTable, FcTag, FcButton, FcInput, FcPagination,
-} from '@/components/sdk'
+  FcTable, FcTag, FcButton, FcPagination,
+} from '@/components'
 </script>
 ```
 
@@ -1223,17 +1254,17 @@ import {
 
   <FcDialog v-model:open="open" :title="t('form.title')" width="540px" append-to-body>
     <el-form :model="form" :rules="rules" label-width="80px">
-      <FcFormItem :label="t('form.name')" prop="name">
-        <FcInput v-model="form.name" :placeholder="t('form.name-ph')" maxlength="50" show-word-limit />
-      </FcFormItem>
-      <FcFormItem :label="t('form.type')" prop="type">
+      <el-form-item class="fc-form-item" :label="t('form.name')" prop="name">
+        <el-input v-model="form.name" class="fc-input" :placeholder="t('form.name-ph')" maxlength="50" show-word-limit />
+      </el-form-item>
+      <el-form-item class="fc-form-item" :label="t('form.type')" prop="type">
         <FcSelect v-model="form.type" :placeholder="t('form.type-ph')">
           <el-option v-for="o in typeOptions" :key="o.value" :label="o.label" :value="o.value" />
         </FcSelect>
-      </FcFormItem>
-      <FcFormItem :label="t('form.enabled')">
+      </el-form-item>
+      <el-form-item class="fc-form-item" :label="t('form.enabled')">
         <FcSwitch v-model="form.enabled" active-text="开" inactive-text="关" />
-      </FcFormItem>
+      </el-form-item>
     </el-form>
     <template #footer>
       <FcButton @click="open = false">{{ t('common.cancel') }}</FcButton>
@@ -1244,7 +1275,7 @@ import {
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
-import { FcDialog, FcFormItem, FcInput, FcSelect, FcSwitch, FcButton } from '@/components/sdk'
+import { FcDialog, FcSelect, FcSwitch, FcButton } from '@/components'
 </script>
 ```
 
@@ -1284,7 +1315,7 @@ import { FcDialog, FcFormItem, FcInput, FcSelect, FcSwitch, FcButton } from '@/c
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { FcSectionHeader, FcSection, FcTabsPanel, FcSkeleton, FcEmpty, FcButton } from '@/components/sdk'
+import { FcSectionHeader, FcSection, FcTabsPanel, FcSkeleton, FcEmpty, FcButton } from '@/components'
 </script>
 
 <style scoped lang="scss">
@@ -1337,9 +1368,9 @@ import { FcSectionHeader, FcSection, FcTabsPanel, FcSkeleton, FcEmpty, FcButton 
 
 ### 1. EP 组件禁用清单
 
-业务页**禁止**直接用以下 EP 组件，必须用 Fc 对应：
+业务页直接使用 EP 组件时，已有 Fc 封装的必须改用 Fc 组件；以下三个全局 class 例外必须显式带 class。
 
-| 禁用 | 用法 |
+| EP 用法 | 要求 / 替代 |
 |---|---|
 | `el-card` | `FcSection` / `FcSectionCard` |
 | `el-dialog` | `FcDialog` |
@@ -1351,9 +1382,10 @@ import { FcSectionHeader, FcSection, FcTabsPanel, FcSkeleton, FcEmpty, FcButton 
 | `el-tag` | `FcTag` |
 | `el-upload`（图片） | `FcImagePicker` / `FcDropZone` |
 | `el-button`（业务主操作） | `FcButton` |
-| `el-input` | `FcInput` |
+| `el-input` | `<el-input class="fc-input">` |
 | `el-select` | `FcSelect` |
-| `el-form-item` | `FcFormItem` |
+| `el-form-item` | `<el-form-item class="fc-form-item">` |
+| `el-slider` | `<el-slider class="fc-slider">` |
 | `el-switch` | `FcSwitch` |
 | `el-table` | `FcTable` |
 | `el-tabs`（页内 tab） | `FcTabsPanel` |
@@ -1361,7 +1393,7 @@ import { FcSectionHeader, FcSection, FcTabsPanel, FcSkeleton, FcEmpty, FcButton 
 | `<img class="cover">` + 自写加载/失败 | `FcImage` |
 | 自写 `.xxx-card` / `.xxx-tag` | 对应 Fc 组件 |
 
-> ESLint 可加 `no-restricted-syntax` 规则自动拦截。Code review 时 grep `<el-` 关键字。
+> ESLint 以 `error` 级拦截：禁止已有 Fc 封装的裸 `el-*`，并检查 `el-input` / `el-form-item` / `el-slider` 是否带对应 `fc-*` class。绕开 SDK 会让 `npm run lint` / `verify` / CI 失败。
 
 ### 2. CSS 写与不写的边界
 
@@ -1441,7 +1473,70 @@ import { FcSectionHeader, FcSection, FcTabsPanel, FcSkeleton, FcEmpty, FcButton 
 
 以下场景 SDK 不封装，业务自己写：
 
-- 业务专用复杂表单（多步骤 / 联动校验）- 用 `el-form` + `FcFormItem` 拼
+- 业务专用复杂表单（多步骤 / 联动校验）- 用 `el-form` + `<el-form-item class="fc-form-item">` 拼
 - 业务专用图表（echarts 配置）- 直接用 `v-chart`
 - 业务专用富文本编辑器 - 自己接 quill / tiptap
 - 复杂拖拽布局（gridster 等）- 自己接
+
+---
+
+## 开发与验证
+
+SDK 改完务必跑 `npm run verify`，三件套一起跑：typecheck + eslint + 测试。
+
+```bash
+npm run verify
+# 等价于依次执行:
+#   1. vue-tsc -b --noEmit      静态类型
+#   2. eslint "src/**/*.vue"    ESLint (error 级, 绕开 SDK 即失败)
+#   3. vitest run              SDK 组件单元测试
+```
+
+### 测试结构
+
+`src/components/sdk/__tests__/` 下有三类测试：
+
+| 路径 | 作用 |
+|---|---|
+| `setup.ts` | 全局 setup：注册 `vue-i18n` + `Pinia` + `ElementPlus` 全局 plugin + jsdom 缺失 API (matchMedia / ResizeObserver / localStorage) |
+| `smoke.test.ts` | 10 个组件挂载烟测，每组件 1-2 条断言 |
+| `css-isolation.test.ts` | CSS 隔离守护：所有 `<style>` 块必须 scoped 或顶层选择器 `.fc-` 前缀 (防止业务页样式污染) |
+
+### 组件级 colocated 测试
+
+每个有"行为"或"对外契约"的组件旁都有一个 `<Name>.test.ts`，覆盖：
+
+- **mount 不报错**（无 key/missing prop 错误）
+- **props 透传**（`variant` / `size` / `disabled` 等）
+- **emit 触发**（`click` / `update:modelValue` / `change` / `select` 等）
+- **slot 渲染**（`header` / `actions` / `trigger` / `default`）
+- **a11y 属性**（`role` / `aria-checked` / `aria-label`）
+
+写法参考 `FcSwitch.test.ts` / `FcThemeProvider.test.ts` / `FcSidebar.test.ts`。
+
+### 不写 unit test 的 4 个组件
+
+下列组件状态/事件层远超 jsdom 模拟能力，留给 e2e（Playwright）：
+
+- `FcImagePicker`（1374 行，粘贴 / 拖放 / 多选 / 转码）
+- `FcDropZone`（HTML5 DnD）
+- `FcReorderableGrid`（HTML5 DnD）
+- `FcContextMenu`（右键定位 + teleport）
+
+### 添加新组件测试
+
+新增 SDK 组件时，**同时**在组件旁加 `<Name>.test.ts` colocated 文件，遵循现有测试的 helper：
+
+```ts
+import { mountFc, emittedOf } from '../__tests__/helpers/mount'
+import FcNew from './FcNew.vue'
+
+describe('FcNew', () => {
+  it('默认 mount 不报错', () => {
+    const w = mountFc(FcNew)
+    expect(w.find('.fc-new').exists()).toBe(true)
+  })
+})
+```
+
+不需要手动注册 i18n / Pinia / ElementPlus — `setup.ts` 已经做了。

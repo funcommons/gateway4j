@@ -37,7 +37,7 @@ interface RejectPayload {
   message: string
 }
 
-interface Props {
+export interface FcDropZoneProps {
   /** 接受的 mime / 扩展. 默认 '*' (任意). */
   accept?: string
   /** 是否多选. 默认 true. */
@@ -54,7 +54,7 @@ interface Props {
   containerClass?: string
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcDropZoneProps>(), {
   accept: '*',
   multiple: true,
   maxSize: 10 * 1024 * 1024,
@@ -116,7 +116,9 @@ function validateAndEmit(files: File[]) {
     emit('reject', {
       reason,
       files: rejected,
-      message: reason === 'type' ? t('common.dropRejectType') : t('common.dropRejectSize'),
+      message: reason === 'type'
+        ? t('common.dropRejectType')
+        : t('common.dropRejectSize'),
     })
   }
 }

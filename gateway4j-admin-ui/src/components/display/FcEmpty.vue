@@ -27,7 +27,7 @@ import { useI18n } from 'vue-i18n'
 
 type EmptyType = 'empty' | 'error' | 'processing' | 'search' | 'no-result'
 
-interface Props {
+export interface FcEmptyProps {
   /** 预设类型, 决定默认图标 + 默认文案 i18n key. */
   type?: EmptyType
   /** 主文案. 不传走 i18n (`emptyState.<type>`). */
@@ -40,7 +40,7 @@ interface Props {
   spinning?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcEmptyProps>(), {
   type: 'empty',
   title: '',
   description: '',
@@ -71,22 +71,22 @@ const hasCustomIcon = computed(() => !!slots.icon)
     role="status"
   >
     <div v-if="!hasCustomIcon" class="fc-empty__icon">
-      <svg v-if="type === 'empty'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <svg v-if="type === 'empty'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
         <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
-      <svg v-else-if="type === 'error'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <svg v-else-if="type === 'error'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
         <circle cx="12" cy="12" r="10"/>
         <path d="M12 8v4m0 4h.01" stroke-linecap="round"/>
       </svg>
-      <svg v-else-if="type === 'search'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <svg v-else-if="type === 'search'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
         <circle cx="11" cy="11" r="8"/>
         <path d="m21 21-4.35-4.35" stroke-linecap="round"/>
       </svg>
-      <svg v-else-if="type === 'no-result'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <svg v-else-if="type === 'no-result'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
         <circle cx="11" cy="11" r="8"/>
         <path d="m21 21-4.35-4.35M8 8l6 6M14 8l-6 6" stroke-linecap="round"/>
       </svg>
-      <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
         <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     </div>

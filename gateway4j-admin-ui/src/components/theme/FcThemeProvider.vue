@@ -35,7 +35,7 @@ import { isValidBrand, type ThemeMode } from './brands'
 
 const STORAGE_VERSION = 1
 
-interface Props {
+export interface FcThemeProviderProps {
   /** 当前 brand id (v-model). 不传则用内置持久化状态. */
   brand?: string
   /** 当前 theme (v-model). 不传则用内置持久化状态. */
@@ -54,7 +54,7 @@ interface Props {
   defaultTheme?: ThemeMode
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcThemeProviderProps>(), {
   persistKey: 'fc-theme-provider',
   persist: true,
   defaultBrand: 'ldx2',
@@ -179,8 +179,13 @@ provide('fc-theme', {
 defineExpose({
   applyToRoot,
   reset() {
-    innerBrand.value = props.initialBrand ?? props.defaultBrand
-    innerTheme.value = props.initialTheme ?? props.defaultTheme
+    const b = props.initialBrand ?? props.defaultBrand
+    const t = props.initialTheme ?? props.defaultTheme
+    innerBrand.value = b
+    innerTheme.value = t
+    // 受控模式下 currentBrand=props.brand, 需 emit 通知父级回退
+    emit('update:brand', b)
+    emit('update:theme', t)
     applyToRoot()
     savePersisted()
   },

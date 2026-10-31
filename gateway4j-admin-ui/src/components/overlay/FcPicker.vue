@@ -72,7 +72,7 @@ import { ref } from 'vue'
 import FcDialog from './FcDialog.vue'
 import FcDrawer from './FcDrawer.vue'
 
-interface Props {
+export interface FcPickerProps {
   /** dialog 标题 */
   title?: string
   /** dialog 宽度 (px) */
@@ -100,7 +100,7 @@ interface Props {
   appendToBody?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcPickerProps>(), {
   title: '',
   dialogWidth: 480,
   dialogHeight: undefined,

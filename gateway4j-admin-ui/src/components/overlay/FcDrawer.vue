@@ -20,7 +20,7 @@ import { ref, computed, watch } from 'vue'
 
 type DrawerDirection = 'rtl' | 'ltr' | 'ttb' | 'btt'
 
-interface Props {
+export interface FcDrawerProps {
   /** 方式 A: v-model:open 双向绑定开关状态 */
   open?: boolean
   /** 方式 B: 单向 active prop (配合 @toggle 事件) */
@@ -45,7 +45,7 @@ interface Props {
   bodyClass?: string
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcDrawerProps>(), {
   open: false,
   active: undefined,
   title: '',
@@ -101,6 +101,14 @@ const drawerClassFull = computed(() => ['fc-drawer', props.drawerClass].filter(B
       <slot name="header" :close="handleClose" />
     </template>
     <slot :close="handleClose" />
+    <!--
+      P0 修复: 之前没有透传 #footer 插槽 —— 调用方写在 <template #footer> 里的
+      「取消 / 保存」按钮永远不渲染, 导致抽屉里的编辑表单无法提交。
+      el-drawer 本身没有 footer 插槽, 所以在 body 末尾自行渲染一段。
+    -->
+    <div v-if="$slots.footer" class="fc-drawer__footer">
+      <slot name="footer" :close="handleClose" />
+    </div>
   </el-drawer>
 </template>
 
@@ -108,6 +116,19 @@ const drawerClassFull = computed(() => ['fc-drawer', props.drawerClass].filter(B
 /* 非 scoped: el-drawer teleport 到 body 后 scoped 失效, 用全局选择器 */
 .fc-drawer.el-drawer {
   border-radius: var(--brand-radius-lg, var(--radius-lg));
+}
+
+/* 底部操作条 (P0: 补上 #footer 插槽后需要配套样式) */
+.fc-drawer__footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 12px 0 0;
+  background: var(--app-bg-card, #fff);
+  border-top: 1px solid var(--el-border-color-lighter);
 }
 
 .fc-drawer.el-drawer.rtl {

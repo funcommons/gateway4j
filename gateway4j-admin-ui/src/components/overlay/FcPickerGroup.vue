@@ -25,7 +25,7 @@ defineOptions({ name: 'FcPickerGroup' })
 import { ref, watch } from 'vue'
 import FcReorderableGrid from '../data/FcReorderableGrid.vue'
 
-interface Props {
+export interface FcPickerGroupProps {
   /** 槽位值数组. null 表示空槽. */
   modelValue: (string | null)[]
   min?: number
@@ -39,7 +39,7 @@ interface Props {
   trailingEmpty?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcPickerGroupProps>(), {
   min: 1,
   max: 8,
   layout: 'wrap',

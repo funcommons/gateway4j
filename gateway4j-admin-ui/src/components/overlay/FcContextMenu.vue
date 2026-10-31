@@ -34,13 +34,13 @@ export interface MenuItem {
   disabled?: boolean
 }
 
-interface Props {
+export interface FcContextMenuProps {
   visible: boolean
   pos: { x: number; y: number }
   items: MenuItem[]
 }
 
-const props = defineProps<Props>()
+const props = defineProps<FcContextMenuProps>()
 
 const emit = defineEmits<{
   /** 选中某项 */

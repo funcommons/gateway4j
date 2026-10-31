@@ -21,7 +21,7 @@ import { computed, type CSSProperties } from 'vue'
 
 type SkeletonVariant = 'text' | 'rect' | 'avatar' | 'card'
 
-interface Props {
+export interface FcSkeletonProps {
   variant?: SkeletonVariant
   /** text 模式行数, 默认 1. 其他模式忽略. */
   rows?: number
@@ -37,11 +37,11 @@ interface Props {
   radius?: string | number
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcSkeletonProps>(), {
   variant: 'text',
   rows: 1,
-  width: '100%',
-  height: 'auto',
+  width: undefined,
+  height: undefined,
   size: 40,
   animated: true,
   radius: undefined,

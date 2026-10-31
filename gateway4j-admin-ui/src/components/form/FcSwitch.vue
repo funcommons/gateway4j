@@ -17,7 +17,7 @@ defineOptions({ name: 'FcSwitch', inheritAttrs: false })
  */
 import { computed } from 'vue'
 
-interface Props {
+export interface FcSwitchProps {
   modelValue: boolean | string | number | undefined
   /** 开启值. 默认 true. */
   activeValue?: boolean | string | number
@@ -37,7 +37,7 @@ interface Props {
   inlinePrompt?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcSwitchProps>(), {
   activeValue: true,
   inactiveValue: false,
   disabled: false,
@@ -157,7 +157,8 @@ function toggle() {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  /* 白色旋钮上的 loading spinner 墨色: 原来是白 on 白 (1.00:1, 规则 40) */
+  color: color-mix(in srgb, var(--app-primary) 70%, black);
 }
 
 .fc-switch.is-active .fc-switch__track {

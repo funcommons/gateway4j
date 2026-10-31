@@ -1,12 +1,12 @@
 <script setup lang="ts">defineOptions({ name: 'FcSectionHeader' })
-import FcSection from './FcSection.vue'
+import FcSection from '@/components/section/FcSection.vue'
 
-interface Props {
+export interface FcSectionHeaderProps {
   title: string
   subtitle?: string
   back?: boolean
 }
-withDefaults(defineProps<Props>(), { subtitle: '', back: false })
+withDefaults(defineProps<FcSectionHeaderProps>(), { subtitle: '', back: false })
 
 const emit = defineEmits<{
   back: []

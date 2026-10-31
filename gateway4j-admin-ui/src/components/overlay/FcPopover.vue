@@ -22,7 +22,7 @@ defineOptions({ name: 'FcPopover' })
  * - 桌面/手机共享同一个开关状态 (v-model:open 或 :active+@toggle)
  */
 import { ref, computed, watch } from 'vue'
-import { useResponsive } from '@/composables'
+import { useResponsive } from '../utils/useResponsive'
 import { useBodyScrollLock } from '@/composables'
 
 type Placement = 'top' | 'top-start' | 'top-end'
@@ -30,7 +30,7 @@ type Placement = 'top' | 'top-start' | 'top-end'
   | 'left' | 'left-start' | 'left-end'
   | 'right' | 'right-start' | 'right-end'
 
-interface Props {
+export interface FcPopoverProps {
   /** 方式 A: v-model:open 双向绑定开关状态 */
   open?: boolean
   /** 方式 B: 单向 active prop (配合 @toggle 事件, 适合多个 selector 互斥) */
@@ -59,7 +59,7 @@ interface Props {
   popperOptions?: Partial<import('@popperjs/core').Options>
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcPopoverProps>(), {
   open: false,
   active: undefined,
   title: '',

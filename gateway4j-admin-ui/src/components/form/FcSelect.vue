@@ -17,7 +17,7 @@ import type { SelectOption } from './_types'
 
 defineOptions({ name: 'FcSelect' })
 
-interface Props {
+export interface FcSelectProps {
   modelValue: any
   /** 列定义 (声明式用法; 不传则用 default slot 透传 el-option). */
   options?: SelectOption[]
@@ -34,7 +34,7 @@ interface Props {
   emptyText?: string
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcSelectProps>(), {
   clearable: false,
   disabled: false,
   loading: false,

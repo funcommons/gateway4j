@@ -34,7 +34,7 @@ interface SegOption {
   disabled?: boolean
 }
 
-interface Props {
+export interface FcSegmentedProps {
   /** v-model */
   modelValue?: string | number
   /** 选项数组. 跟 slot 二选一. */
@@ -47,7 +47,7 @@ interface Props {
   disabled?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcSegmentedProps>(), {
   modelValue: '',
   options: () => [],
   size: 'md',
@@ -147,8 +147,8 @@ const sizeClass = computed(() => `size-${props.size}`)
   }
 
   &.is-active {
-    background: var(--app-bg-card, #fff);
-    color: var(--app-primary, #409eff);
+    background: var(--app-bg-card);
+    color: var(--app-primary);
     box-shadow: var(--app-shadow-md, 0 1px 3px rgba(0, 0, 0, 0.08));
   }
 

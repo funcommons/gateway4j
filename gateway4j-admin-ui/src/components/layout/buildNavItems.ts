@@ -119,9 +119,9 @@ export function buildNavItems(options: BuildNavOptions): NavItem[] {
   const { routes, t, iconResolver, groups = [], topLevels = [], leafFilter } = options
   const items: NavItem[] = []
 
-  // Apply the global leafFilter (if provided) to the routes up front.
-  // This way topLevels, groups, and any other downstream rules all see
-  // the filtered set. Per-rule leafFilter still applies on top of this.
+  // Apply the global leafFilter (if provided) to the routes up front, so
+  // topLevels / groups all see the filtered set. Per-rule leafFilter still
+  // applies on top of this. (gateway4j 保留能力：ldx2 快照版曾在此处丢失该行为)
   const effectiveRoutes = leafFilter ? routes.filter(leafFilter) : routes
 
   // ---- 顶层 leaf ----
@@ -149,5 +149,7 @@ export function buildNavItems(options: BuildNavOptions): NavItem[] {
     items.push(group)
   }
 
+  // 未通过 group/topLevels 匹配的路由默认不进菜单;
+  // 如有需要, 业务可以扩展 options 添加 'orphanRouteNames' / 'orphanRoutePrefix' 单独捕获.
   return items
 }

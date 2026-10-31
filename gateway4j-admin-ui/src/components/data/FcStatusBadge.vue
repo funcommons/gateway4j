@@ -20,9 +20,9 @@ defineOptions({ name: 'FcStatusBadge' })
  */
 import { computed, useSlots } from 'vue'
 
-type StatusTone = 'success' | 'processing' | 'error' | 'pending' | 'neutral' | 'warning'
+type StatusTone = 'success' | 'processing' | 'error' | 'pending' | 'neutral'
 
-interface Props {
+export interface FcStatusBadgeProps {
   /** 语义色. */
   tone?: StatusTone
   /** 文案. 不传走 default slot. */
@@ -35,7 +35,7 @@ interface Props {
   solid?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcStatusBadgeProps>(), {
   tone: 'neutral',
   label: '',
   dot: undefined,
@@ -95,7 +95,6 @@ const resolvedLabel = computed(() => props.label || (slots.default ? '' : ''))
 .tone-processing { --badge-color: var(--app-primary, #409eff); }
 .tone-error    { --badge-color: var(--app-color-danger, #ff3b30); }
 .tone-pending  { --badge-color: var(--app-color-warning, #e6a23c); }
-.tone-warning  { --badge-color: var(--app-color-warning, #e6a23c); }
 .tone-neutral  { --badge-color: var(--app-text-tertiary, #999); }
 
 /* sizes */

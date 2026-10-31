@@ -24,16 +24,16 @@
 <script setup lang="ts">
 defineOptions({ name: 'FcTagGroup' })
 import { ref } from 'vue'
-import { FcTag } from "../index"
+import FcTag from '../display/FcTag.vue'
 
-interface Props {
+export interface FcTagGroupProps {
   tags: string[]
   editable?: boolean
   color?: 'primary' | 'gray' | 'success' | 'warning' | 'danger'
   placeholder?: string
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcTagGroupProps>(), {
   editable: true,
   color: 'primary',
   placeholder: 'Add tag...',

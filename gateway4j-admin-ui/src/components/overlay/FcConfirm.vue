@@ -31,7 +31,7 @@ import FcDialog from './FcDialog.vue'
 
 type ConfirmVariant = 'default' | 'danger' | 'primary'
 
-interface Props {
+export interface FcConfirmProps {
   /** v-model:open */
   open?: boolean
   /** 标题. 不传走 t('common.tip'). */
@@ -54,7 +54,7 @@ interface Props {
   closeOnClickModal?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcConfirmProps>(), {
   open: false,
   title: '',
   content: '',
@@ -78,39 +78,31 @@ const { t } = useI18n()
 const innerOpen = ref(props.open)
 watch(() => props.open, v => { innerOpen.value = v })
 
-// Result events (confirm/cancel) must fire BEFORE 'update:open' false:
-// imperative users (useFcConfirm) resolve the promise on the result event;
-// a preceding 'update:open' false would settle the Promise first and swallow
-// the result (Promise can only settle once).
+/** trigger 插槽模式：点击触发元素打开确认弹窗（gateway4j 保留能力：
+ *  ldx2 快照版仅支持 v-model:open 驱动，丢了 trigger 插槽）。 */
+function openDialog() {
+  if (props.loading) return
+  innerOpen.value = true
+  emit('update:open', true)
+}
+
+/**
+ * 结果只发一次：确认/取消先发，update:open(false) 后发。
+ *
+ * ⚠️ emit 顺序是契约（勿改）：useFcConfirm 的 onUpdate:open 处理器在
+ * `!val && !settled` 时会 settle(false) —— 若 update:open 先于 confirm 到达，
+ * 命令式 confirm() 会一律返回 false（用户点确认也被判为取消）。
+ */
 let resultEmitted = false
 
 function close(result: 'confirm' | 'cancel') {
   if (props.loading) return
+  if (resultEmitted) return
   resultEmitted = true
   if (result === 'confirm') emit('confirm')
   else emit('cancel')
   innerOpen.value = false
   emit('update:open', false)
-}
-
-// Close paths that bypass close() (ESC via FcDialog) still count as cancel.
-// A close initiated by the PARENT (open prop already false) must not produce a
-// synthetic cancel event.
-watch(innerOpen, (v) => {
-  if (v) {
-    resultEmitted = false
-    return
-  }
-  if (!resultEmitted && props.open) {
-    resultEmitted = true
-    emit('cancel')
-    emit('update:open', false)
-  }
-})
-
-function openDialog() {
-  innerOpen.value = true
-  emit('update:open', true)
 }
 
 const resolvedTitle = computed(() => props.title || t('common.tip'))
@@ -142,13 +134,13 @@ const confirmButtonType = computed<'primary' | 'danger'>(() =>
     <div class="fc-confirm__content" :class="`variant-${variant}`">
       <div v-if="$slots.icon || variant === 'danger'" class="fc-confirm__icon">
         <slot name="icon">
-          <svg v-if="variant === 'danger'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg v-if="variant === 'danger'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </slot>
       </div>
       <div class="fc-confirm__body">
-        {{ content }}
+        <slot>{{ content }}</slot>
       </div>
     </div>
 
@@ -167,9 +159,6 @@ const confirmButtonType = computed<'primary' | 'danger'>(() =>
 </template>
 
 <style scoped lang="scss">
-.fc-confirm-trigger {
-  display: inline-flex;
-}
 .fc-confirm__content {
   display: flex;
   gap: 12px;
@@ -201,5 +190,9 @@ const confirmButtonType = computed<'primary' | 'danger'>(() =>
   color: var(--app-text);
   line-height: 1.6;
   word-break: break-word;
+}
+
+.fc-confirm-trigger {
+  display: inline-flex;
 }
 </style>

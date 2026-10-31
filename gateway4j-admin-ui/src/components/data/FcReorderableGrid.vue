@@ -25,7 +25,7 @@
 defineOptions({ name: 'FcReorderableGrid' })
 import { ref, computed, watch, onUnmounted, type CSSProperties } from 'vue'
 
-interface Props {
+export interface FcReorderableGridProps {
   /** 槽位值数组. null 表示空槽. */
   modelValue: (string | null)[]
   /** 最少槽位数. 删除到 ≤ min 时退化为 null 占位而不是真删. */
@@ -50,7 +50,7 @@ interface Props {
   trailingEmpty?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcReorderableGridProps>(), {
   min: 1,
   max: 8,
   layout: 'wrap',

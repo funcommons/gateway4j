@@ -15,8 +15,22 @@ defineOptions({ name: 'FcPagination', inheritAttrs: false })
  *   />
  */
 import { useAttrs } from 'vue'
+import { ElConfigProvider } from 'element-plus'
+import zhCn from 'element-plus/es/locale/lang/zh-cn'
 
-interface Props {
+const paginationLocale = {
+  ...zhCn,
+  el: {
+    ...zhCn.el,
+    pagination: {
+      ...zhCn.el.pagination,
+      goto: '跳至',
+      total: '共 {total} 条',
+    },
+  },
+}
+
+export interface FcPaginationProps {
   /** 当前页 (1-based). */
   currentPage?: number
   /** 每页条数. */
@@ -41,7 +55,7 @@ interface Props {
   small?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcPaginationProps>(), {
   pageSizes: () => [10, 20, 50, 100],
   showJumper: true,
   showTotal: true,
@@ -81,20 +95,22 @@ function onPageSize(s: number) {
 </script>
 
 <template>
-  <el-pagination
-    v-bind="attrs"
-    :current-page="currentPage"
-    :page-size="pageSize"
-    :total="total"
-    :page-sizes="pageSizes"
-    :layout="fullLayout"
-    :background="background"
-    :disabled="disabled"
-    :small="small"
-    class="fc-pagination"
-    @update:current-page="onCurrentPage"
-    @update:page-size="onPageSize"
-  />
+  <el-config-provider :locale="paginationLocale">
+    <el-pagination
+      v-bind="attrs"
+      :current-page="currentPage"
+      :page-size="pageSize"
+      :total="total"
+      :page-sizes="pageSizes"
+      :layout="fullLayout"
+      :background="background"
+      :disabled="disabled"
+      :small="small"
+      class="fc-pagination"
+      @update:current-page="onCurrentPage"
+      @update:page-size="onPageSize"
+    />
+  </el-config-provider>
 </template>
 
 <style scoped lang="scss">
@@ -119,8 +135,8 @@ function onPageSize(s: number) {
   }
 
   :deep(.el-pager li.is-active) {
-    color: var(--app-on-primary, #fff);
-    background: var(--app-primary, #409eff);
+    color: var(--app-on-primary);
+    background: var(--app-primary);
   }
 
   :deep(.btn-prev),

@@ -314,9 +314,18 @@
 import { ref, computed, h, onUnmounted, reactive } from 'vue'
 import FcPicker from './FcPicker.vue'
 import FcContextMenu, { type MenuItem } from './FcContextMenu.vue'
-import { convertImage, downscaleToMaxEdge, useRecentImages } from '@/composables'
-import { useResponsive, useEventListener } from '@/composables'
-import { logger } from '@/utils'
+import { convertImage, downscaleToMaxEdge } from '../utils/imageTransform'
+import { useRecentProvider, createLocalStorageRecentProvider } from '../utils/recentProvider'
+import { useResponsive } from '../utils/useResponsive'
+import { useEventListener } from '../utils/useEventListener'
+import type { RecentProvider } from '../utils/recentProvider'
+
+// 内联最小 logger (替代 @/utils/logger, 消除 SDK 外部依赖)
+// 只用 warn/error 两个方法; 等价于 console 原生输出, 无 dev-only gating.
+const logger = {
+  warn: (...args: unknown[]) => console.warn(...args),
+  error: (...args: unknown[]) => console.error(...args),
+}
 
 /**
  * 上传服务配置. 业务 wrapper 通过 server 把 OSS/自建上传端点配置给 SDK,
@@ -419,6 +428,9 @@ export interface FcImagePickerProps {
   server?: FcImagePickerServerConfig
 
   // ===== Recent images (OPTIONAL) =====
+  /** 自定义最近列表后端. 传了之后 recentStorageKey 失效 (不再走 localStorage). */
+  recentProvider?: RecentProvider<string>
+  /** localStorage key, 默认 'fc-image-picker:recent'. 仅在 recentProvider 未传时生效. */
   recentStorageKey?: string
 
   // ===== i18n =====
@@ -519,8 +531,13 @@ const t = (key: string, params?: Record<string, unknown>): string => {
 const UploadIcon = { render: () => h('i', { class: 'ri-upload-2-line' }) }
 const { isMobile } = useResponsive()
 
-// ========== Recent images (SDK 内 useRecentImages) ==========
-const { images: recentImages, add: addToRecent, remove: removeFromRecent, clear: clearRecentImages, getAll: getRecentImages } = useRecentImages(props.recentStorageKey ?? 'fc-image-picker:recent')
+// ========== Recent images (业务可注入 backend) ==========
+// 优先级: recentProvider prop > recentStorageKey (localStorage) > 默认 localStorage key
+const recentProvider = computed<RecentProvider<string>>(
+  () => props.recentProvider
+    ?? createLocalStorageRecentProvider<string>(props.recentStorageKey ?? 'fc-image-picker:recent'),
+)
+const { items: recentImages, add: addToRecent, remove: removeFromRecent, clear: clearRecentImages, getAll: getRecentImages } = useRecentProvider<string>(recentProvider.value, 12)
 
 // ========== Upload pipeline: props.upload > defaultUpload(server) > blobMode ==========
 /**
@@ -706,7 +723,7 @@ function onRecentClick(url: string) {
 function removeRecent(url: string) {
   // 多选模式下同时清掉选中态, 避免 ghost 选中
   selectedSet.delete(url)
-  removeFromRecent(url)
+  void removeFromRecent(url)
 }
 function clearSelection() { selectedSet.clear() }
 
@@ -887,7 +904,7 @@ function queuePendingUpload(url: string) {
   }
   pendingUploads.value.push(url)
   selectedSet.add(url)
-  addToRecent(url)
+  void addToRecent(url)
 }
 
 /** 切换暂存图选中 (upload tab 专用, 不直接发 emit) */
@@ -996,7 +1013,7 @@ function handleDrop(e: DragEvent) {
 // ========== Selection handlers ==========
 function handleSelect(url: string) {
   if (url.startsWith('blob:')) trackBlobUrl(url)
-  else addToRecent(url)
+  else void addToRecent(url)
   emit('update:modelValue', url)
   pickerRef.value?.closeDialog()
 }
@@ -1233,7 +1250,7 @@ defineExpose({
   cursor: pointer;
   color: var(--app-text-tertiary, #999);
   font-size: 24px;
-  transition: all 0.15s;
+  transition: border-color 0.15s, color 0.15s, background-color 0.15s;
   &:hover {
     border-color: var(--app-primary, #007aff);
     color: var(--app-primary, #007aff);
@@ -1281,8 +1298,8 @@ defineExpose({
     position: absolute;
     top: 4px; left: 4px;
     width: 20px; height: 20px;
-    background: var(--app-primary, #007aff);
-    color: var(--app-on-primary, #fff);
+    background: var(--app-primary);
+    color: var(--app-on-primary);
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     font-size: 12px;

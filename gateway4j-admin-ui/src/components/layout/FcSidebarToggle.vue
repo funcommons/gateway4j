@@ -17,7 +17,7 @@
 defineOptions({ name: 'FcSidebarToggle' })
 import { Expand, Fold } from '@element-plus/icons-vue'
 
-interface Props {
+export interface FcSidebarToggleProps {
   /** 当前折叠态 (true = 折叠). */
   collapsed: boolean
   /** 按钮位置: header (top bar) / footer (sidebar 顶部) / inline (任意). */
@@ -26,7 +26,7 @@ interface Props {
   disabled?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcSidebarToggleProps>(), {
   placement: 'header',
   disabled: false,
 })

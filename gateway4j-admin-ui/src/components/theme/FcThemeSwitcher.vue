@@ -18,8 +18,10 @@
  *   <FcThemeSwitcher v-model:brand="brand" v-model:theme="theme" variant="inline" />
  */
 defineOptions({ name: 'FcThemeSwitcher' })
-import { computed, inject, ref } from 'vue'
-import { FcButton, FcPopover, FcDrawer } from "../index"
+import { computed, inject, ref, type Component } from 'vue'
+import FcButton from '../form/FcButton.vue'
+import FcPopover from '../overlay/FcPopover.vue'
+import FcDrawer from '../overlay/FcDrawer.vue'
 import { BRANDS, THEMES, type ThemeMode } from './brands'
 
 interface ThemeContext {
@@ -29,14 +31,14 @@ interface ThemeContext {
   setTheme: (t: ThemeMode) => void
 }
 
-interface Props {
+export interface FcThemeSwitcherProps {
   brand?: string
   theme?: ThemeMode
   variant?: 'inline' | 'popover' | 'drawer'
   /** 触发按钮文案 (popover/drawer 模式). */
   triggerText?: string
   /** 触发按钮图标 (EP icon). */
-  triggerIcon?: unknown
+  triggerIcon?: Component | string
   /** 是否显示 reset 按钮. */
   showReset?: boolean
   /** i18n 函数 (不传用内置 en/zh). */
@@ -45,7 +47,7 @@ interface Props {
   title?: string
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcThemeSwitcherProps>(), {
   variant: 'popover',
   triggerText: '',
   showReset: false,
@@ -177,7 +179,8 @@ function reset() {
   </div>
 
   <!-- popover: 弹出气泡 -->
-  <!-- D1: 根元素补 fc-theme-switcher class — 弹层内容懒渲染, 未展开时 DOM 上也要有可断言的主题切换器出口 -->
+  <!-- D1: 根元素补 fc-theme-switcher class —— 弹层内容懒渲染, 未展开时 DOM 上
+       也要有可断言的主题切换器出口（ldx2 快照版丢了该包装, e2e 01-11/09-09 红）。-->
   <div v-else-if="variant === 'popover'" class="fc-theme-switcher fc-theme-switcher--trigger">
     <FcPopover
       :width="320"
@@ -232,11 +235,11 @@ function reset() {
         <FcButton variant="danger" block size="sm" @click="reset">{{ tt('theme.reset') }}</FcButton>
       </section>
     </div>
-  </FcPopover>
+    </FcPopover>
   </div>
 
   <!-- drawer: 弹出抽屉 -->
-  <div v-else class="fc-theme-switcher fc-theme-switcher--trigger">
+  <template v-else>
     <FcButton variant="secondary" :icon="triggerIcon" @click="drawerOpen = true">
       {{ triggerText || tt('theme.trigger') }}
     </FcButton>
@@ -289,7 +292,7 @@ function reset() {
         </section>
       </div>
     </FcDrawer>
-  </div>
+  </template>
 </template>
 
 <style scoped lang="scss">
@@ -298,15 +301,6 @@ function reset() {
   flex-direction: column;
   gap: 16px;
   padding: 12px;
-}
-
-/* popover/drawer 触发态的根包裹层: 只做占位, 不带面板的纵向布局与内边距 */
-.fc-theme-switcher--trigger {
-  display: inline-flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 0;
-  padding: 0;
 }
 
 .fc-ts-section {
@@ -324,6 +318,8 @@ function reset() {
   font-weight: 600;
   color: var(--app-text, #333);
   margin: 0;
+  overflow-wrap: break-word;
+  min-width: 0;
 }
 
 .fc-ts-swatch-row {
@@ -366,8 +362,8 @@ function reset() {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: var(--app-primary, #409eff);
-  color: #fff;
+  background: var(--app-primary);
+  color: var(--app-on-primary);
   font-size: 12px;
 }
 
@@ -424,8 +420,8 @@ function reset() {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: var(--app-primary, #409eff);
-  color: #fff;
+  background: var(--app-primary);
+  color: var(--app-on-primary);
   font-size: 12px;
 }
 </style>

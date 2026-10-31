@@ -105,7 +105,7 @@ export interface NavGroup {
 
 export type NavItem = NavLeaf | NavGroup
 
-interface Props {
+export interface FcSidebarNavProps {
   /** nav 树 */
   items: NavItem[]
   /** 当前激活路径, 用于高亮 leaf.index 与之相等的项 */
@@ -120,7 +120,7 @@ interface Props {
   accordion?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcSidebarNavProps>(), {
   activePath: '',
   collapse: false,
   defaultOpeneds: () => [],

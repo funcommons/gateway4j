@@ -15,23 +15,22 @@ defineOptions({ name: 'FcFilterBar' })
  *     <FcFilterButton :active="..." @click="...">视频</FcFilterButton>
  *     <FcFilterBarDivider />
  *     <FcFilterButton :active="..." @click="...">4K</FcFilterButton>
- *     <template #actions>
- *       <FcButton variant="primary">新建</FcButton>
- *     </template>
  *   </FcFilterBar>
  *
  * 历史: 由 components/common/FilterBar.vue 迁入, 加 Fc 前缀.
  */
-interface Props {
+export interface FcFilterBarProps {
   /** 是否全宽 (justify-content: flex-start 不变, 但 width: 100%). 默认 false. */
   block?: boolean
 }
-withDefaults(defineProps<Props>(), { block: false })
+withDefaults(defineProps<FcFilterBarProps>(), { block: false })
 </script>
 
 <template>
   <div class="fc-filter-bar" :class="{ 'is-block': block }">
     <slot />
+    <!-- actions 插槽（gateway4j 保留能力：ldx2 快照版未含此插槽）——
+         右侧主操作区（新建/导入等），margin-left:auto 右对齐（D2）。 -->
     <div v-if="$slots.actions" class="fc-filter-bar__actions">
       <slot name="actions" />
     </div>

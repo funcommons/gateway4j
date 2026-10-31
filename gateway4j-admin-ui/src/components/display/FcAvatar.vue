@@ -14,7 +14,7 @@
 defineOptions({ name: 'FcAvatar' })
 import { computed } from 'vue'
 
-interface Props {
+export interface FcAvatarProps {
   src?: string
   name: string
   size?: 'tiny' | 'small' | 'medium' | 'large'
@@ -22,7 +22,7 @@ interface Props {
   urlTransform?: (src: string, size: string) => string
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcAvatarProps>(), {
   src: '',
   name: '',
   size: 'small',

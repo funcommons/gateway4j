@@ -21,7 +21,7 @@ import { ElImageViewer } from 'element-plus'
 type FitMode = 'cover' | 'contain' | 'fill' | 'none' | 'scale-down'
 type Shape = 'rect' | 'circle'
 
-interface Props {
+export interface FcImageProps {
   /** 图片地址. */
   src?: string | null
   /** alt 文案. */
@@ -54,7 +54,7 @@ interface Props {
   previewable?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<FcImageProps>(), {
   fit: 'cover',
   shape: 'rect',
   lazy: true,

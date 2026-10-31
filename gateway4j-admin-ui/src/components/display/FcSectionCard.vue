@@ -7,20 +7,16 @@
  *  - FcSectionCard = 短小独立卡片, 默认 padding=md / shadow=sm, 可选 hover
  *
  * 实现: 内部 = FcSection + padding/shadow/hover prop 透传, 不重复样式.
- *
- * 槽位:
- *  - default: 卡片主体
- *  - footer:  卡片底部操作区（保存/取消按钮等），仅在提供时渲染
  */
 import FcSection from '../section/FcSection.vue'
 
-interface Props {
+export interface FcSectionCardProps {
   padding?: 'none' | 'sm' | 'md' | 'lg'
   shadow?: 'none' | 'sm' | 'md' | 'lg'
   hover?: boolean
 }
 
-withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<FcSectionCardProps>(), {
   padding: 'md',
   shadow: 'sm',
   hover: false,
@@ -30,11 +26,9 @@ withDefaults(defineProps<Props>(), {
 <template>
   <FcSection :hover="hover" :padding="padding" :shadow="shadow">
     <slot />
+    <!-- footer slot（gateway4j 保留能力：ldx2 快照版未含此插槽）-->
     <template v-if="$slots.footer" #footer>
       <slot name="footer" />
     </template>
   </FcSection>
 </template>
-
-<style scoped>
-</style>
