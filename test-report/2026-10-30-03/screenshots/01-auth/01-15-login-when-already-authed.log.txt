@@ -1,0 +1,25 @@
+用例: 01-15-login-when-already-authed
+时间: 2026-10-31T02:41:40.805Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNDIxNjk3NDQ0LCJub25jZSI6ImIwZTc3MmM4LWIzZTktNDM4Mi04YWUzLTZmZmM1OTczNTQ4OSIsImlhdCI6MTc5MzQxNDQ5NzQ0NCwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiJiYTIyYmI2OS1iYmE1LTQ4N2MtOGExMy02MDUyYjI0YjQ0MjMifQ.j1GluGoUhk7jZvqLRkI0NDfLkb1JQJAENl2tTZy_xGo :: net::ERR_ABORTED
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/login
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/routes
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+
+--- Extra ---
+落地 URL: http://localhost:9302/login

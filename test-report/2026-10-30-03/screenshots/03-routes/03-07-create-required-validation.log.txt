@@ -1,0 +1,24 @@
+用例: 03-07-create-required-validation
+时间: 2026-10-31T02:45:13.452Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNDIxOTA4MTQ2LCJub25jZSI6Ijc5YmUyYmVlLTk5MmQtNGFlYS1iOGI2LTdiNDMyM2Q3MTY0NCIsImlhdCI6MTc5MzQxNDcwODE0NiwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiIyZDBlMmIxNS1jYTUyLTRhZTItYWNlMy1mZDBlOWQ2YjE0NDkifQ.I1vaENwFHDhacfG6NXsP082sRJVw19NSvIu00qTJwDg :: net::ERR_ABORTED
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/plugins/builtin-types
+200 GET /v1/environments
+200 GET /v1/routes
+
+--- Extra ---
+校验错误条数: 3

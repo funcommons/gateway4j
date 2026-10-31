@@ -1,0 +1,47 @@
+用例: 03-14-publish-status-verified
+时间: 2026-10-31T02:46:04.770Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNDIxOTQ3NDE0LCJub25jZSI6ImY5MDRlNTJiLTFlNDUtNGE4OC1hMDBiLTVlMTZmNTA1NTA3NCIsImlhdCI6MTc5MzQxNDc0NzQxNCwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiIzODJhMmIxZi02Y2Y2LTRmMzItYTYxOC05NTc1MWE5ZGJiMmUifQ.PIvVNparOKBnUOe5KB4G2lpx6zYAPjJdSyf1EptVQQs :: net::ERR_ABORTED
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNDIxOTUzNjQ1LCJub25jZSI6IjdhYzIwZTAyLWIxNjMtNDE5MS05YjE5LWQ1MTM1NzA1MTJlZSIsImlhdCI6MTc5MzQxNDc1MzY0NSwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiI5NWYyZGQ5My0yZWEyLTQ5NDAtOGY0OS0zZjc1N2Y3MmI1ZjEifQ.nRqk0zMfq7r7Z7bWO4VBjzSz1ys6h212PBu-pQJp_U8 :: net::ERR_ABORTED
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/plugins/builtin-types
+200 GET /v1/environments
+200 GET /v1/routes
+200 POST /v1/routes
+200 GET /v1/routes
+200 GET /v1/routes/2116360974611337218
+200 GET /v1/routes/2116360974611337218
+200 GET /v1/routes/2116360974611337218/plugins
+200 GET /v1/routes/2116360974611337218/plugin-chain
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/routes
+200 GET /v1/routes?environment=default
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNDIxOTUzNjQ1LCJub25jZSI6IjdhYzIwZTAyLWIxNjMtNDE5MS05YjE5LWQ1MTM1NzA1MTJlZSIsImlhdCI6MTc5MzQxNDc1MzY0NSwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiI5NWYyZGQ5My0yZWEyLTQ5NDAtOGY0OS0zZjc1N2Y3MmI1ZjEifQ.nRqk0zMfq7r7Z7bWO4VBjzSz1ys6h212PBu-pQJp_U8
+200 POST /v1/routes/2116360974611337218/publish
+200 GET /v1/config/sync-status
+200 GET /v1/routes?environment=default
+200 GET /v1/routes?environment=default
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/routes
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNDIxOTYwODEwLCJub25jZSI6Ijg1ZGNjZDcxLWU5NTUtNDdjMi1iY2JjLWZkZTdmNWNlNWM2NyIsImlhdCI6MTc5MzQxNDc2MDgxMCwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiIxNjYwN2NjNS01NGQ1LTRjOGItYmZkNy1hYTBiNDZhNzllMTkifQ._tUefuDG60b-RRVXD_dZyLLlNuqTjRPrjI44tibDUog
+200 GET /v1/routes?environment=default
+
+--- Extra ---
+发布后行内容=" e2e_pub_mvvsu52o483 后置 /e2e/e2e_pub_mvvsu52o483/** default — 已发布 编辑 画布 复制 下线"; /publish 请求数=1 (200 POST /v1/routes/2116360974611337218/publish)

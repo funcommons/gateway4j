@@ -1,0 +1,21 @@
+用例: 03-03-search-filter
+时间: 2026-10-31T02:44:02.186Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/routes?environment=default
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNDIxODM4NjQ0LCJub25jZSI6IjJjZDhkMmNmLTBmMjgtNDM0Ny05ZGMyLTAyNzZiOWYxMjdiMyIsImlhdCI6MTc5MzQxNDYzODY0NCwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiJlMjJmZjQ2Mi04MGJlLTRkNWQtYjNlNS02OTk4YTJhZWMwODAifQ.jNHqL_LIamr3FpTJfYo-_sKYA5lFMsALPdhrpvv8nfE
+
+--- Extra ---
+命中行数: 6

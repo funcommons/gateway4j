@@ -1,0 +1,20 @@
+用例: 06-07-plugin-create-api
+时间: 2026-10-31T02:50:28.572Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/plugins
+
+--- Extra ---
+POST /v1/plugins status=200 payload={"id":"2116362136550985729","plugin_name":"e2e_gvy_mvvt042412","plugin_id":"e2e_gvy_mvvt042412","plugin_type":"GROOVY","plugin_phase":"PRE","scope":"ROUTE","status":"DISABLED","sort_order":1,"config":"{}","remark":null,"config_version":"0","created_a

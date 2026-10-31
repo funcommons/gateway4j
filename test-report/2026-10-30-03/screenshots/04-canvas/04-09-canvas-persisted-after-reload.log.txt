@@ -1,0 +1,26 @@
+用例: 04-09-canvas-persisted-after-reload
+时间: 2026-10-31T02:48:05.012Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 PUT /v1/routes/-100/canvas
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/routes/-100
+200 GET /v1/routes/-100/canvas
+200 PUT /v1/routes/-100/canvas
+
+--- Extra ---
+刷新后节点数=14

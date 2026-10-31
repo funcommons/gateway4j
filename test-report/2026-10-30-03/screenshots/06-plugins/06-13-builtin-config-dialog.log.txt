@@ -1,0 +1,42 @@
+用例: 06-13-builtin-config-dialog
+时间: 2026-10-31T02:52:18.914Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+Maximum recursive updates exceeded in component <ElDialogContent>. This means you have a reactive effect that is mutating its own dependencies and thus recursively triggering itself. Possible sources include component template, render function, updated hook or watcher source function.
+Maximum recursive updates exceeded in component <ElDialogContent>. This means you have a reactive effect that is mutating its own dependencies and thus recursively triggering itself. Possible sources include component template, render function, updated hook or watcher source function.
+Maximum recursive updates exceeded in component <ElDialogContent>. This means you have a reactive effect that is mutating its own dependencies and thus recursively triggering itself. Possible sources include component template, render function, updated hook or watcher source function.
+Maximum recursive updates exceeded in component <ElDialogContent>. This means you have a reactive effect that is mutating its own dependencies and thus recursively triggering itself. Possible sources include component template, render function, updated hook or watcher source function.
+Maximum recursive updates exceeded in component <ElDialogContent>. This means you have a reactive effect that is mutating its own dependencies and thus recursively triggering itself. Possible sources include component template, render function, updated hook or watcher source function.
+Maximum recursive updates exceeded in component <ElDialogContent>. This means you have a reactive effect that is mutating its own dependencies and thus recursively triggering itself. Possible sources include component template, render function, updated hook or watcher source function.
+Maximum recursive updates exceeded in component <ElDialogContent>. This means you have a reactive effect that is mutating its own dependencies and thus recursively triggering itself. Possible sources include component template, render function, updated hook or watcher source function.
+Maximum recursive updates exceeded in component <ElDialogContent>. This means you have a reactive effect that is mutating its own dependencies and thus recursively triggering itself. Possible sources include component template, render function, updated hook or watcher source function.
+Maximum recursive updates exceeded in component <ElDialogContent>. This means you have a reactive effect that is mutating its own dependencies and thus recursively triggering itself. Possible sources include component template, render function, updated hook or watcher source function.
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/plugins/builtin-types
+200 GET /v1/environments
+200 GET /v1/plugins/runtime-status
+200 GET /v1/plugins/builtin-types/security/schema
+200 GET /v1/plugins/builtin-types/security/schema
+
+--- Extra ---
+弹窗控件数=7; 弹窗文本="插件配置：安全插件
+IP 白名单
+Select
+IP 黑名单
+Select
+必需 Header
+0 / 500
+取消
+保存"; 后端 schema 类型=object, 可解析出属性数=-1

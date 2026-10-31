@@ -1,0 +1,20 @@
+用例: 03-02-status-filter
+时间: 2026-10-31T02:43:58.390Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNDIxODMyMTk0LCJub25jZSI6Ijg1OTU1NWFiLTgyZjMtNDY0YS1iZDZmLWU4YWU0NjI2MTBmYyIsImlhdCI6MTc5MzQxNDYzMjE5NCwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiIwYzZhNzIzNi04ODAwLTRjYzgtYjcxYS0wM2M3OTdkMjk1ZTUifQ.a83Mtni9HhTqZcBAztfgg3jwlNoaBmAZpmjJXb-T-s4
+
+--- Extra ---
+各状态过滤行数: {"全部":68,"草稿":49,"已发布":24,"变更中":5,"已下线":14}

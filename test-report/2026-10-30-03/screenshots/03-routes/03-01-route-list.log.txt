@@ -1,0 +1,20 @@
+用例: 03-01-route-list
+时间: 2026-10-31T02:43:51.958Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNDIxODI5NDM2LCJub25jZSI6ImJlN2RlMDVhLWY4MzQtNDMwNC1iNGRhLTU5ODQ1YTgzYTA1YyIsImlhdCI6MTc5MzQxNDYyOTQzNiwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiIwNTcxOGU1Mi1iODQxLTRmNTEtOGEwMy04Njg4NWU2ZDAyZjcifQ.e31CpMz98ObK_DAYMgRmJda4AKH86LP5hYURdKkX4tE
+
+--- Extra ---
+路由行数: 68

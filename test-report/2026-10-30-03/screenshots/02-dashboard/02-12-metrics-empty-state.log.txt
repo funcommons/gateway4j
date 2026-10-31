@@ -1,0 +1,20 @@
+用例: 02-12-metrics-empty-state
+时间: 2026-10-31T02:43:49.192Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNDIxODI0NzQxLCJub25jZSI6IjkxMTIwZTRjLWNmMmQtNGNkNC04ODFmLWZlNGJjZTExMzQ2NCIsImlhdCI6MTc5MzQxNDYyNDc0MSwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiJlOTBlYjMyNS0yZjk4LTQ0ZGMtYmFmZC0yY2U5MjU1MjBhMTUifQ.QLs7v90fC70ypauz8ZNKu1TatWt9CAz_kJsM2Xw4q2Q
+
+--- Extra ---
+指标卡=4, 图表=1
