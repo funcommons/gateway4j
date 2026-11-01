@@ -51,34 +51,61 @@ function onClick() {
 .fc-radio-button {
   appearance: none;
   border: none;
-  border-left: 1px solid var(--app-separator, #dcdfe6);
-  background: var(--app-bg-card, #fff);
-  color: var(--app-text-primary, #303133);
-  padding: 8px 15px;
+  border-left: 1px solid var(--app-separator);
+  background: var(--app-bg-card);
+  color: var(--app-text-primary);
+  padding: 8px 16px;
   font-size: 14px;
   line-height: 1;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s;
+  transition: background 0.2s, color 0.2s, transform 0.1s ease;
   outline: none;
 
   &:first-child { border-left: none; }
 
-  &.size-small { padding: 5px 11px; font-size: 12px; }
-  &.size-large { padding: 11px 19px; font-size: 16px; }
+  &.size-small { padding: 4px 12px; font-size: 12px; }
+  &.size-large { padding: 12px 20px; font-size: 16px; }
 
+  /* 焦点环：分组容器 overflow:hidden，用 inset 环避免被裁切；
+     --app-focus-ring 对卡片底 ≥3:1，选中态（底色即主色）换成 --app-on-primary 才有对比。 */
   &:focus-visible {
-    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--app-primary, #409eff) 30%, transparent);
+    box-shadow: inset 0 0 0 2px var(--app-focus-ring);
+  }
+
+  &.is-checked:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--app-on-primary);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.97);
   }
 
   &.is-checked {
-    background: var(--app-primary);
+    background: var(--app-primary-fill);
     color: var(--app-on-primary);
-    border-left-color: var(--app-primary);
+    border-left-color: var(--app-primary-fill);
+  }
+
+  /* 禁用三通道: 透明度 + 光标 + 原生 disabled */
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
   }
 
   &.is-disabled {
     cursor: not-allowed;
     opacity: 0.6;
+  }
+}
+
+/* Hallmark gate 27：按下缩放属动效，需有 reduced-motion 兜底 */
+@media (prefers-reduced-motion: reduce) {
+  .fc-radio-button {
+    transition: none;
+  }
+
+  .fc-radio-button:active:not(:disabled) {
+    transform: none;
   }
 }
 </style>

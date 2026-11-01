@@ -8,13 +8,13 @@
         </template>
       </FcFilterBar>
 
-      <p v-if="!canEdit('user')" class="readonly-hint" data-testid="readonly-hint">当前账号为只读权限，如需操作请联系管理员</p>
+      <p v-if="!canEdit('user')" class="readonly-hint" data-testid="readonly-hint">{{ t('common.readonlyHint') }}</p>
 
       <FcSkeleton v-if="loading" variant="text" :rows="6" />
       <template v-else>
       <FcTable :data="rows" stripe>
-        <el-table-column prop="username" :label="t('user.name')" />
-        <el-table-column prop="real_name" :label="t('user.realName')" />
+        <el-table-column prop="username" :label="t('user.name')" min-width="140" />
+        <el-table-column prop="real_name" :label="t('user.realName')" min-width="120" />
         <el-table-column prop="phone" :label="t('user.phone')" width="140" />
         <el-table-column :label="t('user.roles')">
           <template #default="{ row }">
@@ -29,7 +29,7 @@
             />
           </template>
         </el-table-column>
-        <el-table-column :label="t('common.more')" width="320" fixed="right">
+        <el-table-column :label="t('common.more')" width="320" :fixed="isMobile ? false : 'right'">
           <template #default="{ row }">
             <FcButton v-if="canEdit('user')" variant="text" size="sm" @click="openEdit(row)">{{ t('common.edit') }}</FcButton>
             <FcButton v-if="canEdit('user')" variant="text" size="sm" @click="toggleStatus(row)">{{ row.status === 'ENABLED' ? t('common.disable') : t('common.enable') }}</FcButton>
@@ -40,6 +40,23 @@
           </template>
         </el-table-column>
       </FcTable>
+
+      <!-- 空态：表格无数据时给出「填上它」的动作（新建用户），不是纯装饰 -->
+      <FcEmpty
+        v-if="!loadError && !rows.length"
+        :title="t('user.empty')"
+        :description="t('user.emptyHint')"
+        data-testid="users-empty"
+      >
+        <template #action>
+          <FcButton
+            v-if="canEdit('user')"
+            variant="primary"
+            data-testid="users-empty-create"
+            @click="openCreate"
+          >{{ t('user.createTitle') }}</FcButton>
+        </template>
+      </FcEmpty>
 
       <FcPagination
         v-model:current-page="page" v-model:page-size="pageSize" :total="total"
@@ -108,18 +125,21 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
+import { useResponsive } from '@/components/utils/useResponsive'
 import { useI18n } from 'vue-i18n'
 import { useFcConfirm } from '@/composables/useFcConfirm'
 import { usePermission } from '@/composables/usePermission'
 import { useDebounce } from '@/composables'
 import {
   FcSection, FcFilterBar, FcInput, FcSelect, FcTable, FcTag, FcStatusBadge, FcButton, FcConfirm,
-  FcDialog, FcFormItem, FcHelpTip, FcPagination, FcSkeleton, toast
+  FcDialog, FcFormItem, FcHelpTip, FcPagination, FcSkeleton, FcEmpty, toast
 } from '@/components'
 import type { SelectOption } from '@/components/form/_types'
 import { listUsers, createUser, updateUser, deleteUser, resetPassword } from '@/api/misc'
 import { listRoles } from '@/api/auth'
 import { mapFieldErrors } from '@/api/http'
+
+const { isMobile } = useResponsive()
 
 const { t } = useI18n()
 const { confirm } = useFcConfirm()
@@ -295,12 +315,14 @@ async function doReset() {
 </script>
 
 <style scoped>
+/* 表格自带空态与页面级空态重复，页面级空态带行动作，故隐藏表格内置空态 */
+:deep(.el-table__empty-block) { display: none; }
 .readonly-hint {
   color: var(--app-text-secondary);
   font-size: 13px;
   margin: 0 0 12px;
   padding: 8px 12px;
-  background: var(--app-bg-muted, #f5f7fa);
+  background: var(--app-bg-muted);
   border-radius: var(--app-radius-sm);
 }
 .action-error {

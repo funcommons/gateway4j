@@ -230,9 +230,9 @@ defineExpose({
   }
   &.is-drop-target {
     transform: scale(1.04);
-    outline: 2px dashed var(--app-primary, #007aff);
+    outline: 2px dashed var(--app-primary);
     outline-offset: 4px;
-    border-radius: var(--radius-md, 8px);
+    border-radius: var(--app-radius-md);
   }
 }
 
@@ -243,8 +243,8 @@ defineExpose({
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: var(--app-overlay-strong, rgba(0, 0, 0, 0.6));
-  color: var(--app-on-primary, #fff);
+  background: var(--app-overlay-strong);
+  color: var(--app-on-primary);
   font-size: 11px;
   font-weight: 600;
   display: flex;

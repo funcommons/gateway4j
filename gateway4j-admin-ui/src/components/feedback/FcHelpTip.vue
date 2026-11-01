@@ -59,9 +59,9 @@ const displayText = computed(() => {
   justify-content: center;
   width: 16px;
   height: 16px;
-  margin-left: 6px;
+  margin-left: 4px;
   border-radius: 50%;
-  background: var(--app-bg-muted, #f5f5f7);
+  background: var(--app-bg-muted);
   color: var(--app-text-secondary);
   cursor: help;
   font-size: 11px;
@@ -71,8 +71,12 @@ const displayText = computed(() => {
   background: var(--app-primary);
   color: var(--app-on-primary);
 }
+.fc-help-tip:active {
+  background: var(--app-primary-active);
+  color: var(--app-on-primary);
+}
 .fc-help-tip:focus-visible {
-  outline: 2px solid var(--app-primary);
+  outline: 2px solid var(--app-focus-ring);
   outline-offset: 2px;
 }
 .fc-help-tip__body {

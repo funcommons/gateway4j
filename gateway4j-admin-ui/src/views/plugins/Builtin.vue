@@ -271,14 +271,17 @@ async function toggleStatus(plugin: any) {
   border-bottom: 1px solid var(--app-border);
 }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+/* 卡片悬停只保留一个信号：描边变色（不叠加以免暗示整卡可点） */
 .type-card { display: flex; flex-direction: column; gap: 8px; }
+.type-card:hover { border-color: color-mix(in srgb, var(--app-primary) 40%, var(--app-border)); }
 .card-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .card-header h3 { margin: 0; font-size: 15px; font-weight: 600; color: var(--app-text); }
 .card-actions { display: flex; gap: 8px; }
 .desc { color: var(--app-text-secondary); font-size: 13px; line-height: 1.5; flex: 1; }
 .runtime-stats {
   font-size: 12px;
-  color: var(--app-text-tertiary, #909399);
+  color: var(--app-text-tertiary);
+  font-variant-numeric: tabular-nums;
   cursor: default;
 }
 .load-error {
@@ -301,5 +304,10 @@ async function toggleStatus(plugin: any) {
   padding: 8px 12px;
   background: color-mix(in srgb, var(--app-danger) 8%, transparent);
   border-radius: var(--app-radius-sm);
+}
+
+/* 降低动效：卡片悬停描边不再渐变（重复类名用于压过 SDK 组件的 transition 优先级） */
+@media (prefers-reduced-motion: reduce) {
+  .type-card.type-card { transition: none; }
 }
 </style>

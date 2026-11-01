@@ -67,15 +67,17 @@ const resolvedLabel = computed(() => props.label || (slots.default ? '' : ''))
 .fc-status-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   border-radius: var(--app-radius-full, 9999px);
   font-weight: 600;
   letter-spacing: 0.01em;
   white-space: nowrap;
   line-height: 1;
 
+  /* 色调（--badge-color）用于底色/实底；文字档（--badge-ink）是同一色相压暗一档
+     的版本 —— 语义色本身在白卡上只有 2.4~3.2:1，作正文不达标（规则 40）。 */
   --badge-bg: color-mix(in srgb, var(--badge-color, currentColor) 12%, transparent);
-  --badge-fg: var(--badge-color, currentColor);
+  --badge-fg: var(--badge-ink, var(--app-text-secondary));
 }
 
 /* 浅底 (默认) */
@@ -84,18 +86,18 @@ const resolvedLabel = computed(() => props.label || (slots.default ? '' : ''))
   color: var(--badge-fg);
 }
 
-/* 实底 */
+/* 实底 —— 白字压在浅色调上不达标，实底同样压暗一档 */
 .fc-status-badge.is-solid {
-  background: var(--badge-color, currentColor);
-  color: var(--app-on-primary, #fff);
+  background: color-mix(in srgb, var(--badge-color, currentColor) 75%, black);
+  color: var(--app-on-primary);
 }
 
 /* tones */
-.tone-success  { --badge-color: var(--app-color-success, #67c23a); }
-.tone-processing { --badge-color: var(--app-primary, #409eff); }
-.tone-error    { --badge-color: var(--app-color-danger, #ff3b30); }
-.tone-pending  { --badge-color: var(--app-color-warning, #e6a23c); }
-.tone-neutral  { --badge-color: var(--app-text-tertiary, #999); }
+.tone-success  { --badge-color: var(--app-color-success);  --badge-ink: var(--app-color-success-text); }
+.tone-processing { --badge-color: var(--app-primary);      --badge-ink: var(--app-accent-text); }
+.tone-error    { --badge-color: var(--app-color-danger);   --badge-ink: var(--app-color-danger-text); }
+.tone-pending  { --badge-color: var(--app-color-warning);  --badge-ink: var(--app-color-warning-text); }
+.tone-neutral  { --badge-color: var(--app-text-tertiary);  --badge-ink: var(--app-text-secondary); }
 
 /* sizes */
 .size-sm {
@@ -123,5 +125,13 @@ const resolvedLabel = computed(() => props.label || (slots.default ? '' : ''))
 @keyframes fc-status-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50%      { opacity: 0.5; transform: scale(0.8); }
+}
+
+/* 动效降级: 关闭呼吸动画 */
+@media (prefers-reduced-motion: reduce) {
+  .tone-processing .fc-status-badge__dot {
+    animation: none;
+    opacity: 1;
+  }
 }
 </style>

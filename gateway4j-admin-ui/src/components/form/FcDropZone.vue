@@ -248,7 +248,7 @@ const acceptAttr = computed(() => props.accept || undefined)
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px dashed var(--app-border-extra-light, #e0e0e0);
+  border: 2px dashed var(--app-border-extra-light);
   border-radius: var(--app-radius-md, 12px);
   background: var(--app-bg-card, transparent);
   transition: border-color 0.15s ease, background-color 0.15s ease;
@@ -258,14 +258,14 @@ const acceptAttr = computed(() => props.accept || undefined)
     cursor: pointer;
 
     &:hover {
-      border-color: color-mix(in srgb, var(--app-primary, #409eff) 60%, transparent);
-      background: color-mix(in srgb, var(--app-primary, #409eff) 4%, transparent);
+      border-color: color-mix(in srgb, var(--app-primary) 60%, transparent);
+      background: color-mix(in srgb, var(--app-primary) 4%, transparent);
     }
   }
 
   &.is-drag-over {
-    border-color: var(--app-primary, #409eff);
-    background: color-mix(in srgb, var(--app-primary, #409eff) 8%, transparent);
+    border-color: var(--app-accent-text);
+    background: color-mix(in srgb, var(--app-primary) 8%, transparent);
   }
 
   &.is-disabled {
@@ -274,8 +274,8 @@ const acceptAttr = computed(() => props.accept || undefined)
   }
 
   &:focus-visible {
-    border-color: var(--app-primary, #409eff);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-primary, #409eff) 30%, transparent);
+    border-color: var(--app-accent-text);
+    box-shadow: 0 0 0 2px var(--app-focus-ring);
   }
 }
 </style>

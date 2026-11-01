@@ -18,9 +18,9 @@ button.fc-button:not(.el-button) {
   height: 32px;
   padding: 0 14px;
   border: 1px solid transparent;
-  border-radius: var(--app-radius-md, 8px);
+  border-radius: var(--app-radius-md);
   background: transparent;
-  color: var(--app-text, #333);
+  color: var(--app-text);
   font-size: 13px;
   font-weight: 600;
   line-height: 1;
@@ -33,6 +33,11 @@ button.fc-button:not(.el-button) {
 
   &:active:not(:disabled) {
     transform: scale(0.97);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--app-focus-ring);
+    outline-offset: 2px;
   }
 
   &:disabled {
@@ -52,53 +57,53 @@ button.fc-button:not(.el-button) {
 
 // 主要: primary 底 + 白字
 button.fc-button-primary:not(.el-button) {
-  background: var(--app-primary, #409eff);
-  border-color: var(--app-primary, #409eff);
-  color: var(--app-on-primary, #fff);
+  background: var(--app-primary-fill);
+  border-color: var(--app-primary-fill);
+  color: var(--app-on-primary);
 
   &:hover:not(:disabled) {
     filter: brightness(0.95);
-    box-shadow: var(--app-shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.08));
+    box-shadow: var(--app-shadow-md);
   }
 }
 
 // 次要 (填充): muted 灰底
 button.fc-button-secondary:not(.el-button) {
-  background: var(--app-bg-muted, #f5f5f7);
-  color: var(--app-text, #333);
+  background: var(--app-bg-muted);
+  color: var(--app-text);
 
   &:hover:not(:disabled) {
-    background: var(--app-section-border-color, #e5e5e5);
+    background: var(--app-section-border-color);
   }
 }
 
 // 次要 (描边): 透明底 + border
 button.fc-button-outline:not(.el-button) {
-  border-color: var(--app-separator, var(--el-border-color, #dcdfe6));
-  color: var(--app-text, #333);
+  border-color: var(--app-separator, var(--el-border-color));
+  color: var(--app-text);
 
   &:hover:not(:disabled) {
-    border-color: var(--app-primary, #409eff);
-    color: var(--app-primary, #409eff);
+    border-color: var(--app-accent-text);
+    color: var(--app-accent-text);
   }
 }
 
 // 危险: danger 底 + 白字
 button.fc-button-danger:not(.el-button) {
-  background: var(--app-color-danger, #ff3b30);
-  border-color: var(--app-color-danger, #ff3b30);
-  color: #fff;
+  background: var(--app-color-danger);
+  border-color: var(--app-color-danger);
+  color: var(--app-text-inverse);
 
   &:hover:not(:disabled) {
     filter: brightness(0.95);
-    box-shadow: var(--app-shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.08));
+    box-shadow: var(--app-shadow-md);
   }
 }
 
 // 文字按钮: 无底无边框, primary 字色 (表格行操作)
 button.fc-button-text:not(.el-button) {
   padding: 0 6px;
-  color: var(--app-primary, #409eff);
+  color: var(--app-accent-text);
 
   &:hover:not(:disabled) {
     filter: brightness(0.85);
@@ -108,7 +113,7 @@ button.fc-button-text:not(.el-button) {
 // 危险文字按钮 (表格行删除)
 button.fc-button-text-danger:not(.el-button) {
   padding: 0 6px;
-  color: var(--app-color-danger, #ff3b30);
+  color: var(--app-color-danger);
 
   &:hover:not(:disabled) {
     filter: brightness(0.85);
@@ -118,12 +123,12 @@ button.fc-button-text-danger:not(.el-button) {
 // 虚线触发: dashed border + 透明底 (新建卡片/添加触发)
 button.fc-button-dashed:not(.el-button) {
   border-style: dashed;
-  border-color: var(--app-separator, var(--el-border-color, #dcdfe6));
-  color: var(--app-text-tertiary, #999);
+  border-color: var(--app-separator, var(--el-border-color));
+  color: var(--app-text-tertiary);
 
   &:hover:not(:disabled) {
-    border-color: var(--app-primary, #409eff);
-    color: var(--app-primary, #409eff);
+    border-color: var(--app-accent-text);
+    color: var(--app-accent-text);
   }
 }
 

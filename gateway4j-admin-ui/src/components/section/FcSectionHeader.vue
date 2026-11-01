@@ -51,7 +51,7 @@ const emit = defineEmits<{
   justify-content: center;
   transition: color 0.2s;
   &:hover {
-    color: var(--app-primary);
+    color: var(--app-accent-text);
   }
 }
 .fc-section-header__row {

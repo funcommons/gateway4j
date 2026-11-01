@@ -97,7 +97,7 @@ function reset() {
 }
 .fc-error-boundary__icon {
   font-size: 48px;
-  color: var(--el-color-warning, #e6a23c);
+  color: var(--el-color-warning);
   margin-bottom: 12px;
 }
 .fc-error-boundary__title {
@@ -126,14 +126,39 @@ function reset() {
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  transition: opacity 0.15s, background-color 0.15s, color 0.15s;
+  gap: 8px;
+  white-space: nowrap;
+  transition: opacity 0.15s, background-color 0.15s, color 0.15s, transform 0.1s ease;
 }
 .fc-error-boundary__btn--primary {
   background: var(--el-color-primary);
-  color: #fff;
+  color: var(--app-on-primary);
 }
 .fc-error-boundary__btn--primary:hover {
   opacity: 0.9;
+}
+/* 键盘焦点环: 瞬时出现, 不做渐显 */
+.fc-error-boundary__btn:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+}
+/* 按下微缩 */
+.fc-error-boundary__btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+/* 禁用态三通道: 透明 + 光标 + 原生 disabled */
+.fc-error-boundary__btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 动效兜底: 用户关闭动效时不缩放 */
+@media (prefers-reduced-motion: reduce) {
+  .fc-error-boundary__btn {
+    transition: none;
+  }
+  .fc-error-boundary__btn:active:not(:disabled) {
+    transform: none;
+  }
 }
 </style>

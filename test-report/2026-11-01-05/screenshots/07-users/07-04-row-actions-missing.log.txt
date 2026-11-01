@@ -1,0 +1,20 @@
+用例: 07-04-row-actions-missing
+时间: 2026-11-01T15:47:52.722Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+(无)
+
+--- Extra ---
+首行按钮数=4

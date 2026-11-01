@@ -1,0 +1,61 @@
+{
+  "project": "gateway4j 管理后台（可视化网关平台控制台）",
+  "run_date": "2026-10-31",
+  "scope": "app screen · polish（原地优化，非重构）",
+  "genre": "modern-minimal",
+  "stack": {
+    "framework": "Vue 3 + TypeScript + Vite",
+    "ui": "Element Plus 2.14.1（底层依赖）",
+    "component_system": "Fc SDK 组件库（平铺于 src/components/{data,display,feedback,form,layout,navigation,overlay,section,theme,utils}）",
+    "icons": "remixicon 4.9.1（本轮补装，SDK 既有图标契约）+ @element-plus/icons-vue",
+    "ports": { "gateway": 9300, "admin": 9301, "console": 9302 }
+  },
+  "design_system": {
+    "token_block": [
+      "gateway4j-admin-ui/src/styles/app-aliases.scss (:root 基础别名)",
+      "gateway4j-admin-ui/src/styles/themes.scss (light / dark / orange-black 三层)",
+      "gateway4j-admin-ui/src/components/theme/brands/*.scss (8 个 brand: --brand-* 定义处)"
+    ],
+    "token_count_before": 43,
+    "tokens_added": 29,
+    "brands": ["ldx2", "apple", "google", "mchuan", "manyun", "acme", "microsoft", "vonnex"],
+    "themes": ["light", "dark", "orange-black"]
+  },
+  "preserved": [
+    "所有 data-testid（e2e 106 例依赖）",
+    "所有类名（.fc-dialog / .fc-confirm-dialog / .el-table / .el-form-item / .fc-segmented-item / .stat-grid / .fc-tab / .global-search* / .gs-group-* / .gs-item-* / .canvas-toolbar / .node-type-item 等）",
+    "页面结构与信息架构（不重构：14 个视图 + 壳）",
+    "既有可见文案（唯一例外：routes/List.vue 的 em dash 占位 → i18n 空值、▶ 文本符号 → FcIcon）",
+    "el-form 校验容器语义与 FcFormItem 的 required/error 契约（10-30 修复过，勿回退）",
+    "组件库对业务页的零 CSS 承诺（颜色/圆角/阴影/间距全走 token）"
+  ],
+  "introduced": [
+    "29 个缺失 token（--app-text-tertiary/quaternary、--app-color-*、--app-on-primary、--app-radius-full/chip、--app-font-size-*、--app-overlay-*/--app-tooltip-*、--app-border-light/extra-light、--app-header-* 度量、--app-main-bg、--app-bg、--app-text-primary/shadow 等），补齐 114 处 var(--x, #字面量) 兜底",
+    ".js 作用域（过渡初始隐藏态；脚本失效时内容仍可见 —— Hallmark gate 62）",
+    "focus-visible 焦点环（瞬时、outline 实现、对比度 ≥3:1）",
+    "prefers-reduced-motion 兜底（凡 keyframes / transform 过渡）",
+    "4px 间距栅格对齐",
+    "状态补齐：users 列表空态（含填上它的动作）",
+    "图标统一 FcIcon（remixicon 字体补装，修复 51 处空图标）",
+    "按角色拆色：--app-accent-text / --app-primary-fill / --app-focus-ring / --app-border-strong / --app-color-*-text / --app-accent-text-on-dark（品牌主色压暗一档后同时满足文字 4.5:1、焦点环 3:1、白字实底 4.5:1）",
+    "Element Plus 桥接层（theme.scss 的 html:root）：EP 的主色梯度、焦点环、字段边缘、勾选态标签色、链接/菜单/标签页文字色全部接回 --app-*；焦点环类规则必须在这一层才能压过 EP 的 .el-input__inner:focus{outline:none}",
+    "深色主题修复：theme.scss 的 @use 顺序对调（app-aliases 在前、主题层在后）+ main.ts 引入 EP 官方暗色 token + FcThemeProvider 暗色态给 html 挂 dark 类",
+    "全站文字对比度自检（7 页 × 明暗双主题）：48 处越线 → 0 处"
+  ],
+  "baseline_before": { "sloplint_fail": 228, "sloplint_reflex": 68, "sloplint_warn": 17, "files": 78 },
+  "verification": {
+    "sloplint_static": "0 FAIL · 0 REFLEX · 0 WARN（78 文件）",
+    "sloplint_render": "0 FAIL · 0 REFLEX · 0 WARN（--render，登录页）",
+    "contrast_sweep": "0 处越线（7 页 × 明暗双主题；余 1 处为 disabled 控件，规范豁免）",
+    "vitest": "421 文件 / 2331 例",
+    "type_check": "16（既有基线，零新增）",
+    "eslint": "0 error",
+    "e2e_management": "106/106",
+    "e2e_data_plane": "15/15"
+  },
+  "notes": [
+    "无 design.md / DESIGN.md：项目自有系统（Fc SDK + token 体系）即设计系统，不另起炉灶",
+    "hallmark 命令面为 polish：只修材质半边（token/对比度/焦点/状态/密度/动效），不重构结构",
+    "app scope 下营销类门禁（hero/fold/字数预算/图库）不适用"
+  ]
+}

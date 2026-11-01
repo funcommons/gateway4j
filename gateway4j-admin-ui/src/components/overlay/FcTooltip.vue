@@ -80,32 +80,35 @@ const popperClass = computed(() => [
 <style>
 /* 非 scoped: el-tooltip teleport 到 body */
 .fc-tooltip {
-  --app-tooltip-bg: var(--app-bg-card, #fff);
-  --app-tooltip-text: var(--app-text, #333);
+  /* 亮色变体专用 token; 暗色变体直接用全局 --app-tooltip-bg / --app-tooltip-text
+     (不能在此覆盖同名变量, 否则暗色变体会被局部值盖掉) */
+  --fc-tooltip-bg: var(--app-bg-card);
+  --fc-tooltip-text: var(--app-text);
 
   font-size: 12px;
   line-height: 1.5;
-  padding: 6px 10px;
+  padding: 8px 12px;
   border-radius: var(--app-radius-sm, 4px);
   max-width: 280px;
   word-break: break-word;
 }
 
 .fc-tooltip.is-light {
-  background: var(--app-tooltip-bg);
-  color: var(--app-tooltip-text);
-  border: 1px solid var(--app-separator, #e5e5e5);
-  box-shadow: var(--app-shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.08));
+  background: var(--fc-tooltip-bg);
+  color: var(--fc-tooltip-text);
+  border: 1px solid var(--app-separator);
+  box-shadow: var(--app-shadow-sm);
 }
 
 .fc-tooltip.is-dark {
-  background: #1f1f1f;
-  color: #fff;
-  border: 1px solid #1f1f1f;
+  background: var(--app-tooltip-bg);
+  color: var(--app-tooltip-text);
+  border-color: var(--app-tooltip-bg);
 }
 
 .fc-tooltip.variant-danger {
-  --app-tooltip-text: var(--app-color-danger, #ff3b30);
+  --fc-tooltip-text: var(--app-color-danger);
+  --app-tooltip-text: var(--app-color-danger);
 }
 
 .fc-tooltip-empty {

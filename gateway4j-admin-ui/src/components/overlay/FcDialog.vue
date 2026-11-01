@@ -339,7 +339,7 @@ function startResize(e: PointerEvent, dir: ResizeDir) {
 <style>
 /* 非 scoped: el-dialog teleport 到 body 后 scoped 失效, 用全局选择器 */
 .fc-dialog.el-dialog {
-  border-radius: var(--brand-radius-lg, var(--radius-lg));
+  border-radius: var(--brand-radius-lg, var(--app-radius-lg));
   overflow: hidden;
 }
 
@@ -398,10 +398,10 @@ function startResize(e: PointerEvent, dir: ResizeDir) {
 }
 .fc-dialog__fsbtn:hover {
   color: var(--app-primary, var(--el-color-primary));
-  background: var(--app-bg-muted, rgba(0, 0, 0, 0.04));
+  background: var(--app-bg-muted);
 }
 .fc-dialog__fsbtn:focus-visible {
-  outline: 2px solid var(--app-primary, var(--el-color-primary));
+  outline: 2px solid var(--app-focus-ring);
   outline-offset: -2px;
 }
 

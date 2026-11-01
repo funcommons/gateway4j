@@ -62,7 +62,7 @@ function onClick() {
   cursor: pointer;
   user-select: none;
   font-size: 14px;
-  color: var(--app-text-primary, #303133);
+  color: var(--app-text-primary);
 
   &.size-small { font-size: 12px; }
   &.size-large { font-size: 16px; }
@@ -81,14 +81,15 @@ function onClick() {
   justify-content: center;
   width: var(--fc-radio-size);
   height: var(--fc-radio-size);
-  border: 1px solid var(--app-separator, #dcdfe6);
+  border: 1px solid var(--app-separator);
   border-radius: 50%;
-  background: var(--app-bg-card, #fff);
+  background: var(--app-bg-card);
   transition: border-color 0.2s, background 0.2s;
   outline: none;
 
   &:focus-visible {
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-primary, #409eff) 30%, transparent);
+    outline: 2px solid var(--app-focus-ring);
+    outline-offset: 2px;
   }
 }
 
@@ -99,14 +100,14 @@ function onClick() {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--app-bg-card);
   transform: scale(0);
   transition: transform 0.2s;
 }
 
 .fc-radio.is-checked .fc-radio__input {
-  border-color: var(--app-primary, #409eff);
-  background: var(--app-primary, #409eff);
+  border-color: var(--app-accent-text);
+  background: var(--app-primary-fill);
 }
 
 .fc-radio.is-checked .fc-radio__dot {
@@ -114,6 +115,6 @@ function onClick() {
 }
 
 .fc-radio.is-checked .fc-radio__label {
-  color: var(--app-primary, #409eff);
+  color: var(--app-accent-text);
 }
 </style>

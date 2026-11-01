@@ -6,7 +6,7 @@
           <p v-if="rolesLoadError" class="load-error" data-testid="roles-load-error">{{ rolesLoadError }}</p>
           <template v-else>
             <div v-if="canManage" class="roles-toolbar">
-              <FcButton variant="primary" size="sm" data-testid="create-role" @click="openCreate">新建角色</FcButton>
+              <FcButton variant="primary" size="sm" data-testid="create-role" @click="openCreate">{{ t('role.createRole') }}</FcButton>
             </div>
             <FcTable :data="roles" :loading="rolesLoading" stripe>
               <el-table-column prop="role_code" :label="t('role.code')" width="160" />
@@ -16,9 +16,9 @@
               </el-table-column>
               <el-table-column v-if="canManage" :label="t('route.actionLabel')" width="280" fixed="right">
                 <template #default="{ row }">
-                  <FcButton variant="text" size="sm" data-testid="role-grant" @click="openGrant(row as any)">授权</FcButton>
-                  <FcButton variant="text" size="sm" data-testid="role-members" @click="openMembers(row as any)">成员</FcButton>
-                  <FcButton variant="text" size="sm" data-testid="role-edit" @click="openEdit(row as any)">编辑</FcButton>
+                  <FcButton variant="text" size="sm" data-testid="role-grant" @click="openGrant(row as any)">{{ t('role.grant') }}</FcButton>
+                  <FcButton variant="text" size="sm" data-testid="role-members" @click="openMembers(row as any)">{{ t('role.members') }}</FcButton>
+                  <FcButton variant="text" size="sm" data-testid="role-edit" @click="openEdit(row as any)">{{ t('common.edit') }}</FcButton>
                   <!-- ROLE_ADMIN 内置管理员角色不可删除：禁用而非隐藏，让规则可见 -->
                   <FcButton
                     v-if="(row as any).role_code === 'ROLE_ADMIN'"
@@ -27,9 +27,9 @@
                     type="danger"
                     disabled
                     data-testid="role-delete-disabled"
-                  >删除</FcButton>
-                  <FcConfirm v-else content="删除角色后不可恢复，确定删除？" @confirm="del(row as any)">
-                    <FcButton variant="text" size="sm" type="danger" data-testid="role-delete">删除</FcButton>
+                  >{{ t('common.delete') }}</FcButton>
+                  <FcConfirm v-else :content="t('role.confirmDelete')" @confirm="del(row as any)">
+                    <FcButton variant="text" size="sm" type="danger" data-testid="role-delete">{{ t('common.delete') }}</FcButton>
                   </FcConfirm>
                 </template>
               </el-table-column>
@@ -65,7 +65,7 @@
     </FcSection>
 
     <!-- 新建/编辑角色 -->
-    <FcDialog v-model:open="formOpen" :title="roleForm.id ? '编辑角色' : '新建角色'" width="460px">
+    <FcDialog v-model:open="formOpen" :title="roleForm.id ? t('role.editRole') : t('role.createRole')" width="460px">
       <el-form :model="roleForm" :rules="roleRules" label-width="100px" ref="roleFormRef">
         <FcFormItem :label="t('role.codeLabel')" prop="role_code">
           <FcInput v-model="roleForm.role_code" :disabled="!!roleForm.id" maxlength="50" :placeholder="t('role.codePlaceholder')" />
@@ -79,19 +79,19 @@
       </el-form>
       <p v-if="formError" class="dialog-error" data-testid="save-error">{{ formError }}</p>
       <template #footer>
-        <FcButton @click="formOpen = false">取消</FcButton>
-        <FcButton variant="primary" :loading="savingRole" data-testid="save-role" @click="saveRole">保存</FcButton>
+        <FcButton @click="formOpen = false">{{ t('common.cancel') }}</FcButton>
+        <FcButton variant="primary" :loading="savingRole" data-testid="save-role" @click="saveRole">{{ t('common.save') }}</FcButton>
       </template>
     </FcDialog>
 
     <!-- 角色授权：按 resource 前缀分组，checkbox 多选，保存提交全量 -->
-    <FcDialog v-model:open="grantOpen" :title="`角色授权${grantRole ? '：' + (grantRole.role_name || grantRole.role_code) : ''}`" width="680px">
+    <FcDialog v-model:open="grantOpen" :title="t('role.grantTitle', { role: grantRoleName })" width="680px">
       <FcSkeleton v-if="grantLoading" variant="text" :rows="6" />
       <template v-else>
         <div class="grant-toolbar">
-          <FcButton variant="text" size="sm" data-testid="grant-check-all" @click="checkAll">全选</FcButton>
-          <FcButton variant="text" size="sm" data-testid="grant-check-none" @click="checkNone">清空</FcButton>
-          <span class="grant-count" data-testid="grant-count">已选 {{ checked.length }} / {{ allPermissions.length }}</span>
+          <FcButton variant="text" size="sm" data-testid="grant-check-all" @click="checkAll">{{ t('common.selectAll') }}</FcButton>
+          <FcButton variant="text" size="sm" data-testid="grant-check-none" @click="checkNone">{{ t('common.clear') }}</FcButton>
+          <span class="grant-count" data-testid="grant-count">{{ t('role.selectedCount', { selected: checked.length, total: allPermissions.length }) }}</span>
         </div>
         <div class="grant-groups" data-testid="grant-groups">
           <div v-for="g in groupedPermissions" :key="g.prefix" class="grant-group" :data-testid="`grant-group-${g.prefix}`">
@@ -101,7 +101,7 @@
                 :model-value="isGroupAll(g)"
                 :indeterminate="isGroupIndeterminate(g)"
                 @change="(v: any) => toggleGroup(g, v)"
-              >全选</el-checkbox>
+              >{{ t('common.selectAll') }}</el-checkbox>
             </div>
             <el-checkbox-group v-model="checked" class="grant-group-items">
               <el-checkbox
@@ -114,24 +114,24 @@
               </el-checkbox>
             </el-checkbox-group>
           </div>
-          <FcEmpty v-if="!groupedPermissions.length" title="暂无可分配权限" />
+          <FcEmpty v-if="!groupedPermissions.length" :title="t('role.noAssignablePermissions')" />
         </div>
       </template>
       <p v-if="grantError" class="dialog-error" data-testid="save-error">{{ grantError }}</p>
       <template #footer>
-        <FcButton @click="grantOpen = false">取消</FcButton>
-        <FcButton variant="primary" :loading="savingGrant" data-testid="save-grant" @click="saveGrant">保存</FcButton>
+        <FcButton @click="grantOpen = false">{{ t('common.cancel') }}</FcButton>
+        <FcButton variant="primary" :loading="savingGrant" data-testid="save-grant" @click="saveGrant">{{ t('common.save') }}</FcButton>
       </template>
     </FcDialog>
 
     <!-- 角色成员管理：多选用户，打开时回显已选，保存提交全量 -->
-    <FcDialog v-model:open="memberOpen" :title="`${t('role.memberTitle')}${memberRole ? '：' + (memberRole.role_name || memberRole.role_code) : ''}`" width="560px">
+    <FcDialog v-model:open="memberOpen" :title="t('role.memberTitleOf', { role: memberRoleName })" width="560px">
       <FcSkeleton v-if="memberLoading" variant="text" :rows="6" />
       <template v-else>
         <div class="grant-toolbar">
-          <FcButton variant="text" size="sm" data-testid="member-check-all" @click="memberCheckAll">全选</FcButton>
-          <FcButton variant="text" size="sm" data-testid="member-check-none" @click="memberCheckNone">清空</FcButton>
-          <span class="grant-count" data-testid="member-count">已选 {{ memberIds.length }} / {{ allUsers.length }}</span>
+          <FcButton variant="text" size="sm" data-testid="member-check-all" @click="memberCheckAll">{{ t('common.selectAll') }}</FcButton>
+          <FcButton variant="text" size="sm" data-testid="member-check-none" @click="memberCheckNone">{{ t('common.clear') }}</FcButton>
+          <span class="grant-count" data-testid="member-count">{{ t('role.selectedCount', { selected: memberIds.length, total: allUsers.length }) }}</span>
         </div>
         <div class="member-list" data-testid="member-list">
           <el-checkbox-group v-model="memberIds" class="member-items">
@@ -149,8 +149,8 @@
       </template>
       <p v-if="memberError" class="dialog-error" data-testid="member-error">{{ memberError }}</p>
       <template #footer>
-        <FcButton @click="memberOpen = false">取消</FcButton>
-        <FcButton variant="primary" :loading="savingMembers" data-testid="save-members" @click="saveMembers">保存</FcButton>
+        <FcButton @click="memberOpen = false">{{ t('common.cancel') }}</FcButton>
+        <FcButton variant="primary" :loading="savingMembers" data-testid="save-members" @click="saveMembers">{{ t('common.save') }}</FcButton>
       </template>
     </FcDialog>
   </div>
@@ -258,16 +258,16 @@ const formError = ref('')
 const roleFormRef = ref<any>(null)
 const roleForm = ref<any>({ id: null, role_code: '', role_name: '', remark: '' })
 
-const roleRules = {
+const roleRules = computed(() => ({
   role_code: [
-    { required: true, message: '请输入角色编码', trigger: 'blur' },
-    { pattern: /^ROLE_[A-Z0-9_]{2,40}$/, message: '编码需以 ROLE_ 开头，含大写字母/数字/下划线', trigger: 'blur' }
+    { required: true, message: () => t('role.codeRequired'), trigger: 'blur' },
+    { pattern: /^ROLE_[A-Z0-9_]{2,40}$/, message: () => t('role.codePattern'), trigger: 'blur' }
   ],
   role_name: [
-    { required: true, message: '请输入角色名称', trigger: 'blur' },
-    { max: 50, message: '名称不超过 50 字', trigger: 'blur' }
+    { required: true, message: () => t('role.nameRequired'), trigger: 'blur' },
+    { max: 50, message: () => t('role.nameTooLong'), trigger: 'blur' }
   ]
-}
+}))
 
 function openCreate() {
   roleForm.value = { id: null, role_code: '', role_name: '', remark: '' }
@@ -298,7 +298,7 @@ async function saveRole() {
     formOpen.value = false
     await loadRolesOnly()
   } catch (e: any) {
-    formError.value = e?.message || '保存失败'
+    formError.value = e?.message || t('common.saveFailed')
   } finally {
     savingRole.value = false
   }
@@ -311,7 +311,7 @@ async function del(row: any) {
     toast.success(t('role.deleteSuccess'))
     await loadRolesOnly()
   } catch (e: any) {
-    actionError.value = e?.message || '删除失败'
+    actionError.value = e?.message || t('common.deleteFailed')
   }
 }
 
@@ -321,6 +321,7 @@ const grantLoading = ref(false)
 const savingGrant = ref(false)
 const grantError = ref('')
 const grantRole = ref<any>(null)
+const grantRoleName = computed(() => grantRole.value?.role_name || grantRole.value?.role_code || '')
 const allPermissions = ref<any[]>([])
 const checked = ref<string[]>([])
 
@@ -375,7 +376,7 @@ async function openGrant(row: any) {
     allPermissions.value = perms as any[]
     checked.value = [...((rolePerms as unknown) as string[])]
   } catch (e: any) {
-    grantError.value = e?.message || '加载权限失败'
+    grantError.value = e?.message || t('role.permissionsLoadFailed')
   } finally {
     grantLoading.value = false
   }
@@ -392,7 +393,7 @@ async function saveGrant() {
     toast.success(t('role.grantSuccess'))
     grantOpen.value = false
   } catch (e: any) {
-    grantError.value = e?.message || '保存失败'
+    grantError.value = e?.message || t('common.saveFailed')
   } finally {
     savingGrant.value = false
   }
@@ -404,6 +405,7 @@ const memberLoading = ref(false)
 const savingMembers = ref(false)
 const memberError = ref('')
 const memberRole = ref<any>(null)
+const memberRoleName = computed(() => memberRole.value?.role_name || memberRole.value?.role_code || '')
 const allUsers = ref<any[]>([])
 const memberIds = ref<string[]>([])
 
@@ -461,7 +463,7 @@ async function saveMembers() {
     toast.success(t('role.saveSuccess'))
     memberOpen.value = false
   } catch (e: any) {
-    memberError.value = e?.message || '保存失败'
+    memberError.value = e?.message || t('common.saveFailed')
   } finally {
     savingMembers.value = false
   }
@@ -496,7 +498,7 @@ onMounted(loadAll)
 .permission-type-filter {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   margin-bottom: 12px;
 }
 .permission-type-filter__label {
@@ -514,11 +516,11 @@ onMounted(loadAll)
 }
 .grant-count { margin-left: auto; font-size: 12px; color: var(--app-text-secondary); }
 .grant-groups { max-height: 46vh; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
-.grant-group { border: 1px solid var(--app-border); border-radius: 6px; padding: 8px 12px; }
+.grant-group { border: 1px solid var(--app-border); border-radius: var(--app-radius-sm); padding: 8px 12px; }
 .grant-group-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
 .grant-group-title { font-size: 13px; font-weight: 600; color: var(--app-text-secondary); }
 .grant-group-items { display: flex; flex-wrap: wrap; gap: 0 16px; }
-.perm-name { margin-left: 6px; font-size: 12px; color: var(--app-text-secondary); }
+.perm-name { margin-left: 4px; font-size: 12px; color: var(--app-text-secondary); }
 .member-list { max-height: 46vh; overflow-y: auto; }
 .member-items { display: flex; flex-direction: column; gap: 2px; }
 </style>

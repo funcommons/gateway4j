@@ -108,7 +108,7 @@ const sizeClass = computed(() => `size-${props.size}`)
   align-items: center;
   gap: 2px;
   padding: 2px;
-  background: var(--app-bg-muted, #f5f5f5);
+  background: var(--app-bg-muted);
   border-radius: var(--app-radius-md, 10px);
   border: 1px solid var(--app-border-extra-light, transparent);
 
@@ -146,10 +146,25 @@ const sizeClass = computed(() => `size-${props.size}`)
     color: var(--app-text);
   }
 
+  &:focus-visible {
+    outline: 2px solid var(--app-focus-ring);
+    outline-offset: 2px;
+  }
+
+  &:active:not(.is-disabled) {
+    opacity: 0.85;
+  }
+
   &.is-active {
     background: var(--app-bg-card);
-    color: var(--app-primary);
-    box-shadow: var(--app-shadow-md, 0 1px 3px rgba(0, 0, 0, 0.08));
+    color: var(--app-accent-text);
+    box-shadow: var(--app-shadow-md);
+  }
+
+  /* 禁用三通道: 透明度 + 光标 + 原生 disabled */
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
   }
 
   &.is-disabled {
@@ -163,17 +178,17 @@ const sizeClass = computed(() => `size-${props.size}`)
 
 /* 尺寸 */
 .size-sm .fc-segmented__item {
-  padding: 4px 10px;
+  padding: 4px 12px;
   font-size: 12px;
   min-height: 24px;
 }
 .size-md .fc-segmented__item {
-  padding: 6px 14px;
+  padding: 4px 16px;
   font-size: 13px;
   min-height: 30px;
 }
 .size-lg .fc-segmented__item {
-  padding: 8px 18px;
+  padding: 8px 20px;
   font-size: 14px;
   min-height: 36px;
 }

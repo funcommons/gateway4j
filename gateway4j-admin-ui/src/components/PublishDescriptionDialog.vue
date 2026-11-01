@@ -104,14 +104,14 @@ function onConfirm() {
 
 <style scoped>
 .publish-desc__context {
-  margin: 0 0 10px;
+  margin: 0 0 12px;
   font-size: 13px;
   color: var(--app-text-secondary);
 }
 .publish-desc__label {
   display: block;
   font-size: 13px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   color: var(--app-text-primary);
 }
 .publish-desc__hint {

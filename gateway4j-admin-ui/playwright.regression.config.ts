@@ -14,7 +14,7 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   reporter: [
     ['list'],
-    ['json', { outputFile: '../test-report/2026-10-30-04/results.json' }],
+    ['json', { outputFile: '../test-report/2026-11-01-05/results.json' }],
   ],
   use: {
     baseURL: 'http://localhost:9302',

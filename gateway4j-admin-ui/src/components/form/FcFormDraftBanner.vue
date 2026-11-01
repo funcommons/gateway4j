@@ -54,13 +54,13 @@ const { t } = useI18n()
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 16px;
+  padding: 12px 16px;
   margin-bottom: 12px;
-  background: var(--el-color-warning-light-9, #fdf6ec);
-  border: 1px solid var(--el-color-warning-light-5, #faecd8);
+  background: var(--el-color-warning-light-9);
+  border: 1px solid var(--el-color-warning-light-5);
   border-radius: var(--app-radius-md, 8px);
-  color: var(--el-text-color-primary, #303133);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  color: var(--el-text-color-primary);
+  box-shadow: var(--app-shadow-sm);
 }
 .fc-draft-banner__content {
   display: flex;
@@ -71,7 +71,7 @@ const { t } = useI18n()
 }
 .fc-draft-banner__icon {
   font-size: 18px;
-  color: var(--el-color-warning, #e6a23c);
+  color: var(--el-color-warning);
   flex-shrink: 0;
 }
 .fc-draft-banner__text {
@@ -91,17 +91,30 @@ const { t } = useI18n()
   border-radius: var(--app-radius-sm, 4px);
   font-size: 13px;
   cursor: pointer;
+  /* 按钮文案不折行 */
+  white-space: nowrap;
   transition: background-color 0.15s, color 0.15s, opacity 0.15s, box-shadow 0.15s;
+}
+.fc-draft-banner__btn:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+}
+.fc-draft-banner__btn:active {
+  opacity: 0.85;
+}
+.fc-draft-banner__btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 .fc-draft-banner__btn--ghost {
   background: transparent;
   color: var(--app-text-secondary);
 }
 .fc-draft-banner__btn--ghost:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: color-mix(in srgb, var(--app-text) 4%, transparent);
 }
 .fc-draft-banner__btn--primary {
-  background: var(--el-color-warning, #e6a23c);
+  background: var(--el-color-warning);
   /* 琥珀底配深琥珀墨 (与 warning 同色相), 白字在 #e6a23c 上只有 2.19:1 (规则 40) */
   color: color-mix(in srgb, var(--el-color-warning) 30%, black);
 }
@@ -112,9 +125,17 @@ const { t } = useI18n()
 .fc-draft-banner-leave-active {
   transition: opacity 0.2s, transform 0.2s;
 }
-.fc-draft-banner-enter-from,
-.fc-draft-banner-leave-to {
+.js .fc-draft-banner-enter-from,
+.js .fc-draft-banner-leave-to {
   opacity: 0;
   transform: translateY(-8px);
+}
+
+/* 动效兜底: 用户关闭动效时提示条直接出现/消失 */
+@media (prefers-reduced-motion: reduce) {
+  .fc-draft-banner-enter-active,
+  .fc-draft-banner-leave-active {
+    transition: none;
+  }
 }
 </style>

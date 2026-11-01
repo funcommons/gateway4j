@@ -96,7 +96,7 @@ const OptionComp = computed(() => (props.variant === 'button' ? FcRadioButton : 
     gap: 0;
     border-radius: 6px;
     overflow: hidden;
-    border: 1px solid var(--app-separator, #dcdfe6);
+    border: 1px solid var(--app-separator);
   }
 
   &.size-small { gap: 12px; }

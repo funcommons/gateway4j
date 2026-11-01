@@ -93,36 +93,45 @@ function onTabClick(t: TabItem) {
   display: flex;
   gap: 4px;
   padding: 4px;
-  border-bottom: 1px solid var(--app-separator, #e5e5e5);
+  border-bottom: 1px solid var(--app-separator);
   flex-shrink: 0;
 }
 
 .fc-tab {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
+  gap: 8px;
+  padding: 8px 16px;
   border: none;
   background: transparent;
-  color: var(--app-text-secondary, #666);
+  color: var(--app-text-secondary);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  border-radius: var(--radius-sm, 6px);
+  border-radius: var(--app-radius-sm);
   transition: background 0.15s, color 0.15s;
 
   i {
     font-size: 16px;
   }
 
+  &:focus-visible {
+    outline: 2px solid var(--app-focus-ring);
+    outline-offset: 2px;
+  }
+
   &:hover:not(:disabled) {
-    background: var(--app-bg-muted, #f5f5f5);
-    color: var(--app-text-primary, #333);
+    background: var(--app-bg-muted);
+    color: var(--app-text-primary);
+  }
+
+  &:active:not(:disabled) {
+    opacity: 0.85;
   }
 
   &.active {
-    background: color-mix(in srgb, var(--app-primary, #409eff) 12%, transparent);
-    color: var(--app-primary, #409eff);
+    background: color-mix(in srgb, var(--app-primary) 12%, transparent);
+    color: var(--app-accent-text);
   }
 
   &:disabled,
@@ -144,8 +153,8 @@ function onTabClick(t: TabItem) {
 
 .fc-tabs-footer {
   padding: var(--space-sm, 8px) var(--space-md, 12px);
-  border-top: 1px solid var(--app-separator, #e5e5e5);
-  background: var(--app-bg-page, #fafafa);
+  border-top: 1px solid var(--app-separator);
+  background: var(--app-bg-page);
   flex-shrink: 0;
 }
 

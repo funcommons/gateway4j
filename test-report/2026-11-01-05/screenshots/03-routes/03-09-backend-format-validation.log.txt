@@ -1,0 +1,20 @@
+用例: 03-09-backend-format-validation
+时间: 2026-11-01T15:40:30.702Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/routes
+
+--- Extra ---
+POST /v1/routes 响应: status=200 payload={"code":10100,"message":"请求参数错误","data":null,"error":[{"field":"upstream_url","code":"FORMAT_INVALID","message":"上游地址须为 http:// 或 https:// 开头的 URL","rejectedValue":"ftp://xxx"},{"field":"path","code":"FORMAT_INVALID","message":"路径须以 / 开头且不含空白字符","rejectedValue":"not-a-path"}],"trace_id":"1049d7e3-84

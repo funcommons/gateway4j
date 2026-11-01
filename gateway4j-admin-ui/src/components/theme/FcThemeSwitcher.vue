@@ -316,7 +316,7 @@ function reset() {
 .fc-ts-section__title {
   font-size: 13px;
   font-weight: 600;
-  color: var(--app-text, #333);
+  color: var(--app-text);
   margin: 0;
   overflow-wrap: break-word;
   min-width: 0;
@@ -331,15 +331,25 @@ function reset() {
   flex: 1;
   position: relative;
   height: 56px;
-  border: 2px solid var(--app-separator, #e5e5e5);
-  border-radius: var(--app-radius-md, 8px);
+  border: 2px solid var(--app-separator);
+  border-radius: var(--app-radius-md);
   cursor: pointer;
   overflow: hidden;
   transition: border-color 0.15s ease, transform 0.1s ease;
 
-  &:hover { border-color: var(--app-primary, #409eff); }
-  &.active { border-color: var(--app-primary, #409eff); box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-primary, #409eff) 25%, transparent); }
-  &:active { transform: scale(0.97); }
+  &:hover { border-color: var(--app-accent-text); }
+  &.active { border-color: var(--app-accent-text); box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-primary) 25%, transparent); }
+  &:active:not(:disabled) { transform: scale(0.97); }
+
+  &:focus-visible {
+    outline: 2px solid var(--app-focus-ring);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
 }
 
 .fc-ts-swatch__label {
@@ -350,6 +360,7 @@ function reset() {
   justify-content: center;
   font-size: 13px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .fc-ts-swatch__check {
@@ -378,35 +389,46 @@ function reset() {
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
-  padding: 10px;
-  background: var(--app-bg-card, #fff);
-  border: 1px solid var(--app-separator, #e5e5e5);
-  border-radius: var(--app-radius-md, 8px);
+  padding: 12px;
+  background: var(--app-bg-card);
+  border: 1px solid var(--app-separator);
+  border-radius: var(--app-radius-md);
   cursor: pointer;
   position: relative;
   transition: border-color 0.15s ease, transform 0.1s ease;
 
-  &:hover { border-color: var(--app-primary, #409eff); }
-  &.active { border-color: var(--app-primary, #409eff); box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-primary, #409eff) 25%, transparent); }
-  &:active { transform: scale(0.97); }
+  &:hover { border-color: var(--app-accent-text); }
+  &.active { border-color: var(--app-accent-text); box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-primary) 25%, transparent); }
+  &:active:not(:disabled) { transform: scale(0.97); }
+
+  &:focus-visible {
+    outline: 2px solid var(--app-focus-ring);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
 }
 
 .fc-ts-brand-card__swatch {
   width: 100%;
   height: 24px;
-  border-radius: var(--app-radius-sm, 4px);
+  border-radius: var(--app-radius-sm);
   margin-bottom: 2px;
 }
 
 .fc-ts-brand-card__name {
   font-size: 13px;
   font-weight: 600;
-  color: var(--app-text, #333);
+  color: var(--app-text);
+  white-space: nowrap;
 }
 
 .fc-ts-brand-card__desc {
   font-size: 11px;
-  color: var(--app-text-secondary, #999);
+  color: var(--app-text-secondary);
   line-height: 1.3;
 }
 
@@ -423,5 +445,17 @@ function reset() {
   background: var(--app-primary);
   color: var(--app-on-primary);
   font-size: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fc-ts-swatch,
+  .fc-ts-brand-card {
+    transition: none;
+  }
+
+  .fc-ts-swatch:active:not(:disabled),
+  .fc-ts-brand-card:active:not(:disabled) {
+    transform: none;
+  }
 }
 </style>

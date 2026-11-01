@@ -13,19 +13,31 @@ import FcErrorBoundary from '../utils/FcErrorBoundary.vue'
 export interface FcMainProps {
   keepAlive?: boolean
   transitionName?: string
+  /**
+   * 窄屏（≤768px）抽屉侧栏是否展开。桌面端忽略该值 ——
+   * 桌面是常驻侧栏 + 图标轨折叠，不需要抽屉。
+   */
+  drawerOpen?: boolean
 }
 
 const props = withDefaults(defineProps<FcMainProps>(), {
   keepAlive: true,
   transitionName: 'fade',
+  drawerOpen: false,
 })
+
+const emit = defineEmits<{
+  /** 窄屏点遮罩时关闭抽屉. */
+  'drawer-close': []
+}>()
 </script>
 
 <template>
-  <div class="fc-shell">
+  <div class="fc-shell" :class="{ 'is-drawer-open': drawerOpen }">
     <aside v-if="$slots.sidebar" class="fc-shell__aside">
       <slot name="sidebar" />
     </aside>
+    <div v-if="drawerOpen" class="fc-shell__scrim" @click="emit('drawer-close')" />
     <div class="fc-shell__body">
       <header v-if="$slots.header" class="fc-shell__header">
         <slot name="header" />
@@ -61,7 +73,7 @@ const props = withDefaults(defineProps<FcMainProps>(), {
   /* 与 .fc-sidebar 同底色, 兜住 sidebar 定高 (calc(100vh - 56px)) 下方留白 */
   display: flex;
   flex-direction: column;
-  background: var(--app-sidebar-bg, var(--el-bg-color, #fff));
+  background: var(--app-sidebar-bg, var(--el-bg-color));
 }
 .fc-shell__body {
   flex: 1;
@@ -94,8 +106,45 @@ const props = withDefaults(defineProps<FcMainProps>(), {
 .fade-leave-active {
   transition: opacity 0.15s ease;
 }
-.fade-enter-from,
-.fade-leave-to {
+.js .fade-enter-from,
+.js .fade-leave-to {
   opacity: 0;
+}
+
+/* ---- 窄屏（≤768px）：侧栏改成抽屉 ----
+ * 桌面是常驻侧栏（240px）+ 64px 图标轨；手机上常驻 240px 会把内容压到
+ * 166px，表格与表单全废。改成覆盖式抽屉：默认滑出屏外，顶栏汉堡按钮
+ * （FcHeader 的 toggle-sidebar）打开，点遮罩关闭。 */
+@media (max-width: 768px) {
+  .fc-shell {
+    position: relative;
+  }
+
+  .fc-shell__aside {
+    position: absolute;
+    inset: 0 auto 0 0;
+    z-index: 40;
+    width: min(280px, 82vw);
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    box-shadow: var(--app-shadow-lg);
+  }
+
+  .fc-shell.is-drawer-open .fc-shell__aside {
+    transform: none;
+  }
+
+  .fc-shell__scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    background: var(--app-overlay-softer);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fc-shell__aside {
+    transition: none;
+  }
 }
 </style>

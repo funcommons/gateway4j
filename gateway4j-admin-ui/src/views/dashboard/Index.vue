@@ -45,7 +45,7 @@
               <template #default="{ row }">{{ row.total_requests }}</template>
             </el-table-column>
             <el-table-column :label="t('monitor.errorRate')">
-              <template #default="{ row }">{{ ((row.error_rate ?? 0) * 100).toFixed(2) }}%</template>
+              <template #default="{ row }">{{ t('monitor.errorRatePercent', { value: ((row.error_rate ?? 0) * 100).toFixed(2) }) }}</template>
             </el-table-column>
           </FcTable>
         </template>
@@ -63,7 +63,7 @@
               :class="metricsSource === 'prometheus' ? 'source-badge--prometheus' : 'source-badge--snapshot'"
               data-testid="metrics-source-badge"
             >{{ metricsSource === 'prometheus' ? t('monitor.sourcePrometheus') : t('monitor.sourceSnapshot') }}</span>
-            <span v-if="lastRefresh" class="last-refresh">{{ t('monitor.lastRefresh') }}：{{ lastRefresh }}</span>
+            <span v-if="lastRefresh" class="last-refresh">{{ t('monitor.lastRefreshAt', { time: lastRefresh }) }}</span>
           </div>
 
           <div v-if="latestMetric" class="metric-cards">
@@ -456,7 +456,7 @@ onUnmounted(() => {
 <style scoped>
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
 .stat-label { color: var(--app-text-secondary); font-size: 13px; }
-.stat-value { font-size: 24px; font-weight: 700; color: var(--app-text); margin-top: 4px; }
+.stat-value { font-size: 24px; font-weight: 700; color: var(--app-text); margin-top: 4px; font-variant-numeric: tabular-nums; }
 .topo-shell { height: 600px; border: 1px solid var(--app-border); border-radius: var(--app-radius-md); }
 .load-error {
   color: var(--app-danger);
@@ -470,10 +470,10 @@ onUnmounted(() => {
 .source-badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   font-size: 12px;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--app-radius-full);
   line-height: 1.4;
 }
 .source-badge::before {
@@ -492,11 +492,11 @@ onUnmounted(() => {
   background: var(--app-bg-muted);
 }
 .source-badge--snapshot::before { background: var(--app-text-secondary); }
-.auto-refresh-label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--app-text-secondary); cursor: pointer; }
+.auto-refresh-label { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--app-text-secondary); cursor: pointer; }
 .last-refresh { font-size: 12px; color: var(--app-text-secondary); margin-left: auto; }
 .metric-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
 .metric-label { color: var(--app-text-secondary); font-size: 12px; }
-.metric-value { font-size: 20px; font-weight: 700; color: var(--app-text); margin-top: 4px; }
+.metric-value { font-size: 20px; font-weight: 700; color: var(--app-text); margin-top: 4px; font-variant-numeric: tabular-nums; }
 .trend-chart { height: 400px; border: 1px solid var(--app-border); border-radius: var(--app-radius-md); }
 .status-toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
 </style>

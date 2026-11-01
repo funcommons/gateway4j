@@ -116,6 +116,11 @@ function applyToRoot() {
   const theme = currentTheme.value
   html.setAttribute('data-brand', brand)
   html.setAttribute('data-theme', theme)
+  // Element Plus 自带的暗色 token 挂在 `html.dark` 上（theme-chalk/dark/css-vars.css）。
+  // 本项目用 data-theme 表达主题，所以暗色态同时挂上 `dark` 类，EP 的
+  // 面板底/文字/描边才会跟着切暗 —— 否则 EP 组件仍是白底配浅色文字（读不了）。
+  // （orange-black 是主题层里的另一套暗色，字符串比较一并覆盖）
+  html.classList.toggle('dark', String(theme) !== 'light')
 }
 
 // === 初始化 ===

@@ -1,17 +1,17 @@
 <template>
-  <FcMain>
+  <FcMain :drawer-open="drawerOpen" @drawer-close="drawerOpen = false">
     <template #sidebar>
-      <FcSidebar :collapse="collapsed">
+      <FcSidebar :collapse="isMobile ? false : collapsed" @update:collapsed="collapsed = $event">
         <FcSidebarNav
           :items="navItems"
           :active-path="activePath"
-          :collapse="collapsed"
+          :collapse="isMobile ? false : collapsed"
           @select="onNavSelect"
         />
       </FcSidebar>
     </template>
     <template #header>
-      <FcHeader :title="t('app.title')" :collapse="collapsed" @toggle="collapsed = !collapsed">
+      <FcHeader :title="t('app.title')" :collapse="isMobile ? !drawerOpen : collapsed" @toggle-sidebar="onToggleSidebar">
         <template #search>
           <GlobalSearch />
         </template>
@@ -71,6 +71,7 @@ import {
 } from '@/components'
 import { useAuthStore } from '@/store/auth'
 import { usePermission } from '@/composables/usePermission'
+import { useResponsive } from '@/components/utils/useResponsive'
 import GlobalSearch from '@/components/search/GlobalSearch.vue'
 import GlobalCommandPalette from '@/components/GlobalCommandPalette.vue'
 import PasswordStaleBanner from '@/components/PasswordStaleBanner.vue'
@@ -82,6 +83,20 @@ const { hasPermission } = usePermission()
 const router = useRouter()
 const route = useRoute()
 const collapsed = ref(false)
+/**
+ * 窄屏抽屉侧栏开关。
+ * 之前顶栏的汉堡按钮（FcHeader 发的 toggle-sidebar）与侧栏自身的折叠按钮
+ * （FcSidebar 发的 update:collapsed）都没有人接 —— 侧栏折叠完全失灵；
+ * 窄屏下常驻 240px 侧栏又把内容压到 166px。现在两条线都接上：
+ * 窄屏开抽屉，桌面切图标轨。
+ */
+const drawerOpen = ref(false)
+const { isMobile } = useResponsive()
+
+function onToggleSidebar() {
+  if (isMobile.value) drawerOpen.value = !drawerOpen.value
+  else collapsed.value = !collapsed.value
+}
 /** 命令面板开关 (⌘/Ctrl + J 或顶栏按钮唤起) */
 const paletteOpen = ref(false)
 
@@ -124,6 +139,8 @@ async function onLogout() {
 }
 
 async function onNavSelect(p: string) {
+  // 窄屏抽屉：选完就收起，否则抽屉盖住刚跳过去的页面
+  if (isMobile.value) drawerOpen.value = false
   await router.push(p)
 }
 
@@ -141,12 +158,12 @@ async function goHome() {
 .command-palette-trigger__content {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 .breadcrumb-bar {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: 13px;
   color: var(--app-text-secondary);
   margin: 0 0 8px;
@@ -158,7 +175,16 @@ async function goHome() {
   transition: color 0.2s;
 }
 .breadcrumb-bar__home:hover {
-  color: var(--app-primary);
+  color: var(--app-accent-text);
+}
+/* 键盘焦点环: 瞬时出现, 不做渐显 */
+.breadcrumb-bar__home:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+}
+/* 按下反馈 */
+.breadcrumb-bar__home:active {
+  color: var(--app-primary-active);
 }
 .breadcrumb-bar__sep {
   color: var(--app-text-secondary);

@@ -1,0 +1,21 @@
+用例: 01-07-logout-button-and-redirect
+时间: 2026-11-01T15:35:25.266Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNTU0NTIxMTk5LCJub25jZSI6Ijk5NjEyNDRmLWI4MjktNDk0Mi1iMzMxLTM0MTU1NjZmN2M1OCIsImlhdCI6MTc5MzU0NzMyMTE5OSwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiI5YjgzN2ViZi1lMzc4LTQzZWMtOWI2Mi0zMjdkMzQ5MmU3MzYifQ.W58O5BmFrq84rRtw0UDQ7uT4Gs9Fxt2lGBTubNYR73w :: net::ERR_ABORTED
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/login
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/routes
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNTU0NTIxMTk5LCJub25jZSI6Ijk5NjEyNDRmLWI4MjktNDk0Mi1iMzMxLTM0MTU1NjZmN2M1OCIsImlhdCI6MTc5MzU0NzMyMTE5OSwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiI5YjgzN2ViZi1lMzc4LTQzZWMtOWI2Mi0zMjdkMzQ5MmU3MzYifQ.W58O5BmFrq84rRtw0UDQ7uT4Gs9Fxt2lGBTubNYR73w

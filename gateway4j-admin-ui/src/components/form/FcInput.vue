@@ -130,23 +130,23 @@ const listeners = computed(() => ({
 
   &.has-error :deep(.el-input__wrapper),
   &.has-error :deep(.el-textarea__inner) {
-    box-shadow: 0 0 0 1px var(--app-color-danger, #ff3b30) inset;
+    box-shadow: 0 0 0 1px var(--app-color-danger) inset;
   }
 
   &.has-error :deep(.el-input__wrapper:hover),
   &.has-error :deep(.el-textarea__inner:hover) {
-    box-shadow: 0 0 0 1px var(--app-color-danger, #ff3b30) inset;
+    box-shadow: 0 0 0 1px var(--app-color-danger) inset;
   }
 
   &.has-error :deep(.el-input__wrapper.is-focus),
   &.has-error :deep(.el-textarea__inner:focus) {
-    box-shadow: 0 0 0 1px var(--app-color-danger, #ff3b30) inset;
+    box-shadow: 0 0 0 1px var(--app-color-danger) inset;
   }
 }
 
 .fc-input__error {
   font-size: 12px;
-  color: var(--app-color-danger, #ff3b30);
+  color: var(--app-color-danger);
   line-height: 1.4;
 }
 </style>

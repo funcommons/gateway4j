@@ -1,7 +1,7 @@
 <template>
   <div class="app-page">
     <FcSection>
-      <p v-if="!canEdit('system')" class="readonly-hint" data-testid="readonly-hint">当前账号为只读权限，如需操作请联系管理员</p>
+      <p v-if="!canEdit('system')" class="readonly-hint" data-testid="readonly-hint">{{ t('common.readonlyHint') }}</p>
       <FcTabsPanel v-model="tab" :tabs="tabs">
         <template #tab-general>
           <p v-if="configLoadError" class="load-error" data-testid="config-load-error">{{ configLoadError }}</p>
@@ -483,7 +483,7 @@ onBeforeRouteLeave(async () => {
   font-size: 13px;
   margin: 0 0 12px;
   padding: 8px 12px;
-  background: var(--app-bg-muted, #f5f7fa);
+  background: var(--app-bg-muted);
   border-radius: var(--app-radius-sm);
 }
 .save-error, .load-error {
@@ -505,9 +505,9 @@ onBeforeRouteLeave(async () => {
   margin-right: auto;
   font-size: 12px;
   padding: 2px 8px;
-  border-radius: var(--app-radius-full, 9999px);
+  border-radius: var(--app-radius-full);
   color: var(--app-text-secondary);
-  background: var(--app-bg-muted, #f4f4f5);
+  background: var(--app-bg-muted);
 }
 .audit-filters {
   display: flex;

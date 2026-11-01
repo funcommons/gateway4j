@@ -158,8 +158,8 @@
 
   .el-popper.fc-popover-popper.fc-popover-popper,
   .el-popper.fc-sidebar-popper.fc-sidebar-popper {
-    background-color: var(--app-bg-card, #ffffff) !important;
-    border: 1px solid var(--app-separator, #dcdfe6) !important;
+    background-color: var(--app-bg-card) !important;
+    border: 1px solid var(--app-separator) !important;
     border-radius: var(--app-radius-card) !important;
     box-shadow: var(--app-shadow-md) !important;
   }

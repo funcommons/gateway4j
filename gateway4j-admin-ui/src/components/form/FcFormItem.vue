@@ -87,7 +87,7 @@ const formItemProps = computed(() => ({
 
 .fc-form-item__hint {
   font-size: 12px;
-  color: var(--app-text-tertiary, #999);
+  color: var(--app-text-tertiary);
   line-height: 1.4;
   padding-top: 2px;
 }

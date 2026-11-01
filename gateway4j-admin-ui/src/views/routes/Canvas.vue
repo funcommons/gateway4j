@@ -51,7 +51,7 @@
             <span v-if="connectionError" class="connection-error" data-testid="connection-error">{{ connectionError }}</span>
             <span v-if="orphanDispatchNodes.length" class="orphan-warning" data-testid="orphan-warning">{{ t('route.orphanDispatchWarning') }}</span>
             <div v-if="!loading && !loadError && nodes.length === 0" class="canvas-empty" data-testid="canvas-empty">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                 <rect x="3" y="3" width="7" height="7" rx="1.5" />
                 <rect x="14" y="14" width="7" height="7" rx="1.5" />
                 <path d="M10 6.5h5.5a1.5 1.5 0 0 1 1.5 1.5v5" stroke-linecap="round" />
@@ -70,7 +70,7 @@
               @connect="onConnect"
               fit-view-on-init
             >
-              <Background pattern-color="#aaa" :gap="16" />
+              <Background pattern-color="var(--app-text-quaternary)" :gap="16" />
               <Controls />
               <MiniMap />
             </VueFlow>
@@ -778,12 +778,20 @@ onBeforeRouteLeave(async () => {
   flex-direction: column;
   gap: 8px;
   position: relative;
-  transition: width 0.2s, min-width 0.2s, padding 0.2s;
 }
 .component-panel.collapsed {
   width: 24px;
   min-width: 24px;
   padding: 4px;
+}
+/* 展开时面板内容淡入（替代 width 过渡：宽度变化即刻生效，内容用 transform/opacity 过渡，避免布局抖动） */
+.component-panel:not(.collapsed) .panel-title,
+.component-panel:not(.collapsed) .node-type-item {
+  animation: canvas-panel-in 0.18s ease-out;
+}
+@keyframes canvas-panel-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 .panel-toggle {
   position: absolute;
@@ -800,9 +808,23 @@ onBeforeRouteLeave(async () => {
   justify-content: center;
   font-size: 14px;
   z-index: 1;
+  white-space: nowrap;
+}
+.panel-toggle:hover { border-color: var(--app-accent-text); color: var(--app-accent-text); }
+.panel-toggle:active { transform: scale(0.94); }
+.panel-toggle:disabled,
+.canvas-toolbar :deep(.fc-button:disabled) {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.panel-toggle:focus-visible,
+.node-type-item:focus-visible,
+.cond-type-help:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
 }
 .panel-title { font-size: 13px; font-weight: 600; color: var(--app-text-secondary); margin-bottom: 4px; }
-.cond-type-label { display: inline-flex; align-items: center; gap: 5px; }
+.cond-type-label { display: inline-flex; align-items: center; gap: 4px; }
 .cond-type-help {
   display: inline-flex;
   align-items: center;
@@ -819,7 +841,7 @@ onBeforeRouteLeave(async () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
+  padding: 8px 12px;
   border: 1px dashed var(--app-border);
   border-radius: var(--app-radius-button);
   cursor: grab;
@@ -827,13 +849,32 @@ onBeforeRouteLeave(async () => {
   user-select: none;
   transition: border-color 0.15s, background 0.15s;
 }
-.node-type-item:hover { border-color: var(--app-primary); background: color-mix(in srgb, var(--app-primary) 12%, transparent); }
+.node-type-item:hover { border-color: var(--app-accent-text); background: color-mix(in srgb, var(--app-primary) 12%, transparent); }
+.node-type-item:active { cursor: grabbing; border-color: var(--app-accent-text); }
 .node-icon { width: 20px; height: 20px; border-radius: var(--app-radius-sm); display: inline-block; }
 .icon-dispatch { background: var(--app-primary); }
 .icon-backend { background: var(--app-success); }
 .icon-plugin { background: var(--app-warning); }
 .node-label { font-size: 13px; }
 .canvas-shell { flex: 1; min-height: 600px; border: 1px solid var(--app-border); border-radius: var(--app-radius-md); position: relative; }
+/* 缩略图与控件走项目 token —— VueFlow 默认是纯白底 + #e2e2e2 的灰块，
+   在浅色画布上是一个没上主题的白盒子（深色主题下更是刺眼）。 */
+.canvas-shell :deep(.vue-flow__minimap) {
+  background: var(--app-bg-card);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  overflow: hidden;
+}
+.canvas-shell :deep(.vue-flow__minimap-node) { fill: var(--app-text-tertiary); }
+.canvas-shell :deep(.vue-flow__minimap-mask) {
+  fill: color-mix(in srgb, var(--app-text) 8%, transparent);
+}
+.canvas-shell :deep(.vue-flow__controls-button) {
+  background: var(--app-bg-card);
+  border-bottom: 1px solid var(--app-border);
+  fill: var(--app-text-secondary);
+}
+.canvas-shell :deep(.vue-flow__controls-button:hover) { background: var(--app-bg-muted); }
 .canvas-empty {
   position: absolute;
   inset: 0;
@@ -902,9 +943,16 @@ onBeforeRouteLeave(async () => {
 }
 .apply-diff { display: flex; flex-direction: column; gap: 16px; }
 .diff-conditions { margin: 0; font-size: 13px; color: var(--app-text-secondary); }
-.diff-group-title { font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--app-text-primary); }
+.diff-group-title { font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--app-text-primary); }
 /* H7b T2：画布 apply 变更说明（可选填） */
 .apply-desc { margin-bottom: 4px; }
-.diff-tip { margin: 0 0 6px; font-size: 12px; color: var(--app-warning); }
+.diff-tip { margin: 0 0 8px; font-size: 12px; color: var(--app-warning); }
 .diff-empty { margin: 0; font-size: 12px; color: var(--app-text-secondary); }
+@media (prefers-reduced-motion: reduce) {
+  .component-panel:not(.collapsed) .panel-title,
+  .component-panel:not(.collapsed) .node-type-item {
+    animation: none;
+  }
+  .node-type-item { transition: none; }
+}
 </style>

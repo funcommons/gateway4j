@@ -5,7 +5,7 @@
     :style="{ background: bgColor }"
     :title="name"
   >
-    <img v-if="src" loading="lazy" :src="finalSrc" :alt="name" />
+    <img v-if="src" decoding="async" :src="finalSrc" :alt="name" />
     <span v-else class="fc-avatar-char">{{ firstChar }}</span>
   </div>
 </template>
@@ -60,7 +60,7 @@ const bgColor = computed(() => {
   justify-content: center;
   color: white;
   font-weight: 600;
-  text-shadow: var(--app-text-shadow, 0 1px 2px rgba(0, 0, 0, 0.2));
+  text-shadow: var(--app-text-shadow);
   flex-shrink: 0;
 
   &.size-tiny {
@@ -91,6 +91,13 @@ const bgColor = computed(() => {
     width: 100%;
     height: 100%;
     object-fit: cover;
+  }
+
+  /* 头像被 host 做成可聚焦元素 (tabindex / 包在链接里) 时的焦点环:
+     瞬时出现, 不做渐显 */
+  &:focus-visible {
+    outline: 2px solid var(--app-focus-ring);
+    outline-offset: 2px;
   }
 
   .fc-avatar-char {

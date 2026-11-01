@@ -41,11 +41,11 @@ defineExpose({ start, retry, phase, lastStatus })
 .publish-sync-status {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: 12px;
-  padding: 4px 10px;
+  padding: 4px 8px;
   border-radius: var(--app-radius-sm);
-  background: var(--app-bg-muted, #f5f7fa);
+  background: var(--app-bg-muted);
   color: var(--app-text-secondary);
 }
 .sync-dot {
@@ -55,19 +55,25 @@ defineExpose({ start, retry, phase, lastStatus })
   display: inline-block;
 }
 .sync-dot--processing {
-  background: var(--app-primary, #409eff);
+  background: var(--app-primary);
   animation: sync-pulse 1s ease-in-out infinite;
 }
 .sync-dot--warning {
-  background: var(--app-warning, #e6a23c);
+  background: var(--app-warning);
 }
 .sync-ok {
-  color: var(--app-success, #67c23a);
+  color: var(--app-success);
   font-weight: 700;
 }
 .sync-label { white-space: nowrap; }
 @keyframes sync-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sync-dot--processing {
+    animation: none;
+    opacity: 1;
+  }
 }
 </style>

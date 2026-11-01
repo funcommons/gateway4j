@@ -135,9 +135,9 @@ defineExpose({ submit, open, newPwd, confirmPwd, mismatchHint })
   margin: 0 0 8px;
   padding: 8px 12px;
   font-size: 13px;
-  color: var(--app-warning, #e6a23c);
-  background: color-mix(in srgb, var(--app-warning, #e6a23c) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--app-warning, #e6a23c) 35%, transparent);
+  color: var(--app-warning);
+  background: color-mix(in srgb, var(--app-warning) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--app-warning) 35%, transparent);
   border-radius: var(--app-radius-sm);
 }
 .pwd-stale-text { flex: 1; }

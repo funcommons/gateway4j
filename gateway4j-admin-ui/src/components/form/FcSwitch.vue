@@ -116,15 +116,28 @@ function toggle() {
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: var(--fc-switch-font, 12px);
   line-height: 1;
   outline: none;
   vertical-align: middle;
   user-select: none;
+  /* 开关文案不折行 (长文案会把轨道挤歪) */
+  white-space: nowrap;
 
   &:focus-visible .fc-switch__track {
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-primary, #409eff) 30%, transparent);
+    box-shadow: 0 0 0 2px var(--app-focus-ring);
+  }
+
+  /* 按下微缩 */
+  &:active:not(:disabled) {
+    transform: scale(0.96);
+  }
+
+  /* 禁用三通道: 透明度 + 光标 + 原生 disabled */
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
   }
 
   &.is-disabled,
@@ -140,7 +153,7 @@ function toggle() {
   width: var(--fc-switch-w, 44px);
   height: var(--fc-switch-h, 22px);
   border-radius: calc(var(--fc-switch-h, 22px) / 2);
-  background: var(--app-separator, #dcdfe6);
+  background: var(--app-separator);
   transition: background 0.2s ease;
 }
 
@@ -151,8 +164,8 @@ function toggle() {
   width: var(--fc-switch-knob, 18px);
   height: var(--fc-switch-knob, 18px);
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  background: var(--app-bg-card);
+  box-shadow: var(--app-shadow-md);
   transition: transform 0.2s ease;
   display: flex;
   align-items: center;
@@ -162,7 +175,7 @@ function toggle() {
 }
 
 .fc-switch.is-active .fc-switch__track {
-  background: var(--app-primary, #409eff);
+  background: var(--app-primary);
 }
 
 .fc-switch.is-active .fc-switch__knob {
@@ -170,11 +183,11 @@ function toggle() {
 }
 
 .fc-switch__label {
-  color: var(--app-text-secondary, #666);
+  color: var(--app-text-secondary);
   font-size: var(--fc-switch-font, 12px);
 
   &--active {
-    color: var(--app-primary, #409eff);
+    color: var(--app-accent-text);
   }
 }
 
@@ -189,15 +202,29 @@ function toggle() {
 
 .fc-switch__inline {
   font-size: 10px;
-  color: var(--app-primary, #409eff);
+  color: var(--app-accent-text);
   font-weight: 700;
 }
 
 .fc-switch.is-active .fc-switch__inline {
-  color: #fff;
+  color: var(--app-on-primary);
 }
 
 @keyframes fc-switch-spin {
   to { transform: rotate(360deg); }
+}
+
+/* 动效兜底: 用户关闭动效时 spinner 不转、旋钮不滑 */
+@media (prefers-reduced-motion: reduce) {
+  .fc-switch__spinner {
+    animation: none;
+  }
+  .fc-switch__track,
+  .fc-switch__knob {
+    transition: none;
+  }
+  .fc-switch:active:not(:disabled) {
+    transform: none;
+  }
 }
 </style>

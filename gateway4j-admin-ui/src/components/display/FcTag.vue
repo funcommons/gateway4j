@@ -96,7 +96,10 @@ const classes = computed(() => [
 
 <style scoped lang="scss">
 .fc-tag {
-  --tag-color: var(--app-primary, #409eff);
+  /* 色调（--tag-color）用于底色/描边；文字档（--tag-ink）是同一色相压暗一档
+     的版本 —— 语义色本身在白卡上只有 2.4~3.2:1，作正文不达标（规则 40）。 */
+  --tag-color: var(--app-primary);
+  --tag-ink: var(--app-accent-text);
 
   display: inline-flex;
   align-items: center;
@@ -107,22 +110,22 @@ const classes = computed(() => [
   letter-spacing: 0.01em;
   white-space: nowrap;
   background: color-mix(in srgb, var(--tag-color) 12%, transparent);
-  color: var(--tag-color);
+  color: var(--tag-ink);
   transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
   user-select: none;
 
   /* color tokens */
-  &.color-primary { --tag-color: var(--app-primary, #409eff); }
-  &.color-gray    { --tag-color: var(--app-text-tertiary, #999); }
-  &.color-success { --tag-color: var(--app-color-success, #67c23a); }
-  &.color-warning { --tag-color: var(--app-color-warning, #e6a23c); }
-  &.color-danger  { --tag-color: var(--app-color-danger, #ff3b30); }
-  &.color-brand   { --tag-color: var(--brand-primary, var(--app-primary, #409eff)); }
+  &.color-primary { --tag-color: var(--app-primary);      --tag-ink: var(--app-accent-text); }
+  &.color-gray    { --tag-color: var(--app-text-tertiary); --tag-ink: var(--app-text-secondary); }
+  &.color-success { --tag-color: var(--app-color-success); --tag-ink: var(--app-color-success-text); }
+  &.color-warning { --tag-color: var(--app-color-warning); --tag-ink: var(--app-color-warning-text); }
+  &.color-danger  { --tag-color: var(--app-color-danger);  --tag-ink: var(--app-color-danger-text); }
+  &.color-brand   { --tag-color: var(--brand-primary, var(--app-primary)); --tag-ink: var(--app-accent-text); }
 
-  /* solid variant */
+  /* solid variant —— 白字压在浅色调上不达标，实底同样压暗一档 */
   &.is-solid {
-    background: var(--tag-color);
-    color: var(--app-on-primary, #fff);
+    background: color-mix(in srgb, var(--tag-color) 75%, black);
+    color: var(--app-on-primary);
   }
 
   /* sizes */
@@ -135,7 +138,7 @@ const classes = computed(() => [
     font-size: 12px;
   }
   &.size-lg {
-    padding: 6px 14px;
+    padding: 8px 16px;
     font-size: 13px;
   }
 
@@ -154,7 +157,7 @@ const classes = computed(() => [
     }
     &.is-selected {
       background: var(--tag-color);
-      color: var(--app-on-primary, #fff);
+      color: var(--app-on-primary);
     }
   }
 
@@ -162,6 +165,12 @@ const classes = computed(() => [
     opacity: 0.5;
     cursor: not-allowed;
   }
+}
+
+/* 键盘焦点环 */
+.fc-tag:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
 }
 
 .fc-tag__content {
@@ -186,19 +195,39 @@ const classes = computed(() => [
   opacity: 0.6;
   transition: opacity 0.15s, background 0.15s;
 
-  &:hover:not(:disabled) {
+  &:hover {
     opacity: 1;
-    background: rgba(0, 0, 0, 0.1);
+    background: color-mix(in srgb, var(--app-text) 10%, transparent);
   }
 
+  /* 禁用三通道: 透明度 + 底色 + 光标 (配合模板上的原生 :disabled 属性) */
   &:disabled {
+    opacity: 0.4;
     cursor: not-allowed;
+    background: transparent;
+    color: var(--app-text-tertiary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--app-focus-ring);
+    outline-offset: 1px;
   }
 
   svg {
     width: 10px;
     height: 10px;
     display: block;
+  }
+}
+
+/* 动效降级: 关闭过渡与按压缩放 */
+@media (prefers-reduced-motion: reduce) {
+  .fc-tag,
+  .fc-tag__close {
+    transition: none;
+  }
+  .fc-tag.is-clickable:active {
+    transform: none;
   }
 }
 </style>

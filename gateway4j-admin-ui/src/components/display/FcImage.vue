@@ -162,7 +162,7 @@ onErrorCaptured(() => false)
   position: relative;
   display: inline-block;
   overflow: hidden;
-  background: var(--app-bg-muted, #f5f5f5);
+  background: var(--app-bg-muted);
   vertical-align: middle;
 
   &.is-previewable {
@@ -188,10 +188,10 @@ onErrorCaptured(() => false)
   justify-content: center;
   font-weight: 600;
   font-size: 40%;
-  color: var(--app-on-primary, #fff);
+  color: var(--app-on-primary);
   background: linear-gradient(135deg,
-    color-mix(in srgb, var(--app-primary, #409eff) 70%, transparent),
-    color-mix(in srgb, var(--app-primary, #409eff) 90%, transparent)
+    color-mix(in srgb, var(--app-primary) 70%, transparent),
+    color-mix(in srgb, var(--app-primary) 90%, transparent)
   );
 }
 
@@ -199,8 +199,8 @@ onErrorCaptured(() => false)
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(45deg, transparent 48%, var(--app-separator, #e5e5e5) 48%, var(--app-separator, #e5e5e5) 52%, transparent 52%),
-    var(--app-bg-muted, #f5f5f5);
+    linear-gradient(45deg, transparent 48%, var(--app-separator) 48%, var(--app-separator) 52%, transparent 52%),
+    var(--app-bg-muted);
   opacity: 0.4;
 }
 
@@ -210,7 +210,7 @@ onErrorCaptured(() => false)
   background: linear-gradient(
     90deg,
     transparent 0%,
-    color-mix(in srgb, var(--app-text, #fff) 8%, transparent) 50%,
+    color-mix(in srgb, var(--app-text) 8%, transparent) 50%,
     transparent 100%
   );
   animation: fc-image-shimmer 1.4s linear infinite;

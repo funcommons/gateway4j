@@ -499,14 +499,14 @@ function formatDiffValue(v: unknown): string {
 .report { margin-top: 12px; padding: 12px; background: var(--app-bg-muted); border-radius: 6px; font-size: 13px; }
 .report p { margin: 4px 0; }
 .report .report-reason { color: var(--app-danger); word-break: break-word; }
-.report .diff-table { margin-top: 10px; }
+.report .diff-table { margin-top: 8px; }
 /* H7b T3：环境对比面板 */
-.env-diff__pickers { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.env-diff__pickers { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
 .env-diff__arrow { color: var(--app-text-secondary); }
 .env-diff__section { margin-bottom: 16px; padding: 12px; background: var(--app-bg-muted); border-radius: 6px; }
 .env-diff__title { font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--app-text-primary); }
 .env-diff__none { margin: 0; font-size: 13px; color: var(--app-text-secondary); }
-.env-diff__list { margin: 0; padding-left: 18px; font-size: 13px; }
+.env-diff__list { margin: 0; padding-left: 16px; font-size: 13px; }
 .env-diff__list li { margin: 2px 0; }
 .env-diff__collapse { width: 100%; }
 .action-error {

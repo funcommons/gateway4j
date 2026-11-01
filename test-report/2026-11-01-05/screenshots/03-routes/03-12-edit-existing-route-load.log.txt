@@ -1,0 +1,25 @@
+用例: 03-12-edit-existing-route-load
+时间: 2026-11-01T15:40:52.070Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNTU0ODQ2OTU2LCJub25jZSI6ImUyOWM4ZWZiLTQ0NTItNGJhNy04NjQ4LWRmNmY2ZjcyYzRmNCIsImlhdCI6MTc5MzU0NzY0Njk1NiwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiJjMzVkNDcyOC02YjJlLTQzMzEtODI3Ni03OGM2YmZiMTM1NTUifQ._l7lgA6UyYQ1WLDIXKY2ptFZPOrGgCJTXk-Z_6hQt7E :: net::ERR_ABORTED
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/plugins/builtin-types
+200 GET /v1/environments
+200 GET /v1/routes
+200 GET /v1/routes/-100
+200 GET /v1/routes/-100
+200 GET /v1/routes/-100/plugins
+200 GET /v1/routes/-100/plugin-chain

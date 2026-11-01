@@ -1,0 +1,17 @@
+用例: 02-06-metrics-chart
+时间: 2026-11-01T15:37:17.815Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNTU0NjMzMzM2LCJub25jZSI6IjY0MDQ4YjFlLTJhOGQtNDk3ZS04ZDg1LWQzYTA2MDVmOWFiNiIsImlhdCI6MTc5MzU0NzQzMzMzNiwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiJiODM5M2FlOC1lMzIwLTQwZGMtYWU4Ni02MmQyN2M5YWU0M2IifQ.bfvQRTxnAFuT8dE_Un-krJC0D2GJ6Qziw-pqoOh-7h8

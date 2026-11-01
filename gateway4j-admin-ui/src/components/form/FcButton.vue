@@ -127,6 +127,9 @@ const listeners = {
 
   &:active:not(.is-disabled) { transform: scale(0.97); }
 
+  /* 禁用态: disabled 属性由 el-button 透传, 这里补一层光标语义 */
+  &:disabled { cursor: not-allowed; }
+
   &.is-block { width: 100%; display: flex; }
 }
 
@@ -135,13 +138,13 @@ const listeners = {
 .fc-button.size-lg { font-size: 14px; }
 
 .fc-button.variant-primary:not(.is-text-like):not(.is-plain) {
-  background: var(--app-primary);
-  border-color: var(--app-primary);
+  background: var(--app-primary-fill);
+  border-color: var(--app-primary-fill);
   color: var(--app-on-primary);
 
   &:hover:not(.is-disabled) {
     filter: brightness(0.95);
-    box-shadow: var(--app-shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.08));
+    box-shadow: var(--app-shadow-md);
   }
 }
 
@@ -150,11 +153,21 @@ const listeners = {
      #f56c6c 原值只有 2.90:1 */
   background: color-mix(in srgb, var(--el-color-danger) 76%, black);
   border-color: color-mix(in srgb, var(--el-color-danger) 76%, black);
-  color: var(--app-on-primary, #fff);
+  color: var(--app-on-primary);
 
   &:hover:not(.is-disabled) {
     filter: brightness(0.95);
-    box-shadow: var(--app-shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.08));
+    box-shadow: var(--app-shadow-md);
+  }
+}
+
+/* 动效降级: 关闭过渡与按压缩放 */
+@media (prefers-reduced-motion: reduce) {
+  .fc-button.el-button {
+    transition: none;
+  }
+  .fc-button.el-button:active:not(.is-disabled) {
+    transform: none;
   }
 }
 </style>

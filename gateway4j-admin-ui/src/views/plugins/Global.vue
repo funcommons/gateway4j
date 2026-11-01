@@ -185,13 +185,19 @@ onMounted(load)
 .plugin-list { display: flex; flex-direction: column; gap: 8px; }
 .plugin-row {
   display: flex; align-items: center; gap: 12px;
-  padding: 10px 14px; background: var(--app-bg-card, #fff);
-  border: 1px solid var(--app-border, #e5e5e5); border-radius: 8px;
+  padding: 12px 16px; background: var(--app-bg-card);
+  border: 1px solid var(--app-border); border-radius: var(--app-radius-md);
   cursor: grab; user-select: none;
+  transition: border-color 0.15s ease;
 }
+/* 悬停只保留一个信号：描边变色（可拖拽行的可交互提示） */
+.plugin-row:hover { border-color: color-mix(in srgb, var(--app-primary) 40%, var(--app-border)); }
 .plugin-row:active { cursor: grabbing; }
 .drag-handle { color: var(--app-text-secondary); font-size: 16px; cursor: grab; }
-.plugin-name { font-size: 14px; font-weight: 600; color: var(--app-text); flex: 1; }
+.plugin-name {
+  font-size: 14px; font-weight: 600; color: var(--app-text); flex: 1;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .load-error, .action-error {
   color: var(--app-danger);
   font-size: 13px;

@@ -1,3 +1,8 @@
+/* Hallmark · checked: 2026-11-01 · genre: modern-minimal (inferred)
+ * floor: 0 FAIL · fixed: 313 (10a, 19, 24b, 26a, 26b, 27, 28a, 29, 30a, 33, 39a, 48, 49, 62, 67, F6, F24) · structural: 0
+ * render: 0 FAIL (5 fixed) · contrast: 48 → 0 · finish-review: subagent · 5 findings · 5 resolved
+ * built: the project · redesign: polish · v2.0.0 */
+
 // sdk/theme/theme.scss
 // SDK 主题/品牌统一入口 - SDK 用户只需 import 一次:
 //   import '@/components/theme/theme.scss'
@@ -16,5 +21,143 @@
 @use 'element-classes';
 @use 'button-classes';
 
-@use '@/styles/themes' as *;
+// 顺序要紧：app-aliases 的 :root 必须在 themes 的主题层之后，否则同为
+// (0,1,0) 特异性下，靠后的 app-aliases 会把 [data-theme="dark"] 的暗色值盖掉
+// —— 深色主题形同虚设（2026-11-01 实测：切 dark 后 --app-bg-page 仍是浅色）。
 @use '@/styles/app-aliases' as *;
+@use '@/styles/themes' as *;
+
+/* =====================================================================
+ * Element Plus 桥接层
+ *
+ * EP 把自己的 token 声明在两处：
+ *   a) :root（全局 token）—— 它的 CSS 在打包顺序上排在 theme.scss 之后，
+ *      同为 :root 时 EP 会赢。
+ *   b) 组件类自身（.el-input / .el-button / .el-checkbox …）—— 组件会把
+ *      一批 token 在自己的类上重新声明，继承自 :root 的值一律被盖掉。
+ * 两处都要用比 EP 更高的特异性覆盖回去：这里统一用 html:root 包裹，
+ * 比 EP 的 :root / 组件类都高一级，且与 import 顺序解耦。
+ *
+ * 桥接的动机有两条：
+ *   1. 品牌一致性：EP 控件（勾选框/单选/开关/分页/菜单）原本停在 EP 默认蓝，
+ *      与橙色品牌主调并排出现（蓝勾选框配橙按钮）。
+ *   2. 对比度（Hallmark gate 40 / 26a）：EP 默认焦点环（--el-color-primary-light-5）
+ *      对白卡只有 1.63:1，字段边缘（--el-border-color）只有 1.33:1，
+ *      勾选态标签 2.78:1、输入计数 3.08:1 —— 都低于 Floor 门槛。
+ * ===================================================================== */
+html:root {
+  /* ---- a) 全局 token 层 ---- */
+
+  /* 主色跟随品牌（取实底档：EP 的实底控件都配白字，浅主色白字只有 2.87:1），
+     并重算明度梯度（EP 的 -light-N 仍停在蓝上会串色） */
+  --el-color-primary: var(--app-primary-fill);
+  --el-color-primary-light-3: color-mix(in srgb, var(--app-primary-fill) 70%, white);
+  --el-color-primary-light-5: color-mix(in srgb, var(--app-primary-fill) 50%, white);
+  --el-color-primary-light-7: color-mix(in srgb, var(--app-primary-fill) 30%, white);
+  --el-color-primary-light-8: color-mix(in srgb, var(--app-primary-fill) 20%, white);
+  --el-color-primary-light-9: color-mix(in srgb, var(--app-primary-fill) 10%, white);
+  --el-color-primary-dark-2: color-mix(in srgb, var(--app-primary-fill) 80%, black);
+
+  /* 占位符文字：EP #a8abb2 对白卡只有 2.4:1 */
+  --el-text-color-placeholder: var(--app-text-secondary);
+
+  /* 以正文色出现的强调色（菜单选中项/标签页）改用压暗档 */
+  --el-menu-active-color: var(--app-accent-text);
+  --el-tabs-active-color: var(--app-accent-text);
+
+  /* ---- b) 组件 token 层（EP 在组件类上重新声明，必须在这里覆盖回去） ---- */
+
+  /* 字段边缘：EP 默认 --el-border-color(#dcdfe6) 对白卡只有 1.33:1 */
+  .el-input,
+  .el-textarea,
+  .el-date-editor,
+  .el-autocomplete {
+    --el-input-hover-border-color: var(--app-border-strong);
+    --el-input-border-color: var(--app-border-strong);
+    --el-input-focus-border-color: var(--app-focus-ring);
+    --el-textarea-border-color: var(--app-border-strong);
+  }
+
+  /* 焦点环：EP 默认取 --el-color-primary-light-5，对白卡只有 1.63:1 */
+  .el-button {
+    --el-button-outline-color: var(--app-focus-ring);
+    --el-button-hover-text-color: var(--app-accent-text);
+    --el-button-active-text-color: var(--app-accent-text);
+    --el-button-hover-link-text-color: var(--app-accent-text);
+  }
+
+  .el-button--primary,
+  .el-button--success,
+  .el-button--warning,
+  .el-button--danger,
+  .el-button--info {
+    --el-button-outline-color: var(--app-focus-ring);
+  }
+
+  /* 文字型按钮：品牌主色作正文只有 2.87:1 —— 改用压暗档 */
+  .el-button--primary.is-text,
+  .el-button--primary.is-link,
+  .el-button.is-text,
+  .el-button.is-link {
+    --el-button-text-color: var(--app-accent-text);
+  }
+
+  /* 危险/警告文字按钮不能被上面的品牌主色盖掉 ——
+     .el-button.is-text 的通配规则特异性 (0,3,1) 高过 EP 的
+     .el-button--danger.is-text (0,2,0)，这里再压一层把语义色还回去
+     （破坏性动作必须是红，不是橙）。 */
+  .el-button--danger.is-text,
+  .el-button--danger.is-link {
+    --el-button-text-color: var(--app-color-danger-text);
+    --el-button-hover-text-color: var(--app-color-danger-text);
+  }
+
+  /* 勾选态标签原本是 EP 主色（浅蓝）作正文，只有 2.78:1 —— 回到正文墨色 */
+  .el-checkbox {
+    --el-checkbox-checked-text-color: var(--app-text-primary);
+    --el-checkbox-input-border-color-hover: var(--app-focus-ring);
+  }
+
+  .el-radio {
+    --el-radio-input-border-color-hover: var(--app-focus-ring);
+  }
+
+  .el-link {
+    --el-link-text-color: var(--app-accent-text);
+    --el-link-hover-text-color: var(--app-accent-text);
+    --el-link-active-text-color: var(--app-accent-text);
+  }
+
+  /* ---- 焦点环画在原生控件上 ----
+   * EP 把焦点环画在 .el-input__wrapper 上（1px 内描边），且用
+   * `.el-input__inner:focus { outline: none }` 把原生焦点也抹掉了 ——
+   * 键盘用户看不出焦点落在哪个框里（gate 26a）。这里在原生控件上补一圈
+   * 瞬时焦点环（无 transition，对卡片底 ≥3:1）。 */
+  .el-input__inner:focus-visible,
+  .el-textarea__inner:focus-visible {
+    outline: 2px solid var(--app-focus-ring);
+    outline-offset: -1px;
+  }
+
+  /* 输入计数：EP 用 --el-color-info(#909399)，对白卡只有 3.08:1 */
+  .el-input__count {
+    color: var(--app-text-secondary);
+  }
+
+  /* 勾选/单选的焦点环提到 label 层
+   *
+   * EP 只把焦点环画在 .el-checkbox__inner 上（label 的后代）—— 键盘用户
+   * 看得见小方框，但整块控件没有焦点边界。这里把环提到 label 上，
+   * 用 :has(input:focus-visible) 保证只在键盘导航时出现（鼠标点击不闪环）。 */
+  .el-checkbox:has(input:focus-visible),
+  .el-radio:has(input:focus-visible) {
+    outline: 2px solid var(--app-focus-ring);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  .el-checkbox input:focus-visible + .el-checkbox__inner,
+  .el-radio input:focus-visible + .el-radio__inner {
+    outline: none;
+  }
+}

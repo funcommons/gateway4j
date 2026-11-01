@@ -106,13 +106,13 @@ const wrapperStyle = computed<CSSProperties>(() => {
 .fc-skeleton {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   width: 100%;
 }
 
 .fc-skeleton__shape,
 .fc-skeleton__line {
-  background: var(--app-bg-muted, #f5f5f5);
+  background: var(--app-bg-muted);
   position: relative;
   overflow: hidden;
 }
@@ -136,7 +136,7 @@ const wrapperStyle = computed<CSSProperties>(() => {
     background: linear-gradient(
       90deg,
       transparent,
-      color-mix(in srgb, var(--app-bg-card, #fff) 60%, transparent),
+      color-mix(in srgb, var(--app-bg-card) 60%, transparent),
       transparent
     );
     animation: fc-skeleton-shimmer 1.4s infinite;
@@ -146,6 +146,14 @@ const wrapperStyle = computed<CSSProperties>(() => {
 @keyframes fc-skeleton-shimmer {
   100% {
     transform: translateX(100%);
+  }
+}
+
+/* 动效降级: 关闭流光, 保留静态占位 */
+@media (prefers-reduced-motion: reduce) {
+  .is-animated .fc-skeleton__shape::after,
+  .is-animated .fc-skeleton__line::after {
+    animation: none;
   }
 }
 </style>

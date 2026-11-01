@@ -47,6 +47,23 @@ withDefaults(defineProps<FcFilterBarProps>(), { block: false })
   &.is-block {
     width: 100%;
   }
+
+  /* 兜底: slot 内"裸"交互元素的状态样式.
+     FcFilterButton / FcButton / FcInput 等 SDK 组件自带八态, 这里只兜底
+     未带 fc- 类名的原生控件, 避免覆盖组件自身的状态契约. */
+  :deep(button:not([class*='fc-'])) {
+    &:focus-visible {
+      outline: 2px solid var(--app-focus-ring);
+      outline-offset: 2px;
+    }
+    &:active:not(:disabled) {
+      opacity: 0.85;
+    }
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
 }
 
 .fc-filter-bar__actions {

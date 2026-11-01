@@ -34,7 +34,7 @@
           @dragleave.prevent="isDragOver = false"
           @drop="handleDrop"
         >
-          <img loading="lazy" :src="modelValue" class="fc-image-picker__img" draggable="false" :style="{ borderRadius: shape === 'circle' ? '50%' : 'var(--radius-md)' }" />
+          <img :src="modelValue" class="fc-image-picker__img" draggable="false" fetchpriority="high" :style="{ borderRadius: shape === 'circle' ? '50%' : 'var(--app-radius-md)' }" />
         </div>
 
         <div
@@ -59,7 +59,7 @@
         <!-- 上工具栏 (右上角, hover 时显示): 仅删除 (预览改由点击图片触发) -->
         <div v-if="modelValue" class="fc-image-picker__top-bar">
           <el-tooltip :content="t('menu.delete')" placement="top" :show-after="300">
-            <button class="bar-btn danger" @click.stop="clearImage">
+            <button class="bar-btn danger" :disabled="disabled" @click.stop="clearImage">
               <i class="ri-delete-bin-line" />
             </button>
           </el-tooltip>
@@ -68,12 +68,12 @@
         <!-- 下工具栏 (右下角, hover 时显示, 与右上删除对称): 仅无图时显示 -->
         <div v-if="!modelValue" class="fc-image-picker__cover-menu">
           <el-tooltip v-if="pasteEnabled" :content="t('menu.paste')" placement="top" :show-after="300">
-            <button class="cover-btn" @click.stop="onPasteClick">
+            <button class="cover-btn" :disabled="disabled" @click.stop="onPasteClick">
               <i class="ri-clipboard-line" />
             </button>
           </el-tooltip>
           <el-tooltip :content="t('menu.more')" placement="top" :show-after="300">
-            <button class="cover-btn" @click.stop="openMorePanel">
+            <button class="cover-btn" :disabled="disabled" @click.stop="openMorePanel">
               <i class="ri-more-fill" />
             </button>
           </el-tooltip>
@@ -1053,14 +1053,14 @@ defineExpose({
   justify-content: center;
   cursor: pointer;
   overflow: hidden;
-  background: var(--app-bg-muted, #f5f5f5);
-  border: 1px dashed var(--app-separator, #e5e5e5);
-  border-radius: var(--radius-md, 8px);
+  background: var(--app-bg-muted);
+  border: 1px dashed var(--app-separator);
+  border-radius: var(--app-radius-md);
   transition: border-color 0.15s, background 0.15s;
-  &:hover { border-color: var(--app-primary, #007aff); }
+  &:hover { border-color: var(--app-accent-text); }
   &.drag-over {
-    background: color-mix(in srgb, var(--app-primary, #007aff) 8%, transparent);
-    border-color: var(--app-primary, #007aff);
+    background: color-mix(in srgb, var(--app-primary) 8%, transparent);
+    border-color: var(--app-accent-text);
   }
   &.shape-circle { border-radius: 50%; }
   &.cover-mode { border: 0; }
@@ -1069,7 +1069,7 @@ defineExpose({
 .fc-image-picker__empty {
   flex-direction: column;
   gap: 8px;
-  color: var(--app-text-tertiary, #999);
+  color: var(--app-text-tertiary);
   font-size: 13px;
   i { font-size: 28px; }
 }
@@ -1078,7 +1078,7 @@ defineExpose({
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  color: var(--app-text-tertiary, #999);
+  color: var(--app-text-tertiary);
   font-size: 13px;
   i { font-size: 28px; }
   .spinning { animation: spin 1s linear infinite; }
@@ -1102,16 +1102,30 @@ defineExpose({
   width: 28px;
   height: 28px;
   border: none;
-  background: var(--app-overlay-strong, rgba(0, 0, 0, 0.6));
-  color: var(--app-on-primary, #fff);
-  border-radius: var(--radius-sm, 6px);
+  background: var(--app-overlay-strong);
+  color: var(--app-on-primary);
+  border-radius: var(--app-radius-sm);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: 14px;
-  &:hover { background: var(--app-overlay-softer, rgba(0, 0, 0, 0.8)); }
-  &.danger { color: var(--app-color-danger, #ff3b30); }
+  &:hover { background: color-mix(in srgb, var(--app-overlay-strong) 85%, black); }
+  &:active:not(:disabled) { transform: scale(0.94); }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  &.danger { color: var(--app-color-danger); }
+}
+
+/* 键盘焦点环 */
+.bar-btn:focus-visible,
+.cover-btn:focus-visible,
+.fc-image-picker__recent-remove:focus-visible,
+.fc-image-picker__action-item:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
 }
 
 .fc-image-picker__popover-trigger { display: inline-block; }
@@ -1129,8 +1143,8 @@ defineExpose({
   .el-tabs__header {
     margin: 0 0 8px;
     padding: 4px;
-    background: var(--app-bg-page, #fafafa);
-    border-radius: var(--radius-md, 8px);
+    background: var(--app-bg-page);
+    border-radius: var(--app-radius-md);
     border: none;
   }
   .el-tabs__nav-wrap {
@@ -1145,15 +1159,15 @@ defineExpose({
     flex: 1;
     padding: 0 8px;
     justify-content: center;
-    gap: 6px;
-    color: var(--app-text-secondary, #666);
+    gap: 4px;
+    color: var(--app-text-secondary);
     font-size: 13px;
     font-weight: 500;
     border: none;
     height: 32px;
     line-height: 32px;
-    &:hover { color: var(--app-primary, #409eff); }
-    &.is-active { color: var(--app-primary, #409eff); }
+    &:hover { color: var(--app-accent-text); }
+    &.is-active { color: var(--app-accent-text); }
   }
   .el-tabs__active-bar { display: none; }
   .el-tabs__content { display: none; }
@@ -1161,7 +1175,7 @@ defineExpose({
   .fc-image-picker__tab-label {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     i { font-size: 14px; }
   }
 }
@@ -1177,17 +1191,17 @@ defineExpose({
 .fc-image-picker__upload-empty {
   flex: 1;
   padding: 24px 16px;
-  border-radius: var(--radius-md, 8px);
+  border-radius: var(--app-radius-md);
   transition: background 0.15s, border-color 0.15s;
   border: 1px dashed transparent;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 24px;
-  &:hover { background: var(--app-bg-page, #fafafa); border-color: var(--app-separator, #e5e5e5); }
+  &:hover { background: var(--app-bg-page); border-color: var(--app-separator); }
   &.drag-over {
-    background: color-mix(in srgb, var(--app-primary, #007aff) 8%, transparent);
-    border-color: var(--app-primary, #007aff);
+    background: color-mix(in srgb, var(--app-primary) 8%, transparent);
+    border-color: var(--app-accent-text);
   }
 }
 .fc-image-picker__upload-empty-body {
@@ -1199,9 +1213,9 @@ defineExpose({
   justify-content: center;
   cursor: pointer;
   text-align: center;
-  p { margin: 4px 0; color: var(--app-text-secondary, #666); font-size: 13px; }
-  .fc-image-picker__upload-icon { font-size: 36px; color: var(--app-text-tertiary, #999); }
-  .fc-image-picker__upload-subhint { color: var(--app-text-tertiary, #999); font-size: 11px; }
+  p { margin: 4px 0; color: var(--app-text-secondary); font-size: 13px; }
+  .fc-image-picker__upload-icon { font-size: 36px; color: var(--app-text-tertiary); }
+  .fc-image-picker__upload-subhint { color: var(--app-text-tertiary); font-size: 11px; }
 }
 .fc-image-picker__upload-empty-footer {
   width: 100%;
@@ -1231,30 +1245,30 @@ defineExpose({
   border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
-  background: var(--app-bg-page, #fafafa);
+  background: var(--app-bg-page);
   transition: border-color 0.15s, transform 0.15s;
   &:hover { transform: scale(1.02); }
   &.selected {
-    border-color: var(--app-primary, #007aff);
-    box-shadow: 0 0 0 1px var(--app-primary, #007aff);
+    border-color: var(--app-accent-text);
+    box-shadow: 0 0 0 1px var(--app-primary);
   }
   img { width: 100%; height: 100%; object-fit: cover; }
 }
 .fc-image-picker__upload-add {
   aspect-ratio: 1;
-  border: 1px dashed var(--app-separator, #e5e5e5);
+  border: 1px dashed var(--app-separator);
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: var(--app-text-tertiary, #999);
+  color: var(--app-text-tertiary);
   font-size: 24px;
   transition: border-color 0.15s, color 0.15s, background-color 0.15s;
   &:hover {
-    border-color: var(--app-primary, #007aff);
-    color: var(--app-primary, #007aff);
-    background: color-mix(in srgb, var(--app-primary, #007aff) 4%, transparent);
+    border-color: var(--app-accent-text);
+    color: var(--app-accent-text);
+    background: color-mix(in srgb, var(--app-primary) 4%, transparent);
   }
 }
 .fc-image-picker__upload-footer {
@@ -1263,12 +1277,12 @@ defineExpose({
   align-items: center;
   gap: 8px;
   padding-top: 8px;
-  border-top: 1px solid var(--el-border-color-extra-light, #f0f0f0);
+  border-top: 1px solid var(--el-border-color-extra-light);
 }
 .fc-image-picker__upload-footer-tip {
   flex: 1;
   text-align: center;
-  color: var(--app-text-secondary, #666);
+  color: var(--app-text-secondary);
   font-size: 12px;
 }
 .fc-image-picker__url-zone { padding: 8px 0; }
@@ -1276,7 +1290,7 @@ defineExpose({
 .fc-image-picker__empty-hint {
   padding: 32px 0;
   text-align: center;
-  color: var(--app-text-tertiary, #999);
+  color: var(--app-text-tertiary);
   font-size: 13px;
 }
 .fc-image-picker__recent-grid {
@@ -1289,11 +1303,11 @@ defineExpose({
   position: relative;
   aspect-ratio: 1;
   cursor: pointer;
-  border-radius: var(--radius-sm, 6px);
+  border-radius: var(--app-radius-sm);
   overflow: hidden;
   border: 2px solid transparent;
   img { width: 100%; height: 100%; object-fit: cover; }
-  &.selected { border-color: var(--app-primary, #007aff); }
+  &.selected { border-color: var(--app-accent-text); }
   .fc-image-picker__recent-check {
     position: absolute;
     top: 4px; left: 4px;
@@ -1311,14 +1325,14 @@ defineExpose({
     padding: 0;
     border: none;
     border-radius: 50%;
-    background: var(--app-overlay-strong, rgba(0, 0, 0, 0.6));
-    color: var(--app-on-primary, #fff);
+    background: var(--app-overlay-strong);
+    color: var(--app-on-primary);
     cursor: pointer;
     display: flex; align-items: center; justify-content: center;
     font-size: 14px;
     opacity: 0;
     transition: opacity 0.15s;
-    &:hover { background: var(--app-color-danger, #ff3b30); }
+    &:hover { background: var(--app-color-danger); }
   }
   &:hover .fc-image-picker__recent-remove { opacity: 1; }
 }
@@ -1334,7 +1348,7 @@ defineExpose({
   justify-content: flex-end;
   align-items: center;
   font-size: 12px;
-  color: var(--app-text-tertiary, #999);
+  color: var(--app-text-tertiary);
 }
 .fc-image-picker__footer-tip { margin-right: auto; }
 .fc-image-picker__footer-actions { display: flex; gap: 4px; }
@@ -1342,27 +1356,41 @@ defineExpose({
 .fc-image-picker__action-sheet {
   display: flex;
   flex-direction: column;
-  background: var(--app-bg-card, #fff);
+  background: var(--app-bg-card);
 }
 .fc-image-picker__action-item {
   display: flex;
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 14px 16px;
+  padding: 12px 16px;
   border: none;
   background: transparent;
-  color: var(--app-text-primary, #333);
+  color: var(--app-text-primary);
   font-size: 15px;
   text-align: left;
   cursor: pointer;
-  border-bottom: 1px solid var(--app-separator, #f0f0f0);
-  i { font-size: 18px; color: var(--app-text-tertiary, #999); }
+  border-bottom: 1px solid var(--app-separator);
+  i { font-size: 18px; color: var(--app-text-tertiary); }
   &:last-child { border-bottom: none; }
-  &.danger {
-    color: var(--app-color-danger, #ff3b30);
-    i { color: var(--app-color-danger, #ff3b30); }
+  &:active:not(:disabled) { background: var(--app-bg-muted); }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
-  &.cancel { justify-content: center; color: var(--app-text-tertiary, #999); }
+  &.danger {
+    color: var(--app-color-danger);
+    i { color: var(--app-color-danger); }
+  }
+  &.cancel { justify-content: center; color: var(--app-text-tertiary); }
+}
+
+/* 动效降级: 关闭旋转与缩放 */
+@media (prefers-reduced-motion: reduce) {
+  .fc-image-picker__loading .spinning { animation: none; }
+  .fc-image-picker__upload-card { transition: none; }
+  .fc-image-picker__upload-card:hover { transform: none; }
+  .bar-btn:active:not(:disabled),
+  .cover-btn:active:not(:disabled) { transform: none; }
 }
 </style>

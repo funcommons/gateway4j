@@ -14,7 +14,8 @@ defineOptions({ name: 'FcPagination', inheritAttrs: false })
  *     @change="onPage"
  *   />
  */
-import { useAttrs } from 'vue'
+import { computed, useAttrs } from 'vue'
+import { useResponsive } from '../utils/useResponsive'
 import { ElConfigProvider } from 'element-plus'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 
@@ -74,14 +75,23 @@ const emit = defineEmits<{
 
 const attrs = useAttrs()
 
-const fullLayout = props.layout ?? [
-  props.showTotal && 'total',
-  props.showSize && 'sizes',
-  'prev',
-  'pager',
-  'next',
-  props.showJumper && 'jumper',
-].filter(Boolean).join(', ')
+const { isMobile } = useResponsive()
+
+/**
+ * 窄屏去掉 sizes / jumper —— 375px 宽放不下这两块，跳页框还会被卡片边切掉。
+ * 其余保持桌面布局。
+ */
+const fullLayout = computed(() => {
+  if (props.layout) return props.layout
+  return [
+    props.showTotal && 'total',
+    !isMobile.value && props.showSize && 'sizes',
+    'prev',
+    'pager',
+    'next',
+    !isMobile.value && props.showJumper && 'jumper',
+  ].filter(Boolean).join(', ')
+})
 
 function onCurrentPage(p: number) {
   emit('update:currentPage', p)
@@ -117,31 +127,31 @@ function onPageSize(s: number) {
 .fc-pagination {
   :deep(.el-pagination__total) {
     font-size: 13px;
-    color: var(--app-text-secondary, #666);
+    color: var(--app-text-secondary);
     margin-right: 8px;
   }
 
   :deep(.el-pagination__sizes .el-input__wrapper),
   :deep(.el-pagination__jump .el-input__wrapper) {
-    box-shadow: 0 0 0 1px var(--app-separator, #e5e5e5) inset;
+    box-shadow: 0 0 0 1px var(--app-separator) inset;
     border-radius: var(--app-radius-sm, 4px);
   }
 
   :deep(.el-pager li) {
     font-size: 13px;
-    color: var(--app-text-secondary, #666);
+    color: var(--app-text-secondary);
     border-radius: var(--app-radius-sm, 4px);
     margin: 0 2px;
   }
 
   :deep(.el-pager li.is-active) {
     color: var(--app-on-primary);
-    background: var(--app-primary);
+    background: var(--app-primary-fill);
   }
 
   :deep(.btn-prev),
   :deep(.btn-next) {
-    color: var(--app-text-secondary, #666);
+    color: var(--app-text-secondary);
     border-radius: var(--app-radius-sm, 4px);
   }
 }

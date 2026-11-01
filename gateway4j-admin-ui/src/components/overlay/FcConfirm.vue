@@ -180,7 +180,7 @@ const confirmButtonType = computed<'primary' | 'danger'>(() =>
   }
 
   .variant-danger & {
-    color: var(--app-color-danger, #ff3b30);
+    color: var(--app-color-danger);
   }
 }
 

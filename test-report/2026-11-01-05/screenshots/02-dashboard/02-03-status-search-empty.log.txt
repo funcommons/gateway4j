@@ -1,0 +1,20 @@
+用例: 02-03-status-search-empty
+时间: 2026-11-01T15:37:00.046Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNTU0NjE2MDEyLCJub25jZSI6IjVlNTgyZDQ2LWY0ZDgtNDkyOS1hZTU2LTFmM2E3ZjkzMjIwOCIsImlhdCI6MTc5MzU0NzQxNjAxMiwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiJlMGI3NDg3Mi03NDBkLTQ3ZjItODRiMy1hNjFiMTU2NjY5MDIifQ.TqGsDZphoVxmzD24-VYzm11T92fllL6tDZ9u3a-lYcY
+
+--- Extra ---
+过滤后行数: 0

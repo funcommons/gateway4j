@@ -324,7 +324,7 @@ defineExpose({ query, open, groups, flatItems, activeIndex, runSearch, flatIndex
   border-radius: var(--app-radius-md);
   box-shadow: var(--app-shadow-md, var(--app-shadow-sm));
   z-index: 2100;
-  padding: 6px;
+  padding: 4px;
 }
 .global-search__group + .global-search__group {
   margin-top: 4px;
@@ -332,7 +332,7 @@ defineExpose({ query, open, groups, flatItems, activeIndex, runSearch, flatIndex
 .global-search__group-title {
   font-size: 12px;
   color: var(--app-text-secondary);
-  padding: 6px 8px 2px;
+  padding: 4px 8px 2px;
 }
 .global-search__item {
   display: flex;
@@ -340,7 +340,7 @@ defineExpose({ query, open, groups, flatItems, activeIndex, runSearch, flatIndex
   justify-content: space-between;
   gap: 12px;
   width: 100%;
-  padding: 7px 8px;
+  padding: 8px;
   border: none;
   background: none;
   text-align: left;
@@ -351,6 +351,20 @@ defineExpose({ query, open, groups, flatItems, activeIndex, runSearch, flatIndex
 }
 .global-search__item.is-active {
   background: color-mix(in srgb, var(--app-primary) 10%, transparent);
+}
+/* 键盘焦点环: 瞬时出现, 不做渐显 */
+.global-search__item:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+}
+/* 鼠标按下: 比键盘高亮更重一档, 二者分工 */
+.global-search__item:active:not(:disabled) {
+  background: color-mix(in srgb, var(--app-primary) 18%, transparent);
+}
+/* 禁用态三通道: 透明 + 光标 + 原生 disabled */
+.global-search__item:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 .global-search__item-name {
   flex-shrink: 0;

@@ -70,8 +70,8 @@ function onSelect(item: MenuItem) {
   padding: 4px;
   background: var(--app-bg-card);
   border: 1px solid var(--app-separator);
-  border-radius: var(--radius-md);
-  box-shadow: var(--app-shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.15));
+  border-radius: var(--app-radius-md);
+  box-shadow: var(--app-shadow-lg);
   backdrop-filter: blur(8px);
 }
 
@@ -87,7 +87,7 @@ function onSelect(item: MenuItem) {
   font-size: 13px;
   text-align: left;
   cursor: pointer;
-  border-radius: var(--radius-sm);
+  border-radius: var(--app-radius-sm);
   transition: background 0.1s;
 
   i {
@@ -98,7 +98,7 @@ function onSelect(item: MenuItem) {
   &:hover:not(:disabled) {
     background: var(--app-bg-page);
     i {
-      color: var(--app-primary);
+      color: var(--app-accent-text);
     }
   }
 
@@ -109,12 +109,12 @@ function onSelect(item: MenuItem) {
   }
 
   &.danger {
-    color: var(--app-color-danger, #ff3b30);
+    color: var(--app-color-danger);
     i {
-      color: var(--app-color-danger, #ff3b30);
+      color: var(--app-color-danger);
     }
     &:hover:not(:disabled) {
-      background: color-mix(in srgb, var(--app-color-danger, #ff3b30) 8%, transparent);
+      background: color-mix(in srgb, var(--app-color-danger) 8%, transparent);
     }
   }
 }

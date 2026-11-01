@@ -21,7 +21,7 @@
         </template>
       </FcFilterBar>
 
-      <p v-if="!canEdit('route')" class="readonly-hint" data-testid="readonly-hint">当前账号为只读权限，如需操作请联系管理员</p>
+      <p v-if="!canEdit('route')" class="readonly-hint" data-testid="readonly-hint">{{ t('common.readonlyHint') }}</p>
 
       <div v-if="flatRows.length > 0" class="tree-toolbar">
         <FcButton variant="text" size="sm" @click="expandAll">{{ t('route.expandAll') }}</FcButton>
@@ -42,7 +42,7 @@
 
       <FcTable :data="flatRows as any" stripe @selection-change="onSelectionChange">
         <el-table-column type="selection" width="40" />
-        <el-table-column prop="route_name" :label="t('route.name')">
+        <el-table-column prop="route_name" :label="t('route.name')" min-width="180">
           <template #default="{ row }">
             <div class="tree-cell" :style="{ paddingLeft: (row as any)._depth * 24 + 'px' }">
               <span
@@ -50,7 +50,7 @@
                 class="toggle-icon"
                 :class="{ expanded: expandedKeys.includes((row as any).id) }"
                 @click.stop="toggleExpand((row as any).id)"
-              >▶</span>
+              ><FcIcon name="ri-arrow-right-s-line" /></span>
               <span v-else class="toggle-placeholder" />
               <span>{{ (row as any).route_name }}</span>
             </div>
@@ -63,7 +63,7 @@
             </FcTag>
           </template>
         </el-table-column>
-        <el-table-column prop="path" :label="t('route.path')" />
+        <el-table-column prop="path" :label="t('route.path')" min-width="240" show-overflow-tooltip />
         <!-- H7b T4：环境小标签列（default 灰、非 default 蓝）；环境功能降级（404）时整体隐藏 -->
         <el-table-column v-if="envReady" :label="t('env.envCol')" width="100">
           <template #default="{ row }">
@@ -76,7 +76,7 @@
               <template v-if="splitTags((row as any).tags).length">
                 <FcTag v-for="tg in splitTags((row as any).tags)" :key="tg" color="gray" size="sm">{{ tg }}</FcTag>
               </template>
-              <template v-else>—</template>
+              <template v-else>{{ t('common.none') }}</template>
             </span>
           </template>
         </el-table-column>
@@ -89,7 +89,7 @@
             />
           </template>
         </el-table-column>
-        <el-table-column :label="t('common.more')" width="380" fixed="right">
+        <el-table-column :label="t('common.more')" width="380" :fixed="isMobile ? false : 'right'">
           <template #default="{ row }">
             <FcButton v-if="canEdit('route')" variant="text" size="sm" @click="onNav(`/routes/${(row as any).id}`)">{{ t('common.edit') }}</FcButton>
             <FcButton v-if="canEdit('route')" variant="text" size="sm" @click="onNav(`/routes/${(row as any).id}/canvas`)">{{ t('route.canvas') }}</FcButton>
@@ -126,6 +126,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { useResponsive } from '@/components/utils/useResponsive'
 import { useI18n } from 'vue-i18n'
 import { useFcConfirm } from '@/composables/useFcConfirm'
 import { usePermission } from '@/composables/usePermission'
@@ -133,12 +134,14 @@ import { useMonitorStream } from '@/composables/useMonitorStream'
 import { useRouter } from 'vue-router'
 import {
   FcSection, FcFilterBar, FcFilterBarDivider, FcFilterButton, FcTable, FcTag, FcStatusBadge,
-  FcInput, FcButton, FcConfirm, FcEmpty, FcSkeleton, PublishSyncStatus, PublishDescriptionDialog,
+  FcInput, FcButton, FcConfirm, FcEmpty, FcSkeleton, FcIcon, PublishSyncStatus, PublishDescriptionDialog,
   EnvTag, toast
 } from '@/components'
 import { listRoutes, publishRoute, offlineRoute, deleteRoute, duplicateRoute, bulkPublishRoutes, bulkOfflineRoutes, bulkDeleteRoutes } from '@/api/routes'
 import type { RouteNode, BulkResult } from '@/api/routes'
 import { useEnvironments } from '@/store/environment'
+
+const { isMobile } = useResponsive()
 
 const { t } = useI18n()
 const { confirm } = useFcConfirm()
@@ -440,21 +443,31 @@ watch(() => env.current, () => { reload() })
   font-size: 13px;
   margin: 0 0 12px;
   padding: 8px 12px;
-  background: var(--app-bg-muted, #f5f7fa);
+  background: var(--app-bg-muted);
   border-radius: var(--app-radius-sm);
 }
-.tree-cell { display: flex; align-items: center; gap: 6px; }
+.tree-cell { display: flex; align-items: center; gap: 8px; }
 .toggle-icon {
   cursor: pointer;
-  font-size: 10px;
+  font-size: 12px;
+  line-height: 1;
   color: var(--app-text-secondary);
-  transition: transform 0.15s ease;
-  display: inline-block;
+  transition: transform 0.15s ease, color 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 16px;
   text-align: center;
   user-select: none;
 }
+.toggle-icon:hover { color: var(--app-accent-text); }
+.toggle-icon:active { transform: scale(0.9); }
 .toggle-icon.expanded { transform: rotate(90deg); }
+.toggle-icon:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--app-radius-sm);
+}
 .toggle-placeholder { display: inline-block; width: 16px; }
 .tree-toolbar { display: flex; gap: 4px; margin-bottom: 8px; align-items: center; }
 .publish-sync-row { margin-bottom: 8px; }
@@ -475,5 +488,8 @@ watch(() => env.current, () => { reload() })
   padding: 8px 12px;
   background: color-mix(in srgb, var(--app-danger) 8%, transparent);
   border-radius: var(--app-radius-sm);
+}
+@media (prefers-reduced-motion: reduce) {
+  .toggle-icon { transition: none; }
 }
 </style>

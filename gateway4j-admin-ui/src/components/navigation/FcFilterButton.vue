@@ -53,7 +53,7 @@ const emit = defineEmits<{ click: [] }>()
   @include reset-button;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   padding: 8px 20px;
   background: var(--el-bg-color);
   border: 1px solid var(--el-border-color-extra-light);
@@ -63,15 +63,24 @@ const emit = defineEmits<{ click: [] }>()
   color: var(--app-text-secondary);
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 
+  &:focus-visible {
+    outline: 2px solid var(--app-focus-ring);
+    outline-offset: 2px;
+  }
+
   &:hover:not(:disabled) {
     background: var(--app-bg-muted);
     color: var(--app-text);
   }
 
+  &:active:not(:disabled) {
+    opacity: 0.85;
+  }
+
   &.is-active {
-    background: var(--app-primary);
-    color: var(--app-on-primary, #fff);
-    border-color: var(--app-primary);
+    background: var(--app-primary-fill);
+    color: var(--app-on-primary);
+    border-color: var(--app-primary-fill);
     box-shadow: var(--app-shadow-md);
   }
 
@@ -87,7 +96,7 @@ const emit = defineEmits<{ click: [] }>()
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0 6px;
+  padding: 0 4px;
   background: color-mix(in srgb, var(--app-text) 10%, transparent);
   border-radius: var(--app-radius-full, 9999px);
   font-size: 11px;
@@ -95,7 +104,7 @@ const emit = defineEmits<{ click: [] }>()
   line-height: 1;
 
   .is-active & {
-    background: color-mix(in srgb, var(--app-on-primary, #fff) 25%, transparent);
+    background: color-mix(in srgb, var(--app-on-primary) 25%, transparent);
   }
 }
 </style>

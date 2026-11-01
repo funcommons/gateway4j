@@ -3,18 +3,21 @@
   <div class="notfound-page">
     <FcSectionCard width="420" class="notfound-card">
       <p class="code">404</p>
-      <h2 class="title">页面不存在</h2>
-      <p class="desc">您访问的页面不存在或已被移除，请检查地址是否正确</p>
-      <FcButton variant="primary" class="home-btn" @click="goHome">返回首页</FcButton>
+      <h2 class="title">{{ t('common.notFoundTitle') }}</h2>
+      <p class="desc">{{ t('common.notFoundDesc') }}</p>
+      <FcButton variant="primary" class="home-btn" @click="goHome">{{ t('common.notFoundBackHome') }}</FcButton>
     </FcSectionCard>
   </div>
 </template>
 
 <script setup lang="ts">
 // 与登录页 (views/auth/Login.vue) 同风格: FcSectionCard 居中卡 + FcButton.
-// 文案硬编码中文: locales 归另一模块管理, 这里不新增 t() key, 避免破坏 i18n 覆盖测试.
+// 文案走 i18n (common.notFound*), 中英双语在 locales 中对齐.
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { FcSectionCard, FcButton } from '@/components'
+
+const { t } = useI18n()
 
 defineOptions({ name: 'NotFound' })
 
@@ -45,13 +48,15 @@ async function goHome() {
   font-weight: 700;
   line-height: 1;
   letter-spacing: 4px;
-  color: var(--app-primary, var(--el-color-primary, #409eff));
+  color: var(--app-accent-text);
 }
 .title {
   margin: 16px 0 8px;
   font-size: 20px;
   font-weight: 600;
   color: var(--app-text);
+  overflow-wrap: break-word;
+  min-width: 0;
 }
 .desc {
   margin: 0 0 24px;

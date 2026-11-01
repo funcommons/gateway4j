@@ -1,0 +1,21 @@
+用例: 03-11-editor-tabs
+时间: 2026-11-01T15:40:46.697Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNTU0ODM5MTMwLCJub25jZSI6IjVkNDk4OGZkLWQ2MmUtNDEwOC1hZTgyLTFjYzdhNWYzZjlkNiIsImlhdCI6MTc5MzU0NzYzOTEzMCwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiIwNTRmM2EwZC02ODVhLTRiMDQtYTIxMS03NzY4MzQ4Y2YyMWIifQ.AQVl-k-s_pT_Md7oyrOSLc8l6ODPDlTsqKut2EmZkNc :: net::ERR_ABORTED
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/plugins/builtin-types
+200 GET /v1/environments
+200 GET /v1/routes

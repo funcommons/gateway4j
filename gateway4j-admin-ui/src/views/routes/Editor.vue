@@ -592,7 +592,7 @@ async function goBack() {
 .env-field {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   padding: 4px 16px 12px;
 }
 .env-field__label {

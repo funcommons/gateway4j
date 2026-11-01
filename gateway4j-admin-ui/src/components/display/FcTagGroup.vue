@@ -78,11 +78,11 @@ defineExpose({ focus })
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   padding: 4px;
   border-radius: var(--app-radius-md, 8px);
-  background: var(--app-bg-card, #fff);
-  border: 1px solid var(--app-separator, #e5e5e5);
+  background: var(--app-bg-card);
+  border: 1px solid var(--app-separator);
 }
 
 .fc-tag-group__input {
@@ -92,11 +92,28 @@ defineExpose({ focus })
   outline: none;
   background: transparent;
   font-size: 12px;
-  color: var(--app-text-primary, #333);
+  color: var(--app-text-primary);
   padding: 2px 4px;
 
   &::placeholder {
-    color: var(--app-text-tertiary, #999);
+    color: var(--app-text-tertiary);
   }
+
+  /* 键盘焦点环 */
+  &:focus-visible {
+    outline: 2px solid var(--app-focus-ring);
+    outline-offset: 1px;
+  }
+
+  /* 禁用态 */
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+/* 组内标签关闭按钮: 按下反馈 */
+.fc-tag-group :deep(.fc-tag__close:active) {
+  transform: scale(0.9);
 }
 </style>

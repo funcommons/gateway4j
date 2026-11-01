@@ -42,6 +42,11 @@ const { isMobile } = useResponsive()
 
 <style scoped>
 .fc-header {
+  /* 顶栏底色来自品牌层（ldx2 是深色顶栏），与主题明暗无关。
+     所以顶栏里的强调文字要用「深底档」，否则浅色主题下的深橙字压在
+     深色顶栏上只有 3.5:1（规则 40）。 */
+  --app-accent-text: var(--app-accent-text-on-dark);
+
   height: var(--app-header-height);
   display: flex;
   align-items: center;
@@ -72,10 +77,24 @@ const { isMobile } = useResponsive()
   padding: 0;
   font-size: var(--app-header-logo-size);
   font-weight: 700;
+  transition: transform 0.1s ease;
 }
 .fc-header__hamburger :deep(.ri-menu-line) {
   font-size: var(--app-header-logo-size);
   font-weight: 700;
+}
+
+/* ---- 交互态: 焦点环瞬时出现 / 按下微缩 / 禁用三通道 ---- */
+.fc-header__hamburger:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+}
+.fc-header__hamburger:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.fc-header__hamburger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .fc-header__center {
@@ -93,6 +112,16 @@ const { isMobile } = useResponsive()
 @media (max-width: 768px) {
   .fc-header__center {
     display: none;
+  }
+}
+
+/* ---- 动效兜底: 用户关闭动效时不做缩放 ---- */
+@media (prefers-reduced-motion: reduce) {
+  .fc-header__hamburger {
+    transition: none;
+  }
+  .fc-header__hamburger:active:not(:disabled) {
+    transform: none;
   }
 }
 </style>

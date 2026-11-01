@@ -205,13 +205,13 @@ function setOpen(v: boolean) {
   align-items: flex-start;
   justify-content: center;
   padding-top: 12vh;
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--app-overlay-softer);
   backdrop-filter: blur(2px);
 }
 .fc-cp {
-  background: var(--el-bg-color, #fff);
+  background: var(--el-bg-color);
   border-radius: var(--app-radius-lg, 12px);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--app-shadow-lg);
   overflow: hidden;
   max-width: calc(100vw - 32px);
   max-height: 70vh;
@@ -221,9 +221,9 @@ function setOpen(v: boolean) {
 .fc-cp__search {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   padding: 12px 16px;
-  border-bottom: 1px solid var(--app-separator, #e5e5e5);
+  border-bottom: 1px solid var(--app-separator);
 }
 .fc-cp__search-icon {
   font-size: 16px;
@@ -240,10 +240,14 @@ function setOpen(v: boolean) {
 .fc-cp__input::placeholder {
   color: var(--app-text-tertiary);
 }
+.fc-cp__input:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
 .fc-cp__hint {
   font-size: 11px;
-  padding: 2px 6px;
-  background: var(--app-bg-muted, #f5f5f7);
+  padding: 2px 4px;
+  background: var(--app-bg-muted);
   border-radius: 4px;
   color: var(--app-text-tertiary);
 }
@@ -261,22 +265,30 @@ function setOpen(v: boolean) {
 .fc-cp__group-title {
   padding: 8px 16px 4px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--app-text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  /* 分组标题走正文 face: 句首大写、不加字距 (不再全大写) */
+  text-transform: capitalize;
+  letter-spacing: normal;
 }
 .fc-cp__item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   padding: 8px 16px;
   cursor: pointer;
   transition: background 0.1s;
 }
+.fc-cp__item:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: -2px;
+}
+.fc-cp__item:active {
+  background: var(--app-bg-muted);
+}
 .fc-cp__item.active,
 .fc-cp__item:hover {
-  background: var(--app-sidebar-item-hover-bg, rgba(0, 0, 0, 0.04));
+  background: var(--app-sidebar-hover-bg);
 }
 .fc-cp__item-icon {
   font-size: 18px;
@@ -298,8 +310,8 @@ function setOpen(v: boolean) {
 }
 .fc-cp__shortcut {
   font-size: 11px;
-  padding: 2px 6px;
-  background: var(--app-bg-muted, #f5f5f7);
+  padding: 2px 4px;
+  background: var(--app-bg-muted);
   border-radius: 4px;
   color: var(--app-text-tertiary);
   font-family: monospace;
@@ -308,9 +320,20 @@ function setOpen(v: boolean) {
 .fc-cp-leave-active {
   transition: opacity 0.15s, transform 0.15s;
 }
-.fc-cp-enter-from,
-.fc-cp-leave-to {
+.js .fc-cp-enter-from,
+.js .fc-cp-leave-to {
   opacity: 0;
   transform: translateY(-8px);
+}
+
+/* 动效兜底: 用户关闭动效时面板直接出现/消失 */
+@media (prefers-reduced-motion: reduce) {
+  .fc-cp-enter-active,
+  .fc-cp-leave-active {
+    transition: none;
+  }
+  .fc-cp__item {
+    transition: none;
+  }
 }
 </style>

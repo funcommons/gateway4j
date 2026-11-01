@@ -12,12 +12,12 @@
 .fc-input.el-textarea.has-error .el-textarea__inner,
 .fc-input.el-textarea.has-error .el-textarea__inner:hover,
 .fc-input.el-textarea.has-error .el-textarea__inner:focus {
-  box-shadow: 0 0 0 1px var(--app-color-danger, #ff3b30) inset !important;
+  box-shadow: 0 0 0 1px var(--app-color-danger) inset !important;
 }
 
 .fc-input__error {
   margin-top: 4px;
-  color: var(--app-color-danger, #ff3b30);
+  color: var(--app-color-danger);
   font-size: 12px;
   line-height: 1.4;
 }
@@ -35,7 +35,7 @@
 
 .fc-form-item__hint {
   padding-top: 2px;
-  color: var(--app-text-tertiary, #999);
+  color: var(--app-text-tertiary);
   font-size: 12px;
   line-height: 1.4;
 }
@@ -49,28 +49,49 @@
   pointer-events: none;
 }
 
+/* 键盘焦点环 —— 画在原生控件上
+ *
+ * EP 把焦点环画在 .el-input__wrapper 上（1px 内描边），且用
+ * `.el-input__inner:focus { outline: none }` 把原生焦点也抹掉了 ——
+ * 键盘用户看不出焦点落在哪个框里（Hallmark gate 26a）。
+ * 焦点环本体在 theme.scss 的 `html:root` 桥接层里（需要比 EP 的
+ * `.el-input__inner:focus` 更高特异性才压得住）；这里只负责把 wrapper
+ * 的焦点态描边压回常态色，避免两圈焦点环叠在一起。
+ */
+.el-input__wrapper.is-focus,
+.el-textarea__inner:focus {
+  box-shadow: 0 0 0 1px var(--app-border-strong) inset !important;
+}
+
+/* 勾选/单选：EP 的 focus ring 走 --el-checkbox-input-border-color-hover，
+ * 已桥接到 --app-focus-ring；这里只补上 EP 未覆盖的 radio-button 变体。 */
+.el-radio-button__inner:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 1px;
+}
+
 // el-table 统一外观 (替代原 FcTable 薄封装).
 // 业务写法: <el-table class="fc-table" :data="rows" row-key="id" highlight-current-row>
 // 空态: <template #empty><FcEmpty /></template>
 .fc-table.el-table {
-  --el-table-border-color: var(--app-separator, #e5e5e5);
-  --el-table-header-bg-color: var(--app-bg-muted, #fafafa);
-  --el-table-row-hover-bg-color: var(--app-bg-muted, #f5f5f5);
+  --el-table-border-color: var(--app-separator);
+  --el-table-header-bg-color: var(--app-bg-muted);
+  --el-table-row-hover-bg-color: var(--app-bg-muted);
 
-  border-radius: var(--app-radius-md, 8px);
+  border-radius: var(--app-radius-md);
   overflow: hidden;
 }
 
 .fc-table.el-table th.el-table__cell {
   font-size: 13px;
   font-weight: 600;
-  color: var(--app-text, #333);
+  color: var(--app-text);
   background: var(--el-table-header-bg-color);
 }
 
 .fc-table.el-table td.el-table__cell {
   font-size: 13px;
-  color: var(--app-text, #333);
+  color: var(--app-text);
   padding: 8px 0;
 }
 

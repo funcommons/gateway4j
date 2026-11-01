@@ -66,22 +66,33 @@ function onClick() {
   appearance: none;
   border: none;
   background: transparent;
-  padding: 6px;
+  padding: 8px;
   cursor: pointer;
   border-radius: var(--app-radius-sm, 4px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--brand-sidebar-text-regular, var(--app-text-secondary, #666));
+  color: var(--brand-sidebar-text-regular, var(--app-text-secondary));
   transition: background 0.15s ease, color 0.15s ease;
 
+  &:focus-visible {
+    outline: 2px solid var(--app-focus-ring);
+    outline-offset: 2px;
+  }
+
   &:hover:not(.is-disabled) {
-    background: var(--brand-sidebar-hover-bg, var(--app-bg-muted, rgba(0, 0, 0, 0.05)));
-    color: var(--brand-sidebar-text-main, var(--app-text, #333));
+    background: var(--brand-sidebar-hover-bg, var(--app-sidebar-hover-bg));
+    color: var(--brand-sidebar-text-main, var(--app-text));
   }
 
   &:active:not(.is-disabled) {
     transform: scale(0.95);
+  }
+
+  /* 禁用三通道: 透明度 + 光标 + 原生 disabled */
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
   }
 
   &.is-disabled {
@@ -108,11 +119,24 @@ function onClick() {
   display: flex;
   justify-content: flex-end;
   padding: 4px 8px;
-  border-bottom: 1px solid var(--brand-separator, var(--app-separator, #e5e5e5));
+  border-bottom: 1px solid var(--brand-separator, var(--app-separator));
   margin-bottom: 4px;
 }
 
 .placement-inline {
   /* inline, 无额外样式 */
+}
+
+/* 动效兜底: 用户关闭动效时不缩放、不旋转 */
+@media (prefers-reduced-motion: reduce) {
+  .fc-sidebar-toggle {
+    transition: none;
+  }
+  .fc-sidebar-toggle:active:not(.is-disabled) {
+    transform: none;
+  }
+  .fc-sidebar-toggle__icon {
+    transition: none;
+  }
 }
 </style>

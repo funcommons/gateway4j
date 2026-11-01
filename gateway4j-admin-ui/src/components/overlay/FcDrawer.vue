@@ -115,7 +115,7 @@ const drawerClassFull = computed(() => ['fc-drawer', props.drawerClass].filter(B
 <style>
 /* 非 scoped: el-drawer teleport 到 body 后 scoped 失效, 用全局选择器 */
 .fc-drawer.el-drawer {
-  border-radius: var(--brand-radius-lg, var(--radius-lg));
+  border-radius: var(--brand-radius-lg, var(--app-radius-lg));
 }
 
 /* 底部操作条 (P0: 补上 #footer 插槽后需要配套样式) */
@@ -127,7 +127,7 @@ const drawerClassFull = computed(() => ['fc-drawer', props.drawerClass].filter(B
   gap: 8px;
   margin-top: 16px;
   padding: 12px 0 0;
-  background: var(--app-bg-card, #fff);
+  background: var(--app-bg-card);
   border-top: 1px solid var(--el-border-color-lighter);
 }
 

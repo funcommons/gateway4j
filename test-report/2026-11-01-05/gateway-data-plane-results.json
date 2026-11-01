@@ -1,0 +1,698 @@
+{
+  "config": {
+    "argv": [
+      "/opt/homebrew/Cellar/node/26.0.0/bin/node",
+      "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/node_modules/.bin/playwright",
+      "test",
+      "--config=playwright.gateway.config.ts"
+    ],
+    "configFile": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/playwright.gateway.config.ts",
+    "rootDir": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-gateway",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-gateway",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 180000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "/Users/justin/codes/funcommons/gateway4j/test-report/2026-11-01-05/gateway-data-plane-results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.61.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "data-plane-security.spec.ts",
+      "file": "data-plane-security.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "场景1 key-auth：缺/错 apikey 拦截 401，对 key 放行 200（header 与 query 两条通道）",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 180000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 9,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "[env] worker pid=66344 RUN=mvy0ehqc\n"
+                    },
+                    {
+                      "text": "[setup] 10 条路由已发布，等待网关指纹轮询生效…\n"
+                    },
+                    {
+                      "text": "[setup] waf 拦截 已生效（reject http=403）\n"
+                    },
+                    {
+                      "text": "[setup] basic-auth 拦截 已生效（无凭据 http=401）\n"
+                    },
+                    {
+                      "text": "[setup] sign 拦截 已生效（缺签名头 http=401）\n"
+                    },
+                    {
+                      "text": "[setup] key-auth 拦截 已生效（缺 key http=401）\n"
+                    },
+                    {
+                      "text": "[setup] jwt 拦截 已生效（无 token http=401）\n"
+                    },
+                    {
+                      "text": "[setup] oauth2 拦截 已生效（无 token http=302）\n"
+                    },
+                    {
+                      "text": "[setup] 对照路由生效 已生效（http=200）\n"
+                    },
+                    {
+                      "text": "[setup] sentinel 生效 已生效（http=200）\n"
+                    },
+                    {
+                      "text": "[setup] circuit-breaker 生效 已生效（http=200）\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-01T15:53:08.684Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "8d3899c7054522d3d898-52efec1fc57e79486782",
+          "file": "data-plane-security.spec.ts",
+          "line": 530,
+          "column": 1
+        },
+        {
+          "title": "场景2 basic-auth：无凭据/错口令/未知用户拦截 401，对口令放行 200",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 180000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 9,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-01T15:53:11.079Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "8d3899c7054522d3d898-f5e33c53267467636a37",
+          "file": "data-plane-security.spec.ts",
+          "line": 551,
+          "column": 1
+        },
+        {
+          "title": "场景3 jwt：无 token/乱串/伪签/过期均 401，合法 HS256 自签 token 放行 200",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 180000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 9,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-01T15:53:11.092Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "8d3899c7054522d3d898-1f0049e9e9da35c7c3e4",
+          "file": "data-plane-security.spec.ts",
+          "line": 582,
+          "column": 1
+        },
+        {
+          "title": "场景4 sign：缺签名/错签/错 appKey/超时时间戳均 401，正确 HMAC 放行 200",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 180000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 7,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-01T15:53:11.104Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "8d3899c7054522d3d898-7c5c8cf87a35c38aee45",
+          "file": "data-plane-security.spec.ts",
+          "line": 614,
+          "column": 1
+        },
+        {
+          "title": "场景5 waf：permission=reject 一刀切 403（含注入样例）→ PATCH allow 后放行 200",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 25,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "[setup] waf 切换 allow 已生效（allow http=200）\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-01T15:53:11.116Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "8d3899c7054522d3d898-2f4b1f5bc49d6493952d",
+          "file": "data-plane-security.spec.ts",
+          "line": 652,
+          "column": 1
+        },
+        {
+          "title": "场景6 circuit-breaker：闭合放行 200 → 限流拒绝 429 → 熔断 OPEN 短路 503 空体",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 180000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 13,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "[circuit-breaker] 状态序列 200,200,429,503,503,503,503,503\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-01T15:53:11.144Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "8d3899c7054522d3d898-1f53685e6175aa12e0bf",
+          "file": "data-plane-security.spec.ts",
+          "line": 686,
+          "column": 1
+        },
+        {
+          "title": "场景7 sentinel：同秒超阈值流量 429，未绑定对照路由不受影响",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 180000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 15,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "[sentinel] 状态序列 200,200,429,429,429,429,429,429,429,429\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-01T15:53:11.160Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "8d3899c7054522d3d898-017d7ec4d4d80f1c7906",
+          "file": "data-plane-security.spec.ts",
+          "line": 727,
+          "column": 1
+        },
+        {
+          "title": "场景8 oauth2：无 token 302 跳转 / introspection 拒绝或故障 401 / 合法令牌放行 200",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 180000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 10,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-01T15:53:11.181Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "8d3899c7054522d3d898-48ac2c37c9a276729ad7",
+          "file": "data-plane-security.spec.ts",
+          "line": 758,
+          "column": 1
+        },
+        {
+          "title": "场景9 fail-open 契约：绑定安全插件但配置为空 → 直通 200 而非 500/401",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 25,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "[setup] fail-open 路由直通 已生效（空配置 http=200）\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-01T15:53:11.195Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "8d3899c7054522d3d898-dd6cc06d50ff61af3dfd",
+          "file": "data-plane-security.spec.ts",
+          "line": 784,
+          "column": 1
+        },
+        {
+          "title": "场景10 管理面不可达：9300 上 /v1/users 与 /v1/routes 不得 200【依赖主 agent 重启后生效】",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 180000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 7,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-01T15:53:11.223Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "8d3899c7054522d3d898-d85da5a29948496a6406",
+          "file": "data-plane-security.spec.ts",
+          "line": 809,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "data-plane.spec.ts",
+      "file": "data-plane.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "场景1 基础转发：建路由→发布→网关转发到 echo",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 180000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2169,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "[env] worker pid=66344 RUN=mvy0ek0k\n"
+                    },
+                    {
+                      "text": "[场景1] route=gwtest_base_mvy0ek0k_jmt4 id=2116921508263972866 config_version=3（基线 max=2）\n"
+                    },
+                    {
+                      "text": "[场景1] OK http=200 body={\"echo\":true,\"tag\":\"gw-echo-19001\",\"mode\":\"echo\",\"path\":\"/e2e/gw/mvy0ek0kb1/ping\",\"method\":\"GET\",\"header_x_echo\":\"scenario1\",\"header_x_ver\":null,\"header_x_user\":null,\"header_x_username\":null,\"header_x\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-01T15:53:11.639Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "dae32a3ae75d7e3f04be-1c9621f2ef8990a4168a",
+          "file": "data-plane.spec.ts",
+          "line": 216,
+          "column": 1
+        },
+        {
+          "title": "场景2 分发路由：HEADER x-ver 条件分流到不同子路由",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 180000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2348,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "[场景2] routes a=2116921517390778370 b=2116921517449498626 dispatch=2116921517512413185 v=3（基线 max=2）\n"
+                    },
+                    {
+                      "text": "[场景2] 实测 x-ver=v1 → http=200 tag=gw-echo-19002；x-ver=v2 → http=200 tag=gw-echo-19003\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-01T15:53:14.885Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "dae32a3ae75d7e3f04be-015c106901b7ae31149a",
+          "file": "data-plane.spec.ts",
+          "line": 258,
+          "column": 1
+        },
+        {
+          "title": "场景3 热更新：路由下线后网关在 45s 内摘除",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 180000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 142,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "[场景3] route=gwtest_s3_mvy0ek0k_giek id=2116921527239004161 config_version=5\n"
+                    },
+                    {
+                      "text": "[场景3] 下线前已生效 http=200\n"
+                    },
+                    {
+                      "text": "[场景3] 已下线 status=OFFLINE config_version=6（新基线 max=5）\n"
+                    },
+                    {
+                      "text": "[场景3] 摘除后实际响应 http=404 tag=null（下线前 http=200）\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-01T15:53:17.238Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "dae32a3ae75d7e3f04be-687207746fc8ba99d722",
+          "file": "data-plane.spec.ts",
+          "line": 351,
+          "column": 1
+        },
+        {
+          "title": "场景4 404兜底：未匹配任何路径应得到网关明确的非转发响应",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 180000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "[场景4] 实际响应 http=404 body={\"code\":404,\"message\":\"Not Found: No static resource e2e/gw/definitely-not-registered-mvy0ek0k/deep/path.\",\"data\":null,\"success\":false,\"fail\":true}\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-01T15:53:17.384Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "dae32a3ae75d7e3f04be-4dd1d92cfc0671b8af9d",
+          "file": "data-plane.spec.ts",
+          "line": 420,
+          "column": 1
+        },
+        {
+          "title": "场景5 插件链冒烟：绑定 Mock 插件（可短路）观察是否生效",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 180000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2180,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "[场景5] ENABLED 插件: tracing(GLOBAL/PRE), e2e_gvy_mvy04tt4694(ROUTE/PRE), e2e_gvy_mvt88gsh990(ROUTE/PRE), e2e_gvy_mvt7hl5z152(ROUTE/PRE), e2e_gvy_mvvt042412(ROUTE/PRE), e2e_gvy_mvvx97g5652(ROUTE/PRE), e2e_gvy_mvxwatle456(ROUTE/PRE), e2e_gvy_mvsady09264(ROUTE/PRE), e2e_gvy_mvuk156t602(ROUTE/PRE), e2e_gvy_mvsegewg27(ROUTE/PRE), e2e_gvy_mvvscu0j153(ROUTE/PRE), e2e_gvy_mvulmfld838(ROUTE/PRE), e2e_gvy_mvss6fkp405(ROUTE/PRE), e2e_gvy_mvt62p3f262(ROUTE/PRE), logging(GLOBAL/PRE), security(GLOBAL/PRE), metrics(GLOBAL/PRE), logging-post(GLOBAL/POST), tracing-post(GLOBAL/POST), metrics-post(GLOBAL/POST)\n"
+                    },
+                    {
+                      "text": "[场景5] route=gwtest_plugin_mvy0ek0k_3ap9 插件=gwtest_mock_mvy0ek0k_hykr config_version=5\n"
+                    },
+                    {
+                      "text": "[场景5] Mock 未短路（实际响应 http=200 body={\"echo\":true,\"tag\":\"gw-echo-19001\",\"mode\":\"echo\",\"path\":\"/e2e/gw/mvy0ek0kp5/ping\",\"method\":\"GET\",\"header_x_echo\":null,\"header_x_ver\":null,\"header_x_user\":null,\"header_x_username\":null,\"header_x_oauth2），降级判据：绑定成功(true) + 转发仍通(tag=gw-echo-19001)；插件链行为无法黑盒断言\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-01T15:53:17.390Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "dae32a3ae75d7e3f04be-329dced5446f7f7744f7",
+          "file": "data-plane.spec.ts",
+          "line": 435,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-11-01T15:53:08.460Z",
+    "duration": 11197.562,
+    "expected": 15,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

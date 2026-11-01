@@ -158,9 +158,9 @@ const listeners = {
 }
 
 .fc-table :deep(.el-table) {
-  --el-table-border-color: var(--app-separator, #e5e5e5);
-  --el-table-header-bg-color: var(--app-bg-muted, #fafafa);
-  --el-table-row-hover-bg-color: var(--app-bg-muted, #f5f5f5);
+  --el-table-border-color: var(--app-separator);
+  --el-table-header-bg-color: var(--app-bg-muted);
+  --el-table-row-hover-bg-color: var(--app-bg-muted);
 
   border-radius: var(--app-radius-md, 8px);
   overflow: hidden;
@@ -169,13 +169,13 @@ const listeners = {
 .fc-table :deep(.el-table th.el-table__cell) {
   font-size: 13px;
   font-weight: 600;
-  color: var(--app-text, #333);
+  color: var(--app-text);
   background: var(--el-table-header-bg-color);
 }
 
 .fc-table :deep(.el-table td.el-table__cell) {
   font-size: 13px;
-  color: var(--app-text, #333);
+  color: var(--app-text);
   padding: 8px 0;
 }
 
@@ -184,7 +184,7 @@ const listeners = {
 }
 
 .fc-table :deep(.fc-table__header-cell--bg) {
-  background: var(--app-bg-muted, #f5f5f5);
+  background: var(--app-bg-muted);
   font-weight: 600;
 }
 
@@ -194,18 +194,26 @@ const listeners = {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, var(--app-bg-card, #fff) 60%, transparent);
+  background: color-mix(in srgb, var(--app-bg-card) 60%, transparent);
   backdrop-filter: blur(2px);
   z-index: 1;
 }
 
 .fc-table__spinner {
   font-size: 24px;
-  color: var(--app-primary, #409eff);
+  color: var(--app-accent-text);
+  font-variant-numeric: tabular-nums;
   animation: fc-table-spin 0.8s linear infinite;
 }
 
 @keyframes fc-table-spin {
   to { transform: rotate(360deg); }
+}
+
+/* 动效降级: 关闭旋转 */
+@media (prefers-reduced-motion: reduce) {
+  .fc-table__spinner {
+    animation: none;
+  }
 }
 </style>

@@ -32,14 +32,14 @@
         </template>
       </FcFilterBar>
 
-      <p v-if="!canEdit('plugin')" class="readonly-hint" data-testid="readonly-hint">当前账号为只读权限，如需操作请联系管理员</p>
+      <p v-if="!canEdit('plugin')" class="readonly-hint" data-testid="readonly-hint">{{ t('common.readonlyHint') }}</p>
 
       <FcSkeleton v-if="loading" variant="text" :rows="6" />
       <template v-else>
       <div v-if="viewMode === 'table'" data-testid="table-view">
         <FcTable :data="rows" stripe>
-          <el-table-column prop="plugin_name" :label="t('plugin.name')" />
-          <el-table-column prop="plugin_id" :label="t('plugin.id')" />
+          <el-table-column prop="plugin_name" :label="t('plugin.name')" min-width="180" />
+          <el-table-column prop="plugin_id" :label="t('plugin.id')" min-width="220" show-overflow-tooltip />
           <el-table-column :label="t('plugin.type')">
             <template #default="{ row }">
               <FcTag :color="typeColor(row.plugin_type)" size="sm">{{ pluginTypeLabel(row.plugin_type) }}</FcTag>
@@ -60,7 +60,7 @@
               />
             </template>
           </el-table-column>
-          <el-table-column :label="t('common.more')" width="280" fixed="right">
+          <el-table-column :label="t('common.more')" width="280" :fixed="isMobile ? false : 'right'">
             <template #default="{ row }">
               <FcButton v-if="canEdit('plugin')" variant="text" size="sm" @click="onEdit(row)">{{ t('common.edit') }}</FcButton>
               <FcButton v-if="canEdit('plugin') && row.status === 'DISABLED'" variant="text" size="sm" @click="enable(row)">{{ t('common.enable') }}</FcButton>
@@ -146,7 +146,7 @@
 .group-items { display: flex; flex-wrap: wrap; gap: 12px; padding: 12px; }
 .plugin-card {
   width: 200px; padding: 12px; border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-sm); display: flex; flex-direction: column; gap: 6px;
+  border-radius: var(--app-radius-sm); display: flex; flex-direction: column; gap: 4px;
 }
 .card-name { font-size: 14px; font-weight: 500; }
 .card-id { font-size: 12px; color: var(--app-text-secondary); }
@@ -155,6 +155,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
+import { useResponsive } from '@/components/utils/useResponsive'
 import { useI18n } from 'vue-i18n'
 import { useFcConfirm } from '@/composables/useFcConfirm'
 import { usePermission } from '@/composables/usePermission'
@@ -167,6 +168,8 @@ import {
 import {
   listPlugins, enablePlugin, disablePlugin, deletePlugin
 } from '@/api/plugins'
+
+const { isMobile } = useResponsive()
 
 const { t } = useI18n()
 const { confirm } = useFcConfirm()

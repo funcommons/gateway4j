@@ -1,0 +1,21 @@
+用例: 03-16-published-route-no-delete
+时间: 2026-11-01T15:41:42.293Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/routes?environment=default
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNTU0ODk4MjExLCJub25jZSI6IjQ1ZmJmMmFhLTMyZTItNDcyOS1iMjI2LTJjMTY1ZjcyMTRjZCIsImlhdCI6MTc5MzU0NzY5ODIxMSwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiIyZmEyNTUyYi1iZmY1LTQ2ODQtOTEyNy0xMmUzYzUyOThhM2YifQ.F2m7fjadq13UvLPywb8TQXm3P-4V74sMpVrhYleQ3ZY
+
+--- Extra ---
+删除按钮数: 0

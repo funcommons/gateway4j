@@ -147,7 +147,7 @@ const hasCustomIcon = computed(() => !!slots.icon)
 }
 
 .fc-empty__desc {
-  margin: 6px 0 0;
+  margin: 4px 0 0;
   font-size: 12px;
   color: var(--app-text-tertiary);
   max-width: 320px;
@@ -158,10 +158,23 @@ const hasCustomIcon = computed(() => !!slots.icon)
   display: flex;
   gap: 8px;
   align-items: center;
+
+  /* 键盘可达时 (action 插槽里的按钮) 给焦点环 */
+  :deep(:focus-visible) {
+    outline: 2px solid var(--app-focus-ring);
+    outline-offset: 2px;
+  }
 }
 
 @keyframes fc-empty-spin {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
+}
+
+/* 动效降级: 关闭旋转 */
+@media (prefers-reduced-motion: reduce) {
+  .is-spinning .fc-empty__icon {
+    animation: none;
+  }
 }
 </style>

@@ -1,0 +1,30 @@
+[
+ {
+  "mode": "redesign",
+  "depth": "polish",
+  "scope": "app",
+  "genre": "modern-minimal",
+  "prompt": "在规范前提下优化所有的界面",
+  "shape": "app screen",
+  "theme": "ldx2 品牌层 × light/dark/orange-black 主题层",
+  "sections": [
+   "shell",
+   "dashboard",
+   "routes",
+   "canvas",
+   "import-export",
+   "plugins",
+   "users",
+   "roles",
+   "settings",
+   "auth",
+   "error"
+  ],
+  "signature": "品牌色按角色分层 —— 强调文字/实底/焦点环各用同色相压暗一档的档位，橙色主调与语义红不再互相吞掉",
+  "imagery": "none (app screen)",
+  "waived": [],
+  "entry": "Floor 228→0 · Reflex 68→0 · Warn 17→0；render 层 5→0；全站文字对比度 48→0；深色主题从失效到可用；finish-review: subagent · 5 findings · 5 resolved",
+  "fingerprint": "gw4j-admin-ui/2026-11-01",
+  "date": "2026-11-01"
+ }
+]
