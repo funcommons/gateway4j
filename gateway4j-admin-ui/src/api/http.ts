@@ -167,6 +167,9 @@ export function setOnTokenRefresh(fn: (() => Promise<string | null>) | null) {
 let _isRefreshing = false
 let _refreshPromise: Promise<string | null> | null = null
 
+/** refresh 端点路径：其自身的 401 不得再进刷新流程（见下方拦截器内注释） */
+const REFRESH_PATH = '/v1/auth/refresh'
+
 async function tryRefreshToken(): Promise<string | null> {
   if (_isRefreshing && _refreshPromise) return _refreshPromise
   if (!_onTokenRefresh) return null
@@ -201,7 +204,12 @@ http.interceptors.response.use(
   },
   async (err) => {
     const originalConfig = err?.config
-    if (err?.response?.status === 401 && originalConfig && !originalConfig._retried) {
+    // refresh 请求自身的 401 绝不能再触发 tryRefreshToken：并发去重返回的
+    // _refreshPromise 正是等待「本次请求结果」的那个 promise，重入等于 await 自己
+    // → 永久死锁（实测：存量失效 refresh token 时路由守卫卡死在 await init()，
+    // 页面空白、token 不清、无跳转、无任何报错）。失败走下方统一 401 兜底即可。
+    const isRefreshCall = originalConfig?.url === REFRESH_PATH
+    if (err?.response?.status === 401 && originalConfig && !originalConfig._retried && !isRefreshCall) {
       const newToken = await tryRefreshToken()
       if (newToken) {
         originalConfig._retried = true
