@@ -20,7 +20,14 @@ describe('plugins/List.vue — permission guards', () => {
   })
 
   it('delete confirm is guarded by canEdit("plugin")', () => {
-    expect(listSource).toMatch(/v-if="canEdit\('plugin'\).*confirmDelete|v-if="canEdit\('plugin'\).*delete/)
+    // 行内动作已收进「更多」下拉：删除项由 pluginRowActions() 生成，
+    // 确认流程走 confirmDelete()（命令式）—— 权限守卫在脚本侧同样存在。
+    expect(listSource).toMatch(/v-if="canEdit\('plugin'\)"/)
+    expect(listSource).toMatch(/command: 'delete'/)
+    expect(
+      listSource,
+      '删除确认流程必须先过 canEdit("plugin") 守卫'
+    ).toMatch(/async function confirmDelete[\s\S]*?if \(!canEdit\('plugin'\)\) return/)
   })
 })
 

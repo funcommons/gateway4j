@@ -77,8 +77,10 @@ function factory() {
         'el-form': { template: '<form><slot /></form>' },
         'el-form-item': { template: '<div><slot /></div>' },
         'el-input': { props: ['modelValue'], emits: ['update:modelValue'], template: '<textarea-stub />' },
-        'el-collapse': { template: '<div class="collapse-stub"><slot /></div>' },
-        'el-collapse-item': { props: ['name', 'title'], template: '<div class="collapse-item-stub"><slot /></div>' }
+        // 折叠面板已换成 Fc 组件（内部渲染 EP 的 Collapse / CollapseItem），
+        // 所以这里按 EP 组件的注册名（PascalCase）打桩，类名保持不变。
+        'ElCollapse': { template: '<div class="collapse-stub"><slot /></div>' },
+        'ElCollapseItem': { props: ['name', 'title'], template: '<div class="collapse-item-stub"><slot /></div>' }
       }
     }
   })

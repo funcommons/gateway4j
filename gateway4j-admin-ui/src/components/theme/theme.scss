@@ -1,6 +1,6 @@
-/* Hallmark · checked: 2026-11-01 · genre: modern-minimal (inferred)
- * floor: 0 FAIL · fixed: 313 (10a, 19, 24b, 26a, 26b, 27, 28a, 29, 30a, 33, 39a, 48, 49, 62, 67, F6, F24) · structural: 0
- * render: 0 FAIL (5 fixed) · contrast: 48 → 0 · finish-review: subagent · 5 findings · 5 resolved
+/* Hallmark · checked: 2026-11-02 · genre: modern-minimal (inferred)
+ * floor: 0 FAIL · fixed: 313 (round 1) + 40/73/49a/26a/26b (round 2: 状态列覆盖 / 画布死链 / 染色底对比度 / tab 折行) · structural: 6 (侧栏 IA · SDK 6 组件 · brand-overrides 清理 · 筛选区 · 表单限宽 · 动作下拉)
+ * render: 0 FAIL · contrast: 0 (按 alpha 合成的染色底实测；round 1 的「48 → 0」漏了半透明底组合) · finish-review: subagent · 14 findings · 14 resolved
  * built: the project · redesign: polish · v2.0.0 */
 
 // sdk/theme/theme.scss
@@ -8,7 +8,7 @@
 //   import '@/components/theme/theme.scss'
 //
 // 包含:
-//   1. brand 相关 mixin (define-brand / primary-stairs / brand-dark-surface / brand-overrides)
+//   1. brand 相关 mixin (define-brand / primary-stairs / brand-dark-surface)
 //   2. 8 个 brand scss (token + CSS 规则)
 //   3. _themes.scss (light/dark 非 brand token + EP token 映射)
 //   4. _app-aliases.scss (--app-* 别名)

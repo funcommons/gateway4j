@@ -2,8 +2,8 @@
 /**
  * FcSidebarToggle - 折叠/展开按钮 (SDK).
  *
- * 替代业务侧散落的 toggle button 样式 + hover 动画 (之前写在 _brands.scss mixin
- * brand-overrides 里, 现统一到 SDK 组件).
+ * 样式与 hover 动画全部收在本组件里 (颜色走 --brand-sidebar-text-regular /
+ * --app-text-secondary token), 业务侧无需再写.
  *
  * 用法:
  *   <FcSidebarToggle

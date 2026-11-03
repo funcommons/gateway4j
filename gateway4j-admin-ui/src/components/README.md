@@ -121,12 +121,12 @@ import { FcSectionHeader, FcSection, FcFilterBar, FcFilterButton, FcEmpty, FcBut
 | 分类 | 组件 |
 |---|---|
 | **section** 区段容器 | FcSection · FcSectionHeader |
-| **display** 展示原子 | FcSectionCard · FcEmpty · FcSkeleton · FcTag · FcTagGroup · FcAvatar · FcImage · FcIcon |
+| **display** 展示原子 | FcSectionCard · FcEmpty · FcSkeleton · FcTag · FcTagGroup · FcAvatar · FcImage · FcIcon · FcCollapse · FcCollapseItem |
 | **data** 数据承载 | FcStatusBadge · FcReorderableGrid |
 | **layout** 布局骨架 | FcHeader · FcMain · FcSidebar · FcSidebarNav · FcNavGroup · FcSidePanel |
 | **navigation** 导航筛选 | FcFilterBar · FcFilterBarDivider · FcFilterButton · FcSegmented · FcTabsPanel · FcPagination |
-| **overlay** 浮层交互 | FcDialog · FcDrawer · FcPopover · FcTooltip · FcConfirm · FcContextMenu · FcPicker · FcPickerGroup · FcImagePicker |
-| **form** 表单输入 | FcDropZone · FcButton · FcSelect · FcSwitch · FcRadioGroup · FcRadio · FcRadioButton |
+| **overlay** 浮层交互 | FcDialog · FcDrawer · FcPopover · FcTooltip · FcDropdown · FcConfirm · FcContextMenu · FcPicker · FcPickerGroup · FcImagePicker |
+| **form** 表单输入 | FcDropZone · FcButton · FcSelect · FcSwitch · FcRadioGroup · FcRadio · FcRadioButton · FcCheckbox · FcCheckboxGroup · FcInputNumber · FcDatePicker |
 | **form global classes** EP 原生外观 | `el-input.fc-input` · `el-form-item.fc-form-item` · `el-slider.fc-slider` · `el-table.fc-table` |
 | **theme** 主题品牌 | FcThemeProvider · FcThemeSwitcher |
 
@@ -142,6 +142,25 @@ import { FcEmpty } from '@/components/display'
 ```
 
 子目录 `data` `display` `form` `layout` `navigation` `overlay` `section` `theme` `utils` 各有自治 `index.ts`（导出该目录的组件 + Props 类型 + composables），主 `index.ts` 只做聚合。
+
+### 与 Element Plus 的契约对齐（2026-11-02 修订）
+
+薄封装最容易踩的坑是「看起来能用，其实语义跟 EP 不一样」。以下几处已按 EP 原生语义对齐：
+
+| 组件 | 契约 | 说明 |
+|---|---|---|
+| `FcCheckboxGroup` | `options` prop / 默认插槽 | **不给**默认插槽时走 EP 自己的 `options` fallback；**给了**插槽则槽优先（与 EP 一致）。另新增 `options` / `type` 两个显式 prop（`type="button"` 走 EP 的按钮样式）。 |
+| `FcCheckbox` | `change` 事件 | EP 发的是 `change(value, event)` —— 现在第二个 payload（原生事件）原样透传，不再丢；写 `@change="(v, e) => …"` 拿得到 `e`。 |
+| `FcCollapseItem` | `#title` 槽 | 转发 EP 给 title 槽的 slot props（`{ isActive }`），业务侧可据此做展开态样式。 |
+| `FcCollapseItem` | 箭头类名 | 自定义箭头同时挂 EP 的 `el-collapse-item__arrow` 类 —— EP 默认箭头 / 自定义箭头两条路径的类名与旋转动画一致。 |
+| `FcInputNumber` | `valueOnClear` | 类型收紧成 EP 的 `null \| number \| 'min' \| 'max'`（游离字符串会触发 EP 的 prop 校验告警）。 |
+| `FcDatePicker` | 焦点环 / 禁用态 | 补 `:focus-visible` 焦点环（26a）与禁用三通道（opacity + `cursor: not-allowed` + 原生 `disabled`，39a），与 `FcCheckbox` / `FcInputNumber` 对齐。 |
+| `FcSelect` | `size` / `disabled` | 不再写死 `size: 'default'` / `disabled: false`，恢复「继承 el-form」的语义（视觉不变）。 |
+
+> ⚠️ Boolean 型 prop 想保持 `undefined`（好让 EP 走继承），**光「不写进 `withDefaults`」不够** ——
+> Vue 会把「缺省的 Boolean prop」自动 cast 成 `false`（`shouldCast`），那样 `props.disabled` 还是 `false`，
+> 一样压死继承。必须显式写 `disabled: undefined`（编译成 `default: undefined`），prop 才会真的保持 `undefined`。
+> 受影响的组件：`FcSelect` / `FcCheckbox` / `FcCheckboxGroup` / `FcInputNumber` / `FcDatePicker`。
 
 ---
 
@@ -316,6 +335,57 @@ emit：`update:tags`。expose：`focus()`。
 | `retry` | `boolean` | `false` |
 
 槽位：`fallback`（错误态自定义内容）。emit：`load` / `error`。
+
+### FcCollapse
+
+**替代 EP 折叠面板**。根节点就是折叠面板本身（不额外套 div）——
+业务侧挂的 class 仍然作用在同一个元素上。子项用 FcCollapseItem。
+
+```vue
+<FcCollapse v-model="activeNames" class="env-diff__collapse">
+  <FcCollapseItem v-for="c in changed" :key="c.route_name" :name="c.route_name" :title="c.route_name">
+    内容
+  </FcCollapseItem>
+</FcCollapse>
+```
+
+| prop | 类型 | 默认 |
+|---|---|---|
+| `modelValue` | `string[] \| string \| number` | —（展开项 name；accordion 下为单个 name） |
+| `accordion` | `boolean` | `false`（手风琴：同时只展开一项） |
+| `expandIconPosition` | `'left' \| 'right'` | `'right'` |
+
+槽位：默认（折叠项）。emit：`update:modelValue` / `change`。
+
+### FcCollapseItem
+
+**替代 EP 折叠项**。折叠箭头改用 FcIcon(remixicon `ri-arrow-down-s-line`) 渲染 ——
+装饰性图标不用 emoji（Hallmark 30a），箭头是纯装饰所以标 `aria-hidden`（33）。
+
+```vue
+<FcCollapseItem name="a" title="标题">内容</FcCollapseItem>
+<FcCollapseItem name="b">
+  <template #title>自定义标题</template>
+  内容
+</FcCollapseItem>
+<!-- #title 槽会拿到 EP 的 { isActive } -->
+<FcCollapseItem name="c">
+  <template #title="{ isActive }">{{ isActive ? '收起' : '展开' }}</template>
+  内容
+</FcCollapseItem>
+```
+
+| prop | 类型 | 默认 |
+|---|---|---|
+| `name` | `string \| number` | —（对应 FcCollapse 的 modelValue 元素） |
+| `title` | `string` | — |
+| `disabled` | `boolean` | `false` |
+
+槽位：`title`（自定义标题，**带 EP 的 slot props `{ isActive }`**）/ 默认（折叠内容）。
+emit：无（展开状态由 FcCollapse 的 modelValue 驱动）。
+
+细节：箭头同时挂 EP 的 `el-collapse-item__arrow` 类 —— EP 默认箭头 / 自定义 FcIcon 箭头
+两条路径的类名契约与旋转动画一致（外部 / e2e 按 EP 类名定位也找得到）。
 
 ---
 
@@ -516,6 +586,30 @@ const navItems = useSidebarNavItems({
   ],
 })
 ```
+
+**顶层叶子与分组混合排序（`order`）**：
+
+默认顺序是「顶层叶子全部在前，分组全部在后」。给规则加可选的 `order` 后，
+顶层叶子与分组按 `order` 升序**混合**排列（叶子可以夹在分组中间）：
+
+```ts
+const navItems = useSidebarNavItems({
+  topLevels: [
+    { routeNames: ['Dashboard'], order: 10 },   // 监控大盘
+    { routeNames: ['Settings'], order: 50 }     // 系统设置
+  ],
+  groups: [
+    { id: 'route', labelKey: 'sidebar.route', routeNames: ['Routes', 'RouteCanvas'], order: 20 },
+    { id: 'plugin', labelKey: 'sidebar.plugin', routeNames: ['Plugins'], order: 30 }
+  ],
+})
+// => 监控大盘 ▸ 路由管理 ▸ 插件管理 ▸ 系统设置
+```
+
+规则：
+- 只要**任一**规则声明了 `order` 才启用混合排序；一个都不声明时行为与旧版完全一致（向后兼容）。
+- 同 `order` 保持声明顺序（顶层叶子先于分组）。
+- 未声明 `order` 的规则排在最后（相对顺序不变）。
 
 **底层纯函数**（自己写 composable 时复用）：
 
@@ -825,6 +919,48 @@ emit：`update:currentPage` / `update:pageSize` / `change`。
 
 槽位：`default`。
 
+### FcDropdown
+
+**替代 `el-dropdown`**（表格行内动作「更多」收成真下拉）。触发器由业务侧给；
+菜单项走 `items` prop（业务页**不必**裸用 `el-dropdown-item`），也可以用 `#dropdown` 槽全自定义。
+
+```vue
+<FcDropdown
+  :items="[
+    { label: t('common.edit'), command: 'edit', icon: 'ri-edit-line' },
+    { label: t('common.delete'), command: 'delete', danger: true, divided: true },
+  ]"
+  @command="onRowAction"
+>
+  <template #default>
+    <FcButton variant="secondary" size="sm">{{ t('common.more') }}</FcButton>
+  </template>
+</FcDropdown>
+```
+
+| prop | 类型 | 默认 |
+|---|---|---|
+| `trigger` | `'hover' \| 'click'` | `'click'` |
+| `placement` | `'top' \| 'bottom' \| 'left' \| 'right'` + `'-start'/'-end'` | `'bottom-start'`（菜单左边缘对齐触发器左边缘） |
+| `hideOnClick` | `boolean` | `true`（点菜单项后关闭） |
+| `teleported` | `boolean` | `true`（浮层 teleport 到 body） |
+| `disabled` | `boolean` | `false` |
+| `items` | `FcDropdownItem[]` | `[]` |
+| `popperClass` | `string` | —（与内置 `fc-dropdown-popper` 合并） |
+
+`FcDropdownItem`：`{ label, command?, disabled?, divided?, danger?, icon? }` ——
+`command` 是点击后回传的值（不给则回传 `label`）· `danger` 走危险色 token ·
+`icon` 是 remixicon class 名（如 `'ri-edit-line'`）· `divided` 在该项上方画分隔线。
+
+槽位：`default`（触发器）/ `dropdown`（菜单内容 —— **给了就忽略 `items`**，与 EP「槽优先」一致）。
+
+emit：`command`（`(command, event)`）/ `visible-change`（`(visible)`）。
+
+细节：浮层底色/文字/描边走 `--app-bg-card` / `--app-text` / `--app-border`（深浅色自动跟，
+不写死颜色）· 触发器与菜单项都有 `:focus-visible` 焦点环（26a，瞬时出现不渐显）·
+禁用态三通道（opacity + `cursor: not-allowed`，39a）· 键盘可达：Tab 到触发器，
+Enter/Space 打开，方向键在菜单项间移动，Enter 触发 · `data-testid` 等 attrs 落在根节点。
+
 ### FcConfirm
 
 标准化确认弹窗，默认/危险/主色三态。
@@ -1032,13 +1168,17 @@ FcButton 覆盖大部分场景（loading / EP 集成）。必须用原生 `<butt
 |---|---|---|
 | `modelValue` | `T \| undefined` | — |
 | `options` | `SelectOption<T>[]` (`{ label, value, disabled? }`) | — |
-| `placeholder` / `clearable` / `disabled` / `loading` | — | — |
+| `placeholder` / `clearable` / `disabled` / `loading` | — | —（`disabled` 不传则继承 el-form） |
 | `remote` | `boolean` | `false` |
 | `multiple` | `boolean` | `false` |
-| `size` | `'small' \| 'default' \| 'large'` | `'default'` |
+| `size` | `'small' \| 'default' \| 'large'` | —（不传则继承 el-form） |
 | `emptyText` | `string` | `'无数据'` |
 
 槽位：`prefix` / `empty`。emit：`update:modelValue` / `change` / `search` / `clear` / `visible-change`。导出类型：`SelectOption<V>`。
+
+> ⚠️ `size` / `disabled` **故意不给默认值**（2026-11-02 修订）：写死 `size: 'default'` / `disabled: false`
+> 会把「继承 el-form」的语义压死 —— `el-form size="small"` / `disabled` 对本组件无效。
+> 不给默认值时 EP 自己接管（视觉不变：EP 没有 `.el-select--default` 这条 CSS 规则）。
 
 ### FcSwitch
 
@@ -1060,6 +1200,128 @@ FcButton 覆盖大部分场景（loading / EP 集成）。必须用原生 `<butt
 | `inlinePrompt` | `boolean` | `false` |
 
 emit：`update:modelValue` / `change`。
+
+### FcCheckbox
+
+**替代 EP 勾选框**。薄封装：不改 EP 的 DOM 结构（隐藏的原生 input 仍是 EP 那个
+`__original` 类、勾选框本体仍带 EP 的 checkbox 主类），所以 e2e 里按这两个类定位的逻辑不受影响。
+
+```vue
+<FcCheckbox v-model="remember" :label="t('auth.remember')" />
+<FcCheckbox :model-value="all" :indeterminate="some" @change="onToggle">全选</FcCheckbox>
+<FcCheckboxGroup v-model="checked">
+  <FcCheckbox v-for="p in list" :key="p.id" :value="p.id">{{ p.label }}</FcCheckbox>
+</FcCheckboxGroup>
+```
+
+| prop | 类型 | 默认 |
+|---|---|---|
+| `modelValue` | `boolean \| string \| number` | —（不传 = 非受控） |
+| `label` | `string \| number` | —（勾选框右侧文案） |
+| `value` | `string \| number \| boolean` | —（分组内取值） |
+| `indeterminate` | `boolean` | `false`（半选态，仅视觉） |
+| `disabled` | `boolean` | —（不传则继承 el-form / 分组） |
+| `size` | `'large' \| 'default' \| 'small'` | —（不传则继承 el-form / 分组） |
+| `border` | `boolean` | `false` |
+
+槽位：默认（勾选框右侧内容）。emit：`update:modelValue` / `change`（**`change(value, event)`** —— 与 EP 一致，第二个 payload 是原生事件）。
+其余 EP 原生 prop（`border-color` / `true-value` / `false-value` / `name` / `id` …）走 attrs 透传。
+
+> ⚠️ `disabled` / `size` **故意不给默认值**：EP 用 `props.disabled ?? 继承值` 决定禁用，
+> 显式传 `false` 会把「继承 el-form / 所在分组 disabled」的语义压死。
+> （Boolean 型要显式写 `disabled: undefined`，原因见 §0「与 Element Plus 的契约对齐」。）
+
+### FcCheckboxGroup
+
+**替代 EP 勾选分组**。根节点就是分组本身（不额外套 div）—— 业务侧挂的布局 class
+（flex / gap / 换行）仍然作用在同一个元素上。
+
+```vue
+<FcCheckboxGroup v-model="checked" class="grant-group-items">
+  <FcCheckbox v-for="p in list" :key="p.id" :value="p.id">{{ p.label }}</FcCheckbox>
+</FcCheckboxGroup>
+
+<!-- 不给默认插槽 → 走 EP 的 options fallback -->
+<FcCheckboxGroup v-model="checked" :options="[{ label: '甲', value: 'a' }]" />
+```
+
+| prop | 类型 | 默认 |
+|---|---|---|
+| `modelValue` | `Array<string \| number \| boolean>` | — |
+| `min` / `max` | `number` | —（EP 2.8+ 选中数上下限） |
+| `disabled` | `boolean` | —（不传则继承 el-form） |
+| `size` | `'large' \| 'default' \| 'small'` | —（不传则继承 el-form） |
+| `tag` | `string` | `'div'` |
+| `options` | `FcCheckboxGroupOption[]` (`{ label, value, disabled? }`) | —（不给默认插槽时由 EP 渲染） |
+| `type` | `'checkbox' \| 'button'` | `'checkbox'`（`'button'` 走 EP 的按钮样式） |
+
+槽位：默认（子项）—— **给了插槽就忽略 `options`**（与 EP「槽优先」一致）。
+emit：`update:modelValue` / `change`。
+
+### FcInputNumber
+
+**替代 EP 数字输入框**。根节点就是数字输入框本身（不额外套 div）——
+业务侧挂的 `style="width:100%"` / `data-testid` 仍然落在同一个元素上。
+
+```vue
+<FcInputNumber v-model="sortOrder" :min="1" :max="9999" />
+<FcInputNumber :model-value="w" :min="1" :max="100" :step="1" step-strictly
+               data-testid="weight" @update:model-value="onWeight" />
+```
+
+| prop | 类型 | 默认 |
+|---|---|---|
+| `modelValue` | `number \| null` | — |
+| `min` / `max` | `number` | — |
+| `step` | `number` | `1` |
+| `stepStrictly` | `boolean` | `false`（只允许 step 的整数倍） |
+| `precision` | `number` | —（小数位数） |
+| `disabled` | `boolean` | —（不传则继承 el-form） |
+| `readonly` | `boolean` | `false` |
+| `placeholder` | `string` | — |
+| `size` | `'large' \| 'default' \| 'small'` | —（不传则继承 el-form） |
+| `controls` | `boolean` | `true` |
+| `controlsPosition` | `'' \| 'right'` | `''`（两侧 / 右侧） |
+| `valueOnClear` | `null \| number \| 'min' \| 'max'` | —（清空时的取值；与 EP 的联合类型一致） |
+| `id` / `name` | `string` | — |
+
+emit：`update:modelValue` / `change` / `input` / `blur` / `focus`。
+
+细节：数字用等宽数字（F6，增减时字符宽度不跳）· 焦点环画在内层原生 input 上（26a）·
+禁用态三通道（透明度 + `cursor: not-allowed` + 底色，39a）· `disabled` / `size` 不给默认值（保留继承语义）。
+
+### FcDatePicker
+
+**替代 EP 日期选择器**。根节点就是日期选择器本身；面板 teleport 到 body，
+通过 `popper-class` 接住主题（底色/描边走 `--app-bg-card` / `--app-border`，深浅色跟着 `data-theme` 走）。
+
+```vue
+<FcDatePicker v-model="date" type="date" value-format="YYYY-MM-DD" />
+<FcDatePicker v-model="range" type="datetimerange"
+              value-format="YYYY-MM-DDTHH:mm:ss"
+              :start-placeholder="t('start')" :end-placeholder="t('end')"
+              data-testid="audit-filter-range" @change="onFilter" />
+```
+
+| prop | 类型 | 默认 |
+|---|---|---|
+| `modelValue` | `string \| string[] \| number \| Date \| null` | —（区间类型为数组） |
+| `type` | `'date' \| 'datetime' \| 'daterange' \| 'datetimerange' \| 'month' \| 'year' \| 'dates' \| 'week'` | `'date'` |
+| `format` | `string` | —（展示格式） |
+| `valueFormat` | `string` | —（绑定值格式，不传则绑 Date） |
+| `placeholder` / `startPlaceholder` / `endPlaceholder` | `string` | — |
+| `rangeSeparator` | `string` | — |
+| `disabled` / `readonly` / `editable` | `boolean` | — / `false` / `true` |
+| `clearable` | `boolean` | `true` |
+| `size` | `'large' \| 'default' \| 'small'` | —（不传则继承 el-form） |
+| `shortcuts` | `FcDatePickerShortcut[]`（`{ text, value }`） | `[]` |
+| `popperClass` | `string` | —（与内置 `fc-date-picker-popper` 合并） |
+
+emit：`update:modelValue` / `change`。导出类型：`FcDatePickerShortcut`。
+
+细节：焦点环画在内层原生 input 上（`:focus-visible`，26a，瞬时出现不渐显）·
+禁用态三通道（opacity + `cursor: not-allowed` + 原生 `disabled`，39a）·
+`disabled` / `size` 不给默认值（保留「继承 el-form」语义）。
 
 ### FcDropZone
 
@@ -1377,6 +1639,7 @@ import { FcSectionHeader, FcSection, FcTabsPanel, FcSkeleton, FcEmpty, FcButton 
 | `el-drawer` | `FcDrawer` |
 | `el-popover` | `FcPopover` |
 | `el-tooltip` | `FcTooltip` |
+| `el-dropdown` | `FcDropdown` |
 | `el-empty` | `FcEmpty` |
 | `el-skeleton` | `FcSkeleton` |
 | `el-tag` | `FcTag` |
@@ -1387,6 +1650,10 @@ import { FcSectionHeader, FcSection, FcTabsPanel, FcSkeleton, FcEmpty, FcButton 
 | `el-form-item` | `<el-form-item class="fc-form-item">` |
 | `el-slider` | `<el-slider class="fc-slider">` |
 | `el-switch` | `FcSwitch` |
+| `el-checkbox` | `FcCheckbox`（分组用 `FcCheckboxGroup`） |
+| `el-input-number` | `FcInputNumber` |
+| `el-date-picker` | `FcDatePicker` |
+| `el-collapse` | `FcCollapse`（折叠项用 `FcCollapseItem`） |
 | `el-table` | `FcTable` |
 | `el-tabs`（页内 tab） | `FcTabsPanel` |
 | `el-pagination` | `FcPagination` |

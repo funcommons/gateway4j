@@ -88,7 +88,7 @@ async function factory() {
   return mount(Canvas, {
     global: {
       plugins: [i18n, router],
-      stubs: { 'el-input-number': true }
+      stubs: { 'ElInputNumber': true }
     }
   })
 }

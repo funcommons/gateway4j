@@ -88,10 +88,15 @@ describe('plugins/List.vue — UNINSTALLED status', () => {
 
   it('does not show enable button for UNINSTALLED plugins', async () => {
     const src = fs.readFileSync(path.join(import.meta.dirname, 'List.vue'), 'utf-8')
-    // UNINSTALLED plugins should not have enable button — they need reinstall
-    // The enable button condition should exclude UNINSTALLED
-    const enableBtnPattern = /v-if="canEdit\('plugin'\)\s*&&\s*row\.status\s*!==?\s*'ENABLED'/
-    expect(enableBtnPattern.test(src)).toBe(true)
+    // UNINSTALLED plugins should not have enable action — they need reinstall
+    // 行内动作已收进「更多」下拉：启用项由 pluginRowActions() 生成，
+    // 只有 DISABLED 状态才 push 启用项（UNINSTALLED / ENABLED 都没有）。
+    const enableLines = src.split('\n').filter(l => l.includes("command: 'enable'"))
+    expect(enableLines).toHaveLength(1)
+    expect(enableLines[0]).toContain("'DISABLED'")
+    expect(enableLines[0]).not.toContain("'UNINSTALLED'")
+    // 删除项对非「已启用」状态开放（原行内按钮同口径）
+    expect(src).toMatch(/status !== 'ENABLED'/)
   })
 
   it('passes UNINSTALLED status filter to API', async () => {

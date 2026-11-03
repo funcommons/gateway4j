@@ -44,13 +44,19 @@ vi.mock('@/composables/usePermission', () => ({
   usePermission: () => ({ hasPermission: () => true, hasAnyPermission: () => true, canEdit: () => true })
 }))
 
-// FcTable 桩渲染默认插槽：让 el-table-column 的 label 属性出现在 DOM 上，
-// 以断言「环境」列随降级门控出现/隐藏
+// FcTable 桩**不渲染默认插槽**。
+//
+// 原因：jsdom 下没有注册 ElementPlus，el-table-column 是未解析组件 —— 它的
+// 作用域插槽 `<template #default="{ row }">` 拿不到参数，渲染时直接抛
+// "Cannot destructure property 'row' of 'undefined'"（21 条 unhandled error，
+// 2026-11-02 实测的唯一来源）。
+// 「环境」列的结构断言走源码正则（见下方 T4 用例），不依赖插槽渲染出来的 DOM，
+// 所以这里把插槽去掉，断言强度不变，只是把无意义的渲染噪声清掉。
 vi.mock('@/components/display/FcEmpty.vue', () => ({
   default: { name: 'FcEmpty', props: ['title'], template: '<div class="empty-stub" />' }
 }))
 vi.mock('@/components/data/FcTable.vue', () => ({
-  default: { name: 'FcTable', props: ['data', 'loading', 'stripe'], template: '<div class="table-stub"><slot /></div>' }
+  default: { name: 'FcTable', props: ['data', 'loading', 'stripe'], template: '<div class="table-stub" />' }
 }))
 
 import List from '@/views/routes/List.vue'

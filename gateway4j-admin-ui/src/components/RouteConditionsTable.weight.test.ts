@@ -53,7 +53,7 @@ function factory(modelValue: any[] = []) {
     props: { modelValue, routeOptions: [] },
     global: {
       plugins: [i18n],
-      stubs: { 'el-table-column': colStub, 'el-input-number': true }
+      stubs: { 'el-table-column': colStub, 'ElInputNumber': true }
     }
   })
 }

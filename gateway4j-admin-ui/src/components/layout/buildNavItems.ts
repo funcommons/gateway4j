@@ -19,6 +19,10 @@
  *       { routeNames: ['Home', 'Chat'] },  // 顶层叶子
  *     ],
  *   })
+ *
+ * 排序:
+ *   默认「顶层叶子全部在前, 分组全部在后」.
+ *   规则声明 order 后, 顶层叶子与分组按 order 升序混合排列.
  */
 import type { Component } from 'vue'
 import type { RouteRecordNormalized } from 'vue-router'
@@ -43,6 +47,13 @@ export interface NavGroupRule {
   visible?: boolean | (() => boolean)
   /** 叶子额外过滤. */
   leafFilter?: (route: RouteRecordNormalized) => boolean
+  /**
+   * 排序权重 (可选).
+   * 未声明 order 的规则保持旧行为 ("顶层叶子全部在前, 分组全部在后");
+   * 一旦**任一**规则声明了 order, 顶层叶子与分组按 order 升序混合排列
+   * (同 order 保持声明顺序: 顶层叶子先于分组; 未声明 order 的规则排最后).
+   */
+  order?: number
 }
 
 export interface NavTopLevelRule {
@@ -54,6 +65,8 @@ export interface NavTopLevelRule {
   visible?: boolean | (() => boolean)
   /** 叶子额外过滤. */
   leafFilter?: (route: RouteRecordNormalized) => boolean
+  /** 排序权重 (可选). 语义同 NavGroupRule.order. */
+  order?: number
 }
 
 export interface BuildNavOptions {
@@ -117,19 +130,32 @@ function collectLeaves(
 
 export function buildNavItems(options: BuildNavOptions): NavItem[] {
   const { routes, t, iconResolver, groups = [], topLevels = [], leafFilter } = options
-  const items: NavItem[] = []
 
   // Apply the global leafFilter (if provided) to the routes up front, so
   // topLevels / groups all see the filtered set. Per-rule leafFilter still
   // applies on top of this. (gateway4j 保留能力：ldx2 快照版曾在此处丢失该行为)
   const effectiveRoutes = leafFilter ? routes.filter(leafFilter) : routes
 
+  // ---- 排序 ----
+  // 默认行为不变: 顶层叶子全部在前, 分组全部在后.
+  // 只要**任一**规则声明了 order, 顶层叶子与分组就按 order 升序混合排列,
+  // 让业务可以把叶子夹在分组中间 (如「监控大盘 ▸ 路由管理 ▸ ... ▸ 系统设置」).
+  const usesOrder = topLevels.some((r) => r.order !== undefined) || groups.some((r) => r.order !== undefined)
+  const UNORDERED = Number.MAX_SAFE_INTEGER
+
+  type Entry = { item: NavItem; order: number; seq: number }
+  const entries: Entry[] = []
+  let seq = 0
+  const push = (item: NavItem, rule: { order?: number }) => {
+    entries.push({ item, order: rule.order ?? UNORDERED, seq: seq++ })
+  }
+
   // ---- 顶层 leaf ----
   for (const rule of topLevels) {
     if (!resolveVisible(rule.visible)) continue
     const leaves = collectLeaves(effectiveRoutes, rule, t, iconResolver)
     if (leaves.length === 0) continue
-    items.push(...leaves)
+    for (const leaf of leaves) push(leaf, rule)
   }
 
   // ---- sub-menu group ----
@@ -146,10 +172,16 @@ export function buildNavItems(options: BuildNavOptions): NavItem[] {
       visible: true,
       children: leaves,
     }
-    items.push(group)
+    push(group, rule)
   }
 
   // 未通过 group/topLevels 匹配的路由默认不进菜单;
   // 如有需要, 业务可以扩展 options 添加 'orphanRouteNames' / 'orphanRoutePrefix' 单独捕获.
-  return items
+  if (!usesOrder) return entries.map((e) => e.item)
+
+  // order 升序; 同 order (或都未声明) 保持声明顺序 (seq: 顶层叶子先于分组).
+  return entries
+    .slice()
+    .sort((a, b) => (a.order - b.order) || (a.seq - b.seq))
+    .map((e) => e.item)
 }

@@ -38,7 +38,7 @@ vi.mock('@/components/form/FcThemeSwitcher.vue', () => ({
 }))
 vi.mock('@element-plus/icons-vue', () => {
   const stub = (name: string) => ({ name, template: '<i />' })
-  return { Operation: stub('Op'), Connection: stub('Conn'), Share: stub('Share'), Histogram: stub('Hist'), User: stub('User'), Lock: stub('Lock'), Box: stub('Box'), Grid: stub('Grid'), Setting: stub('Setting') }
+  return { Operation: stub('Op'), Connection: stub('Conn'), Share: stub('Share'), Histogram: stub('Hist'), User: stub('User'), Lock: stub('Lock'), Box: stub('Box'), Grid: stub('Grid'), Setting: stub('Setting'), Tickets: stub('Tickets'), Files: stub('Files'), Cpu: stub('Cpu'), UserFilled: stub('UserFilled') }
 })
 
 import MainLayout from '@/layouts/MainLayout.vue'
@@ -51,9 +51,10 @@ const i18n = createI18n({
       app: { title: 'Gateway4j Console' },
       auth: { logout: '退出' },
       sidebar: {
-        dashboard: '监控大盘', routeList: '路由列表', routeCanvas: '路由画布',
-        routeImport: '导入导出', pluginList: '插件列表', pluginGlobal: '全局插件',
-        userList: '用户列表', rolePerm: '角色权限', settings: '系统设置'
+        dashboard: '监控大盘', route: '路由管理', routeList: '路由列表', routeCanvas: '路由画布',
+        routeImport: '导入导出', plugin: '插件管理', pluginList: '插件列表', pluginGlobal: '全局插件',
+        pluginBuiltin: '内置插件',
+        user: '用户管理', userList: '用户列表', rolePerm: '角色权限', settings: '系统设置'
       }
     }
   }

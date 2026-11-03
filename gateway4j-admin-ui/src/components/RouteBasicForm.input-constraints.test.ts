@@ -5,10 +5,11 @@ import path from 'path'
 describe('RouteBasicForm — sort_order input type', () => {
   const src = fs.readFileSync(path.resolve(__dirname, 'RouteBasicForm.vue'), 'utf-8')
 
-  it('uses el-input-number for sort_order (not FcInput type=number)', () => {
-    // el-input-number with :min/:max prevents invalid input at the widget level,
-    // while FcInput type="number" only validates on blur.
-    expect(src).toContain('el-input-number')
+  it('uses FcInputNumber for sort_order (not FcInput type=number)', () => {
+    // FcInputNumber (SDK 薄封装) with :min/:max prevents invalid input at the
+    // widget level, while FcInput type="number" only validates on blur.
+    expect(src).toContain('FcInputNumber')
+    expect(src).not.toMatch(/<el-input-number/)
     expect(src).toMatch(/sort_order.*:min="1"/)
     expect(src).toMatch(/sort_order.*:max="9999"/)
   })

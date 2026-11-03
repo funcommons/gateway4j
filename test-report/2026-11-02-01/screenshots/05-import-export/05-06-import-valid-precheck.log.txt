@@ -1,0 +1,35 @@
+用例: 05-06-import-valid-precheck
+时间: 2026-11-03T02:11:51.710Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/routes/import/validate
+
+--- Extra ---
+预检报告文本: "可导入：是
+
+目标环境：default
+
+路由包来源环境：default
+
+路由名
+	
+操作
+	
+说明
+e2e_imported_mw01xyfc480
+	
+新增
+	
+目标环境不存在同名路由，将创建"

@@ -1,0 +1,325 @@
+{
+  "generatedAt": "2026-11-02T07:55:42.197Z",
+  "gitHead": "324d4e77e086fc478c24c7bc78ef1b3970a8a717",
+  "note": "截图矩阵：5 个页面 × 3 档尺寸 × 明暗双主题。侧栏双态已断言宽度 241px → 65px 且两图 md5 不同。 截图时刻：2026-11-02 15:51-15:55 CST（本地 dev server :9302 实时渲染）；此时工作区含其它 agent 未提交的改动，故「路由表状态列被固定列盖住」与「375 下 tab 标签折行」两个 Floor 缺陷在对应尺寸的截图里仍是复现状态。",
+  "matrix": {
+    "sizes": [
+      "1600x1000",
+      "1440x900",
+      "375x812"
+    ],
+    "pages": [
+      "/routes",
+      "/settings",
+      "/roles",
+      "/plugins",
+      "/login"
+    ],
+    "themes": [
+      "light",
+      "dark"
+    ]
+  },
+  "sidebarDedup": {
+    "allDistinct": true,
+    "pairs": [
+      {
+        "expanded": "sidebar-expanded-1600-light.png",
+        "collapsed": "sidebar-collapsed-1600-light.png",
+        "expandedMd5": "9dfbbe901c6914b607fe6755667f1752",
+        "collapsedMd5": "712981d1f5e6d85d423e123149c2ccb0",
+        "distinct": true
+      },
+      {
+        "expanded": "sidebar-expanded-1440-light.png",
+        "collapsed": "sidebar-collapsed-1440-light.png",
+        "expandedMd5": "a803290c70d6275b99272cc2aab5b12b",
+        "collapsedMd5": "5b8e729652422d8bbee187a4701107d5",
+        "distinct": true
+      },
+      {
+        "expanded": "sidebar-expanded-1600-dark.png",
+        "collapsed": "sidebar-collapsed-1600-dark.png",
+        "expandedMd5": "512cbdb88404ab9564965e836609b046",
+        "collapsedMd5": "a8319a1349d6a0b08821de2c7df461bf",
+        "distinct": true
+      },
+      {
+        "expanded": "sidebar-expanded-1440-dark.png",
+        "collapsed": "sidebar-collapsed-1440-dark.png",
+        "expandedMd5": "0663f6737f234cb2ec485a69446ffde3",
+        "collapsedMd5": "91cbb06e77c0e40d91a7290eb253cbdf",
+        "distinct": true
+      }
+    ]
+  },
+  "shots": {
+    "light": 15,
+    "dark": 15,
+    "total": 52
+  },
+  "files": [
+    {
+      "file": "import-export-dark.png",
+      "md5": "9edef4affd55b07484b3a1b44c5291d2",
+      "bytes": 56936
+    },
+    {
+      "file": "import-export-light.png",
+      "md5": "9e6611c7e38479a111a8eea57630ccf7",
+      "bytes": 56701
+    },
+    {
+      "file": "login-1440-dark.png",
+      "md5": "65246e08c9959821c669df20aa3a9a33",
+      "bytes": 20633
+    },
+    {
+      "file": "login-1440-light.png",
+      "md5": "d4b0bc615a9b497a1bce1438e2753406",
+      "bytes": 20334
+    },
+    {
+      "file": "login-1600-dark.png",
+      "md5": "afa9d5faf9c24fa267ea7d97e94e8611",
+      "bytes": 21740
+    },
+    {
+      "file": "login-1600-light.png",
+      "md5": "dcf93ad6048cfde416490fa0ab286a16",
+      "bytes": 21509
+    },
+    {
+      "file": "login-375-dark.png",
+      "md5": "42256465dcdedb3d24ed90272df9fe79",
+      "bytes": 16276
+    },
+    {
+      "file": "login-375-light.png",
+      "md5": "b4ff6d6ebce64673090c9efc2915ab20",
+      "bytes": 15982
+    },
+    {
+      "file": "plugins-1440-dark.png",
+      "md5": "4b0b6371787ac563eda929cd3ee183f6",
+      "bytes": 156196
+    },
+    {
+      "file": "plugins-1440-light.png",
+      "md5": "63a7824204f231f42efb45a8467c0aee",
+      "bytes": 156470
+    },
+    {
+      "file": "plugins-1600-dark.png",
+      "md5": "fc6f20bbb97982f1556bde44bcef959f",
+      "bytes": 173568
+    },
+    {
+      "file": "plugins-1600-light.png",
+      "md5": "6aed95eb3466aebbed1ada0605e6e840",
+      "bytes": 174097
+    },
+    {
+      "file": "plugins-375-dark.png",
+      "md5": "855986f8403f544741ae6e631174c362",
+      "bytes": 47954
+    },
+    {
+      "file": "plugins-375-light.png",
+      "md5": "5bbb3d3ac19cbce8dfe0dd7734f26df1",
+      "bytes": 47686
+    },
+    {
+      "file": "plugins-dark.png",
+      "md5": "65ba0c67400a4f3317b8611b77a2dfad",
+      "bytes": 169867
+    },
+    {
+      "file": "plugins-light.png",
+      "md5": "40cc5a4c44ba5b2928edd383fc936fc8",
+      "bytes": 170985
+    },
+    {
+      "file": "roles-1440-dark.png",
+      "md5": "e085272cc394abd3b17833aa21c8d9b1",
+      "bytes": 65786
+    },
+    {
+      "file": "roles-1440-light.png",
+      "md5": "952c7fd826e1c89703ce3468b43357e2",
+      "bytes": 64988
+    },
+    {
+      "file": "roles-1600-dark.png",
+      "md5": "307e50aa1e7b41ee08d2980f1ad23bf6",
+      "bytes": 67280
+    },
+    {
+      "file": "roles-1600-light.png",
+      "md5": "9ade9b658d0e8b9d2d471080b1a2e33c",
+      "bytes": 66547
+    },
+    {
+      "file": "roles-375-dark.png",
+      "md5": "12acf79b1e13bb39ae615066e422cd80",
+      "bytes": 31837
+    },
+    {
+      "file": "roles-375-light.png",
+      "md5": "d9befb0b4f6d82107b4d26d2cb013275",
+      "bytes": 31561
+    },
+    {
+      "file": "roles-dark.png",
+      "md5": "8356e0fc309713de223d47d0f8c29153",
+      "bytes": 65467
+    },
+    {
+      "file": "roles-light.png",
+      "md5": "621af3c1614a709bda15dc30fb6e7724",
+      "bytes": 65217
+    },
+    {
+      "file": "routes-list-1440-dark.png",
+      "md5": "bcfd325aa36f374793ca28ce9a47e8d4",
+      "bytes": 159203
+    },
+    {
+      "file": "routes-list-1440-light.png",
+      "md5": "13274e175fb00271b85777a73b296a27",
+      "bytes": 158342
+    },
+    {
+      "file": "routes-list-1600-dark.png",
+      "md5": "4997a425d73b606b0f343936018a4fab",
+      "bytes": 184832
+    },
+    {
+      "file": "routes-list-1600-light.png",
+      "md5": "26edae444c30fa16e1cc0dee08b4ad94",
+      "bytes": 184099
+    },
+    {
+      "file": "routes-list-375-dark.png",
+      "md5": "d46b81a99f4ec380743acd644204be71",
+      "bytes": 49394
+    },
+    {
+      "file": "routes-list-375-light.png",
+      "md5": "c93b253a9abdd2428f8d8aecb8a316ad",
+      "bytes": 49035
+    },
+    {
+      "file": "routes-list-dark.png",
+      "md5": "636954a3aa2e85bf0b5b8e05e474a96e",
+      "bytes": 182289
+    },
+    {
+      "file": "routes-list-light.png",
+      "md5": "e1aa27a61b4c013f0a73174c22dfa50e",
+      "bytes": 182699
+    },
+    {
+      "file": "settings-1440-dark.png",
+      "md5": "ca2eb2854f12c83512d0d9878b757f1f",
+      "bytes": 45209
+    },
+    {
+      "file": "settings-1440-light.png",
+      "md5": "40ff2d60e657bc853f36f6b4b0bf0c57",
+      "bytes": 44803
+    },
+    {
+      "file": "settings-1600-dark.png",
+      "md5": "f8651de79d3d24157be8dcfc8ff4e718",
+      "bytes": 46314
+    },
+    {
+      "file": "settings-1600-light.png",
+      "md5": "716f547da414bd0bff4a98cbebea627b",
+      "bytes": 45937
+    },
+    {
+      "file": "settings-375-dark.png",
+      "md5": "7da3e3b407226a9a345b6cc152bd24a1",
+      "bytes": 26543
+    },
+    {
+      "file": "settings-375-light.png",
+      "md5": "49ec4e7e217574808ddebcd6bad0e165",
+      "bytes": 26100
+    },
+    {
+      "file": "settings-dark.png",
+      "md5": "51d559c22d5d40b6964fd045ded5b523",
+      "bytes": 44793
+    },
+    {
+      "file": "settings-light.png",
+      "md5": "7aea4d48fa738a01d47ece43bf3066ad",
+      "bytes": 44729
+    },
+    {
+      "file": "sidebar-collapsed-1440-dark.png",
+      "md5": "91cbb06e77c0e40d91a7290eb253cbdf",
+      "bytes": 157531
+    },
+    {
+      "file": "sidebar-collapsed-1440-light.png",
+      "md5": "5b8e729652422d8bbee187a4701107d5",
+      "bytes": 157208
+    },
+    {
+      "file": "sidebar-collapsed-1600-dark.png",
+      "md5": "a8319a1349d6a0b08821de2c7df461bf",
+      "bytes": 173715
+    },
+    {
+      "file": "sidebar-collapsed-1600-light.png",
+      "md5": "712981d1f5e6d85d423e123149c2ccb0",
+      "bytes": 173407
+    },
+    {
+      "file": "sidebar-collapsed-dark.png",
+      "md5": "a8319a1349d6a0b08821de2c7df461bf",
+      "bytes": 173715
+    },
+    {
+      "file": "sidebar-collapsed-light.png",
+      "md5": "712981d1f5e6d85d423e123149c2ccb0",
+      "bytes": 173407
+    },
+    {
+      "file": "sidebar-expanded-1440-dark.png",
+      "md5": "0663f6737f234cb2ec485a69446ffde3",
+      "bytes": 159290
+    },
+    {
+      "file": "sidebar-expanded-1440-light.png",
+      "md5": "a803290c70d6275b99272cc2aab5b12b",
+      "bytes": 159228
+    },
+    {
+      "file": "sidebar-expanded-1600-dark.png",
+      "md5": "512cbdb88404ab9564965e836609b046",
+      "bytes": 184943
+    },
+    {
+      "file": "sidebar-expanded-1600-light.png",
+      "md5": "9dfbbe901c6914b607fe6755667f1752",
+      "bytes": 185003
+    },
+    {
+      "file": "sidebar-expanded-dark.png",
+      "md5": "512cbdb88404ab9564965e836609b046",
+      "bytes": 184943
+    },
+    {
+      "file": "sidebar-expanded-light.png",
+      "md5": "9dfbbe901c6914b607fe6755667f1752",
+      "bytes": 185003
+    }
+  ],
+  "gitWorkingTree": "dirty（其它 agent 同时在改 src/；截图取自 dev server 实时渲染，非某个 commit 的构建产物）",
+  "screenshotWindow": "2026-11-02T15:51+08:00 ~ 2026-11-02T15:55+08:00"
+}

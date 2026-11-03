@@ -34,7 +34,11 @@ vi.mock('@element-plus/icons-vue', () => {
     Lock: stub('Lock'),
     Box: stub('Box'),
     Grid: stub('Grid'),
-    Setting: stub('Setting')
+    Setting: stub('Setting'),
+    Tickets: stub('Tickets'),
+    Files: stub('Files'),
+    Cpu: stub('Cpu'),
+    UserFilled: stub('UserFilled')
   }
 })
 
@@ -56,8 +60,10 @@ const i18n = createI18n({
       app: { title: 'Gateway4j 控制台' },
       auth: { logout: '退出' },
       sidebar: {
-        dashboard: '监控', routeList: '路由列表', routeCanvas: '路由画布',
-        routeImport: '导入导出', pluginList: '插件列表', userList: '用户',
+        dashboard: '监控', route: '路由管理', routeList: '路由列表', routeCanvas: '路由画布',
+        routeImport: '导入导出', plugin: '插件管理', pluginList: '插件列表',
+        pluginGlobal: '全局插件', pluginBuiltin: '内置插件',
+        user: '用户管理', userList: '用户',
         rolePerm: '角色权限', settings: '设置'
       }
     }

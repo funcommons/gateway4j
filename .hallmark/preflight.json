@@ -8,7 +8,11 @@
     "ui": "Element Plus 2.14.1（底层依赖）",
     "component_system": "Fc SDK 组件库（平铺于 src/components/{data,display,feedback,form,layout,navigation,overlay,section,theme,utils}）",
     "icons": "remixicon 4.9.1（本轮补装，SDK 既有图标契约）+ @element-plus/icons-vue",
-    "ports": { "gateway": 9300, "admin": 9301, "console": 9302 }
+    "ports": {
+      "gateway": 9300,
+      "admin": 9301,
+      "console": 9302
+    }
   },
   "design_system": {
     "token_block": [
@@ -18,8 +22,21 @@
     ],
     "token_count_before": 43,
     "tokens_added": 29,
-    "brands": ["ldx2", "apple", "google", "mchuan", "manyun", "acme", "microsoft", "vonnex"],
-    "themes": ["light", "dark", "orange-black"]
+    "brands": [
+      "ldx2",
+      "apple",
+      "google",
+      "mchuan",
+      "manyun",
+      "acme",
+      "microsoft",
+      "vonnex"
+    ],
+    "themes": [
+      "light",
+      "dark",
+      "orange-black"
+    ]
   },
   "preserved": [
     "所有 data-testid（e2e 106 例依赖）",
@@ -42,7 +59,12 @@
     "深色主题修复：theme.scss 的 @use 顺序对调（app-aliases 在前、主题层在后）+ main.ts 引入 EP 官方暗色 token + FcThemeProvider 暗色态给 html 挂 dark 类",
     "全站文字对比度自检（7 页 × 明暗双主题）：48 处越线 → 0 处"
   ],
-  "baseline_before": { "sloplint_fail": 228, "sloplint_reflex": 68, "sloplint_warn": 17, "files": 78 },
+  "baseline_before": {
+    "sloplint_fail": 228,
+    "sloplint_reflex": 68,
+    "sloplint_warn": 17,
+    "files": 78
+  },
   "verification": {
     "sloplint_static": "0 FAIL · 0 REFLEX · 0 WARN（78 文件）",
     "sloplint_render": "0 FAIL · 0 REFLEX · 0 WARN（--render，登录页）",
@@ -57,5 +79,57 @@
     "无 design.md / DESIGN.md：项目自有系统（Fc SDK + token 体系）即设计系统，不另起炉灶",
     "hallmark 命令面为 polish：只修材质半边（token/对比度/焦点/状态/密度/动效），不重构结构",
     "app scope 下营销类门禁（hero/fold/字数预算/图库）不适用"
-  ]
+  ],
+  "round_2": {
+    "run_date": "2026-11-02",
+    "scope": "app screen · polish 收尾（结构性遗留 + 回归护栏）",
+    "prompt": "都做（承接 2026-11-01 轮次留下的 6 条建议）",
+    "structural_changes": [
+      "侧栏信息架构重整：9 个「组名==叶子名」的可展开组 → 5 个顶层项 / 10 个叶子；内置插件首次进得去菜单；SDK buildNavItems 新增可选 order（不声明 order 时行为与旧版逐字节一致）",
+      "Fc SDK 新增 6 个组件：FcCheckbox / FcCheckboxGroup / FcInputNumber / FcDatePicker / FcCollapse / FcCollapseItem；业务页 23 处裸 el-* 全部替换（fc-web-sdk 铁律此前因缺对应物而管不到）",
+      "系统设置表单限宽 480px（短字段不再铺满 1170px 卡宽）；路由列表筛选区收成一行、动作收进筛选栏右侧且主操作在最右（关键词框限宽 280px，三个列表页同步）",
+      "brand-overrides 死代码清理：_mixins.scss 删掉 303 行从未 @include 的 mixin；三个品牌文件里对不存在伪元素的 display:none 空操作一并删除（CSS 产物 diff 证明视觉零变化）",
+      "vitest unhandled error 归零：32 → 0（Global.sort-rollback 9 条 + List.environment 21 条 + Settings.save-payload 2 条，根因都是 mock 缺导出/未卸载 wrapper）",
+      "e2e 报告目录从 test-report/2026-11-01-05 迁到 2026-11-02-01（保留上一轮证据不被覆盖）"
+    ],
+    "introduced": [
+      "e2e-regression/10-theme.spec.ts：深色主题回归护栏 7 条（读 token + 读计算样式 + 算对比度，不比对像素）",
+      "8 张视觉基线重生成 —— 旧基线的 login-page-dark 与 login-page-light、dashboard-dark 与 dashboard-light MD5 分别完全相同（深色主题当时未生效的物证），现已两两不同",
+      "路由 meta.icon（EP 图标名字符串）+ MainLayout 的 SIDEBAR_ICONS 映射表"
+    ],
+    "verification": {
+      "sloplint_static": "0 FAIL · 0 REFLEX · 0 WARN（85 文件，含 6 个新 SDK 组件 + FcDropdown）",
+      "sloplint_render": "0 FAIL · 0 REFLEX · 0 WARN（--render，登录页，4 档视口）",
+      "contrast_sweep": "0 处越线（7 页 × light/dark（+orange-black），扫描器按 alpha 合成真实底色；disabled 豁免照规范保留）",
+      "vitest": "428 文件 / 2444 例 / 0 unhandled error",
+      "type_check": "16（既有基线，零新增；SDK 组件不在 tsc include 内 —— 解除后测得新增 22 错全在测试夹具，组件源码 0 错，待另行决策）",
+      "eslint": "0 error（128 warning，与基线同源）",
+      "vite_build": "成功",
+      "e2e_management": "113/113（分两批跑完；8 条视觉基线 opt-in 跳过，另在干净比对跑中 8/8 通过）",
+      "e2e_data_plane": "15/15",
+      "measurements": "1440/1280/1600 状态列 bounding box 与固定列不重叠；375 下 5 个 tab 全部单行（h=34）横滑可用；375 设置页 label 上置、间隙 5px"
+    },
+    "finish_review_round": {
+      "date": "2026-11-02",
+      "reviewer": "fresh-context subagent",
+      "verdict": "fix",
+      "findings": 14,
+      "resolved": 14,
+      "key_findings_fixed": [
+        "Floor 73: 路由/插件/用户列表「更多」列平铺 5~6 个按钮（380/280/320px）把「状态」列顶出 1440/1280 视区 → 动作收成 FcDropdown 真下拉（列宽统一 120px），状态列三个宽度实测可见",
+        "Floor: 侧栏「路由编排画布」是死链（叶子 index 是字面量 /routes/:id/canvas，点击报参数类型错）→ 从侧栏摘除（画布归属路由列表行内按钮）；SIDEBAR_ROUTE_MAP 让画布页高亮「路由列表」",
+        "Floor 40: 浅色下染色底上的语义文字 4.33/4.42 < 4.5（round 1 扫描器遇半透明底跳过，算的是「字 vs 白卡」）→ 新增 *-text-on-tint 墨色档 + 扫描器按 alpha 逐层合成，复扫 3 主题 0 越线",
+        "Floor 49a: 375 下 FcTabsPanel 标签折成两行（white-space: normal + nowrap 容器 = 硬挤）→ nowrap + 横滑 scroll-snap；设置页 160px 固定 label-width 窄屏改标签上置",
+        "Reflex: SDK 6 个新组件的 API 契约陷阱（checkbox-group 的 options 失效路径 / change 丢 event / collapse title 槽丢 isActive / valueOnClear 类型过宽 / date-picker 缺焦点环与禁用三通道 / collapse icon 类名）全部修齐并补测试",
+        "Reflex: FcSelect 写死 disabled:false / size:'default' 压死 el-form 继承（根因：Vue 对缺省 Boolean prop 的 shouldCast 强转 false，必须显式 default: undefined）→ 同批修复 FcInput/FcSwitch/FcRadioGroup/FcButton/FcRadio/FcRadioButton",
+        "Reflex: 命令面板 nav.users 的 permission 写 user:read（路由要 system:user）→ 与侧栏同源，从路由 meta.permission 推导",
+        "Reflex: 深色护栏 3 条可空过（if 包断言 / parseRgb 丢 alpha / 基准面取错）→ 全部改为不可空过并做反向验证（运行时注入破坏样式，4 条用例按预期变红）",
+        "Reflex: 侧栏折叠态截图与展开态 md5 相同（选择器没匹配上）→ 用真实按钮 .fc-sidebar__toggle + 宽度断言 + md5 去重重拍；证据矩阵扩到 1600/1440/375 三档 × 明暗"
+      ],
+      "corrected_claims": [
+        "round 1 报告的「全站文字对比度 0 处越线」不成立：扫描器跳过半透明底，恰好漏掉染色底组合；本轮修复后按合成底色实测 0 越线",
+        "round 1 报告的「侧栏折叠态截图」实为展开态复制品（md5 相同）；已重拍"
+      ]
+    }
+  }
 }

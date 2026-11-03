@@ -97,22 +97,22 @@
           <div v-for="g in groupedPermissions" :key="g.prefix" class="grant-group" :data-testid="`grant-group-${g.prefix}`">
             <div class="grant-group-header">
               <span class="grant-group-title">{{ g.prefix }}</span>
-              <el-checkbox
+              <FcCheckbox
                 :model-value="isGroupAll(g)"
                 :indeterminate="isGroupIndeterminate(g)"
                 @change="(v: any) => toggleGroup(g, v)"
-              >{{ t('common.selectAll') }}</el-checkbox>
+              >{{ t('common.selectAll') }}</FcCheckbox>
             </div>
-            <el-checkbox-group v-model="checked" class="grant-group-items">
-              <el-checkbox
+            <FcCheckboxGroup v-model="checked" class="grant-group-items">
+              <FcCheckbox
                 v-for="p in g.items"
                 :key="p.permission_code"
                 :value="p.permission_code"
                 :data-testid="`perm-${p.permission_code}`"
               >
                 {{ p.permission_code }}<span v-if="p.permission_name" class="perm-name">{{ p.permission_name }}</span>
-              </el-checkbox>
-            </el-checkbox-group>
+              </FcCheckbox>
+            </FcCheckboxGroup>
           </div>
           <FcEmpty v-if="!groupedPermissions.length" :title="t('role.noAssignablePermissions')" />
         </div>
@@ -134,16 +134,16 @@
           <span class="grant-count" data-testid="member-count">{{ t('role.selectedCount', { selected: memberIds.length, total: allUsers.length }) }}</span>
         </div>
         <div class="member-list" data-testid="member-list">
-          <el-checkbox-group v-model="memberIds" class="member-items">
-            <el-checkbox
+          <FcCheckboxGroup v-model="memberIds" class="member-items">
+            <FcCheckbox
               v-for="u in allUsers"
               :key="u.id"
               :value="u.id"
               :data-testid="`member-user-${u.id}`"
             >
               {{ u.username }}<span v-if="u.real_name" class="perm-name">{{ u.real_name }}</span>
-            </el-checkbox>
-          </el-checkbox-group>
+            </FcCheckbox>
+          </FcCheckboxGroup>
           <FcEmpty v-if="!allUsers.length" :title="t('role.noSelectableUsers')" />
         </div>
       </template>
@@ -161,7 +161,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   FcSection, FcTabsPanel, FcTable, FcEmpty, FcButton, FcInput, FcDialog, FcConfirm, FcFormItem,
-  FcSkeleton, FcRadioGroup, toast
+  FcSkeleton, FcRadioGroup, FcCheckbox, FcCheckboxGroup, toast
 } from '@/components'
 import type { RadioValue } from '@/components/form/radioContext'
 import {

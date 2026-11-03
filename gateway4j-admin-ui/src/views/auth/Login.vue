@@ -16,7 +16,7 @@
         </FcFormItem>
         <FcFormItem>
           <div class="remember-row">
-            <el-checkbox v-model="remember" :label="t('auth.remember')" />
+            <FcCheckbox v-model="remember" :label="t('auth.remember')" />
           </div>
         </FcFormItem>
         <FcFormItem>
@@ -34,7 +34,7 @@
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { FcSectionCard, FcFormItem, FcInput, FcButton, FcIcon } from '@/components'
+import { FcSectionCard, FcFormItem, FcInput, FcButton, FcIcon, FcCheckbox } from '@/components'
 import { useAuthStore } from '@/store/auth'
 
 const { t } = useI18n()

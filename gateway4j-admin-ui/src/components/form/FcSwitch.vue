@@ -16,6 +16,7 @@ defineOptions({ name: 'FcSwitch', inheritAttrs: false })
  *   <FcSwitch v-model="sync" loading />
  */
 import { computed } from 'vue'
+import { useFormDisabled, useFormSize } from 'element-plus'
 
 export interface FcSwitchProps {
   modelValue: boolean | string | number | undefined
@@ -27,22 +28,31 @@ export interface FcSwitchProps {
   activeText?: string
   /** 关闭文案. */
   inactiveText?: string
-  /** 禁用. */
+  /** 禁用. 不传时继承 el-form 的 disabled. */
   disabled?: boolean
   /** 加载中. */
   loading?: boolean
-  /** 尺寸. */
+  /** 尺寸. 不传时继承 el-form 的 size. */
   size?: 'large' | 'default' | 'small'
   /** 内联文案 (写在 knob 内部). */
   inlinePrompt?: boolean
 }
 
+/**
+ * disabled / size **故意不给默认值**（见 FcInput 的同款说明）:
+ * - Boolean 型 prop 光「不写进 withDefaults」不够 —— Vue 会把缺省 Boolean prop
+ *   自动 cast 成 false, 一样压死「继承 el-form」的语义;
+ *   必须显式写 `disabled: undefined`（编译成 `default: undefined`）才真保持 undefined.
+ * - size 写死 'default' 同理压死 el-form 的 size.
+ * 本组件是原生实现 (不是 el-switch), 所以自己用 EP 的 useFormDisabled /
+ * useFormSize 解析继承链: 自身 prop > el-form > false / 'default'.
+ */
 const props = withDefaults(defineProps<FcSwitchProps>(), {
   activeValue: true,
   inactiveValue: false,
-  disabled: false,
+  disabled: undefined,
   loading: false,
-  size: 'default',
+  size: undefined,
   inlinePrompt: false,
 })
 
@@ -53,15 +63,22 @@ const emit = defineEmits<{
 
 const isActive = computed(() => props.modelValue === props.activeValue)
 
+/** 生效禁用态: 自身 prop > el-form > false. */
+const formDisabled = useFormDisabled()
+const isDisabled = computed(() => formDisabled.value)
+/** 生效尺寸: 自身 prop > el-form > 'default'. */
+const formSize = useFormSize()
+const resolvedSize = computed(() => props.size || formSize.value || 'default')
+
 const sizeMap = {
   large:   { w: 56, h: 28, knob: 22, font: 14 },
   default: { w: 44, h: 22, knob: 18, font: 12 },
   small:   { w: 36, h: 18, knob: 14, font: 11 },
 } as const
-const dims = computed(() => sizeMap[props.size] ?? sizeMap.default)
+const dims = computed(() => sizeMap[resolvedSize.value] ?? sizeMap.default)
 
 function toggle() {
-  if (props.disabled || props.loading) return
+  if (isDisabled.value || props.loading) return
   const next = isActive.value ? props.inactiveValue : props.activeValue
   emit('update:modelValue', next)
   emit('change', next)
@@ -73,13 +90,13 @@ function toggle() {
     type="button"
     role="switch"
     :aria-checked="isActive"
-    :disabled="disabled || loading"
+    :disabled="isDisabled || loading"
     class="fc-switch"
     :class="[
-      `size-${size}`,
+      `size-${resolvedSize}`,
       {
         'is-active': isActive,
-        'is-disabled': disabled,
+        'is-disabled': isDisabled,
         'is-loading': loading,
         'has-text': !!activeText || !!inactiveText,
       },

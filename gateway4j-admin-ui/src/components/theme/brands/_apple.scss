@@ -137,9 +137,9 @@ html[data-brand='apple'] {
   // --brand-radius-continuous-card: 14px;  // equivalent to squircle at 14pt
   // --brand-radius-continuous-sheet: 14px;
 
-  // Sidebar vibrancy (HIG .sidebar material) — only applied to .app-sidebar
-  // via the brand-overrides mixin; here we just set the token so the
-  // mixin's var(--brand-blur-md, none) fallback resolves correctly.
+  // Sidebar vibrancy (HIG .sidebar material) — brand-level material tokens.
+  // The SDK header reads --app-header-backdrop (see below); these two are
+  // exposed for consumers that build their own header / sidebar material.
   --brand-blur-md: blur(20px);
   --brand-blur-lg: blur(40px);
 
@@ -154,9 +154,9 @@ html[data-brand='apple'] {
   // - SF Pro is optically tighter than other system fonts: tighten letter
   //   spacing on body & headers (Apple's "Display" optical sizing trick).
   // - HIG cards have soft 2-layer shadow + hairline border (already set
-  //   via tokens). We also strip the brand-overrides mixin's `--brand-
-  //   primary-gradient` ring on inputs and replace with HIG focus blue
-  //   accent so it reads as iOS/macOS "selection" instead of a gradient.
+  //   via tokens). The input focus look is owned entirely by this brand:
+  //   a soft HIG focus-blue fill tint, so it reads as iOS/macOS
+  //   "selection" instead of a colored ring.
   // - HIG buttons: 32px min-height, slight letter-tracking, semi-bold.
   // - HIG inputs: filled gray bg, no border (HIG default text-field).
   // - HIG tabs: 2px primary underline on active (no pill / no card fill).
@@ -189,7 +189,9 @@ html[data-brand='apple'] {
   }
 
   // HIG fill-style text field: subtle gray fill, no border, focus = soft
-  // primary tint (no gradient ring).
+  // primary tint. The focus look is fully owned by this brand — the theme
+  // layer draws the wrapper ring as an inset box-shadow, which the rule
+  // below clears, so there is no separate ring layer to suppress.
   .el-input__wrapper {
     background-color: rgba(120, 120, 128, 0.12);
     box-shadow: none !important;
@@ -198,9 +200,6 @@ html[data-brand='apple'] {
   .el-input__wrapper.is-focus,
   .el-input__wrapper:focus-within {
     background-color: rgba(0, 122, 255, 0.08);
-  }
-  .el-input__wrapper.is-focus::before {
-    display: none;  // suppress brand-overrides gradient ring on Apple
   }
 
   // HIG segmented underline tabs

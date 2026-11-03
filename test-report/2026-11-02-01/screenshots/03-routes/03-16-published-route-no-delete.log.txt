@@ -1,0 +1,20 @@
+用例: 03-16-published-route-no-delete
+时间: 2026-11-03T01:57:44.976Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/routes?environment=default
+
+--- Extra ---
+菜单项: 编辑 | 画布 | 复制 | 下线; 删除项数: 0

@@ -10,8 +10,9 @@ describe('RouteConditionsTable — priority range validation', () => {
     expect(src).not.toMatch(/priority:\s*0/)
   })
 
-  it('uses el-input-number with min=1 and max=999 for priority', () => {
-    expect(src).toMatch(/el-input-number/)
+  it('uses FcInputNumber with min=1 and max=999 for priority', () => {
+    expect(src).toMatch(/FcInputNumber/)
+    expect(src).not.toMatch(/<el-input-number/)
     expect(src).toMatch(/:min="1"/)
     expect(src).toMatch(/:max="999"/)
   })

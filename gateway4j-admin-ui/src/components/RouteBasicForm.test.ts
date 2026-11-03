@@ -25,8 +25,8 @@ const stubs: Record<string, any> = {
     props: ['modelValue', 'type', 'rows', 'maxlength'],
     template: '<textarea v-if="type === \'textarea\'" :value="modelValue" :maxlength="maxlength" @input="$emit(\'update:modelValue\', $event.target.value)" /><input v-else :type="type || \'text\'" :value="modelValue" :maxlength="maxlength" @input="$emit(\'update:modelValue\', $event.target.value)" />'
   }),
-  'el-input-number': defineComponent({
-    name: 'el-input-number',
+  'ElInputNumber': defineComponent({
+    name: 'ElInputNumber',
     props: ['modelValue', 'min', 'max'],
     emits: ['update:modelValue'],
     template: '<input type="number" :value="modelValue" @input="$emit(\'update:modelValue\', Number($event.target.value))" />'

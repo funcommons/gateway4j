@@ -9,7 +9,8 @@ defineOptions({ name: 'GlobalCommandPalette' })
  *
  * 特性:
  *  - 快捷键 ⌘/Ctrl + J (与 ⌘K 不冲突); Esc 关闭由 FcCommandPalette 内部处理
- *  - 命令按权限过滤 (usePermission.hasPermission, 与侧栏可见性保持一致)
+ *  - 命令按权限过滤 —— 权限码一律从目标路由的 meta.permission 推导,
+ *    与路由守卫 / 侧栏可见性同源 (不再各写各的权限字符串)
  *  - 目标路由不存在 (router.hasRoute = false) 的命令自动跳过
  *  - 文案全部走 i18n (labelKey), 面板本体不写死中文
  *
@@ -38,9 +39,10 @@ interface CommandDef {
   labelKey: string
   /** remix-icon class */
   icon: string
-  /** 需要的权限码 (与侧栏可见性一致); 空 = 所有人可见 */
-  permission?: string
-  /** 目标路由名 (router.hasRoute 为 false 时该命令不出现) */
+  /**
+   * 目标路由名 (router.hasRoute 为 false 时该命令不出现).
+   * 权限判据从该路由的 meta.permission 推导 —— **不要**在本表另写权限字符串.
+   */
   routeName?: string
   /** 静态目标路径 */
   path?: string
@@ -61,23 +63,24 @@ const { hasPermission } = usePermission()
 const themeCtx = inject<ThemeContext | null>('fc-theme', null)
 
 // ===== 页面跳转 =====
+// 权限不在这里写 —— 一律从 routeName 对应路由的 meta.permission 推导 (见 allowed()).
 const NAV_COMMANDS: CommandDef[] = [
-  { id: 'nav.dashboard', labelKey: 'sidebar.dashboard', icon: 'ri-dashboard-3-line', permission: 'monitor:read', routeName: 'Dashboard', path: '/dashboard', keywords: ['dashboard', 'monitor'] },
-  { id: 'nav.routes', labelKey: 'sidebar.routeList', icon: 'ri-list-check-line', permission: 'route:read', routeName: 'Routes', path: '/routes', keywords: ['route', 'list'] },
-  { id: 'nav.canvas', labelKey: 'sidebar.routeCanvas', icon: 'ri-share-forward-line', permission: 'route:edit', routeName: 'RouteCanvas', run: openRouteCanvas, keywords: ['canvas', 'flow'] },
-  { id: 'nav.importExport', labelKey: 'sidebar.routeImport', icon: 'ri-arrow-left-right-line', permission: 'route:edit', routeName: 'ImportExport', path: '/import-export', keywords: ['import', 'export'] },
-  { id: 'nav.plugins', labelKey: 'sidebar.pluginList', icon: 'ri-plug-line', permission: 'plugin:read', routeName: 'Plugins', path: '/plugins', keywords: ['plugin'] },
-  { id: 'nav.pluginsGlobal', labelKey: 'sidebar.pluginGlobal', icon: 'ri-global-line', permission: 'plugin:read', routeName: 'GlobalPlugins', path: '/plugins/global', keywords: ['global', 'plugin'] },
-  { id: 'nav.pluginsBuiltin', labelKey: 'sidebar.pluginBuiltin', icon: 'ri-stack-line', permission: 'plugin:read', routeName: 'BuiltinPlugins', path: '/plugins/builtin', keywords: ['builtin', 'plugin'] },
-  { id: 'nav.users', labelKey: 'sidebar.userList', icon: 'ri-user-3-line', permission: 'user:read', routeName: 'Users', path: '/users', keywords: ['user'] },
-  { id: 'nav.roles', labelKey: 'sidebar.rolePerm', icon: 'ri-shield-user-line', permission: 'user:read', routeName: 'Roles', path: '/roles', keywords: ['role', 'permission'] },
-  { id: 'nav.settings', labelKey: 'sidebar.settings', icon: 'ri-settings-3-line', permission: 'system:read', routeName: 'Settings', path: '/settings', keywords: ['setting', 'config'] }
+  { id: 'nav.dashboard', labelKey: 'sidebar.dashboard', icon: 'ri-dashboard-3-line', routeName: 'Dashboard', path: '/dashboard', keywords: ['dashboard', 'monitor'] },
+  { id: 'nav.routes', labelKey: 'sidebar.routeList', icon: 'ri-list-check-line', routeName: 'Routes', path: '/routes', keywords: ['route', 'list'] },
+  { id: 'nav.canvas', labelKey: 'sidebar.routeCanvas', icon: 'ri-share-forward-line', routeName: 'RouteCanvas', run: openRouteCanvas, keywords: ['canvas', 'flow'] },
+  { id: 'nav.importExport', labelKey: 'sidebar.routeImport', icon: 'ri-arrow-left-right-line', routeName: 'ImportExport', path: '/import-export', keywords: ['import', 'export'] },
+  { id: 'nav.plugins', labelKey: 'sidebar.pluginList', icon: 'ri-plug-line', routeName: 'Plugins', path: '/plugins', keywords: ['plugin'] },
+  { id: 'nav.pluginsGlobal', labelKey: 'sidebar.pluginGlobal', icon: 'ri-global-line', routeName: 'GlobalPlugins', path: '/plugins/global', keywords: ['global', 'plugin'] },
+  { id: 'nav.pluginsBuiltin', labelKey: 'sidebar.pluginBuiltin', icon: 'ri-stack-line', routeName: 'BuiltinPlugins', path: '/plugins/builtin', keywords: ['builtin', 'plugin'] },
+  { id: 'nav.users', labelKey: 'sidebar.userList', icon: 'ri-user-3-line', routeName: 'Users', path: '/users', keywords: ['user'] },
+  { id: 'nav.roles', labelKey: 'sidebar.rolePerm', icon: 'ri-shield-user-line', routeName: 'Roles', path: '/roles', keywords: ['role', 'permission'] },
+  { id: 'nav.settings', labelKey: 'sidebar.settings', icon: 'ri-settings-3-line', routeName: 'Settings', path: '/settings', keywords: ['setting', 'config'] }
 ]
 
 // ===== 快捷动作 =====
 const ACTION_COMMANDS: CommandDef[] = [
-  { id: 'action.route.create', labelKey: 'route.createTitle', icon: 'ri-add-line', permission: 'route:edit', routeName: 'RouteNew', path: '/routes/new', keywords: ['new', 'create', 'route'] },
-  { id: 'action.plugin.create', labelKey: 'plugin.createTitle', icon: 'ri-add-line', permission: 'plugin:edit', routeName: 'PluginNew', path: '/plugins/new', keywords: ['new', 'create', 'plugin'] }
+  { id: 'action.route.create', labelKey: 'route.createTitle', icon: 'ri-add-line', routeName: 'RouteNew', path: '/routes/new', keywords: ['new', 'create', 'route'] },
+  { id: 'action.plugin.create', labelKey: 'plugin.createTitle', icon: 'ri-add-line', routeName: 'PluginNew', path: '/plugins/new', keywords: ['new', 'create', 'plugin'] }
 ]
 
 const THEME_COMMAND: CommandDef = {
@@ -123,9 +126,29 @@ function flattenRoutes(nodes: any, out: any[] = []): any[] {
 }
 
 // ===== 命令装配 =====
+/**
+ * 命令可见性判据 —— 与路由守卫 **同源** (src/router/index.ts 的 beforeEach).
+ *
+ * 守卫的判据是:
+ *   const perm = to.meta.permission
+ *   if (perm && !auth.permissions.some(p => p.permission_code === perm)) return false  // 中止跳转
+ * 面板的判据必须与它逐字一致, 否则会出现「面板里看得见, 点进去被守卫弹『无权限』」的假入口
+ * (历史上就踩过: 用户组按 user:read 放行, 而 /users 路由要 system:user).
+ *
+ * 因此命令 **不再另写一套权限字符串**: 一律从路由自己的 meta.permission 推导.
+ * - 路由声明了 permission -> 必须持有该权限码, 否则不可见;
+ * - 路由没声明 permission -> 守卫也不拦它, 面板同样不拦.
+ */
+function routePermission(routeName: string): string | undefined {
+  const route = router.getRoutes().find((r) => String(r.name) === routeName)
+  return (route?.meta as { permission?: string } | undefined)?.permission
+}
+
 function allowed(c: CommandDef): boolean {
-  if (c.permission && !hasPermission(c.permission)) return false
-  if (c.routeName && !router.hasRoute(c.routeName)) return false
+  if (!c.routeName) return true
+  if (!router.hasRoute(c.routeName)) return false
+  const perm = routePermission(c.routeName)
+  if (perm && !hasPermission(perm)) return false
   return true
 }
 

@@ -41,7 +41,7 @@
         <template #default="{ row }">
           <template v-if="(row as any).condition_type === 'WEIGHT'">
             <div class="weight-cell">
-              <el-input-number
+              <FcInputNumber
                 :model-value="weightNumber(row as RouteCondition)"
                 :min="1"
                 :max="100"
@@ -91,7 +91,7 @@
       </el-table-column>
       <el-table-column :label="t('route.priorityLabel')" prop="priority" width="100">
         <template #default="{ row }">
-          <el-input-number
+          <FcInputNumber
             :model-value="(row as any).priority"
             :min="1" :max="999"
             @update:model-value="(v: number | undefined) => updateRow(row as RouteCondition, 'priority', v ?? 1)"
@@ -111,7 +111,7 @@
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { FcTable, FcButton, FcSelect, FcInput, FcTag, FcTooltip } from '@/components'
+import { FcTable, FcButton, FcSelect, FcInput, FcTag, FcTooltip, FcInputNumber } from '@/components'
 import type { SelectOption } from '@/components/form/_types'
 import { parseWeight, WEIGHT_MIN, WEIGHT_MAX } from '@/utils/weight'
 
@@ -216,7 +216,7 @@ const typeOptions = computed(() => [
   { value: 'WEIGHT', label: t('route.condTypeWeight') }
 ])
 
-/** 行内权重展示值：非法时回退 null（el-input-number 空态） */
+/** 行内权重展示值：非法时回退 null（数字输入框空态） */
 function weightNumber(row: RouteCondition): number | null {
   return parseWeight(row.condition_key)
 }

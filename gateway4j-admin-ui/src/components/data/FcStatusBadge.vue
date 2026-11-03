@@ -75,7 +75,11 @@ const resolvedLabel = computed(() => props.label || (slots.default ? '' : ''))
   line-height: 1;
 
   /* 色调（--badge-color）用于底色/实底；文字档（--badge-ink）是同一色相压暗一档
-     的版本 —— 语义色本身在白卡上只有 2.4~3.2:1，作正文不达标（规则 40）。 */
+     的版本 —— 语义色本身在白卡上只有 2.4~3.2:1，作正文不达标（规则 40）。
+
+     注意：浅底的底色不是白卡，而是「白卡 + 12% 语义色」的染色底 —— 比白卡深。
+     所以墨色要用「染色底专用档」（--*-text-on-tint），不能用白卡正文档
+     （--app-color-*-text）：后者按白卡配到 4.5:1，落到染色底上只有 4.3~4.4:1。 */
   --badge-bg: color-mix(in srgb, var(--badge-color, currentColor) 12%, transparent);
   --badge-fg: var(--badge-ink, var(--app-text-secondary));
 }
@@ -86,18 +90,19 @@ const resolvedLabel = computed(() => props.label || (slots.default ? '' : ''))
   color: var(--badge-fg);
 }
 
-/* 实底 —— 白字压在浅色调上不达标，实底同样压暗一档 */
+/* 实底 —— 白字压在浅色调上不达标，实底同样压暗一档
+   （70% + 黑：语义色实底 + 白字 ≥4.5:1，与 --app-primary-fill 同一档） */
 .fc-status-badge.is-solid {
-  background: color-mix(in srgb, var(--badge-color, currentColor) 75%, black);
+  background: color-mix(in srgb, var(--badge-color, currentColor) 70%, black);
   color: var(--app-on-primary);
 }
 
 /* tones */
-.tone-success  { --badge-color: var(--app-color-success);  --badge-ink: var(--app-color-success-text); }
-.tone-processing { --badge-color: var(--app-primary);      --badge-ink: var(--app-accent-text); }
-.tone-error    { --badge-color: var(--app-color-danger);   --badge-ink: var(--app-color-danger-text); }
-.tone-pending  { --badge-color: var(--app-color-warning);  --badge-ink: var(--app-color-warning-text); }
-.tone-neutral  { --badge-color: var(--app-text-tertiary);  --badge-ink: var(--app-text-secondary); }
+.tone-success  { --badge-color: var(--app-color-success);  --badge-ink: var(--app-color-success-text-on-tint); }
+.tone-processing { --badge-color: var(--app-primary);      --badge-ink: var(--app-accent-text-on-tint); }
+.tone-error    { --badge-color: var(--app-color-danger);   --badge-ink: var(--app-color-danger-text-on-tint); }
+.tone-pending  { --badge-color: var(--app-color-warning);  --badge-ink: var(--app-color-warning-text-on-tint); }
+.tone-neutral  { --badge-color: var(--app-text-tertiary);  --badge-ink: var(--app-text-secondary-on-tint); }
 
 /* sizes */
 .size-sm {

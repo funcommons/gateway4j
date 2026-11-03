@@ -2,7 +2,7 @@
   <div class="app-page">
     <FcSection>
       <FcFilterBar>
-        <FcInput v-model="keyword" :placeholder="t('plugin.searchPlaceholder')" clearable @enter="reload" />
+        <FcInput v-model="keyword" :placeholder="t('plugin.searchPlaceholder')" clearable style="max-width: 280px" @enter="reload" />
         <FcSelect
           v-model="type"
           :options="typeOpts"
@@ -60,14 +60,26 @@
               />
             </template>
           </el-table-column>
-          <el-table-column :label="t('common.more')" width="280" :fixed="isMobile ? false : 'right'">
+          <!-- 动作列收成真下拉：行内平铺按钮太宽，会把右侧列顶出可视区 -->
+          <el-table-column :label="t('common.more')" width="120" :fixed="isMobile ? false : 'right'">
             <template #default="{ row }">
-              <FcButton v-if="canEdit('plugin')" variant="text" size="sm" @click="onEdit(row)">{{ t('common.edit') }}</FcButton>
-              <FcButton v-if="canEdit('plugin') && row.status === 'DISABLED'" variant="text" size="sm" @click="enable(row)">{{ t('common.enable') }}</FcButton>
-              <FcButton v-if="canEdit('plugin') && row.status === 'ENABLED'" variant="text" size="sm" @click="disable(row)">{{ t('common.disable') }}</FcButton>
-              <FcConfirm v-if="canEdit('plugin') && row.status !== 'ENABLED'" :content="t('plugin.confirmDelete')" @confirm="del(row)">
-                <FcButton variant="text" size="sm" type="danger">{{ t('common.delete') }}</FcButton>
-              </FcConfirm>
+              <FcDropdown
+                v-if="canEdit('plugin')"
+                :items="pluginRowActions(row)"
+                placement="bottom-end"
+                @command="(cmd: FcDropdownCommand) => onPluginRowAction(cmd, row)"
+              >
+                <template #default>
+                  <button
+                    type="button"
+                    class="fc-button fc-button-secondary fc-button-xs fc-button-icon fc-button-circle row-actions-trigger"
+                    :aria-label="t('common.more')"
+                    data-testid="row-actions"
+                  >
+                    <FcIcon name="ri-more-line" aria-hidden="true" />
+                  </button>
+                </template>
+              </FcDropdown>
             </template>
           </el-table-column>
         </FcTable>
@@ -151,6 +163,22 @@
 .card-name { font-size: 14px; font-weight: 500; }
 .card-id { font-size: 12px; color: var(--app-text-secondary); }
 .card-actions { display: flex; gap: 4px; margin-top: 4px; }
+
+/* 行内动作触发器（FcDropdown 默认插槽里的裸 button）：裸 button 拿不到 SDK
+   组件的状态契约，本文件里补齐八态中缺失的三态（gate 26a / 26b）。
+   :active 用 opacity 而不是 transform —— 不引入需要 PRM 兜底的动效。 */
+.row-actions-trigger:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+}
+.row-actions-trigger:active:not(:disabled) {
+  opacity: 0.85;
+}
+.row-actions-trigger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 </style>
 
 <script setup lang="ts">
@@ -162,9 +190,10 @@ import { usePermission } from '@/composables/usePermission'
 import { useRouter } from 'vue-router'
 import { useDebounce } from '@/composables'
 import {
-  FcSection, FcFilterBar, FcInput, FcSelect, FcTable, FcTag, FcStatusBadge, FcButton, FcConfirm,
+  FcSection, FcFilterBar, FcInput, FcSelect, FcTable, FcTag, FcStatusBadge, FcButton, FcDropdown, FcIcon,
   FcPagination, FcEmpty, FcSkeleton, toast
 } from '@/components'
+import type { FcDropdownItem, FcDropdownCommand } from '@/components'
 import {
   listPlugins, enablePlugin, disablePlugin, deletePlugin
 } from '@/api/plugins'
@@ -293,5 +322,45 @@ async function del(r: any) {
 async function onEdit(r: any) {
   if (!canEdit('plugin')) return
   await router.push(`/plugins/${r.id}/edit`)
+}
+
+// ===== 行内动作收进「更多」下拉（FcDropdown items prop）=====
+
+/** 该行的动作菜单项（按状态收敛，语义与原行内按钮完全一致） */
+function pluginRowActions(row: any): FcDropdownItem[] {
+  const items: FcDropdownItem[] = [
+    { label: t('common.edit'), command: 'edit', icon: 'ri-edit-line' },
+  ]
+  if (row.status === 'DISABLED') items.push({ label: t('common.enable'), command: 'enable', icon: 'ri-play-circle-line' })
+  if (row.status === 'ENABLED') items.push({ label: t('common.disable'), command: 'disable', icon: 'ri-pause-circle-line' })
+  // 删除只对非「已启用」状态开放（原行内按钮同口径）
+  if (row.status !== 'ENABLED') items.push({ label: t('common.delete'), command: 'delete', icon: 'ri-delete-bin-line', danger: true, divided: true })
+  return items
+}
+
+/** 下拉项分发（command → 原动作）；删除仍走确认弹窗，行为不变 */
+async function onPluginRowAction(cmd: FcDropdownCommand, row: any) {
+  switch (String(cmd)) {
+    case 'edit':
+      await onEdit(row)
+      break
+    case 'enable':
+      await enable(row)
+      break
+    case 'disable':
+      await disable(row)
+      break
+    case 'delete':
+      await confirmDelete(row)
+      break
+  }
+}
+
+/** 删除确认：原为 <FcConfirm> 包按钮，现在走命令式确认（标题/正文与原来一致） */
+async function confirmDelete(r: any) {
+  if (!canEdit('plugin')) return
+  const ok = await confirm({ title: t('common.tip'), content: t('plugin.confirmDelete') })
+  if (!ok) return
+  await del(r)
 }
 </script>

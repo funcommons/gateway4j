@@ -56,6 +56,12 @@
   --app-color-success-text: color-mix(in srgb, var(--app-color-success) 70%, white);
   --app-color-warning-text: color-mix(in srgb, var(--app-color-warning) 70%, white);
   --app-color-danger-text: color-mix(in srgb, var(--app-color-danger) 70%, white);
+  /* 染色底专用墨色：深底上染色底比卡片更暗 → 墨色比白卡那档再亮一档 */
+  --app-color-success-text-on-tint: color-mix(in srgb, var(--app-color-success) 60%, white);
+  --app-color-warning-text-on-tint: color-mix(in srgb, var(--app-color-warning) 60%, white);
+  --app-color-danger-text-on-tint: color-mix(in srgb, var(--app-color-danger) 60%, white);
+  --app-accent-text-on-tint: color-mix(in srgb, var(--app-primary) 60%, white);
+  --app-text-secondary-on-tint: color-mix(in srgb, var(--app-text-secondary) 88%, white);
 }
 
 [data-theme="orange-black"] {
@@ -83,4 +89,10 @@
   --app-color-success-text: color-mix(in srgb, var(--app-color-success) 70%, white);
   --app-color-warning-text: color-mix(in srgb, var(--app-color-warning) 70%, white);
   --app-color-danger-text: color-mix(in srgb, var(--app-color-danger) 70%, white);
+  /* 染色底专用墨色（同一套规则） */
+  --app-color-success-text-on-tint: color-mix(in srgb, var(--app-color-success) 60%, white);
+  --app-color-warning-text-on-tint: color-mix(in srgb, var(--app-color-warning) 60%, white);
+  --app-color-danger-text-on-tint: color-mix(in srgb, var(--app-color-danger) 60%, white);
+  --app-accent-text-on-tint: color-mix(in srgb, var(--app-primary) 60%, white);
+  --app-text-secondary-on-tint: color-mix(in srgb, var(--app-text-secondary) 88%, white);
 }

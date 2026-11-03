@@ -125,10 +125,8 @@ html[data-brand='google'] {
     box-shadow: inset 0 -2px 0 0 var(--brand-primary);
     background-color: rgba(103, 80, 164, 0.05);
   }
-  // Suppress brand-overrides mixin's gradient ring on M3
-  .el-input__wrapper.is-focus::before {
-    display: none;
-  }
+  // Focus is fully owned by M3 (the 2px bottom underline above); there is no
+  // separate ring layer to suppress.
 
   // M3 tab indicator — rounded pill (3px height)
   .el-tabs__active-bar {

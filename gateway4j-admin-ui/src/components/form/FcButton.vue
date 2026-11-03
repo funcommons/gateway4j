@@ -21,6 +21,7 @@ defineOptions({ name: 'FcButton', inheritAttrs: false })
  *   <FcButton circle :icon="Edit" />
  */
 import { computed, useAttrs, type Component } from 'vue'
+import { useFormDisabled } from 'element-plus'
 
 type ButtonVariant = 'primary' | 'secondary' | 'text' | 'danger'
 type ButtonSize = 'sm' | 'md' | 'lg' | 'small' | 'default' | 'large'
@@ -36,7 +37,7 @@ export interface FcButtonProps {
   icon?: Component | string
   /** 加载中. */
   loading?: boolean
-  /** 禁用. */
+  /** 禁用. 不传时继承 el-form 的 disabled. */
   disabled?: boolean
   /** 块级占满父宽. */
   block?: boolean
@@ -54,11 +55,20 @@ export interface FcButtonProps {
   epSize?: 'large' | 'default' | 'small'
 }
 
+/**
+ * disabled **故意不给默认值**（见 FcInput 的同款说明）:
+ * Boolean prop 缺省会被 Vue cast 成 false, 那样 `props.disabled` 恒为 false,
+ * el-form 的 disabled 就传不下去.
+ * 显式 `undefined` → 编译成 `default: undefined` → prop 真保持 undefined.
+ *
+ * 注意: 本组件的 `size` 是 **FC 自己的档位** (sm/md/lg), 不是 EP 的 size,
+ * 因此不受 el-form 的 size 继承影响 —— 它有独立的 epSize 逃生口.
+ */
 const props = withDefaults(defineProps<FcButtonProps>(), {
   variant: 'primary',
   size: 'md',
   loading: false,
-  disabled: false,
+  disabled: undefined,
   block: false,
   circle: false,
   plain: false,
@@ -67,6 +77,10 @@ const props = withDefaults(defineProps<FcButtonProps>(), {
   nativeType: 'button',
   epSize: undefined,
 })
+
+/** 生效禁用态: 自身 prop > el-form > false (与 el-button 内部的继承链同源). */
+const formDisabled = useFormDisabled()
+const isDisabled = computed(() => formDisabled.value)
 
 const emit = defineEmits<{ click: [event: MouseEvent] }>()
 
@@ -95,7 +109,7 @@ const resolvedSize = computed(() => {
 })
 
 const listeners = {
-  click: (e: MouseEvent) => { if (!props.disabled && !props.loading) emit('click', e) },
+  click: (e: MouseEvent) => { if (!isDisabled.value && !props.loading) emit('click', e) },
 }
 </script>
 
@@ -106,7 +120,7 @@ const listeners = {
     :size="resolvedSize"
     :icon="icon"
     :loading="loading"
-    :disabled="disabled"
+    :disabled="isDisabled"
     :circle="circle"
     :plain="plain"
     :link="link"

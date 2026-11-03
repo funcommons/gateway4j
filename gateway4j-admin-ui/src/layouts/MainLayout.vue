@@ -55,7 +55,9 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import type { Component } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import type { RouteRecordNormalized } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   FcMain,
@@ -75,7 +77,10 @@ import { useResponsive } from '@/components/utils/useResponsive'
 import GlobalSearch from '@/components/search/GlobalSearch.vue'
 import GlobalCommandPalette from '@/components/GlobalCommandPalette.vue'
 import PasswordStaleBanner from '@/components/PasswordStaleBanner.vue'
-import { Operation, Connection, Share, Histogram, User, Lock, Box, Grid, Setting } from '@element-plus/icons-vue'
+import {
+  Operation, Connection, Share, Histogram, User, UserFilled, Lock, Box, Grid, Setting,
+  Tickets, Files, Cpu
+} from '@element-plus/icons-vue'
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -105,7 +110,9 @@ const SIDEBAR_ROUTE_MAP: Record<string, string> = {
   Routes: '/routes',
   RouteNew: '/routes',
   RouteEdit: '/routes',
-  RouteCanvas: '/routes/:id/canvas',
+  // 画布是「某一条路由」的编辑器 (URL 必须带真实 route id), 不是顶层菜单项.
+  // 侧栏没有对应叶子, 高亮归属到「路由列表」, 与 RouteNew / RouteEdit 一致.
+  RouteCanvas: '/routes',
   ImportExport: '/import-export',
   Plugins: '/plugins',
   PluginNew: '/plugins',
@@ -119,17 +126,100 @@ const SIDEBAR_ROUTE_MAP: Record<string, string> = {
 
 const activePath = computed(() => SIDEBAR_ROUTE_MAP[String(route.name)] ?? route.path)
 
+/**
+ * 侧栏图标表: meta.icon / group.iconName 里写的名字 -> EP 图标组件.
+ * 只在这里维护一份, 路由表里存的是字符串 (见 src/router/index.ts 的 meta.icon).
+ */
+const SIDEBAR_ICONS: Record<string, Component> = {
+  Histogram, Connection, Share, Operation, Box, Grid, Setting, Tickets, Files, Cpu, User, UserFilled, Lock
+}
+
+const iconResolver = (name: string): Component | null => SIDEBAR_ICONS[name] ?? null
+
+/**
+ * 侧栏可见性判据 —— 与路由守卫 **同源** (src/router/index.ts 的 beforeEach).
+ *
+ * 守卫的判据是:
+ *   const perm = to.meta.permission
+ *   if (perm && !auth.permissions.some(p => p.permission_code === perm)) return false  // 中止跳转
+ * 侧栏的判据必须与它逐字一致, 否则会出现「侧栏看得见, 点进去被守卫弹『无权限』」的假入口
+ * (历史上就踩过: 用户组按 user:read 放行, 而 /users 路由要 system:user).
+ *
+ * 因此侧栏 **不再另写一套权限字符串**: 一律从路由自己的 meta.permission 推导.
+ * - 路由声明了 permission -> 必须持有该权限码, 否则不可见;
+ * - 路由没声明 permission -> 守卫也不拦它, 侧栏同样不拦.
+ */
+function canAccessRoute(route: RouteRecordNormalized | undefined): boolean {
+  if (!route) return false
+  const perm = (route.meta as { permission?: string } | undefined)?.permission
+  if (!perm) return true
+  return hasPermission(perm)
+}
+
+/** 按 route.name 取路由记录 (组级 visible 判定用). */
+function routeByName(name: string): RouteRecordNormalized | undefined {
+  return router.getRoutes().find((r) => String(r.name) === name)
+}
+
+/** 组 / 顶层规则可见 = 其叶子中「至少一个」对当前用户可进入 (OR). */
+function anyAccessible(names: string[]): boolean {
+  return names.some((n) => canAccessRoute(routeByName(n)))
+}
+
+/**
+ * 侧栏信息架构 (IA) —— 5 个顶层项 / 9 个叶子:
+ *
+ *   监控大盘            (叶子)
+ *   路由管理            (组) 路由列表 / 导入导出
+ *   插件管理            (组) 插件列表 / 全局插件 / 内置插件
+ *   用户管理            (组) 用户列表 / 角色权限
+ *   系统设置            (叶子)
+ *
+ * 说明:
+ * - 组名与叶子名不再重名 (组名用 sidebar.route / sidebar.plugin / sidebar.user).
+ * - 「路由编排画布」**不在侧栏**: 画布是某一条路由的编辑器, URL 必须带真实 route id
+ *   (/routes/:id/canvas 里的 :id 是路径模板, 不是真实 id), 作为顶层菜单项是概念错误.
+ *   正路是路由列表行内的「画布」按钮, 路由本身 (RouteCanvas) 完全保留.
+ * - order 让顶层叶子与分组混合排序 (否则 SDK 默认「叶子全在前、分组全在后」,
+ *   叶子就夹不到分组中间). 未声明 order 的规则排最后.
+ * - 可见性一律走 canAccessRoute (路由 meta.permission), 与守卫同源:
+ *   路由列表 route:read / 导入导出 route:edit / 插件三个 plugin:read /
+ *   用户列表 system:user / 角色权限 user:read / 监控大盘 monitor:read / 系统设置 system:read.
+ */
 const navItems = useSidebarNavItems({
+  iconResolver,
+  topLevels: [
+    { routeNames: ['Dashboard'], visible: () => anyAccessible(['Dashboard']), leafFilter: canAccessRoute, order: 10 },
+    { routeNames: ['Settings'], visible: () => anyAccessible(['Settings']), leafFilter: canAccessRoute, order: 50 }
+  ],
   groups: [
-    { id: 'monitor', labelKey: 'sidebar.dashboard', icon: Histogram, routeNames: ['Dashboard'], visible: () => hasPermission('monitor:read') },
-    { id: 'route', labelKey: 'sidebar.routeList', icon: Connection, routeNames: ['Routes'], visible: () => hasPermission('route:read') },
-    { id: 'canvas', labelKey: 'sidebar.routeCanvas', icon: Share, routeNames: ['RouteCanvas'], visible: () => hasPermission('route:edit') },
-    { id: 'import', labelKey: 'sidebar.routeImport', icon: Operation, routeNames: ['ImportExport'], visible: () => hasPermission('route:edit') },
-    { id: 'plugin', labelKey: 'sidebar.pluginList', icon: Box, routeNames: ['Plugins'], visible: () => hasPermission('plugin:read') },
-    { id: 'plugin-global', labelKey: 'sidebar.pluginGlobal', icon: Box, routeNames: ['GlobalPlugins'], visible: () => hasPermission('plugin:read') },
-    { id: 'user', labelKey: 'sidebar.userList', icon: User, routeNames: ['Users'], visible: () => hasPermission('user:read') },
-    { id: 'role', labelKey: 'sidebar.rolePerm', icon: Lock, routeNames: ['Roles'], visible: () => hasPermission('user:read') },
-    { id: 'settings', labelKey: 'sidebar.settings', icon: Setting, routeNames: ['Settings'], visible: () => hasPermission('system:read') }
+    {
+      id: 'route',
+      labelKey: 'sidebar.route',
+      iconName: 'Connection',
+      routeNames: ['Routes', 'ImportExport'],
+      visible: () => anyAccessible(['Routes', 'ImportExport']),
+      leafFilter: canAccessRoute,
+      order: 20
+    },
+    {
+      id: 'plugin',
+      labelKey: 'sidebar.plugin',
+      iconName: 'Box',
+      routeNames: ['Plugins', 'GlobalPlugins', 'BuiltinPlugins'],
+      visible: () => anyAccessible(['Plugins', 'GlobalPlugins', 'BuiltinPlugins']),
+      leafFilter: canAccessRoute,
+      order: 30
+    },
+    {
+      id: 'user',
+      labelKey: 'sidebar.user',
+      iconName: 'User',
+      routeNames: ['Users', 'Roles'],
+      visible: () => anyAccessible(['Users', 'Roles']),
+      leafFilter: canAccessRoute,
+      order: 40
+    }
   ]
 })
 

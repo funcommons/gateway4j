@@ -2,7 +2,7 @@
   <div class="app-page">
     <FcSection>
       <FcFilterBar>
-        <FcInput v-model="keyword" :placeholder="t('user.searchPlaceholder')" clearable @enter="reload" />
+        <FcInput v-model="keyword" :placeholder="t('user.searchPlaceholder')" clearable style="max-width: 280px" @enter="reload" />
         <template #actions>
           <FcButton v-if="canEdit('user')" variant="primary" @click="openCreate">{{ t('common.create') }}</FcButton>
         </template>
@@ -29,14 +29,26 @@
             />
           </template>
         </el-table-column>
-        <el-table-column :label="t('common.more')" width="320" :fixed="isMobile ? false : 'right'">
+        <!-- 动作列收成真下拉：行内平铺 4 个按钮太宽，会把右侧列顶出可视区 -->
+        <el-table-column :label="t('common.more')" width="120" :fixed="isMobile ? false : 'right'">
           <template #default="{ row }">
-            <FcButton v-if="canEdit('user')" variant="text" size="sm" @click="openEdit(row)">{{ t('common.edit') }}</FcButton>
-            <FcButton v-if="canEdit('user')" variant="text" size="sm" @click="toggleStatus(row)">{{ row.status === 'ENABLED' ? t('common.disable') : t('common.enable') }}</FcButton>
-            <FcButton v-if="canEdit('user')" variant="text" size="sm" @click="openReset(row)">{{ t('user.resetPassword') }}</FcButton>
-            <FcConfirm v-if="canEdit('user')" :content="t('common.confirmDelete')" @confirm="del(row)">
-              <FcButton variant="text" size="sm" type="danger">{{ t('common.delete') }}</FcButton>
-            </FcConfirm>
+            <FcDropdown
+              v-if="canEdit('user')"
+              :items="userRowActions(row)"
+              placement="bottom-end"
+              @command="(cmd: FcDropdownCommand) => onUserRowAction(cmd, row)"
+            >
+              <template #default>
+                <button
+                  type="button"
+                  class="fc-button fc-button-secondary fc-button-xs fc-button-icon fc-button-circle row-actions-trigger"
+                  :aria-label="t('common.more')"
+                  data-testid="row-actions"
+                >
+                  <FcIcon name="ri-more-line" aria-hidden="true" />
+                </button>
+              </template>
+            </FcDropdown>
           </template>
         </el-table-column>
       </FcTable>
@@ -131,9 +143,10 @@ import { useFcConfirm } from '@/composables/useFcConfirm'
 import { usePermission } from '@/composables/usePermission'
 import { useDebounce } from '@/composables'
 import {
-  FcSection, FcFilterBar, FcInput, FcSelect, FcTable, FcTag, FcStatusBadge, FcButton, FcConfirm,
+  FcSection, FcFilterBar, FcInput, FcSelect, FcTable, FcTag, FcStatusBadge, FcButton, FcDropdown, FcIcon,
   FcDialog, FcFormItem, FcHelpTip, FcPagination, FcSkeleton, FcEmpty, toast
 } from '@/components'
+import type { FcDropdownItem, FcDropdownCommand } from '@/components'
 import type { SelectOption } from '@/components/form/_types'
 import { listUsers, createUser, updateUser, deleteUser, resetPassword } from '@/api/misc'
 import { listRoles } from '@/api/auth'
@@ -295,8 +308,50 @@ async function del(r: any) {
     actionError.value = e?.message || t('common.actionFailed')
   }
 }
-function openReset(r: any) { targetUser.value = r; newPwd.value = ''; resetOpen.value = true; actionError.value = '' }
-async function doReset() {
+
+// ===== 行内动作收进「更多」下拉（FcDropdown items prop）=====
+
+/** 该行的动作菜单项（语义与原行内按钮完全一致） */
+function userRowActions(row: any): FcDropdownItem[] {
+  return [
+    { label: t('common.edit'), command: 'edit', icon: 'ri-edit-line' },
+    {
+      label: row.status === 'ENABLED' ? t('common.disable') : t('common.enable'),
+      command: 'toggle',
+      icon: row.status === 'ENABLED' ? 'ri-pause-circle-line' : 'ri-play-circle-line',
+    },
+    { label: t('user.resetPassword'), command: 'reset', icon: 'ri-key-2-line' },
+    { label: t('common.delete'), command: 'delete', icon: 'ri-delete-bin-line', danger: true, divided: true },
+  ]
+}
+
+/** 下拉项分发（command → 原动作）；删除仍走确认弹窗，行为不变 */
+async function onUserRowAction(cmd: FcDropdownCommand, row: any) {
+  switch (String(cmd)) {
+    case 'edit':
+      openEdit(row)
+      break
+    case 'toggle':
+      await toggleStatus(row)
+      break
+    case 'reset':
+      openReset(row)
+      break
+    case 'delete':
+      await confirmDelete(row)
+      break
+  }
+}
+
+/** 删除确认：原为 <FcConfirm> 包按钮，现在走命令式确认（标题/正文与原来一致） */
+async function confirmDelete(r: any) {
+  if (!canEdit('user')) return
+  const ok = await confirm({ title: t('common.tip'), content: t('common.confirmDelete') })
+  if (!ok) return
+  await del(r)
+}
+
+function openReset(r: any) { targetUser.value = r; newPwd.value = ''; resetOpen.value = true; actionError.value = '' }async function doReset() {
   if (!canEdit('user')) return
   if (!targetUser.value || !newPwd.value) return
   if (resetting.value) return
@@ -346,4 +401,20 @@ async function doReset() {
   font-size: 13px;
   margin: 8px 0 0;
 }
+
+/* 行内动作触发器（FcDropdown 默认插槽里的裸 button）：裸 button 拿不到 SDK
+   组件的状态契约，本文件里补齐八态中缺失的三态（gate 26a / 26b）。
+   :active 用 opacity 而不是 transform —— 不引入需要 PRM 兜底的动效。 */
+.row-actions-trigger:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+}
+.row-actions-trigger:active:not(:disabled) {
+  opacity: 0.85;
+}
+.row-actions-trigger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 </style>

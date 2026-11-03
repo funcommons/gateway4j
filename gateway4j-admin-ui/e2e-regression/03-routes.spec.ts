@@ -1,4 +1,23 @@
 import { test, expect, login, shot, writeEvidence, formField, confirmButton, confirmPublish, uniq, apiCall } from './helpers'
+import type { Page } from '@playwright/test'
+
+/**
+ * 「更多」下拉（FcDropdown）菜单项定位。
+ * 行内动作已收进真下拉：菜单项是 EP 的 el-dropdown-item（role=menuitem），
+ * 但它的无障碍名带图标字形（" 发布"），所以不能用 exact 的 name 匹配 ——
+ * 改为「可见菜单 + 精确文案」定位，既不受图标字形影响，也不会命中侧边栏的 menuitem。
+ */
+function rowMenuItems(page: Page) {
+  return page.locator('.el-dropdown-menu:visible .el-dropdown-menu__item')
+}
+function rowMenuItem(page: Page, label: string) {
+  return rowMenuItems(page).filter({ hasText: new RegExp(`^${label}$`) })
+}
+/** 打开某一行（默认第一行）的「更多」下拉 */
+async function openRowMenu(page: Page, rowIndex = 0) {
+  await page.getByTestId('row-actions').nth(rowIndex).click()
+  await page.waitForTimeout(400)
+}
 
 /**
  * BL-03 路由管理（列表 + 编辑器）
@@ -209,7 +228,9 @@ test.describe('BL-03 路由管理', () => {
     await page.locator('.fc-filter-bar input').first().fill(name)
     await page.locator('.fc-filter-bar input').first().press('Enter')
     await page.waitForTimeout(1500)
-    await page.getByRole('button', { name: '发布', exact: true }).first().click()
+    // 行内动作已收进「更多」下拉：先打开该行菜单，再点「发布」菜单项
+    await openRowMenu(page)
+    await rowMenuItem(page, '发布').first().click()
     await page.waitForTimeout(900)
     await shot('routes', '03-14-publish-confirm-dialog')
     await confirmPublish(page)
@@ -243,7 +264,9 @@ test.describe('BL-03 路由管理', () => {
     await page.locator('.fc-filter-bar input').first().fill(name)
     await page.locator('.fc-filter-bar input').first().press('Enter')
     await page.waitForTimeout(1500)
-    await page.getByRole('button', { name: '发布', exact: true }).first().click()
+    // 行内动作已收进「更多」下拉：先打开该行菜单，再点「发布」菜单项
+    await openRowMenu(page)
+    await rowMenuItem(page, '发布').first().click()
     await page.waitForTimeout(900)
     await confirmPublish(page)
     await page.waitForTimeout(3000)
@@ -252,7 +275,9 @@ test.describe('BL-03 路由管理', () => {
     await page.locator('.fc-filter-bar input').first().fill(name)
     await page.locator('.fc-filter-bar input').first().press('Enter')
     await page.waitForTimeout(1500)
-    await page.getByRole('button', { name: '下线', exact: true }).first().click()
+    // 已发布 → 菜单里是「下线」
+    await openRowMenu(page)
+    await rowMenuItem(page, '下线').first().click()
     await page.waitForTimeout(900)
     await shot('routes', '03-15-offline-confirm-dialog')
     await confirmButton(page).click()
@@ -273,11 +298,16 @@ test.describe('BL-03 路由管理', () => {
     await page.locator('.fc-filter-bar input').first().press('Enter')
     await page.waitForTimeout(1500)
     const row = page.locator('.el-table__body-wrapper tbody tr').first()
-    const del = row.getByRole('button', { name: '删除', exact: true })
-    const count = await del.count()
+    // 行内动作已收进「更多」下拉：必须先打开该行菜单，再看菜单里有没有「删除」项
+    // （比旧断言更强：旧断言只看行内按钮在不在，现在直接看菜单内容）
+    await openRowMenu(page)
+    const menuItems = (await rowMenuItems(page).allInnerTexts()).map(s => s.trim())
+    const count = await rowMenuItem(page, '删除').count()
     await shot('routes', '03-16-published-route-no-delete')
-    expect(count, '已发布路由不应出现删除按钮').toBe(0)
-    writeEvidence('routes', '03-16-published-route-no-delete', diag, `删除按钮数: ${count}`)
+    expect(count, '已发布路由的「更多」菜单中不应出现删除项').toBe(0)
+    expect(menuItems.length, '已发布路由的「更多」菜单应仍提供其它动作').toBeGreaterThan(0)
+    writeEvidence('routes', '03-16-published-route-no-delete', diag,
+      `菜单项: ${menuItems.join(' | ')}; 删除项数: ${count}`)
   })
 
   test('03-17 草稿路由可删除（删除后列表中消失）', async ({ page, shot, diag }) => {
@@ -294,7 +324,9 @@ test.describe('BL-03 路由管理', () => {
     await page.locator('.fc-filter-bar input').first().fill(name)
     await page.locator('.fc-filter-bar input').first().press('Enter')
     await page.waitForTimeout(1500)
-    await page.getByRole('button', { name: '删除', exact: true }).first().click()
+    // 行内动作已收进「更多」下拉：先打开该行菜单，再点菜单里的「删除」
+    await openRowMenu(page)
+    await rowMenuItem(page, '删除').first().click()
     await page.waitForTimeout(900)
     await shot('routes', '03-17-delete-confirm-dialog')
     await confirmButton(page).click()

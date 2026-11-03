@@ -21,6 +21,7 @@ defineOptions({ name: 'FcRadioGroup' })
  *   </FcRadioGroup>
  */
 import { computed, provide } from 'vue'
+import { useFormDisabled, useFormSize } from 'element-plus'
 import { FC_RADIO_GROUP_KEY } from './radioContext'
 import type { SelectOption } from './_types'
 import FcRadio from './FcRadio.vue'
@@ -34,14 +35,22 @@ export interface FcRadioGroupProps {
   options?: SelectOption<RadioValue>[]
   /** 声明式渲染样式. 'radio'=圆点, 'button'=分段按钮. 默认 'radio'. */
   variant?: 'radio' | 'button'
+  /** 禁用. 不传时继承 el-form 的 disabled. */
   disabled?: boolean
+  /** 尺寸. 不传时继承 el-form 的 size. */
   size?: 'small' | 'default' | 'large'
 }
 
+/**
+ * disabled / size **故意不给默认值**（见 FcInput 的同款说明）:
+ * Boolean prop 缺省会被 Vue cast 成 false, 写死 size: 'default' 也会压死继承.
+ * 显式 `undefined` → 编译成 `default: undefined` → prop 真保持 undefined,
+ * 再由 EP 的 useFormDisabled / useFormSize 解析继承链 (自身 prop > el-form > 兜底).
+ */
 const props = withDefaults(defineProps<FcRadioGroupProps>(), {
   variant: 'radio',
-  disabled: false,
-  size: 'default',
+  disabled: undefined,
+  size: undefined,
 })
 
 const emit = defineEmits<{
@@ -49,16 +58,23 @@ const emit = defineEmits<{
   change: [value: RadioValue]
 }>()
 
+/** 生效禁用态: 自身 prop > el-form > false. */
+const formDisabled = useFormDisabled()
+const isDisabled = computed(() => formDisabled.value)
+/** 生效尺寸: 自身 prop > el-form > 'default'. */
+const formSize = useFormSize()
+const resolvedSize = computed(() => props.size || formSize.value || 'default')
+
 function pick(value: RadioValue) {
-  if (props.disabled) return
+  if (isDisabled.value) return
   emit('update:modelValue', value)
   emit('change', value)
 }
 
 provide(FC_RADIO_GROUP_KEY, {
   value: computed(() => props.modelValue),
-  size: computed(() => props.size),
-  disabled: computed(() => props.disabled),
+  size: computed(() => resolvedSize.value),
+  disabled: computed(() => isDisabled.value),
   pick,
 })
 
@@ -69,7 +85,7 @@ const OptionComp = computed(() => (props.variant === 'button' ? FcRadioButton : 
 <template>
   <div
     class="fc-radio-group"
-    :class="[`size-${size}`, { 'is-button': variant === 'button' }]"
+    :class="[`size-${resolvedSize}`, { 'is-button': variant === 'button' }]"
     role="radiogroup"
   >
     <template v-if="optionsList.length">

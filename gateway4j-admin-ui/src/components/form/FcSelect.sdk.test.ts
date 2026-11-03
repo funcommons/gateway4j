@@ -1,4 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
+import { h } from 'vue'
+import { ElForm } from 'element-plus'
+import { mount } from '@vue/test-utils'
 import { mountFc, emittedOf } from '../__tests__/helpers/mount'
 import FcSelect from './FcSelect.vue'
 
@@ -55,5 +58,31 @@ describe('FcSelect', () => {
     await w.setProps({ modelValue: 'b' })
     // setProps 不会 emit change, 但确保 v-model 变化不抛错
     expect(w.find('.el-select').exists()).toBe(true)
+  })
+
+  it('不写死 size → 继承 el-form 的 size（el-form size="small" 对本组件生效）', () => {
+    const w = mount({
+      render: () =>
+        h(ElForm, { size: 'small' }, { default: () => h(FcSelect, { modelValue: '', options }) }),
+    })
+    expect(w.find('.el-select--small').exists()).toBe(true)
+  })
+
+  it('不写死 disabled → 继承 el-form 的 disabled（el-form disabled 对本组件生效）', () => {
+    const w = mount({
+      render: () =>
+        h(ElForm, { disabled: true }, { default: () => h(FcSelect, { modelValue: '', options }) }),
+    })
+    expect(w.find('.el-select__wrapper.is-disabled').exists()).toBe(true)
+    expect(w.find('input').attributes('disabled')).toBeDefined()
+  })
+
+  it('不传 size / disabled 时 EP 自己的默认值接管（视觉不变）', () => {
+    const w = mountFc(FcSelect, { props: { modelValue: '', options } })
+    // EP 的 el-select--default 没有对应 CSS 规则 —— 去掉写死的 size 不改视觉
+    expect(w.find('.el-select').exists()).toBe(true)
+    expect(w.find('.el-select__wrapper.is-disabled').exists()).toBe(false)
+    // 包装层不再出现 size-undefined 这种脏类名
+    expect(w.find('.fc-select').classes().some((c) => c.startsWith('size-'))).toBe(false)
   })
 })

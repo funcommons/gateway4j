@@ -48,6 +48,23 @@
   --app-color-success-text: color-mix(in srgb, var(--app-color-success) 70%, black);
   --app-color-warning-text: color-mix(in srgb, var(--app-color-warning) 70%, black);
   --app-color-danger-text: color-mix(in srgb, var(--app-color-danger) 70%, black);
+
+  /* 染色底专用墨色（gate 40）
+   *
+   * 徽标 / 标签的底不是白卡，而是「白卡 + 12% 语义色」的染色底 —— 比白卡深。
+   * 上面那三档 70% 压暗墨色是按**白卡**配到 4.5:1 的，落到染色底上会掉到线下
+   * （2026-11-02 实测：草稿徽标 4.36:1 / 后置标签 4.44:1）。
+   * 这几档是同一色相再压暗一档（60% 语义色 + 40% 黑），**只**供染色底使用；
+   * 白卡上的正文继续用上面那档 —— 两套互不影响，改动不波及全站。
+   * 深色主题层（themes.scss）里改为向白走（深底上染色底比卡片更暗，墨色要更亮）。 */
+  --app-color-success-text-on-tint: color-mix(in srgb, var(--app-color-success) 60%, black);
+  --app-color-warning-text-on-tint: color-mix(in srgb, var(--app-color-warning) 60%, black);
+  --app-color-danger-text-on-tint: color-mix(in srgb, var(--app-color-danger) 60%, black);
+  // 主色染色底（FcTag color-primary / color-brand、FcStatusBadge tone-processing）
+  --app-accent-text-on-tint: color-mix(in srgb, var(--app-primary) 60%, black);
+  // 中性染色底（灰底 + 灰字）：中性墨色在染色底上余量最小，再压一档
+  --app-text-secondary-on-tint: color-mix(in srgb, var(--app-text-secondary) 88%, black);
+
   // 主色上的前景色（按钮文字）
   --app-on-primary: #ffffff;
 

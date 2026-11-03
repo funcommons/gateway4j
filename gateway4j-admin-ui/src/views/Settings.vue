@@ -1,13 +1,13 @@
 <template>
   <div class="app-page">
-    <FcSection>
+    <FcSection class="settings-card">
       <p v-if="!canEdit('system')" class="readonly-hint" data-testid="readonly-hint">{{ t('common.readonlyHint') }}</p>
       <FcTabsPanel v-model="tab" :tabs="tabs">
         <template #tab-general>
           <p v-if="configLoadError" class="load-error" data-testid="config-load-error">{{ configLoadError }}</p>
           <FcSkeleton v-if="loading" variant="text" :rows="3" />
           <template v-else>
-          <el-form :model="generalForm" label-width="160px">
+          <el-form :model="generalForm" label-width="160px" class="settings-form">
             <FcFormItem :label="t('settings.siteName')">
               <FcInput v-model="generalForm.site_name" maxlength="50" />
             </FcFormItem>
@@ -24,13 +24,13 @@
           <p v-if="configLoadError" class="load-error" data-testid="config-load-error">{{ configLoadError }}</p>
           <FcSkeleton v-if="loading" variant="text" :rows="3" />
           <template v-else>
-          <el-form :model="securityForm" :rules="securityFormRules" label-width="160px" ref="securityFormRef">
+          <el-form :model="securityForm" :rules="securityFormRules" label-width="160px" ref="securityFormRef" class="settings-form">
             <FcFormItem :label="t('settings.tokenExpiry')" prop="token_expiry_hours">
-              <el-input-number v-model="securityForm.token_expiry_hours" :min="1" :max="8760" />
+              <FcInputNumber v-model="securityForm.token_expiry_hours" :min="1" :max="8760" />
               <FcHelpTip content-key="settings.help.tokenExpiry" />
             </FcFormItem>
             <FcFormItem :label="t('settings.refreshExpiry')" prop="refresh_expiry_days">
-              <el-input-number v-model="securityForm.refresh_expiry_days" :min="1" :max="365" />
+              <FcInputNumber v-model="securityForm.refresh_expiry_days" :min="1" :max="365" />
               <FcHelpTip content-key="settings.help.refreshExpiry" />
             </FcFormItem>
           </el-form>
@@ -86,7 +86,7 @@
                 @enter="onAuditFilterChange"
                 @clear="onAuditFilterChange"
               />
-              <el-date-picker
+              <FcDatePicker
                 v-model="auditRange"
                 type="datetimerange"
                 value-format="YYYY-MM-DDTHH:mm:ss"
@@ -170,7 +170,7 @@ import { useFcConfirm } from '@/composables/useFcConfirm'
 import { usePermission } from '@/composables/usePermission'
 import {
   FcSection, FcTabsPanel, FcInput, FcSelect, FcButton, FcTable, FcEmpty, FcFormItem, FcSkeleton,
-  FcTag, FcStatusBadge, FcPagination, FcHelpTip, toast
+  FcTag, FcStatusBadge, FcPagination, FcHelpTip, FcInputNumber, FcDatePicker, toast
 } from '@/components'
 import {
   getDict, getConfig, saveConfig, listChanges, listAuditLogs,
@@ -520,5 +520,59 @@ onBeforeRouteLeave(async () => {
   display: flex;
   justify-content: flex-end;
   margin-top: 12px;
+}
+/* ===== 设置页容器：封顶 + 居中（gate 44d）=====
+   上一轮只把两个 el-form 收窄到 480px，外层 FcSection 仍是全宽白盒 ——
+   病根没除（只是从「字段铺满」换成「窄列浮在空卡里」）。
+   这次限宽落在卡片上：卡片里还装着「字典查询」「变更记录」两张表，
+   只限表单会让表格继续留在大白盒里；限卡片则表单与表格共享同一个 measure，
+   1920 宽时两侧 gutters 变大、内容 measure 不变。
+   960px 是同时容下审计表固定列（180+180+140+110）与筛选工具条的最小舒适宽度。 */
+.settings-card {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+/* 通用/安全两个表单 tab：字段铺满卡片宽度（两列栅格），不再是一条窄列浮在空白里。
+   窄屏退化为单列。宽度/栅格是布局属性，不涉及颜色/圆角。 */
+.settings-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 24px;
+}
+
+@media (max-width: 860px) {
+  .settings-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ≤640px：label-width 是写死的 160px，输入框只剩 ~157px 且标签与输入框零间隙相接。
+   这里让标签换到输入框上方（等价于 EP 的 label-position="top"）。
+   走 CSS 而不是改 el-form 的 label-position prop：桌面端保持左标签布局，
+   不引入 resize 监听 / 不重渲染表单。
+   注意 el-form-item 的 label-width 是行内样式（style="width:160px"），
+   普通样式表压不住，必须 !important。 */
+@media (max-width: 640px) {
+  .settings-form :deep(.el-form-item) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .settings-form :deep(.el-form-item__label) {
+    width: auto !important;
+    height: auto;
+    line-height: 22px;
+    padding: 0;
+    margin-bottom: 4px;
+    text-align: left;
+    justify-content: flex-start;
+    display: block;
+  }
+  .settings-form :deep(.el-form-item__content) {
+    flex: none;
+    width: 100%;
+    margin-left: 0 !important;
+  }
 }
 </style>

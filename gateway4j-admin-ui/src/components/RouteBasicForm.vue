@@ -28,7 +28,7 @@
       <FcInput v-model="local.upstream_url" placeholder="http://backend:8080" maxlength="500" />
     </FcFormItem>
     <FcFormItem :label="t('route.sort')" prop="sort_order">
-      <el-input-number v-model="local.sort_order" :min="1" :max="9999" />
+      <FcInputNumber v-model="local.sort_order" :min="1" :max="9999" />
     </FcFormItem>
     <FcFormItem :label="t('route.remark')" prop="remark">
       <FcInput v-model="local.remark" type="textarea" :rows="3" maxlength="200" />
@@ -42,7 +42,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { FcInput, FcFormItem, FcSegmented, FcSelect, FcHelpTip } from '@/components'
+import { FcInput, FcFormItem, FcSegmented, FcSelect, FcHelpTip, FcInputNumber } from '@/components'
 import type { SelectOption } from '@/components/form/_types'
 
 export interface RouteBasic {

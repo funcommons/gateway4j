@@ -23,24 +23,38 @@ export interface FcSelectProps {
   options?: SelectOption[]
   placeholder?: string
   clearable?: boolean
+  /** 禁用. 不传时继承 el-form 的 disabled. */
   disabled?: boolean
   loading?: boolean
   /** 远程搜索模式 (启用 filterable + remote). */
   remote?: boolean
   /** 多选. */
   multiple?: boolean
+  /** 尺寸. 不传时继承 el-form 的 size. */
   size?: 'small' | 'default' | 'large'
   /** 空态文案. 默认 '无数据'. */
   emptyText?: string
 }
 
+/**
+ * disabled / size **故意不给默认值** —— EP 的 el-select 用
+ * `props.disabled ?? 继承值` / `props.size || 继承值` 决定禁用与尺寸,
+ * 显式写死 `disabled: false` / `size: 'default'` 会把「继承 el-form」的
+ * 语义压死（el-form size="small" 对本组件无效）。
+ *
+ * 注意：Boolean 型 prop 光「不写进 withDefaults」还不够 ——
+ * Vue 会把「缺省的 Boolean prop」自动 cast 成 false（`shouldCast`），
+ * 那样 `props.disabled` 还是 false，一样压死继承。
+ * 必须显式写 `disabled: undefined`（编译成 `default: undefined`），
+ * prop 才会真的保持 undefined，EP 才能走「继承 el-form」。
+ */
 const props = withDefaults(defineProps<FcSelectProps>(), {
   clearable: false,
-  disabled: false,
+  disabled: undefined,
   loading: false,
   remote: false,
   multiple: false,
-  size: 'default',
+  size: undefined,
   emptyText: '无数据',
 })
 
@@ -66,7 +80,7 @@ const listeners = computed(() => ({
 </script>
 
 <template>
-  <div class="fc-select" :class="[`size-${size}`]">
+  <div class="fc-select" :class="size ? [`size-${size}`] : undefined">
     <el-select
       v-bind="attrs"
       :model-value="modelValue"

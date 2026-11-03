@@ -97,9 +97,13 @@ const classes = computed(() => [
 <style scoped lang="scss">
 .fc-tag {
   /* 色调（--tag-color）用于底色/描边；文字档（--tag-ink）是同一色相压暗一档
-     的版本 —— 语义色本身在白卡上只有 2.4~3.2:1，作正文不达标（规则 40）。 */
+     的版本 —— 语义色本身在白卡上只有 2.4~3.2:1，作正文不达标（规则 40）。
+
+     注意：浅底的底色不是白卡，而是「白卡 + 12% 语义色」的染色底 —— 比白卡深。
+     所以墨色要用「染色底专用档」（--*-text-on-tint），不能用白卡正文档
+     （--app-color-*-text）：后者按白卡配到 4.5:1，落到染色底上只有 4.3~4.4:1。 */
   --tag-color: var(--app-primary);
-  --tag-ink: var(--app-accent-text);
+  --tag-ink: var(--app-accent-text-on-tint);
 
   display: inline-flex;
   align-items: center;
@@ -115,16 +119,17 @@ const classes = computed(() => [
   user-select: none;
 
   /* color tokens */
-  &.color-primary { --tag-color: var(--app-primary);      --tag-ink: var(--app-accent-text); }
-  &.color-gray    { --tag-color: var(--app-text-tertiary); --tag-ink: var(--app-text-secondary); }
-  &.color-success { --tag-color: var(--app-color-success); --tag-ink: var(--app-color-success-text); }
-  &.color-warning { --tag-color: var(--app-color-warning); --tag-ink: var(--app-color-warning-text); }
-  &.color-danger  { --tag-color: var(--app-color-danger);  --tag-ink: var(--app-color-danger-text); }
-  &.color-brand   { --tag-color: var(--brand-primary, var(--app-primary)); --tag-ink: var(--app-accent-text); }
+  &.color-primary { --tag-color: var(--app-primary);      --tag-ink: var(--app-accent-text-on-tint); }
+  &.color-gray    { --tag-color: var(--app-text-tertiary); --tag-ink: var(--app-text-secondary-on-tint); }
+  &.color-success { --tag-color: var(--app-color-success); --tag-ink: var(--app-color-success-text-on-tint); }
+  &.color-warning { --tag-color: var(--app-color-warning); --tag-ink: var(--app-color-warning-text-on-tint); }
+  &.color-danger  { --tag-color: var(--app-color-danger);  --tag-ink: var(--app-color-danger-text-on-tint); }
+  &.color-brand   { --tag-color: var(--brand-primary, var(--app-primary)); --tag-ink: var(--app-accent-text-on-tint); }
 
-  /* solid variant —— 白字压在浅色调上不达标，实底同样压暗一档 */
+  /* solid variant —— 白字压在浅色调上不达标，实底同样压暗一档
+     （70% + 黑：语义色实底 + 白字 ≥4.5:1，与 --app-primary-fill 同一档） */
   &.is-solid {
-    background: color-mix(in srgb, var(--tag-color) 75%, black);
+    background: color-mix(in srgb, var(--tag-color) 70%, black);
     color: var(--app-on-primary);
   }
 
@@ -156,7 +161,8 @@ const classes = computed(() => [
       transform: scale(0.96);
     }
     &.is-selected {
-      background: var(--tag-color);
+      /* 满色底 + 白字：白字压品牌主色只有 2.9:1 —— 实底同样压暗一档 */
+      background: color-mix(in srgb, var(--tag-color) 70%, black);
       color: var(--app-on-primary);
     }
   }

@@ -99,7 +99,7 @@
               <!-- P2-4：WEIGHT 权重边 → 条件值区切换为 1~100 数字输入（写入 condition_key，value 留空） -->
               <div v-if="selectedEdge.data.condition_type === 'WEIGHT'" class="prop-field">
                 <label>{{ t('route.edgeWeight') }}</label>
-                <el-input-number
+                <FcInputNumber
                   :model-value="parseWeight(selectedEdge.data.condition_key)"
                   :min="1"
                   :max="100"
@@ -115,7 +115,7 @@
               </div>
               <div class="prop-field">
                 <label>{{ t('route.edgePriority') }}</label>
-                <el-input-number v-model="selectedEdge.data.priority" data-testid="edge-priority" :min="1" :max="999" @change="markDirty" />
+                <FcInputNumber v-model="selectedEdge.data.priority" data-testid="edge-priority" :min="1" :max="999" @change="markDirty" />
               </div>
               <div class="prop-actions">
                 <FcButton variant="danger" size="sm" @click="deleteSelectedEdge">{{ t('common.delete') }}</FcButton>
@@ -203,7 +203,7 @@
           <FcTable v-if="applyDiff.to_delete?.length" :data="applyDeleteRows as any" stripe>
             <el-table-column width="48">
               <template #default="{ row }">
-                <el-checkbox v-model="row._checked" :data-testid="`apply-delete-check-${row.id}`" />
+                <FcCheckbox v-model="row._checked" :data-testid="`apply-delete-check-${row.id}`" />
               </template>
             </el-table-column>
             <el-table-column prop="id" label="ID" width="140" />
@@ -236,7 +236,8 @@ import '@vue-flow/controls/dist/style.css'
 import '@vue-flow/minimap/dist/style.css'
 
 import {
-  FcButton, FcTabsPanel, FcSwitch, FcInput, FcSelect, FcDialog, FcTable, PublishSyncStatus, toast
+  FcButton, FcTabsPanel, FcSwitch, FcInput, FcSelect, FcDialog, FcTable, PublishSyncStatus,
+  FcInputNumber, FcCheckbox, toast
 } from '@/components'
 import { useRoute } from 'vue-router'
 import { getCanvas, saveCanvas, getRoute, applyCanvas } from '@/api/routes'

@@ -1,0 +1,125 @@
+{
+  "theme": "light",
+  "takenAt": "2026-11-02T07:54:05.105Z",
+  "shots": [
+    {
+      "file": "routes-list-1600-light.png",
+      "page": "/routes",
+      "size": "1600x1000",
+      "theme": "light"
+    },
+    {
+      "file": "settings-1600-light.png",
+      "page": "/settings",
+      "size": "1600x1000",
+      "theme": "light"
+    },
+    {
+      "file": "roles-1600-light.png",
+      "page": "/roles",
+      "size": "1600x1000",
+      "theme": "light"
+    },
+    {
+      "file": "plugins-1600-light.png",
+      "page": "/plugins",
+      "size": "1600x1000",
+      "theme": "light"
+    },
+    {
+      "file": "routes-list-1440-light.png",
+      "page": "/routes",
+      "size": "1440x900",
+      "theme": "light"
+    },
+    {
+      "file": "settings-1440-light.png",
+      "page": "/settings",
+      "size": "1440x900",
+      "theme": "light"
+    },
+    {
+      "file": "roles-1440-light.png",
+      "page": "/roles",
+      "size": "1440x900",
+      "theme": "light"
+    },
+    {
+      "file": "plugins-1440-light.png",
+      "page": "/plugins",
+      "size": "1440x900",
+      "theme": "light"
+    },
+    {
+      "file": "routes-list-375-light.png",
+      "page": "/routes",
+      "size": "375x812",
+      "theme": "light"
+    },
+    {
+      "file": "settings-375-light.png",
+      "page": "/settings",
+      "size": "375x812",
+      "theme": "light"
+    },
+    {
+      "file": "roles-375-light.png",
+      "page": "/roles",
+      "size": "375x812",
+      "theme": "light"
+    },
+    {
+      "file": "plugins-375-light.png",
+      "page": "/plugins",
+      "size": "375x812",
+      "theme": "light"
+    },
+    {
+      "file": "login-1600-light.png",
+      "page": "/login",
+      "size": "1600x1000",
+      "theme": "light"
+    },
+    {
+      "file": "login-1440-light.png",
+      "page": "/login",
+      "size": "1440x900",
+      "theme": "light"
+    },
+    {
+      "file": "login-375-light.png",
+      "page": "/login",
+      "size": "375x812",
+      "theme": "light"
+    }
+  ],
+  "sidebar": [
+    {
+      "size": "1600x1000",
+      "expanded": {
+        "file": "sidebar-expanded-1600-light.png",
+        "width": 241,
+        "md5": "9dfbbe901c6914b607fe6755667f1752"
+      },
+      "collapsed": {
+        "file": "sidebar-collapsed-1600-light.png",
+        "width": 65,
+        "md5": "712981d1f5e6d85d423e123149c2ccb0"
+      }
+    },
+    {
+      "size": "1440x900",
+      "expanded": {
+        "file": "sidebar-expanded-1440-light.png",
+        "width": 241,
+        "md5": "a803290c70d6275b99272cc2aab5b12b"
+      },
+      "collapsed": {
+        "file": "sidebar-collapsed-1440-light.png",
+        "width": 65,
+        "md5": "5b8e729652422d8bbee187a4701107d5"
+      }
+    }
+  ],
+  "failures": []
+}

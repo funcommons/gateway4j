@@ -157,8 +157,8 @@
                     {{ t('importExport.diffNoChanges') }}
                   </p>
                   <!-- 逐路由折叠面板：字段级 from→to 表格 -->
-                  <el-collapse v-else class="env-diff__collapse">
-                    <el-collapse-item
+                  <FcCollapse v-else class="env-diff__collapse">
+                    <FcCollapseItem
                       v-for="c in diffResult.changed"
                       :key="c.route_name"
                       :name="c.route_name"
@@ -169,8 +169,8 @@
                         <el-table-column prop="from" :label="t('importExport.diffColFrom')" />
                         <el-table-column prop="to" :label="t('importExport.diffColTo')" />
                       </FcTable>
-                    </el-collapse-item>
-                  </el-collapse>
+                    </FcCollapseItem>
+                  </FcCollapse>
                 </div>
               </template>
             </template>
@@ -188,7 +188,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   FcSection, FcTabsPanel, FcFormItem, FcInput, FcSelect, FcSegmented, FcButton, FcEmpty, FcTable,
-  FcSkeleton, FcTag, toast
+  FcSkeleton, FcTag, FcCollapse, FcCollapseItem, toast
 } from '@/components'
 import { exportRoutes, validateImport, importRoutes, listRoutes, createImportSnapshot } from '@/api/routes'
 import { getEnvironmentDiff } from '@/api/environment'

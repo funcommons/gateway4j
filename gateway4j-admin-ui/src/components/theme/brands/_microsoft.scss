@@ -116,10 +116,8 @@ html[data-brand='microsoft'] {
     box-shadow: inset 0 0 0 1px var(--brand-separator),
                 inset 0 -2px 0 0 var(--brand-primary);
   }
-  // Suppress the brand-overrides mixin's gradient focus ring on Fluent
-  .el-input__wrapper.is-focus::before {
-    display: none;
-  }
+  // Focus is fully owned by Fluent (inset border + 2px bottom accent above);
+  // there is no separate ring layer to suppress.
 
   // Fluent tab — 2px primary underline on active
   .el-tabs__active-bar {

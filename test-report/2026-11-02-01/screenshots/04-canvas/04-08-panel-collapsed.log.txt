@@ -1,0 +1,19 @@
+用例: 04-08-panel-collapsed
+时间: 2026-11-03T02:10:22.843Z
+
+--- Console Errors ---
+Failed to load resource: the server responded with a status of 401 (Unauthorized)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+401 PUT http://localhost:9302/v1/routes/-100/canvas
+
+--- 后端 API 调用记录 (status METHOD path) ---
+401 PUT /v1/routes/-100/canvas
+200 POST /v1/auth/refresh
+200 PUT /v1/routes/-100/canvas

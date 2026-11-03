@@ -26,6 +26,12 @@ const GLOBAL_WHITELIST = new Set([
   'FcPicker',
   'FcSidePanel',
   'FcNavGroup',
+  // el-date-picker 的面板 teleport 到 body，scoped 对它失效 ——
+  // 弹层底色/描边必须接应用主题 token（--app-bg-card / --app-border）。
+  'FcDatePicker',
+  // el-dropdown 的菜单浮层 teleport 到 body，scoped 对它失效 ——
+  // 菜单底色/文字/描边/焦点环必须接应用主题 token（--app-*）。
+  'FcDropdown',
 ])
 
 function stripComments(css: string): string {

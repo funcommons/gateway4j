@@ -34,7 +34,7 @@
               <FcInput v-model="form.config" type="textarea" :rows="6" maxlength="10000" />
             </FcFormItem>
             <FcFormItem :label="t('plugin.sortOrder')" prop="sort_order">
-              <el-input-number v-model="form.sort_order" :min="1" :max="9999" />
+              <FcInputNumber v-model="form.sort_order" :min="1" :max="9999" />
             </FcFormItem>
             <FcFormItem :label="t('plugin.remark')">
               <FcInput v-model="form.remark" type="textarea" :rows="3" maxlength="200" show-word-limit />
@@ -81,7 +81,7 @@ import { useFcConfirm } from '@/composables/useFcConfirm'
 import { usePermission } from '@/composables/usePermission'
 import {
   FcSectionCard, FcTabsPanel, FcInput, FcFormItem, FcSegmented, FcButton, FcDropZone, FcSkeleton,
-  FcSelect, FcHelpTip, toast
+  FcSelect, FcHelpTip, FcInputNumber, toast
 } from '@/components'
 import { createPlugin, updatePlugin, getPlugin, validateGroovy, listPlugins } from '@/api/plugins'
 import { mapFieldErrors } from '@/api/http'

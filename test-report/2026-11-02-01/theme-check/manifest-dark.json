@@ -1,0 +1,125 @@
+{
+  "theme": "dark",
+  "takenAt": "2026-11-02T07:51:39.799Z",
+  "shots": [
+    {
+      "file": "routes-list-1600-dark.png",
+      "page": "/routes",
+      "size": "1600x1000",
+      "theme": "dark"
+    },
+    {
+      "file": "settings-1600-dark.png",
+      "page": "/settings",
+      "size": "1600x1000",
+      "theme": "dark"
+    },
+    {
+      "file": "roles-1600-dark.png",
+      "page": "/roles",
+      "size": "1600x1000",
+      "theme": "dark"
+    },
+    {
+      "file": "plugins-1600-dark.png",
+      "page": "/plugins",
+      "size": "1600x1000",
+      "theme": "dark"
+    },
+    {
+      "file": "routes-list-1440-dark.png",
+      "page": "/routes",
+      "size": "1440x900",
+      "theme": "dark"
+    },
+    {
+      "file": "settings-1440-dark.png",
+      "page": "/settings",
+      "size": "1440x900",
+      "theme": "dark"
+    },
+    {
+      "file": "roles-1440-dark.png",
+      "page": "/roles",
+      "size": "1440x900",
+      "theme": "dark"
+    },
+    {
+      "file": "plugins-1440-dark.png",
+      "page": "/plugins",
+      "size": "1440x900",
+      "theme": "dark"
+    },
+    {
+      "file": "routes-list-375-dark.png",
+      "page": "/routes",
+      "size": "375x812",
+      "theme": "dark"
+    },
+    {
+      "file": "settings-375-dark.png",
+      "page": "/settings",
+      "size": "375x812",
+      "theme": "dark"
+    },
+    {
+      "file": "roles-375-dark.png",
+      "page": "/roles",
+      "size": "375x812",
+      "theme": "dark"
+    },
+    {
+      "file": "plugins-375-dark.png",
+      "page": "/plugins",
+      "size": "375x812",
+      "theme": "dark"
+    },
+    {
+      "file": "login-1600-dark.png",
+      "page": "/login",
+      "size": "1600x1000",
+      "theme": "dark"
+    },
+    {
+      "file": "login-1440-dark.png",
+      "page": "/login",
+      "size": "1440x900",
+      "theme": "dark"
+    },
+    {
+      "file": "login-375-dark.png",
+      "page": "/login",
+      "size": "375x812",
+      "theme": "dark"
+    }
+  ],
+  "sidebar": [
+    {
+      "size": "1600x1000",
+      "expanded": {
+        "file": "sidebar-expanded-1600-dark.png",
+        "width": 241,
+        "md5": "512cbdb88404ab9564965e836609b046"
+      },
+      "collapsed": {
+        "file": "sidebar-collapsed-1600-dark.png",
+        "width": 65,
+        "md5": "a8319a1349d6a0b08821de2c7df461bf"
+      }
+    },
+    {
+      "size": "1440x900",
+      "expanded": {
+        "file": "sidebar-expanded-1440-dark.png",
+        "width": 241,
+        "md5": "0663f6737f234cb2ec485a69446ffde3"
+      },
+      "collapsed": {
+        "file": "sidebar-collapsed-1440-dark.png",
+        "width": 65,
+        "md5": "91cbb06e77c0e40d91a7290eb253cbdf"
+      }
+    }
+  ],
+  "failures": []
+}

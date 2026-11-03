@@ -1,4 +1,18 @@
 import { test, expect, login, shot, writeEvidence, formField, confirmButton, uniq, apiCall } from './helpers'
+import type { Page } from '@playwright/test'
+
+/**
+ * 「更多」下拉（FcDropdown）菜单项定位。
+ * 行内动作已收进真下拉：菜单项是 EP 的 el-dropdown-item（role=menuitem），
+ * 但它的无障碍名带图标字形（" 编辑"），所以不能用 exact 的 name 匹配 ——
+ * 改为「可见菜单 + 精确文案」定位，既不受图标字形影响，也不会命中侧边栏的 menuitem。
+ */
+function rowMenuItems(page: Page) {
+  return page.locator('.el-dropdown-menu:visible .el-dropdown-menu__item')
+}
+function rowMenuItem(page: Page, label: string) {
+  return rowMenuItems(page).filter({ hasText: new RegExp(`^${label}$`) })
+}
 
 /**
  * BL-07 用户管理
@@ -50,11 +64,20 @@ test.describe('BL-07 用户管理', () => {
 
   test('07-04 用户行应提供 编辑/禁用/重置密码/删除 操作', async ({ page, shot, diag }) => {
     // D5: canEdit('user') → 'user:edit' 不存在 → 全部行操作被隐藏
+    // 行内动作已收进「更多」下拉：断言从「行内有几个按钮」升级为「菜单里有哪些动作」
     const row = page.locator('.el-table__body-wrapper tbody tr').first()
     const btns = await row.getByRole('button').count()
+    await row.getByTestId('row-actions').click()
+    await page.waitForTimeout(500)
+    const menuItems = (await page.getByRole('menuitem').allInnerTexts()).map(s => s.trim())
     await shot('users', '07-04-row-actions-missing', true)
-    writeEvidence('users', '07-04-row-actions-missing', diag, `首行按钮数=${btns}`)
-    expect(btns, '用户行应提供编辑/禁用/重置密码/删除操作').toBeGreaterThan(0)
+    writeEvidence('users', '07-04-row-actions-missing', diag,
+      `首行按钮数=${btns}; 「更多」菜单项=${menuItems.join(' | ')}`)
+    expect(btns, '用户行应提供「更多」操作入口').toBeGreaterThan(0)
+    expect(menuItems, '用户行「更多」菜单应提供 编辑/重置密码/删除 操作')
+      .toEqual(expect.arrayContaining(['编辑', '重置密码', '删除']))
+    expect(menuItems.includes('启用') || menuItems.includes('禁用'),
+      '用户行「更多」菜单应提供启用/禁用操作').toBe(true)
   })
 
   test('07-05 权限状态对用户不静默（有操作按钮 或 明确只读提示）', async ({ page, shot, diag }) => {

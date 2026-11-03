@@ -100,8 +100,8 @@
   transition: none;
 }
 
-/* Toggle button — 颜色 / hover 由 brand-overrides mixin 接管 (brand-sidebar-text-regular),
-   这里只放布局 / 位置 / 几何. */
+/* Toggle button — 这里只放布局 / 位置 / 几何; 颜色默认继承 sidebar 的文字色,
+   需要品牌化时由对应 brand scss (如 acme / manyun) 覆盖. */
 .fc-sidebar__toggle {
   position: absolute;
   bottom: 12px;

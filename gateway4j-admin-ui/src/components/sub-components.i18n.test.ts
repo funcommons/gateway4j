@@ -16,7 +16,7 @@ const stubs: Record<string, any> = {
   'el-form': defineComponent({ name: 'el-form', props: ['labelWidth'], template: '<div><slot /></div>' }),
   'el-form-item': defineComponent({ name: 'el-form-item', props: ['label'], template: '<div><slot /></div>' }),
   'el-input': defineComponent({ name: 'el-input', props: ['modelValue', 'type', 'rows', 'placeholder'], template: '<input />' }),
-  'el-input-number': defineComponent({ name: 'el-input-number', props: ['modelValue', 'min'], template: '<input type="number" />' }),
+  'ElInputNumber': defineComponent({ name: 'ElInputNumber', props: ['modelValue', 'min'], template: '<input type="number" />' }),
   'el-switch': defineComponent({ name: 'el-switch', props: ['modelValue'], template: '<div />' }),
   'el-select': defineComponent({ name: 'el-select', props: ['modelValue'], template: '<select><slot /></select>' }),
   'el-option': defineComponent({ name: 'el-option', props: ['label', 'value'], template: '<option>{{ label }}</option>' })

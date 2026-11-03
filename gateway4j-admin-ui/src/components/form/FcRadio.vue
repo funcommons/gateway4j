@@ -13,19 +13,31 @@ defineOptions({ name: 'FcRadio' })
  *   </FcRadioGroup>
  */
 import { computed, inject } from 'vue'
+import { useFormDisabled } from 'element-plus'
 import { FC_RADIO_GROUP_KEY, type RadioValue } from './radioContext'
 
 export interface FcRadioProps {
   value: RadioValue
+  /** 禁用. 不传时继承所在分组 (分组本身再继承 el-form). */
   disabled?: boolean
 }
 
-const props = withDefaults(defineProps<FcRadioProps>(), { disabled: false })
+/**
+ * disabled **故意不给默认值**: Boolean prop 缺省会被 Vue cast 成 false,
+ * 那样 `props.disabled` 恒为 false, 与分组的 OR 语义冲突.
+ * 显式 `undefined` → 编译成 `default: undefined` → prop 真保持 undefined.
+ */
+const props = withDefaults(defineProps<FcRadioProps>(), { disabled: undefined })
 
 const group = inject(FC_RADIO_GROUP_KEY, null)
 
 const checked = computed(() => group?.value.value === props.value)
-const isDisabled = computed(() => props.disabled || !!group?.disabled.value)
+/**
+ * 禁用链: 自身 prop > 所在分组 (分组已解析过 el-form 继承) > el-form.
+ * 与 EP 的 el-radio 同一套 (useFormDisabled(fallback=radioGroup.disabled)).
+ */
+const formDisabled = useFormDisabled(computed(() => group?.disabled.value))
+const isDisabled = computed(() => formDisabled.value)
 const size = computed(() => group?.size.value ?? 'default')
 
 function onClick() {

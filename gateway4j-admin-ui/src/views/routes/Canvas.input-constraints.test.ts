@@ -5,8 +5,9 @@ import path from 'path'
 describe('Canvas — edge priority validation', () => {
   const src = fs.readFileSync(path.resolve(__dirname, 'Canvas.vue'), 'utf-8')
 
-  it('uses el-input-number for edge priority', () => {
-    expect(src).toContain('el-input-number')
+  it('uses FcInputNumber for edge priority', () => {
+    expect(src).toContain('FcInputNumber')
+    expect(src).not.toMatch(/<el-input-number/)
   })
 
   it('edge priority has :min="1"', () => {

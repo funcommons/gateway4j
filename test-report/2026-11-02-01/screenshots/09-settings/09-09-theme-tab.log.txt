@@ -1,0 +1,20 @@
+用例: 09-09-theme-tab
+时间: 2026-11-03T02:02:55.091Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+(无)
+
+--- Extra ---
+主题页文案: "通过顶栏的切换按钮调整主题与品牌。"；主题切换器可见=true

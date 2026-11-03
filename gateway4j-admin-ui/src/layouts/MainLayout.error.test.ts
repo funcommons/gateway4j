@@ -25,7 +25,11 @@ vi.mock('@element-plus/icons-vue', () => {
     Lock: stub('Lock'),
     Box: stub('Box'),
     Grid: stub('Grid'),
-    Setting: stub('Setting')
+    Setting: stub('Setting'),
+    Tickets: stub('Tickets'),
+    Files: stub('Files'),
+    Cpu: stub('Cpu'),
+    UserFilled: stub('UserFilled')
   }
 })
 

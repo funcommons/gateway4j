@@ -1,4 +1,23 @@
 import { test, expect, login, shot, writeEvidence, formField, confirmButton, uniq, apiCall } from './helpers'
+import type { Page } from '@playwright/test'
+
+/**
+ * 「更多」下拉（FcDropdown）菜单项定位。
+ * 行内动作已收进真下拉：菜单项是 EP 的 el-dropdown-item（role=menuitem），
+ * 但它的无障碍名带图标字形（" 删除"），所以不能用 exact 的 name 匹配 ——
+ * 改为「可见菜单 + 精确文案」定位，既不受图标字形影响，也不会命中侧边栏的 menuitem。
+ */
+function rowMenuItems(page: Page) {
+  return page.locator('.el-dropdown-menu:visible .el-dropdown-menu__item')
+}
+function rowMenuItem(page: Page, label: string) {
+  return rowMenuItems(page).filter({ hasText: new RegExp(`^${label}$`) })
+}
+/** 打开某一行（默认第一行）的「更多」下拉 */
+async function openRowMenu(page: Page, rowIndex = 0) {
+  await page.getByTestId('row-actions').nth(rowIndex).click()
+  await page.waitForTimeout(400)
+}
 
 /**
  * BL-06 插件管理（列表 / 编辑器 / 全局插件 / 内置插件）
@@ -146,12 +165,27 @@ test.describe('BL-06 插件管理', () => {
   })
 
   test('06-10 插件启用/禁用：状态真的变更', async ({ page, shot, diag }) => {
-    const enable = page.getByRole('button', { name: '启用', exact: true }).first()
-    const hasEnable = await enable.isVisible().catch(() => false)
-    if (hasEnable) {
-      const row = enable.locator('xpath=ancestor::tr')
-      const before = await row.innerText()
-      await enable.click()
+    // 行内动作已收进「更多」下拉：逐行打开菜单，找第一个带「启用」项的行
+    const rows = page.locator('.el-table__body-wrapper tbody tr')
+    const n = await rows.count()
+    let before = ''
+    let done = false
+    for (let i = 0; i < n && !done; i++) {
+      const trigger = rows.nth(i).getByTestId('row-actions')
+      if (!(await trigger.isVisible().catch(() => false))) continue
+      await trigger.click()
+      await page.waitForTimeout(400)
+      const item = rowMenuItem(page, '启用')
+      if (await item.count() > 0) {
+        before = await rows.nth(i).innerText()
+        await item.first().click()
+        done = true
+      } else {
+        await page.keyboard.press('Escape')
+        await page.waitForTimeout(200)
+      }
+    }
+    if (done) {
       await page.waitForTimeout(3000)
       await page.reload()
       await page.waitForTimeout(2500)
@@ -177,14 +211,19 @@ test.describe('BL-06 插件管理', () => {
     await search.fill(id)
     await search.press('Enter')
     await page.waitForTimeout(2000)
-    const del = page.getByRole('button', { name: '删除', exact: true }).first()
+    const del = page.getByTestId('row-actions').first()
     const visible = await del.isVisible().catch(() => false)
     if (visible) {
-      await del.click()
-      await page.waitForTimeout(1000)
-      await shot('plugins', '06-11-plugin-delete-confirm')
-      await confirmButton(page).click()
-      await page.waitForTimeout(3000)
+      // 行内动作已收进「更多」下拉：先打开该行菜单，再点菜单里的「删除」
+      await openRowMenu(page)
+      const delItem = rowMenuItem(page, '删除')
+      if (await delItem.count() > 0) {
+        await delItem.first().click()
+        await page.waitForTimeout(1000)
+        await shot('plugins', '06-11-plugin-delete-confirm')
+        await confirmButton(page).click()
+        await page.waitForTimeout(3000)
+      }
     }
     await shot('plugins', '06-11-plugin-delete-result')
     const still = await page.getByText(id).count()

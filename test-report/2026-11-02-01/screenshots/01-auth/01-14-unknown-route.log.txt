@@ -1,0 +1,42 @@
+用例: 01-14-unknown-route
+时间: 2026-11-03T02:06:22.317Z
+
+--- Console Errors ---
+Failed to load resource: the server responded with a status of 429 (Too Many Requests)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNjc4Nzc4NDQ1LCJub25jZSI6Ijk2YjkzZmQyLTk1M2MtNGJmZC1hMDI4LTZjMmIyNWQ2NzkyZSIsImlhdCI6MTc5MzY3MTU3ODQ0NSwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiIwNjNjZGJiYi00ZDljLTQ2NmQtYTc5NC0xN2Y0OGY5YjllMTcifQ.CoOl9x5psUOPdaXbGDFeOzGBvaG0T3vY3oIR4V4fNN8 :: net::ERR_ABORTED
+
+--- HTTP >= 400 ---
+429 POST http://localhost:9302/v1/auth/login
+
+--- 后端 API 调用记录 (status METHOD path) ---
+429 POST /v1/auth/login
+200 POST /v1/auth/login
+200 GET /v1/permissions
+200 GET /v1/environments
+200 GET /v1/routes
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/environments
+
+--- Extra ---
+落地 URL: http://localhost:9302/this-path-does-not-exist-zzz; 页面文本: 监控大盘
+路由管理
+插件管理
+用户管理
+系统设置
+命令面板
+外观
+退出
+
+404
+
+页面不存在
+
+你访问的页面已被移动或删除
+
+返回首页

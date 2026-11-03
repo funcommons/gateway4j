@@ -1,0 +1,20 @@
+用例: 02-07-topology-graph
+时间: 2026-11-03T02:07:02.042Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNjc4ODE3NTM1LCJub25jZSI6IjVlNzY3YWJkLTIyNTUtNDBhOC05YzZiLWM0YmY2MGJiNzgyZiIsImlhdCI6MTc5MzY3MTYxNzUzNSwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiI0NzhhMzE1YS05ZTE2LTQ0OWItYTlhMC1hYTI1ZDZjZTQwMjcifQ.aPZB3Kbu-a1jhzgR4Z0N1qlmooTVMEZBSep3ppuYaaM
+
+--- Extra ---
+VueFlow 节点数: 112

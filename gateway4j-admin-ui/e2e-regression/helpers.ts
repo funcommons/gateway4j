@@ -3,7 +3,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 
 /** 报告根目录（与 playwright.regression.config.ts 中的 results.json 输出目录一致） */
-export const REPORT_ROOT = path.resolve(process.cwd(), '../test-report/2026-11-01-05')
+export const REPORT_ROOT = path.resolve(process.cwd(), '../test-report/2026-11-02-01')
 export const SHOT_ROOT = path.join(REPORT_ROOT, 'screenshots')
 
 export const CREDENTIALS = { username: 'admin', password: 'admin123' }
@@ -19,6 +19,7 @@ export const LINES = {
   users: '07-users',
   roles: '08-roles',
   settings: '09-settings',
+  theme: '10-theme',
 } as const
 
 export type LineKey = keyof typeof LINES
@@ -87,10 +88,11 @@ function lineFromTitle(title: string): LineKey {
   const map: Record<string, LineKey> = {
     '1': 'auth', '2': 'dashboard', '3': 'routes', '4': 'canvas',
     '5': 'importExport', '6': 'plugins', '7': 'users', '8': 'roles', '9': 'settings',
+    '10': 'theme',
   }
-  const byDescribe = title.match(/BL-0(\d)/)
+  const byDescribe = title.match(/BL-0(\d{1,2})/)
   if (byDescribe) return map[byDescribe[1]] ?? 'auth'
-  const byCase = title.match(/(?:^|\D)0(\d)-\d\d/)
+  const byCase = title.match(/(?:^|\D)0?(\d{1,2})-\d\d/)
   if (byCase) return map[byCase[1]] ?? 'auth'
   return 'auth'
 }

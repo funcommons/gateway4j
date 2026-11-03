@@ -1,0 +1,23 @@
+用例: 07-06-user-crud-api
+时间: 2026-11-03T02:01:09.280Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/users
+200 PATCH /v1/users/2117436887906209793
+200 GET /v1/users?page=1&page_size=50&keyword=e2e_apiuser_mw01k8l454
+200 DELETE /v1/users/2117436887906209793
+
+--- Extra ---
+创建=200, 更新=200, 搜索命中=1, 删除=200

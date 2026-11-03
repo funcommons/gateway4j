@@ -1,0 +1,25 @@
+用例: 03-08-create-format-validation
+时间: 2026-11-03T01:55:33.827Z
+
+--- Console Errors ---
+Failed to load resource: the server responded with a status of 401 (Unauthorized)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNjc4MTI3MTU2LCJub25jZSI6IjE3ZDI3MGEyLTMyNzgtNDMwYi1hNWU3LTM0MDRjMjQ3NzczYyIsImlhdCI6MTc5MzY3MDkyNzE1NiwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiJmZDhiYTE0Ny1iNjM0LTQ5OTQtOTgxZi01ZGQ5NmI0OGIzZDUifQ.XgsR5qAL6Wt0UBLWISaOONcCrUSchGdWLd5tpTGZJCc :: net::ERR_ABORTED
+
+--- HTTP >= 400 ---
+401 GET http://localhost:9302/v1/routes?page=1&page_size=200
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/plugins/builtin-types
+200 GET /v1/environments
+200 GET /v1/routes
+401 GET /v1/routes?page=1&page_size=200
+
+--- Extra ---
+校验错误条数=3; 库中同名非法路由条数=0; 保存后 URL=http://localhost:9302/routes/new

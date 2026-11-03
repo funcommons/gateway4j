@@ -10,7 +10,7 @@
           :options="value.enum.map((o: string) => ({ value: o, label: o }))"
         />
         <FcInput v-else-if="(value.type || 'string') === 'string'" v-model="model[key]" :placeholder="value.title" maxlength="500" />
-        <el-input-number v-else-if="value.type === 'integer' || value.type === 'number'" v-model="model[key]" :min="value.minimum" :max="value.maximum" :step="value.type === 'number' ? 0.01 : 1" style="width: 100%" />
+        <FcInputNumber v-else-if="value.type === 'integer' || value.type === 'number'" v-model="model[key]" :min="value.minimum" :max="value.maximum" :step="value.type === 'number' ? 0.01 : 1" style="width: 100%" />
         <FcSwitch v-else-if="value.type === 'boolean'" v-model="model[key]" />
         <FcSelect
           v-else-if="value.type === 'array'"
@@ -34,7 +34,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { FcFormItem, FcInput, FcEmpty, FcSelect, FcSwitch } from '@/components'
+import { FcFormItem, FcInput, FcEmpty, FcSelect, FcSwitch, FcInputNumber } from '@/components'
 import { getBuiltinSchema } from '@/api/plugins'
 
 const { t } = useI18n()

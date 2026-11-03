@@ -6,7 +6,7 @@
           {{ t.label }}
         </FcFilterButton>
         <FcFilterBarDivider />
-        <FcInput v-model="keyword" :placeholder="t('route.searchPlaceholder')" clearable @enter="reload" />
+        <FcInput v-model="keyword" :placeholder="t('route.searchPlaceholder')" clearable style="max-width: 280px" @enter="reload" />
         <FcInput
           v-model="tagFilter"
           :placeholder="t('route.tagFilterPlaceholder')"
@@ -15,27 +15,30 @@
           @enter="reload"
           @clear="reload"
         />
+        <!-- 动作区：次要动作（导入导出）→ 批量动作（仅选中行时出现）→ 主操作（新建路由，永远最右） -->
         <template #actions>
-          <FcButton v-if="canEdit('route')" variant="primary" @click="onNav('/routes/new')">{{ t('common.create') }}</FcButton>
           <FcButton v-if="canEdit('route')" variant="secondary" @click="onNav('/import-export')">{{ t('common.import') }}</FcButton>
+          <template v-if="canEdit('route') && selectedRows.length > 0">
+            <FcFilterBarDivider />
+            <span class="bulk-selected" data-testid="bulk-selected-count">{{ t('route.bulkSelected', { n: selectedRows.length }) }}</span>
+            <FcButton variant="secondary" size="sm" data-testid="bulk-publish" @click="runBulk('publish')">{{ t('route.bulkPublish') }}</FcButton>
+            <FcButton variant="secondary" size="sm" data-testid="bulk-offline" @click="runBulk('offline')">{{ t('route.bulkOffline') }}</FcButton>
+            <FcButton variant="danger" size="sm" data-testid="bulk-delete" @click="runBulk('delete')">{{ t('route.bulkDelete') }}</FcButton>
+          </template>
+          <FcButton v-if="canEdit('route')" variant="primary" @click="onNav('/routes/new')">{{ t('common.create') }}</FcButton>
         </template>
       </FcFilterBar>
 
       <p v-if="!canEdit('route')" class="readonly-hint" data-testid="readonly-hint">{{ t('common.readonlyHint') }}</p>
 
+      <!-- P1-3 发布生效确认：发布动作成功后开始轮询 sync-status（批量发布也只轮询一次） -->
+      <PublishSyncStatus ref="syncStatusRef" class="publish-sync-row" />
+
+      <!-- 纯视图开关（展开/折叠）：不是数据操作，贴到表格上方工具条，紧贴表头 -->
       <div v-if="flatRows.length > 0" class="tree-toolbar">
         <FcButton variant="text" size="sm" @click="expandAll">{{ t('route.expandAll') }}</FcButton>
         <FcButton variant="text" size="sm" @click="collapseAll">{{ t('route.collapseAll') }}</FcButton>
-        <template v-if="canEdit('route') && selectedRows.length > 0">
-          <span class="bulk-selected" data-testid="bulk-selected-count">{{ t('route.bulkSelected', { n: selectedRows.length }) }}</span>
-          <FcButton variant="secondary" size="sm" data-testid="bulk-publish" @click="runBulk('publish')">{{ t('route.bulkPublish') }}</FcButton>
-          <FcButton variant="secondary" size="sm" data-testid="bulk-offline" @click="runBulk('offline')">{{ t('route.bulkOffline') }}</FcButton>
-          <FcButton variant="danger" size="sm" data-testid="bulk-delete" @click="runBulk('delete')">{{ t('route.bulkDelete') }}</FcButton>
-        </template>
       </div>
-
-      <!-- P1-3 发布生效确认：发布动作成功后开始轮询 sync-status（批量发布也只轮询一次） -->
-      <PublishSyncStatus ref="syncStatusRef" class="publish-sync-row" />
 
       <FcSkeleton v-if="loading" variant="text" :rows="6" />
       <template v-else>
@@ -89,19 +92,28 @@
             />
           </template>
         </el-table-column>
-        <el-table-column :label="t('common.more')" width="380" :fixed="isMobile ? false : 'right'">
+        <!-- 动作列收成真下拉：行内平铺 5~6 个文字按钮需要 380px，会把右侧「状态」列
+             顶出可视区（1440 宽时状态列被 fixed 列整列盖住）。这里只留一个「⋯」触发器，
+             菜单项走 FcDropdown 的 items prop（业务页不裸用 el-dropdown-item）。 -->
+        <el-table-column :label="t('common.more')" width="120" :fixed="isMobile ? false : 'right'">
           <template #default="{ row }">
-            <FcButton v-if="canEdit('route')" variant="text" size="sm" @click="onNav(`/routes/${(row as any).id}`)">{{ t('common.edit') }}</FcButton>
-            <FcButton v-if="canEdit('route')" variant="text" size="sm" @click="onNav(`/routes/${(row as any).id}/canvas`)">{{ t('route.canvas') }}</FcButton>
-            <FcButton v-if="canEdit('route')" variant="text" size="sm" data-testid="duplicate-btn" @click="duplicate(row as RouteNode)">{{ t('route.duplicate') }}</FcButton>
-            <FcButton v-if="canEdit('route') && (row as any).status === 'DRAFT'" variant="text" size="sm" @click="publish(row as RouteNode)">{{ t('common.publish') }}</FcButton>
-            <FcButton v-if="canEdit('route') && (row as any).status === 'CHANGING'" variant="text" size="sm" @click="publish(row as RouteNode)">{{ t('common.republish') }}</FcButton>
-            <FcButton v-if="canEdit('route') && (row as any).status === 'OFFLINE'" variant="text" size="sm" @click="publish(row as RouteNode)">{{ t('common.republish') }}</FcButton>
-            <FcButton v-if="canEdit('route') && (row as any).status === 'PUBLISHED'" variant="text" size="sm" @click="offline(row as RouteNode)">{{ t('common.offline') }}</FcButton>
-            <FcButton v-if="canEdit('route') && (row as any).status === 'CHANGING'" variant="text" size="sm" @click="offline(row as RouteNode)">{{ t('common.abandonChanges') }}</FcButton>
-            <FcConfirm v-if="canEdit('route') && ((row as any).status === 'DRAFT' || (row as any).status === 'OFFLINE')" :content="t('route.confirmDelete')" @confirm="del(row as RouteNode)">
-              <FcButton variant="text" size="sm" type="danger">{{ t('common.delete') }}</FcButton>
-            </FcConfirm>
+            <FcDropdown
+              v-if="canEdit('route')"
+              :items="rowActionItems(row as RouteNode)"
+              placement="bottom-end"
+              @command="(cmd: FcDropdownCommand) => onRowAction(cmd, row as RouteNode)"
+            >
+              <template #default>
+                <button
+                  type="button"
+                  class="fc-button fc-button-secondary fc-button-xs fc-button-icon fc-button-circle row-actions-trigger"
+                  :aria-label="t('common.more')"
+                  data-testid="row-actions"
+                >
+                  <FcIcon name="ri-more-line" aria-hidden="true" />
+                </button>
+              </template>
+            </FcDropdown>
           </template>
         </el-table-column>
       </FcTable>
@@ -134,9 +146,10 @@ import { useMonitorStream } from '@/composables/useMonitorStream'
 import { useRouter } from 'vue-router'
 import {
   FcSection, FcFilterBar, FcFilterBarDivider, FcFilterButton, FcTable, FcTag, FcStatusBadge,
-  FcInput, FcButton, FcConfirm, FcEmpty, FcSkeleton, FcIcon, PublishSyncStatus, PublishDescriptionDialog,
+  FcInput, FcButton, FcDropdown, FcEmpty, FcSkeleton, FcIcon, PublishSyncStatus, PublishDescriptionDialog,
   EnvTag, toast
 } from '@/components'
+import type { FcDropdownItem, FcDropdownCommand } from '@/components'
 import { listRoutes, publishRoute, offlineRoute, deleteRoute, duplicateRoute, bulkPublishRoutes, bulkOfflineRoutes, bulkDeleteRoutes } from '@/api/routes'
 import type { RouteNode, BulkResult } from '@/api/routes'
 import { useEnvironments } from '@/store/environment'
@@ -426,6 +439,61 @@ async function onNav(p: string) {
   await router.push(p)
 }
 
+// ===== 行内动作收进「更多」下拉（FcDropdown items prop）=====
+// 菜单项与原行内按钮一一对应；破坏性动作（删除）仍走确认弹窗，行为不变。
+
+/** 该行的动作菜单项（按状态收敛，语义与原行内按钮完全一致） */
+function rowActionItems(row: RouteNode): FcDropdownItem[] {
+  const items: FcDropdownItem[] = [
+    { label: t('common.edit'), command: 'edit', icon: 'ri-edit-line' },
+    { label: t('route.canvas'), command: 'canvas', icon: 'ri-node-tree' },
+    { label: t('route.duplicate'), command: 'duplicate', icon: 'ri-file-copy-line' },
+  ]
+  // 状态收敛（与原行内按钮逐条对应）：
+  //   DRAFT → 发布；CHANGING/OFFLINE → 重新发布；PUBLISHED → 下线；CHANGING → 放弃变更
+  if (row.status === 'DRAFT') items.push({ label: t('common.publish'), command: 'publish', icon: 'ri-upload-cloud-2-line' })
+  if (row.status === 'CHANGING') items.push({ label: t('common.republish'), command: 'republish', icon: 'ri-refresh-line' })
+  if (row.status === 'OFFLINE') items.push({ label: t('common.republish'), command: 'republish', icon: 'ri-refresh-line' })
+  if (row.status === 'PUBLISHED') items.push({ label: t('common.offline'), command: 'offline', icon: 'ri-download-2-line' })
+  if (row.status === 'CHANGING') items.push({ label: t('common.abandonChanges'), command: 'offline', icon: 'ri-close-circle-line' })
+  // 删除只对草稿/已下线开放（原行内按钮同口径）
+  if (row.status === 'DRAFT' || row.status === 'OFFLINE') items.push({ label: t('common.delete'), command: 'delete', icon: 'ri-delete-bin-line', danger: true, divided: true })
+  return items
+}
+
+/** 下拉项分发（command → 原动作） */
+async function onRowAction(cmd: FcDropdownCommand, row: RouteNode) {
+  switch (String(cmd)) {
+    case 'edit':
+      await onNav(`/routes/${row.id}`)
+      break
+    case 'canvas':
+      await onNav(`/routes/${row.id}/canvas`)
+      break
+    case 'duplicate':
+      await duplicate(row)
+      break
+    case 'publish':
+    case 'republish':
+      publish(row)
+      break
+    case 'offline':
+      await offline(row)
+      break
+    case 'delete':
+      await confirmDelete(row)
+      break
+  }
+}
+
+/** 删除确认：原为 <FcConfirm> 包按钮，现在走命令式确认（标题/正文/按钮文案与原来一致） */
+async function confirmDelete(r: RouteNode) {
+  if (!canEdit('route')) return
+  const ok = await confirm({ title: t('common.tip'), content: t('route.confirmDelete') })
+  if (!ok) return
+  await del(r)
+}
+
 // ===== P2-7: 订阅配置变更推送（去抖 2s 定向刷新路由列表）=====
 // 降级链：SSE 不可用（旧 jar 404 / 401）时静默回退现状（本页无旧轮询，保持手动刷新）
 const { start: startStream } = useMonitorStream({
@@ -441,7 +509,7 @@ watch(() => env.current, () => { reload() })
 .readonly-hint {
   color: var(--app-text-secondary);
   font-size: 13px;
-  margin: 0 0 12px;
+  margin: 8px 0 0;
   padding: 8px 12px;
   background: var(--app-bg-muted);
   border-radius: var(--app-radius-sm);
@@ -469,9 +537,10 @@ watch(() => env.current, () => { reload() })
   border-radius: var(--app-radius-sm);
 }
 .toggle-placeholder { display: inline-block; width: 16px; }
-.tree-toolbar { display: flex; gap: 4px; margin-bottom: 8px; align-items: center; }
-.publish-sync-row { margin-bottom: 8px; }
-.bulk-selected { font-size: 13px; color: var(--app-text-secondary); margin-left: 8px; }
+/* 表格上方工具条（纯视图开关）：紧贴表头，与筛选栏之间留 8px */
+.tree-toolbar { display: flex; gap: 4px; margin: 8px 0 4px; align-items: center; }
+.publish-sync-row { margin: 8px 0 0; align-self: flex-start; }
+.bulk-selected { font-size: 13px; color: var(--app-text-secondary); white-space: nowrap; }
 .tags-cell { display: inline-flex; gap: 4px; flex-wrap: wrap; }
 .action-error {
   color: var(--app-danger);
@@ -492,4 +561,20 @@ watch(() => env.current, () => { reload() })
 @media (prefers-reduced-motion: reduce) {
   .toggle-icon { transition: none; }
 }
+
+/* 行内动作触发器（FcDropdown 默认插槽里的裸 button）：裸 button 拿不到 SDK
+   组件的状态契约，本文件里补齐八态中缺失的三态（gate 26a / 26b）。
+   :active 用 opacity 而不是 transform —— 不引入需要 PRM 兜底的动效。 */
+.row-actions-trigger:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+}
+.row-actions-trigger:active:not(:disabled) {
+  opacity: 0.85;
+}
+.row-actions-trigger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 </style>

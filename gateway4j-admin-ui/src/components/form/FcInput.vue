@@ -16,6 +16,7 @@ defineOptions({ name: 'FcInput', inheritAttrs: false })
  *   </FcInput>
  */
 import { computed, useAttrs } from 'vue'
+import { useFormSize } from 'element-plus'
 
 interface Props {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -26,7 +27,7 @@ interface Props {
   placeholder?: string
   /** 显示清空按钮. */
   clearable?: boolean
-  /** 禁用. */
+  /** 禁用. 不传时继承 el-form 的 disabled. */
   disabled?: boolean
   /** 只读. */
   readonly?: boolean
@@ -34,7 +35,7 @@ interface Props {
   type?: 'text' | 'password' | 'textarea' | 'number'
   /** 前置图标 (EP icon). */
   prefixIcon?: unknown
-  /** 输入框尺寸. */
+  /** 输入框尺寸. 不传时继承 el-form 的 size. */
   size?: 'small' | 'default' | 'large'
   /** 最大长度 (show-word-limit 同时启用). */
   maxlength?: number | string
@@ -44,12 +45,24 @@ interface Props {
   autosize?: boolean | { minRows?: number; maxRows?: number }
 }
 
+/**
+ * disabled / size **故意不给默认值** —— EP 的 el-input 用
+ * `props.disabled ?? 继承值` / `props.size || 继承值` 决定禁用与尺寸,
+ * 显式写死 `disabled: false` / `size: 'default'` 会把「继承 el-form」的
+ * 语义压死（el-form disabled / size="small" 对本组件无效）。
+ *
+ * 注意：Boolean 型 prop 光「不写进 withDefaults」还不够 ——
+ * Vue 会把「缺省的 Boolean prop」自动 cast 成 false（`shouldCast`），
+ * 那样 `props.disabled` 还是 false，一样压死继承。
+ * 必须显式写 `disabled: undefined`（编译成 `default: undefined`），
+ * prop 才会真的保持 undefined，EP 才能走「继承 el-form」。
+ */
 const props = withDefaults(defineProps<Props>(), {
   clearable: false,
-  disabled: false,
+  disabled: undefined,
   readonly: false,
   type: 'text',
-  size: 'default',
+  size: undefined,
 })
 
 const emit = defineEmits<{
@@ -65,6 +78,12 @@ const emit = defineEmits<{
 }>()
 
 const attrs = useAttrs()
+/**
+ * 生效尺寸: 自身 prop > el-form / el-form-item > 'default'.
+ * 只用于包装层的 size-* 修饰类 (EP 那边由 el-input 自己解析同一个来源).
+ */
+const formSize = useFormSize()
+const resolvedSize = computed(() => props.size || formSize.value || 'default')
 /**
  * attrs 拆分透传：class/style 留在 .fc-input 包装层（保持布局类调用方语义），
  * 其余（id / data-testid / 原生属性）给内部 el-input 落到原生控件 —— 单份。
@@ -95,7 +114,7 @@ const listeners = computed(() => ({
 </script>
 
 <template>
-  <div class="fc-input" v-bind="rootAttrs" :class="{ 'has-error': !!error, [`size-${size}`]: true }">
+  <div class="fc-input" v-bind="rootAttrs" :class="{ 'has-error': !!error, [`size-${resolvedSize}`]: true }">
     <el-input
       v-bind="inputAttrs"
       :model-value="modelValue"

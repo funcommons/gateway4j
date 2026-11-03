@@ -1,0 +1,20 @@
+用例: 07-07-user-pagination
+时间: 2026-11-03T02:01:12.724Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+(无)
+
+--- Extra ---
+翻页后行数=1

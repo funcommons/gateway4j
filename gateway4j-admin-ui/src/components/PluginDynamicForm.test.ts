@@ -21,7 +21,7 @@ const mocked = vi.mocked(getBuiltinSchema)
 
 const STUBS: Record<string, any> = {
   'el-form-item': { template: '<div class="fi-stub"><slot /></div>' },
-  'el-input-number': { props: ['modelValue'], emits: ['update:modelValue'], template: '<input-stub type="number" />' },
+  'ElInputNumber': { props: ['modelValue'], emits: ['update:modelValue'], template: '<input-stub type="number" />' },
   'el-switch': { props: ['modelValue'], emits: ['update:modelValue'], template: '<switch-stub />' },
   'el-select': { props: ['modelValue'], emits: ['update:modelValue'], template: '<select-stub><slot /></select-stub>' },
   'el-option': { props: ['value', 'label'], template: '<option-stub />' }

@@ -1,0 +1,20 @@
+用例: 02-10-auto-refresh-last-refresh
+时间: 2026-11-03T02:08:22.636Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzkzNjc4ODkyNjU5LCJub25jZSI6ImMyYjc5MzQ4LWU2OWMtNDEyNC05NTQ4LWFjNTBhYjI0MzAzYSIsImlhdCI6MTc5MzY3MTY5MjY1OSwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiJjZDBiMzIyMi0xMjA3LTQ3YzktYmE0MS1kMzI0NjNhMWY0OTkifQ.EvkM3P0A5K93htsfIHq4o0RRwX9nZ2vt2LZ951wF0gk
+
+--- Extra ---
+最近刷新文本: 最近刷新：10:08:12
