@@ -711,6 +711,22 @@ export default {
       sparkUnavailable: 'Timeseries unavailable',
       placeholder: '—'
     },
+    tree: {
+      typeDispatch: 'Dispatch',
+      condHeader: 'Header',
+      condPath: 'Path',
+      condQuery: 'Query',
+      weightLabel: 'Weight',
+      defaultBranch: 'Default',
+      missNode: 'Miss fallback',
+      totalsHits: 'Hits (24h)',
+      totalsQps: 'Current QPS',
+      unresolvable: 'Target route unpublished — not resolvable on hit',
+      snapshotHint: 'Prometheus unavailable — showing published snapshot data',
+      loadFailed: 'Failed to load the decision tree',
+      retry: 'Retry',
+      notFound: 'Route not found or deleted'
+    },
     wizard: {
       stepTemplate: 'Choose a template',
       stepMatch: 'Match conditions',

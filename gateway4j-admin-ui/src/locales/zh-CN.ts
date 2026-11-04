@@ -708,6 +708,22 @@ export default {
       sparkUnavailable: '时序暂不可用',
       placeholder: '—'
     },
+    tree: {
+      typeDispatch: '分发',
+      condHeader: 'Header',
+      condPath: '路径',
+      condQuery: '查询参数',
+      weightLabel: '权重',
+      defaultBranch: '默认分支',
+      missNode: '未命中兜底',
+      totalsHits: '近 24h 命中',
+      totalsQps: '当前 QPS',
+      unresolvable: '目标路由未发布，命中后不可解析',
+      snapshotHint: 'Prometheus 暂不可用，当前展示发布快照数据',
+      loadFailed: '决策树加载失败',
+      retry: '重试',
+      notFound: '路由不存在或已被删除'
+    },
     wizard: {
       stepTemplate: '选择模板',
       stepMatch: '匹配条件',

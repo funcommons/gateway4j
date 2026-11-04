@@ -53,3 +53,56 @@ export function fetchRouteTimeseries(routeId: string, timeRange = '24h', granula
     http.get('/v1/monitor/timeseries', { params: { routeId, timeRange, granularity } })
   )
 }
+
+// ===== S7：分发决策树（GET /v1/v2/routes/{id}/decision-tree，S7a 后端契约） =====
+
+/** 分支条件四元组（gw_route_condition；condition_type ∈ HEADER/PATH/QUERY/BODY/GROOVY） */
+export interface DecisionTreeCondition {
+  condition_type: string
+  operator: string
+  condition_key: string
+  condition_value: string
+}
+
+/**
+ * 决策树分支（分发边）。weight 仅 WEIGHT 条件下下发（非法 → null）；
+ * hit_ratio 分母 = 本层 Σ分支 hits_24h，「未命中」由前端 1−Σ 推导，服务端不造数；
+ * target_resolvable=false = 目标为 DRAFT/OFFLINE（include_unpublished 默认 true 时展示但不可解析）。
+ */
+export interface DecisionTreeBranch {
+  target_route_id: string
+  target_route_name: string
+  target_route_type: string
+  target_path: string
+  target_upstream_url: string
+  target_resolvable: boolean
+  is_nested: boolean
+  priority: number
+  condition: DecisionTreeCondition | null
+  weight: number | null
+  hits_24h: number | null
+  qps: number | null
+  p95_latency_ms: number | null
+  hit_ratio: number
+  children: DecisionTreeBranch[]
+}
+
+/** 决策树载荷（payload 自包含：totals + 各分支指标 + source 都在内，无需再拉 traffic-summary） */
+export interface DecisionTreePayload {
+  route_id: string
+  route_name: string
+  route_type: 'DISPATCH' | 'BACKEND'
+  path: string
+  upstream_url: string
+  status: string
+  environment: string
+  max_depth: number
+  source: 'prometheus' | 'snapshot'
+  totals: { hits_24h: number; qps: number }
+  children: DecisionTreeBranch[]
+}
+
+/** 单路由分发决策树（只读呈现；id 不存在 → BusinessError 10400 ROUTE_NOT_FOUND） */
+export function fetchDecisionTree(id: string | number) {
+  return envelope<DecisionTreePayload>(http.get(`/v1/v2/routes/${id}/decision-tree`))
+}
