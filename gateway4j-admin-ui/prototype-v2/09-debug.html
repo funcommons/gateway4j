@@ -1,0 +1,159 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<title>09 · 调试台 · Gateway4j v2 原型</title>
+<link rel="stylesheet" href="assets/base.css">
+<style>
+.wf-row { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px dashed var(--border) }
+.wf-row:last-child { border-bottom:none }
+.wf-lb { width:190px; font-size:12.5px; flex:none; display:flex; align-items:center; gap:7px }
+.wf-lb .lv { color:var(--ink-3); font-size:10.5px; font-family:var(--num); background:#F4F5F7; padding:0 5px; border-radius:4px }
+.wf-track { flex:1; position:relative; height:16px; background:#F4F5F7; border-radius:4px; overflow:hidden }
+.wf-seg { position:absolute; top:0; height:100% }
+.wf-ms { width:70px; text-align:right; font-family:var(--num); font-size:11px; color:var(--ink-2); flex:none }
+</style></head><body>
+<script src="assets/icons.js"></script>
+<div class="shell">
+  <aside class="side">
+    <div class="logo"><span class="logo-mark"></span><div><b>Gateway4j</b><i>可视化网关 · v2 原型</i></div></div>
+    <div class="nav-g">总览</div>
+    <a class="ni" href="01-overview-topology.html"><svg class="ic"><use href="#i-grid"/></svg>拓扑总览<span class="live"></span></a>
+    <div class="nav-g">路由</div>
+    <a class="ni" href="02-route-list.html"><svg class="ic"><use href="#i-branch"/></svg>路由列表<span class="cnt">26</span></a>
+    <a class="ni" href="04-flow-canvas.html"><svg class="ic"><use href="#i-git-merge"/></svg>流程编排</a>
+    <a class="ni" href="05-decision-tree.html"><svg class="ic"><use href="#i-branch"/></svg>决策树视图</a>
+    <a class="ni" href="10-publish.html"><svg class="ic"><use href="#i-flag"/></svg>发布与版本<span class="cnt">2</span></a>
+    <div class="nav-g">插件</div>
+    <a class="ni" href="06-plugin-chain.html"><svg class="ic"><use href="#i-layers"/></svg>插件链</a>
+    <a class="ni" href="06-plugin-chain.html"><svg class="ic"><use href="#i-zap"/></svg>插件市场</a>
+    <div class="nav-g">可观测</div>
+    <a class="ni" href="08-monitoring.html"><svg class="ic"><use href="#i-activity"/></svg>监控大盘</a>
+    <a class="ni active"><svg class="ic"><use href="#i-terminal"/></svg>调试台</a>
+    <div class="nav-g">系统</div>
+    <a class="ni"><svg class="ic"><use href="#i-database"/></svg>服务与上游</a>
+    <a class="ni"><svg class="ic"><use href="#i-users"/></svg>用户权限</a>
+    <a class="ni"><svg class="ic"><use href="#i-sliders"/></svg>系统设置</a>
+    <div class="side-foot"><div class="env-pill"><span class="dot ok"></span>生产环境 · 网关正常<span class="mono" style="margin-left:auto">v1.4.2</span></div></div>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <div class="crumb">可观测<span class="sep">/</span><b>调试台</b></div>
+      <div class="seg" style="margin-left:14px"><a>生产（只读发送）</a><a class="on">预发</a></div>
+      <div class="b gap8" style="margin-left:auto"><button class="btn ghost"><svg class="ic"><use href="#i-refresh"/></svg>清空会话</button></div>
+      <span class="avatar" style="margin-left:8px">管</span>
+    </header>
+    <section class="page">
+      <div class="page-head">
+        <div><h1>调试台</h1><div class="sub">发一次真实请求，看它怎样穿过网关 —— 每一跳做了什么、花了多久、为什么这么走</div></div>
+      </div>
+
+      <div class="grid" style="grid-template-columns:400px 1fr">
+        <div class="card" style="align-self:start">
+          <div class="card-h"><b>请求构造</b><span class="hint">预发环境</span></div>
+          <div class="card-b" style="display:flex;flex-direction:column;gap:12px">
+            <div class="b gap8">
+              <div class="b" style="border:1px solid var(--border-strong);border-radius:8px;height:34px;padding:0 10px;gap:6px;background:#fff;font-weight:600;color:var(--info);font-size:12.5px">GET <svg class="ic" style="width:12px;height:12px;color:var(--ink-3)"><use href="#i-chev-down"/></svg></div>
+              <div class="b" style="flex:1;border:1px solid var(--border-strong);border-radius:8px;height:34px;padding:0 10px;background:#fff;font-family:var(--num);font-size:12px;align-items:center">/api/user/1001</div>
+            </div>
+            <div>
+              <div class="muted" style="font-size:11.5px;margin-bottom:6px">Header（3）</div>
+              <div style="display:flex;flex-direction:column;gap:5px">
+                <div class="b gap8" style="font-size:12px"><span class="mono" style="width:118px;color:var(--ink-2)">Authorization</span><span class="mono muted">Bearer eyJhbGci…</span><svg class="ic" style="width:13px;height:13px;color:var(--ink-3);margin-left:auto"><use href="#i-x"/></svg></div>
+                <div class="b gap8" style="font-size:12px"><span class="mono" style="width:118px;color:var(--ink-2)">X-Channel</span><span class="chip mono" style="height:20px">vip</span><span class="chip" style="height:20px;margin-left:auto">来自决策树分支</span><svg class="ic" style="width:13px;height:13px;color:var(--ink-3)"><use href="#i-x"/></svg></div>
+                <div class="b gap8" style="font-size:12px"><span class="mono" style="width:118px;color:var(--ink-2)">X-Env</span><span class="chip mono" style="height:20px">prod</span><svg class="ic" style="width:13px;height:13px;color:var(--ink-3);margin-left:auto"><use href="#i-x"/></svg></div>
+                <button class="btn sm" style="align-self:flex-start;border-style:dashed"><svg class="ic" style="width:12px;height:12px"><use href="#i-plus"/></svg>添加 Header</button>
+              </div>
+            </div>
+            <div>
+              <div class="muted" style="font-size:11.5px;margin-bottom:6px">Body <span class="chip" style="height:18px;font-size:10.5px;margin-left:4px">GET 无需</span></div>
+            </div>
+            <div class="b gap8">
+              <button class="btn pri lg" style="flex:1;justify-content:center"><svg class="ic"><use href="#i-play"/></svg>发送请求</button>
+              <button class="btn lg" title="复制为 curl"><svg class="ic"><use href="#i-copy"/></svg>curl</button>
+            </div>
+            <div class="muted" style="font-size:11px;line-height:1.7;border-top:1px solid var(--border);padding-top:10px">
+              生产环境发送为「影子请求」：真实走到上游但响应不落库；预发直接回放。历史请求保存在左侧会话列表（此处略）。
+            </div>
+          </div>
+        </div>
+
+        <div class="flex" style="flex-direction:column;gap:14px;min-width:0">
+          <div class="card">
+            <div class="card-h">
+              <span class="badge ok" style="height:26px;font-size:13px">200 OK</span>
+              <b class="mono" style="font-size:12.5px">GET /api/user/1001</b>
+              <span class="hint">总耗时 <b style="color:var(--ink)">23ms</b> · 命中 api_gateway → user_service</span>
+              <div class="r"><span class="chip mono">trace-id 8f3a…e2</span><span class="chip mono">重放</span></div>
+            </div>
+            <div class="card-b" style="padding:8px 16px 12px">
+              <div class="wf-row">
+                <div class="wf-lb"><span class="lv">1</span><svg class="ic" style="width:13px;height:13px;color:var(--info)"><use href="#i-filter"/></svg>匹配规则 <span class="chip path" style="height:20px">/api/user/**</span></div>
+                <div class="wf-track"><span class="wf-seg" style="left:0;width:4%;background:#7CA9F5"></span></div>
+                <span class="wf-ms">0.3ms</span><span class="badge ok" style="height:19px;font-size:10.5px">命中</span>
+              </div>
+              <div class="wf-row">
+                <div class="wf-lb"><span class="lv">2</span><svg class="ic" style="width:13px;height:13px;color:var(--violet)"><use href="#i-shield"/></svg>插件 · 签名校验</div>
+                <div class="wf-track"><span class="wf-seg" style="left:4%;width:5%;background:#9F8AE0"></span></div>
+                <span class="wf-ms">0.4ms</span><span class="badge ok" style="height:19px;font-size:10.5px">通过</span>
+              </div>
+              <div class="wf-row">
+                <div class="wf-lb"><span class="lv">3</span><svg class="ic" style="width:13px;height:13px;color:var(--violet)"><use href="#i-zap"/></svg>插件 · 请求限流</div>
+                <div class="wf-track"><span class="wf-seg" style="left:9%;width:3%;background:#9F8AE0"></span></div>
+                <span class="wf-ms">0.2ms</span><span class="badge ok" style="height:19px;font-size:10.5px">余 98/100</span>
+              </div>
+              <div class="wf-row">
+                <div class="wf-lb"><span class="lv">4</span><svg class="ic" style="width:13px;height:13px;color:var(--violet)"><use href="#i-activity"/></svg>插件 · 链路追踪</div>
+                <div class="wf-track"><span class="wf-seg" style="left:12%;width:3%;background:#9F8AE0"></span></div>
+                <span class="wf-ms">0.1ms</span><span class="badge ok" style="height:19px;font-size:10.5px">注入 trace</span>
+              </div>
+              <div class="wf-row">
+                <div class="wf-lb"><span class="lv">5</span><svg class="ic" style="width:13px;height:13px;color:var(--primary)"><use href="#i-git-merge"/></svg>分发决策 · 默认分支</div>
+                <div class="wf-track"><span class="wf-seg" style="left:15%;width:3%;background:#C2410C"></span></div>
+                <span class="wf-ms">0.1ms</span><span class="badge pri" style="height:19px;font-size:10.5px">89.6% 桶</span>
+              </div>
+              <div class="wf-row">
+                <div class="wf-lb"><span class="lv">6</span><svg class="ic" style="width:13px;height:13px;color:var(--ok)"><use href="#i-database"/></svg>上游 user-pool-01</div>
+                <div class="wf-track"><span class="wf-seg" style="left:18%;width:5%;background:#5FB894"></span><span class="wf-seg" style="left:23%;width:52%;background:#8FD3B8"></span><span class="wf-seg" style="left:75%;width:9%;background:#5FB894"></span></div>
+                <span class="wf-ms">18.2ms</span><span class="badge gray" style="height:19px;font-size:10.5px">连1.1 等待14.9 下载2.2</span>
+              </div>
+              <div class="wf-row">
+                <div class="wf-lb"><span class="lv">7</span><svg class="ic" style="width:13px;height:13px;color:var(--violet)"><use href="#i-eye"/></svg>后置 · 敏感字段脱敏</div>
+                <div class="wf-track"><span class="wf-seg" style="left:84%;width:5%;background:#9F8AE0"></span></div>
+                <span class="wf-ms">0.3ms</span><span class="badge ok" style="height:19px;font-size:10.5px">脱敏 2 字段</span>
+              </div>
+              <div class="wf-row">
+                <div class="wf-lb"><span class="lv">8</span><svg class="ic" style="width:13px;height:13px;color:var(--ok)"><use href="#i-check"/></svg>响应组装 · 200</div>
+                <div class="wf-track"><span class="wf-seg" style="left:89%;width:11%;background:#5FB894"></span></div>
+                <span class="wf-ms">3.4ms</span><span class="badge ok" style="height:19px;font-size:10.5px">完成</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="background:#FBFCFD;border-color:#D9E4F5">
+            <div class="card-b flex gap8 ai-c">
+              <svg class="ic" style="color:var(--info)"><use href="#i-alert"/></svg>
+              <span style="font-size:12.5px"><b>为什么走了 user_service？</b> 请求带 <span class="chip mono" style="height:19px">X-Channel: vip</span>，但决策树第 1 优先级要求 Header <span class="chip mono" style="height:19px">X-Channel=vip</span> 且路径为 /api/user/** —— 两者同时满足，命中第 1 分支。</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h">
+              <div class="seg"><a class="on">响应 Body</a><a>Headers <span class="n">9</span></a><a>插件改动 <span class="n">2</span></a><a>原始报文</a></div>
+              <div class="r"><span class="chip mono">application/json · 1.2 KB</span></div>
+            </div>
+            <div class="card-b"><div class="code"><span class="c">// 脱敏插件已处理：phone 字段中间四位已打码</span>
+{
+  <span class="k">"code"</span>: 0,
+  <span class="k">"data"</span>: {
+    <span class="k">"id"</span>: <span class="s">"1001"</span>,
+    <span class="k">"username"</span>: <span class="s">"zhang_s"</span>,
+    <span class="k">"phone"</span>: <span class="s">"138****8000"</span>,   <span class="c">// ← 后置插件改写</span>
+    <span class="k">"roles"</span>: [<span class="s">"ROLE_OPS"</span>],
+    <span class="k">"cache"</span>: <span class="n">false</span>
+  }
+}</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+</body></html>

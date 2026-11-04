@@ -1,0 +1,126 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<title>06 · 插件链 · Gateway4j v2 原型</title>
+<link rel="stylesheet" href="assets/base.css">
+<style>
+.lane { background:var(--card); border:1px solid var(--border); border-radius:10px; display:flex; flex-direction:column; min-height:430px }
+.lane-h { padding:10px 12px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:6px }
+.lane-h b { font-size:12.5px }
+.lane-h .ph { font-size:10.5px; color:var(--ink-3); font-family:var(--num); background:#F4F5F7; padding:0 6px; border-radius:4px }
+.lane-b { padding:10px; display:flex; flex-direction:column; gap:8px; flex:1 }
+.pg { border:1px solid var(--border); border-radius:8px; background:#fff; padding:9px 10px; box-shadow:var(--sh) }
+.pg.off { opacity:.55; background:#FAFBFC; border-style:dashed }
+.pg-h { display:flex; align-items:center; gap:7px }
+.pg-h b { font-size:12.5px }
+.pg-h .sc { margin-left:auto }
+.pg-m { display:flex; align-items:center; gap:6px; margin-top:6px; font-size:11px; color:var(--ink-3) }
+.tg { width:26px; height:15px; border-radius:999px; background:var(--ok); position:relative; flex:none }
+.tg::after { content:""; position:absolute; right:2px; top:2px; width:11px; height:11px; border-radius:50%; background:#fff }
+.tg.off { background:#C4C9D0 } .tg.off::after { right:auto; left:2px }
+</style></head><body>
+<script src="assets/icons.js"></script>
+<div class="shell">
+  <aside class="side">
+    <div class="logo"><span class="logo-mark"></span><div><b>Gateway4j</b><i>可视化网关 · v2 原型</i></div></div>
+    <div class="nav-g">总览</div>
+    <a class="ni" href="01-overview-topology.html"><svg class="ic"><use href="#i-grid"/></svg>拓扑总览<span class="live"></span></a>
+    <div class="nav-g">路由</div>
+    <a class="ni" href="02-route-list.html"><svg class="ic"><use href="#i-branch"/></svg>路由列表<span class="cnt">26</span></a>
+    <a class="ni" href="04-flow-canvas.html"><svg class="ic"><use href="#i-git-merge"/></svg>流程编排</a>
+    <a class="ni" href="05-decision-tree.html"><svg class="ic"><use href="#i-branch"/></svg>决策树视图</a>
+    <a class="ni" href="10-publish.html"><svg class="ic"><use href="#i-flag"/></svg>发布与版本<span class="cnt">2</span></a>
+    <div class="nav-g">插件</div>
+    <a class="ni active"><svg class="ic"><use href="#i-layers"/></svg>插件链</a>
+    <a class="ni"><svg class="ic"><use href="#i-zap"/></svg>插件市场</a>
+    <div class="nav-g">可观测</div>
+    <a class="ni" href="08-monitoring.html"><svg class="ic"><use href="#i-activity"/></svg>监控大盘</a>
+    <a class="ni" href="09-debug.html"><svg class="ic"><use href="#i-terminal"/></svg>调试台</a>
+    <div class="nav-g">系统</div>
+    <a class="ni"><svg class="ic"><use href="#i-database"/></svg>服务与上游</a>
+    <a class="ni"><svg class="ic"><use href="#i-users"/></svg>用户权限</a>
+    <a class="ni"><svg class="ic"><use href="#i-sliders"/></svg>系统设置</a>
+    <div class="side-foot"><div class="env-pill"><span class="dot ok"></span>生产环境 · 网关正常<span class="mono" style="margin-left:auto">v1.4.2</span></div></div>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <div class="crumb">插件<span class="sep">/</span><b>插件链编排</b></div>
+      <div class="seg" style="margin-left:14px"><a class="on">作用域：全局 <span class="n">3</span></a><a>路由级 <span class="n">12</span></a></div>
+      <div class="b gap8" style="margin-left:auto">
+        <span class="chip mono" style="border-color:#BFE4D4;background:var(--ok-tint);color:var(--ok)"><svg class="ic" style="width:12px;height:12px"><use href="#i-clock"/></svg>灰度生效中 · 1/2 实例</span>
+        <button class="btn"><svg class="ic"><use href="#i-eye"/></svg>模拟一次执行</button>
+        <button class="btn pri"><svg class="ic"><use href="#i-check"/></svg>保存编排</button>
+      </div>
+      <span class="avatar" style="margin-left:8px">管</span>
+    </header>
+    <section class="page">
+      <div class="page-head">
+        <div><h1>插件链编排</h1><div class="sub">请求按「全局前置 → 路由前置 → 转发 → 路由后置 → 全局后置」顺序穿过每一环 —— 拖 ≡ 调顺序，开关即时预览</div></div>
+        <div class="acts"><button class="btn pri"><svg class="ic"><use href="#i-zap"/></svg>插件市场</button></div>
+      </div>
+
+      <div class="grid" style="grid-template-columns:1fr 1fr 200px 1fr 1fr;gap:10px;align-items:stretch">
+        <div class="lane"><div class="lane-h"><b>全局前置</b><span class="ph">×2 · 0.6ms</span></div>
+          <div class="lane-b">
+            <div class="pg"><div class="pg-h"><span style="cursor:grab;color:var(--ink-3)">≡</span><b>签名校验</b><span class="badge gray sc" style="height:18px;font-size:10.5px">全局</span></div>
+              <div class="pg-m"><span class="tg"></span>p95 0.4ms · 全部路由</div></div>
+            <div class="pg"><div class="pg-h"><span style="cursor:grab;color:var(--ink-3)">≡</span><b>链路追踪</b><span class="badge gray sc" style="height:18px;font-size:10.5px">全局</span></div>
+              <div class="pg-m"><span class="tg"></span>p95 0.2ms · 注入 trace-id</div></div>
+            <div style="border:1px dashed var(--border-strong);border-radius:8px;padding:10px;text-align:center;color:var(--ink-3);font-size:11.5px">＋ 从市场添加</div>
+          </div></div>
+        <div class="lane"><div class="lane-h"><b>路由前置</b><span class="ph">×3 · 0.5ms</span></div>
+          <div class="lane-b">
+            <div class="pg"><div class="pg-h"><span style="cursor:grab;color:var(--ink-3)">≡</span><b>请求限流</b><span class="badge pri sc" style="height:18px;font-size:10.5px">路由级</span></div>
+              <div class="pg-m"><span class="tg"></span>100 QPS · 剩余 98</div></div>
+            <div class="pg"><div class="pg-h"><span style="cursor:grab;color:var(--ink-3)">≡</span><b>参数校验</b><span class="badge pri sc" style="height:18px;font-size:10.5px">路由级</span></div>
+              <div class="pg-m"><span class="tg off"></span>已停用 · 保留配置</div></div>
+            <div class="pg"><div class="pg-h"><span style="cursor:grab;color:var(--ink-3)">≡</span><b>缓存</b><span class="badge pri sc" style="height:18px;font-size:10.5px">路由级</span></div>
+              <div class="pg-m"><span class="tg"></span>TTL 30s · 命中率 41%</div></div>
+          </div></div>
+        <div class="lane" style="background:linear-gradient(180deg,#FDF9F5,#FDF0E8);align-items:center;justify-content:center;min-height:430px">
+          <div style="text-align:center;padding:10px">
+            <div style="width:64px;height:64px;border-radius:50%;background:#fff;border:2px solid var(--primary);display:flex;align-items:center;justify-content:center;margin:0 auto 10px;box-shadow:var(--sh)"><svg class="ic" style="width:26px;height:26px;color:var(--primary)"><use href="#i-arrow-right"/></svg></div>
+            <b style="font-size:13px">转发</b>
+            <div class="muted" style="font-size:11px;margin-top:4px;line-height:1.6">网关核心<br>不可插拔<br>p95 1.2ms</div>
+          </div></div>
+        <div class="lane"><div class="lane-h"><b>路由后置</b><span class="ph">×2 · 0.5ms</span></div>
+          <div class="lane-b">
+            <div class="pg"><div class="pg-h"><span style="cursor:grab;color:var(--ink-3)">≡</span><b>敏感字段脱敏</b><span class="badge pri sc" style="height:18px;font-size:10.5px">路由级</span></div>
+              <div class="pg-m"><span class="tg"></span>手机号/身份�� · p95 0.3ms</div></div>
+            <div class="pg"><div class="pg-h"><span style="cursor:grab;color:var(--ink-3)">≡</span><b>响应改写</b><span class="badge pri sc" style="height:18px;font-size:10.5px">路由级</span></div>
+              <div class="pg-m"><span class="tg off"></span>已停用</div></div>
+          </div></div>
+        <div class="lane"><div class="lane-h"><b>全局后置</b><span class="ph">×1 · 0.2ms</span></div>
+          <div class="lane-b">
+            <div class="pg"><div class="pg-h"><span style="cursor:grab;color:var(--ink-3)">≡</span><b>日志采样</b><span class="badge gray sc" style="height:18px;font-size:10.5px">全局</span></div>
+              <div class="pg-m"><span class="tg"></span>采样 10% · 慢请求 100%</div></div>
+            <div style="border:1px dashed var(--border-strong);border-radius:8px;padding:10px;text-align:center;color:var(--ink-3);font-size:11.5px">＋ 从市场添加</div>
+          </div></div>
+      </div>
+      <div class="flex gap10 ai-c mt12" style="color:var(--ink-3);font-size:12px">
+        <svg class="ic" style="width:14px;height:14px"><use href="#i-arrow-right"/></svg>执行顺序从左到右；同一条内拖「≡」调顺序。
+        <svg class="ic" style="width:14px;height:14px;margin-left:12px"><use href="#i-eye"/></svg>开关只是预览，点「保存编排」并发布后生效。
+        <svg class="ic" style="width:14px;height:14px;margin-left:12px"><use href="#i-zap"/></svg>JAR / Groovy 插件在市场安装后出现在对应阶段。
+        <span class="chip mono" style="margin-left:auto">本链路合计开销 ≈ 1.8ms / 请求</span>
+      </div>
+
+      <div class="grid mt16" style="grid-template-columns:1fr 1fr 1fr">
+        <div class="card"><div class="card-h"><b>插件市场 · 安全</b><div class="r"><span class="chip" style="cursor:pointer">查看全部 →</span></div></div>
+          <div class="card-b" style="display:flex;flex-direction:column;gap:8px">
+            <div class="b gap10"><span class="pg" style="flex:1;display:block"><div class="pg-h"><b>IP 黑名单</b><span class="badge gray sc" style="height:17px;font-size:10.5px">内置</span></div><div class="pg-m">按网段拦截 · 无状态</div></span><button class="btn sm">安装</button></div>
+            <div class="b gap10"><span class="pg" style="flex:1;display:block"><div class="pg-h"><b>JWT 鉴权</b><span class="badge gray sc" style="height:17px;font-size:10.5px">内置</span></div><div class="pg-m">token 校验 + claims 注入</div></span><button class="btn sm" disabled>已装</button></div>
+          </div></div>
+        <div class="card"><div class="card-h"><b>插件市场 · 流量</b><div class="r"><span class="chip" style="cursor:pointer">查看全部 →</span></div></div>
+          <div class="card-b" style="display:flex;flex-direction:column;gap:8px">
+            <div class="b gap10"><span class="pg" style="flex:1;display:block"><div class="pg-h"><b>熔断降级</b><span class="badge gray sc" style="height:17px;font-size:10.5px">内置</span></div><div class="pg-m">错误率阈值自动熔断</div></span><button class="btn sm">安装</button></div>
+            <div class="b gap10"><span class="pg" style="flex:1;display:block"><div class="pg-h"><b>灰度分流</b><span class="badge pri sc" style="height:17px;font-size:10.5px">GROOVY</span></div><div class="pg-m">社区脚本 · 权重/Header</div></span><button class="btn sm" disabled>已装</button></div>
+          </div></div>
+        <div class="card"><div class="card-h"><b>自定义插件</b></div>
+          <div class="card-b" style="display:flex;flex-direction:column;gap:8px">
+            <div class="b gap10"><span class="pg" style="flex:1;display:block"><div class="pg-h"><b>channel-split.groovy</b><span class="badge violet sc" style="height:17px;font-size:10.5px">GROOVY</span></div><div class="pg-m">可可 · 11-02 更新 · 沙箱运行</div></span><button class="btn sm">管理</button></div>
+            <div class="b gap10"><span class="pg" style="flex:1;display:block"><div class="pg-h"><b>upstream-retry.jar</b><span class="badge info sc" style="height:17px;font-size:10.5px">JAR</span></div><div class="pg-m">admin · 独立 ClassLoader</div></span><button class="btn sm">管理</button></div>
+            <button class="btn" style="border-style:dashed"><svg class="ic"><use href="#i-upload"/></svg>上传 JAR / 编写 Groovy</button>
+          </div></div>
+      </div>
+    </section>
+  </div>
+</div>
+</body></html>

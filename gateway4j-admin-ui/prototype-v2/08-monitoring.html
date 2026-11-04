@@ -1,0 +1,123 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<title>08 · 监控大盘 · Gateway4j v2 原型</title>
+<link rel="stylesheet" href="assets/base.css"></head><body>
+<script src="assets/icons.js"></script>
+<div class="shell">
+  <aside class="side">
+    <div class="logo"><span class="logo-mark"></span><div><b>Gateway4j</b><i>可视化网关 · v2 原型</i></div></div>
+    <div class="nav-g">总览</div>
+    <a class="ni" href="01-overview-topology.html"><svg class="ic"><use href="#i-grid"/></svg>拓扑总览<span class="live"></span></a>
+    <div class="nav-g">路由</div>
+    <a class="ni" href="02-route-list.html"><svg class="ic"><use href="#i-branch"/></svg>路由列表<span class="cnt">26</span></a>
+    <a class="ni" href="04-flow-canvas.html"><svg class="ic"><use href="#i-git-merge"/></svg>流程编排</a>
+    <a class="ni" href="05-decision-tree.html"><svg class="ic"><use href="#i-branch"/></svg>决策树视图</a>
+    <a class="ni" href="10-publish.html"><svg class="ic"><use href="#i-flag"/></svg>发布与版本<span class="cnt">2</span></a>
+    <div class="nav-g">插件</div>
+    <a class="ni" href="06-plugin-chain.html"><svg class="ic"><use href="#i-layers"/></svg>插件链</a>
+    <a class="ni" href="06-plugin-chain.html"><svg class="ic"><use href="#i-zap"/></svg>插件市场</a>
+    <div class="nav-g">可观测</div>
+    <a class="ni active"><svg class="ic"><use href="#i-activity"/></svg>监控大盘</a>
+    <a class="ni" href="09-debug.html"><svg class="ic"><use href="#i-terminal"/></svg>调试台</a>
+    <div class="nav-g">系统</div>
+    <a class="ni"><svg class="ic"><use href="#i-database"/></svg>服务与上游</a>
+    <a class="ni"><svg class="ic"><use href="#i-users"/></svg>用户权限</a>
+    <a class="ni"><svg class="ic"><use href="#i-sliders"/></svg>系统设置</a>
+    <div class="side-foot"><div class="env-pill"><span class="dot ok"></span>生产环境 · 网关正常<span class="mono" style="margin-left:auto">v1.4.2</span></div></div>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <div class="crumb">可观测<span class="sep">/</span><b>监控大盘</b></div>
+      <div class="seg" style="margin-left:14px"><a>近 1 小时</a><a class="on">近 24 小时</a><a>近 7 天</a></div>
+      <div class="seg"><a class="on">全部环境</a><a>生产</a><a>预发</a></div>
+      <div class="b gap8" style="margin-left:auto">
+        <button class="btn"><svg class="ic"><use href="#i-upload"/></svg>导出</button>
+      </div>
+      <span class="avatar" style="margin-left:8px">管</span>
+    </header>
+    <section class="page">
+      <div class="page-head">
+        <div><h1>监控大盘</h1><div class="sub">网关级与路由级指标聚合 · Prometheus 采集 · 15s 刷新</div></div>
+      </div>
+
+      <div class="grid" style="grid-template-columns:repeat(5,1fr)">
+        <div class="card kpi"><span class="lb">请求总量</span><span class="v">1.28<small>M</small></span><span class="delta up">▲ 6.2%</span></div>
+        <div class="card kpi"><span class="lb">QPS 均值</span><span class="v">356</span><span class="delta up">▲ 峰值 512 @ 12:04</span></div>
+        <div class="card kpi"><span class="lb">P95 延迟</span><span class="v">87<small>ms</small></span><span class="delta up">▼ 3.1%</span></div>
+        <div class="card kpi"><span class="lb">错误率</span><span class="v" style="color:var(--warn)">0.32<small>%</small></span><span class="delta down">▲ 0.04%</span></div>
+        <div class="card kpi"><span class="lb">活跃连接</span><span class="v">2,143</span><span class="muted" style="font-size:11.5px">2 实例 · 网关</span></div>
+      </div>
+
+      <div class="grid mt14" style="grid-template-columns:1.6fr 1fr">
+        <div class="card"><div class="card-h"><b>请求吞吐 QPS</b><span class="hint">网关入口 vs 上游转发</span>
+          <div class="r legend"><span><i style="background:#C2410C"></i>入口</span><span><i style="background:#94A3B8"></i>上游转发</span></div></div>
+          <div class="card-b"><svg class="chart-wrap" viewBox="0 0 560 150" style="width:100%">
+            <line x1="0" y1="30" x2="560" y2="30" class="gridline"/><line x1="0" y1="70" x2="560" y2="70" class="gridline"/><line x1="0" y1="110" x2="560" y2="110" class="gridline"/>
+            <text x="4" y="14" class="axis">600</text><text x="4" y="54" class="axis">400</text><text x="4" y="94" class="axis">200</text><text x="4" y="134" class="axis">0</text>
+            <path d="M0 118 L30 112 L60 116 L90 104 L120 108 L150 92 L180 96 L210 78 L240 60 L270 72 L300 52 L330 66 L360 44 L390 58 L420 38 L450 50 L480 34 L510 46 L540 30 L560 36" fill="none" stroke="#C2410C" stroke-width="2"/>
+            <path d="M0 118 L30 112 L60 116 L90 104 L120 108 L150 92 L180 96 L210 78 L240 60 L270 72 L300 52 L330 66 L360 44 L390 58 L420 38 L450 50 L480 34 L510 46 L540 30 L560 36 L560 150 L0 150 Z" fill="#C2410C" opacity=".06"/>
+            <path d="M0 126 L30 122 L60 124 L90 114 L120 118 L150 104 L180 108 L210 92 L240 74 L270 84 L300 64 L330 76 L360 56 L390 68 L420 50 L450 60 L480 46 L510 56 L540 42 L560 48" fill="none" stroke="#94A3B8" stroke-width="1.6" stroke-dasharray="1 0"/>
+            <text x="30" y="146" class="axis">00:00</text><text x="180" y="146" class="axis">06:00</text><text x="300" y="146" class="axis">12:04 峰值</text><text x="520" y="146" class="axis">now</text>
+          </svg></div></div>
+        <div class="card"><div class="card-h"><b>延迟分位</b><span class="hint">ms · 24h</span>
+          <div class="r legend"><span><i style="background:#94A3B8"></i>P50</span><span><i style="background:#E8B690"></i>P95</span><span><i style="background:#C2410C"></i>P99</span></div></div>
+          <div class="card-b"><svg class="chart-wrap" viewBox="0 0 300 150" style="width:100%">
+            <line x1="0" y1="40" x2="300" y2="40" class="gridline"/><line x1="0" y1="80" x2="300" y2="80" class="gridline"/><line x1="0" y1="120" x2="300" y2="120" class="gridline"/>
+            <path d="M0 112 L50 110 L100 113 L150 108 L200 111 L250 106 L300 109" fill="none" stroke="#94A3B8" stroke-width="1.6"/>
+            <path d="M0 84 L50 88 L100 82 L150 90 L200 84 L250 92 L300 86" fill="none" stroke="#E8B690" stroke-width="1.8"/>
+            <path d="M0 58 L50 66 L100 54 L150 74 L200 62 L250 84 L300 70" fill="none" stroke="#C2410C" stroke-width="1.8"/>
+            <circle cx="250" cy="84" r="3" fill="#C2410C"/><text x="256" y="80" class="axis">P99 216ms</text>
+            <text x="4" y="14" class="axis">300ms</text><text x="4" y="54" class="axis">200ms</text><text x="4" y="94" class="axis">100ms</text>
+          </svg></div></div>
+      </div>
+
+      <div class="grid mt14" style="grid-template-columns:1fr 1fr 1fr">
+        <div class="card"><div class="card-h"><b>上游健康矩阵</b><span class="hint">实例级 · 实时</span></div>
+          <div class="card-b" style="padding:10px 12px">
+            <div class="flex gap6" style="font-size:11px;color:var(--ink-3);margin-bottom:6px"><span style="width:104px">服务</span><span style="width:46px;text-align:center">01</span><span style="width:46px;text-align:center">02</span><span style="width:46px;text-align:center">03</span><span style="margin-left:auto">P95</span></div>
+            <div class="flex gap6 ai-c" style="margin-bottom:6px"><span style="width:104px;font-size:12px">user-pool</span><span class="dot ok" style="width:30px;margin:0 auto"></span><span class="dot ok" style="width:30px;margin:0 auto"></span><span style="width:46px"></span><span class="mono muted">18ms</span></div>
+            <div class="flex gap6 ai-c" style="margin-bottom:6px"><span style="width:104px;font-size:12px">order-pool</span><span class="dot warn" style="width:30px;margin:0 auto"></span><span class="dot gray" style="width:30px;margin:0 auto"></span><span style="width:46px"></span><span class="mono" style="color:var(--warn)">96ms</span></div>
+            <div class="flex gap6 ai-c" style="margin-bottom:6px"><span style="width:104px;font-size:12px">product-pool</span><span class="dot ok" style="width:30px;margin:0 auto"></span><span style="width:46px"></span><span style="width:46px"></span><span class="mono muted">22ms</span></div>
+            <div class="flex gap6 ai-c" style="margin-bottom:6px"><span style="width:104px;font-size:12px">payment-pool</span><span class="dot ok" style="width:30px;margin:0 auto"></span><span class="dot ok" style="width:30px;margin:0 auto"></span><span style="width:46px"></span><span class="mono muted">64ms</span></div>
+            <div class="flex gap6 ai-c"><span style="width:104px;font-size:12px">user-pool-vip</span><span class="dot ok" style="width:30px;margin:0 auto"></span><span style="width:46px"></span><span style="width:46px"></span><span class="mono muted">12ms</span></div>
+            <div class="flex gap6 ai-c mt8" style="font-size:11px;color:var(--ink-3)"><span class="dot ok" style="width:8px;height:8px"></span>健康<span class="dot warn" style="width:8px;height:8px;margin-left:8px"></span>降级<span class="dot gray" style="width:8px;height:8px;margin-left:8px"></span>下线 · 点击单元格看实例详情</div>
+          </div></div>
+        <div class="card"><div class="card-h"><b>慢路由 Top 5</b><span class="hint">按 P95</span><div class="r"><span class="chip" style="cursor:pointer">全部 →</span></div></div>
+          <div class="card-b" style="display:flex;flex-direction:column;gap:10px">
+            <div><div class="flex ai-c gap8" style="font-size:12px"><span class="chip path" style="border:none;background:none;padding:0">/api/pay/checkout/**</span><b class="mono" style="margin-left:auto;color:var(--danger)">412ms</b></div><div class="pbar mt8"><i style="width:100%;background:var(--danger)"></i></div></div>
+            <div><div class="flex ai-c gap8" style="font-size:12px"><span class="chip path" style="border:none;background:none;padding:0">/api/order/list</span><b class="mono" style="margin-left:auto;color:var(--warn)">96ms</b></div><div class="pbar mt8"><i style="width:23%;background:#E4A34C"></i></div></div>
+            <div><div class="flex ai-c gap8" style="font-size:12px"><span class="chip path" style="border:none;background:none;padding:0">/api/report/export</span><b class="mono" style="margin-left:auto">64ms</b></div><div class="pbar mt8"><i style="width:16%"></i></div></div>
+            <div><div class="flex ai-c gap8" style="font-size:12px"><span class="chip path" style="border:none;background:none;padding:0">/api/product/search</span><b class="mono" style="margin-left:auto">47ms</b></div><div class="pbar mt8"><i style="width:11%"></i></div></div>
+            <div><div class="flex ai-c gap8" style="font-size:12px"><span class="chip path" style="border:none;background:none;padding:0">/api/user/list</span><b class="mono" style="margin-left:auto">31ms</b></div><div class="pbar mt8"><i style="width:8%"></i></div></div>
+            <div class="muted" style="font-size:11px">灰度路由 canary-checkout 是当前最慢链路，建议检查 payment-canary 实例规格。</div>
+          </div></div>
+        <div class="card"><div class="card-h"><b>状态码分布</b><span class="hint">24h</span></div>
+          <div class="card-b flex gap14 ai-c">
+            <div style="width:100px;height:100px;border-radius:50%;background:conic-gradient(#0E8A5F 0 356.8deg,#B45309 356.8deg 359deg,#C5303F 359deg 360deg);position:relative;flex:none"><div style="position:absolute;inset:24px;background:#fff;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center"><b style="font-size:14px">1.28M</b><span class="muted" style="font-size:9.5px">总请求</span></div></div>
+            <div style="display:flex;flex-direction:column;gap:7px;font-size:12px">
+              <span class="b gap6"><i style="width:8px;height:8px;border-radius:2px;background:#0E8A5F;display:inline-block"></i>2xx · 99.11%</span>
+              <span class="b gap6"><i style="width:8px;height:8px;border-radius:2px;background:#B45309;display:inline-block"></i>4xx · 0.61%</span>
+              <span class="b gap6"><i style="width:8px;height:8px;border-radius:2px;background:#C5303F;display:inline-block"></i>5xx · 0.28%</span>
+              <span class="muted" style="font-size:11px">4xx 主要为 429 限流（可预期）</span>
+            </div>
+          </div></div>
+      </div>
+
+      <div class="card mt14">
+        <div class="card-h"><b>告警与建议</b><span class="hint">规则自动触发</span><div class="r"><span class="badge danger">2 条未读</span></div></div>
+        <table class="tb">
+          <tr><th style="width:90px">级别</th><th>内容</th><th style="width:180px">建议动作</th><th style="width:110px">时间</th></tr>
+          <tr><td><span class="badge danger"><span class="dot"></span>严重</span></td>
+            <td><b>order_service 5xx 率 2.1%</b>（阈值 1%）· 与 order-pool 实例 02 下线时间吻合</td>
+            <td><button class="btn sm">扩回实例</button> <button class="btn sm ghost">静默 2h</button></td><td class="mono">14:32</td></tr>
+          <tr><td><span class="badge warn"><span class="dot"></span>警告</span></td>
+            <td>域名 <b>*.gw4j.fun</b> 证书 30 天后到期</td>
+            <td><button class="btn sm">续期证书</button></td><td class="mono">09:00</td></tr>
+          <tr><td><span class="badge gray">恢复</span></td>
+            <td>user_service P95 已回落至 31ms（此前 58ms 持续 22 分钟）</td>
+            <td class="muted" style="font-size:12px">无需处理</td><td class="mono">13:40</td></tr>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,168 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<title>05 · 分发决策树 · Gateway4j v2 原型</title>
+<link rel="stylesheet" href="assets/base.css"></head><body>
+<script src="assets/icons.js"></script>
+<div class="shell">
+  <aside class="side">
+    <div class="logo"><span class="logo-mark"></span><div><b>Gateway4j</b><i>可视化网关 · v2 原型</i></div></div>
+    <div class="nav-g">总览</div>
+    <a class="ni" href="01-overview-topology.html"><svg class="ic"><use href="#i-grid"/></svg>拓扑总览<span class="live"></span></a>
+    <div class="nav-g">路由</div>
+    <a class="ni" href="02-route-list.html"><svg class="ic"><use href="#i-branch"/></svg>路由列表<span class="cnt">26</span></a>
+    <a class="ni" href="04-flow-canvas.html"><svg class="ic"><use href="#i-git-merge"/></svg>流程编排</a>
+    <a class="ni active"><svg class="ic"><use href="#i-branch"/></svg>决策树视图</a>
+    <a class="ni" href="10-publish.html"><svg class="ic"><use href="#i-flag"/></svg>发布与版本<span class="cnt">2</span></a>
+    <div class="nav-g">插件</div>
+    <a class="ni" href="06-plugin-chain.html"><svg class="ic"><use href="#i-layers"/></svg>插件链</a>
+    <a class="ni" href="06-plugin-chain.html"><svg class="ic"><use href="#i-zap"/></svg>插件市场</a>
+    <div class="nav-g">可观测</div>
+    <a class="ni" href="08-monitoring.html"><svg class="ic"><use href="#i-activity"/></svg>监控大盘</a>
+    <a class="ni" href="09-debug.html"><svg class="ic"><use href="#i-terminal"/></svg>调试台</a>
+    <div class="nav-g">系统</div>
+    <a class="ni"><svg class="ic"><use href="#i-database"/></svg>服务与上游</a>
+    <a class="ni"><svg class="ic"><use href="#i-users"/></svg>用户权限</a>
+    <a class="ni"><svg class="ic"><use href="#i-sliders"/></svg>系统设置</a>
+    <div class="side-foot"><div class="env-pill"><span class="dot ok"></span>生产环境 · 网关正常<span class="mono" style="margin-left:auto">v1.4.2</span></div></div>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <div class="crumb">路由<span class="sep">/</span>决策树<span class="sep">/</span><b>api_gateway</b>
+        <span class="badge ok" style="margin-left:8px"><span class="dot"></span>v2 生产中</span></div>
+      <div class="b gap8" style="margin-left:auto">
+        <button class="btn"><svg class="ic"><use href="#i-git-merge"/></svg>在画布中编辑</button>
+        <button class="btn pri"><svg class="ic"><use href="#i-refresh"/></svg>刷新命中数据</button>
+      </div>
+      <span class="avatar" style="margin-left:8px">管</span>
+    </header>
+    <section class="page">
+      <div class="page-head">
+        <div><h1>分发决策树</h1><div class="sub">一个请求进来，按条件从上往下匹配，命中即转发 —— 树的深度 2 / 5 层，数据为近 24 小时真实命中</div></div>
+      </div>
+      <div class="grid" style="grid-template-columns:200px 1fr 316px">
+        <div class="flex" style="flex-direction:column;gap:14px">
+          <div class="card">
+            <div class="card-h" style="padding:10px 12px"><b style="font-size:12.5px">条件库</b></div>
+            <div class="card-b" style="padding:10px 12px;display:flex;flex-direction:column;gap:7px">
+              <span class="chip" style="cursor:grab"><svg class="ic" style="width:12px;height:12px"><use href="#i-link"/></svg>Header 头</span>
+              <span class="chip" style="cursor:grab"><svg class="ic" style="width:12px;height:12px"><use href="#i-users"/></svg>Cookie</span>
+              <span class="chip" style="cursor:grab"><svg class="ic" style="width:12px;height:12px"><use href="#i-filter"/></svg>查询参数</span>
+              <span class="chip" style="cursor:grab"><svg class="ic" style="width:12px;height:12px"><use href="#i-zap"/></svg>权重比例</span>
+              <span class="chip" style="cursor:grab"><svg class="ic" style="width:12px;height:12px"><use href="#i-globe"/></svg>IP 网段</span>
+              <div class="muted" style="font-size:11px;line-height:1.6">拖到画布某条分支上即可新增条件，支持嵌套。</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h" style="padding:10px 12px"><b style="font-size:12.5px">已用条件</b></div>
+            <div class="card-b" style="padding:10px 12px;display:flex;flex-direction:column;gap:6px">
+              <div class="b gap6" style="font-size:12px"><span class="mono">L1</span><span class="chip mono">X-Channel = vip</span></div>
+              <div class="b gap6" style="font-size:12px"><span class="mono">L1</span><span class="chip mono">beta = on</span></div>
+              <div class="b gap6" style="font-size:12px"><span class="mono">L1</span><span class="chip">默认分支</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h"><b>决策树</b><span class="hint">线宽 = 命中占比 · 点击分支查看详情</span>
+            <div class="r legend"><span><i style="background:#C2410C"></i>热分支</span><span><i style="background:#B9C0CA"></i>常规</span><span><i style="background:#C5303F"></i>未命中兜底</span></div></div>
+          <div class="canvas-wrap" style="height:560px;border:none;box-shadow:none">
+            <div class="canvas-dots"></div>
+            <svg class="edges">
+              <defs>
+                <marker id="a5" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7Z" fill="#B9C0CA"/></marker>
+                <marker id="a5h" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7Z" fill="#C2410C"/></marker>
+                <marker id="a5r" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7Z" fill="#C5303F"/></marker>
+              </defs>
+              <path d="M150 300 C 185 300, 190 190, 228 176" marker-end="url(#a5)"/>
+              <path d="M150 302 C 185 302, 190 300, 228 300" marker-end="url(#a5)"/>
+              <path d="M150 306 C 185 306, 190 408, 228 422" marker-end="url(#a5)"/>
+              <path d="M150 308 C 182 308, 182 508, 214 508" marker-end="url(#a5r)" stroke-dasharray="5 4"/>
+              <path d="M438 168 C 470 168, 476 168, 508 168" marker-end="url(#a5)"/>
+              <path d="M462 300 C 492 300, 496 300, 508 300" marker-end="url(#a5)"/>
+              <path d="M438 422 C 470 422, 476 422, 508 422" marker-end="url(#a5h)"/>
+            </svg>
+            <div class="edge-label" style="left:178px;top:236px">Header X-Channel = vip</div>
+            <div class="edge-label" style="left:174px;top:316px">Cookie beta = on</div>
+            <div class="edge-label hot" style="left:190px;top:384px">默认分支 89.6%</div>
+            <div class="edge-label" style="left:184px;top:470px;color:var(--danger);border-color:#E8B7BD">都不匹配 0.4%</div>
+
+            <div class="cnode t-dispatch" style="left:26px;top:262px;width:126px">
+              <div class="t"><svg class="ic"><use href="#i-git-merge"/></svg>api_gateway</div>
+              <div class="m">分发路由 ◇</div>
+              <div class="stats"><span>入口 <b>ANY /api/**</b></span></div>
+            </div>
+
+            <div class="cnode" style="left:230px;top:130px;width:208px">
+              <div class="t"><span class="chip mono" style="height:20px">X-Channel = vip</span><span class="badge info" style="margin-left:auto">命中 8.2%</span></div>
+              <div class="m">优先 VIP 客户，走独立后置</div>
+              <div class="stats"><span>QPS <b>29</b></span><span>P95 <b>41ms</b></span></div>
+            </div>
+            <div class="cnode" style="left:230px;top:262px;width:208px">
+              <div class="t"><span class="chip mono" style="height:20px">beta = on</span><span class="badge info" style="margin-left:auto">命中 1.8%</span></div>
+              <div class="m">内测用户进入灰度结账流程</div>
+              <div class="stats"><span>QPS <b>6</b></span><span>P95 <b>58ms</b></span></div>
+            </div>
+            <div class="cnode" style="left:230px;top:386px;width:208px;border-color:#EAC7B3;outline:1.5px solid #E8B690">
+              <div class="t"><span class="chip" style="height:20px">默认分支</span><span class="badge pri" style="margin-left:auto">命中 89.6%</span></div>
+              <div class="m">其余全部请求走主链路</div>
+              <div class="stats"><span>QPS <b>319</b></span><span>P95 <b>47ms</b></span></div>
+            </div>
+
+            <div class="cnode" style="left:510px;top:132px;width:160px">
+              <div class="t"><svg class="ic"><use href="#i-branch"/></svg>user_service</div>
+              <div class="m">GET /api/user/**</div>
+              <div class="stats"><span>user-pool <b>2 实例</b></span><span class="dot ok"></span></div>
+            </div>
+            <div class="cnode" style="left:510px;top:264px;width:160px">
+              <div class="t"><svg class="ic"><use href="#i-branch"/></svg>canary-checkout</div>
+              <div class="m">POST /api/pay/checkout/**</div>
+              <div class="stats"><span>payment-canary <b>1 实例</b></span><span class="dot ok"></span></div>
+            </div>
+            <div class="cnode" style="left:510px;top:392px;width:160px">
+              <div class="t"><svg class="ic"><use href="#i-branch"/></svg>order_service</div>
+              <div class="m">GET /api/order/**</div>
+              <div class="stats"><span>order-pool <b>1/2 实例</b></span><span class="dot warn"></span></div>
+            </div>
+            <div class="cnode dim" style="left:196px;top:482px;width:170px;border-style:dashed;border-color:#E8B7BD">
+              <div class="t"><svg class="ic" style="color:var(--danger)"><use href="#i-alert"/></svg>未命中兜底</div>
+              <div class="m">返回 503 · 计入错误率</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex" style="flex-direction:column;gap:14px">
+          <div class="card">
+            <div class="card-h"><b>命中占比</b><span class="hint">近 24h</span></div>
+            <div class="card-b flex gap14 ai-c">
+              <div style="width:96px;height:96px;border-radius:50%;background:conic-gradient(#E8B690 0 322.6deg,#C2410C 322.6deg 352.1deg,#2563EB 352.1deg 358.6deg,#C5303F 358.6deg 360deg);position:relative;flex:none">
+                <div style="position:absolute;inset:22px;background:#fff;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center"><b style="font-size:15px">319</b><span class="muted" style="font-size:10px">QPS 默认</span></div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:7px;font-size:12px">
+                <span class="b gap6"><i style="width:8px;height:8px;border-radius:2px;background:#E8B690;display:inline-block"></i>默认 89.6%</span>
+                <span class="b gap6"><i style="width:8px;height:8px;border-radius:2px;background:#C2410C;display:inline-block"></i> vip 8.2%</span>
+                <span class="b gap6"><i style="width:8px;height:8px;border-radius:2px;background:#2563EB;display:inline-block"></i> beta 1.8%</span>
+                <span class="b gap6"><i style="width:8px;height:8px;border-radius:2px;background:#C5303F;display:inline-block"></i> 未命中 0.4%</span>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><b>分支详情</b><span class="hint">选中：默认分支</span></div>
+            <div class="card-b" style="display:flex;flex-direction:column;gap:10px">
+              <div class="b gap6" style="flex-wrap:wrap"><span class="chip">顺序：第 3 优先级</span><span class="chip">无条件</span></div>
+              <div class="b gap14"><span style="font-size:12px;color:var(--ink-2)">转发至</span><span class="b gap6" style="font-weight:600"><svg class="ic" style="color:var(--ok)"><use href="#i-branch"/></svg>order_service</span></div>
+              <div class="b gap14"><span style="font-size:12px;color:var(--ink-2)">近 24h</span><span class="mono">命中 7.66M 次 · P95 47ms · 5xx 0.31%</span></div>
+              <div class="b gap8"><button class="btn sm"><svg class="ic" style="width:12px;height:12px"><use href="#i-git-merge"/></svg>在画布中编辑</button><button class="btn sm"><svg class="ic" style="width:12px;height:12px"><use href="#i-terminal"/></svg>模拟一次命中</button></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><b>兜底策略</b></div>
+            <div class="card-b">
+              <div class="b gap8" style="margin-bottom:6px"><span class="badge danger">503</span><b style="font-size:12.5px">未命中任何分支时</b></div>
+              <div class="muted" style="font-size:12px;line-height:1.7">建议始终保留默认分支，避免请求落到兜底。当前未命中率 0.4%，主要来自缺少 X-Channel 的老版本 App。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+</body></html>

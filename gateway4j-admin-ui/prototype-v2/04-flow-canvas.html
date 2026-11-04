@@ -1,0 +1,140 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<title>04 · 流程编排画布 · Gateway4j v2 原型</title>
+<link rel="stylesheet" href="assets/base.css"></head><body>
+<script src="assets/icons.js"></script>
+<div class="shell">
+  <aside class="side">
+    <div class="logo"><span class="logo-mark"></span><div><b>Gateway4j</b><i>可视化网关 · v2 原型</i></div></div>
+    <div class="nav-g">总览</div>
+    <a class="ni" href="01-overview-topology.html"><svg class="ic"><use href="#i-grid"/></svg>拓扑总览<span class="live"></span></a>
+    <div class="nav-g">路由</div>
+    <a class="ni" href="02-route-list.html"><svg class="ic"><use href="#i-branch"/></svg>路由列表<span class="cnt">26</span></a>
+    <a class="ni active"><svg class="ic"><use href="#i-git-merge"/></svg>流程编排</a>
+    <a class="ni" href="05-decision-tree.html"><svg class="ic"><use href="#i-branch"/></svg>决策树视图</a>
+    <a class="ni" href="10-publish.html"><svg class="ic"><use href="#i-flag"/></svg>发布与版本<span class="cnt">2</span></a>
+    <div class="nav-g">插件</div>
+    <a class="ni" href="06-plugin-chain.html"><svg class="ic"><use href="#i-layers"/></svg>插件链</a>
+    <a class="ni" href="06-plugin-chain.html"><svg class="ic"><use href="#i-zap"/></svg>插件市场</a>
+    <div class="nav-g">可观测</div>
+    <a class="ni" href="08-monitoring.html"><svg class="ic"><use href="#i-activity"/></svg>监控大盘</a>
+    <a class="ni" href="09-debug.html"><svg class="ic"><use href="#i-terminal"/></svg>调试台</a>
+    <div class="nav-g">系统</div>
+    <a class="ni"><svg class="ic"><use href="#i-database"/></svg>服务与上游</a>
+    <a class="ni"><svg class="ic"><use href="#i-users"/></svg>用户权限</a>
+    <a class="ni"><svg class="ic"><use href="#i-sliders"/></svg>系统设置</a>
+    <div class="side-foot"><div class="env-pill"><span class="dot ok"></span>生产环境 · 网关正常<span class="mono" style="margin-left:auto">v1.4.2</span></div></div>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <div class="crumb">路由<span class="sep">/</span>流程编排<span class="sep">/</span><b>api_gateway</b>
+        <span class="badge warn" style="margin-left:8px"><span class="dot"></span>v3 草稿</span></div>
+      <div class="b gap8" style="margin-left:14px">
+        <span class="chip" style="color:var(--ok);border-color:#BFE4D4;background:var(--ok-tint)"><svg class="ic" style="width:12px;height:12px"><use href="#i-check"/></svg>校验通过</span>
+        <span class="chip mono"><svg class="ic" style="width:12px;height:12px"><use href="#i-clock"/></svg>自动保存于 2 分钟前</span>
+      </div>
+      <div class="b gap8" style="margin-left:auto">
+        <button class="btn"><svg class="ic"><use href="#i-refresh"/></svg>撤销</button>
+        <button class="btn">保存</button>
+        <button class="btn pri"><svg class="ic"><use href="#i-flag"/></svg>发布</button>
+      </div>
+      <span class="avatar" style="margin-left:8px">管</span>
+    </header>
+    <section class="page" style="padding:14px 16px 16px">
+      <div class="grid" style="grid-template-columns:148px 1fr 316px;gap:12px;height:calc(100vh - 100px)">
+        <div class="card" style="align-self:start">
+          <div class="card-h" style="padding:10px 12px"><b style="font-size:12.5px">节点库</b></div>
+          <div class="card-b" style="padding:10px 12px;display:flex;flex-direction:column;gap:7px">
+            <span class="chip" style="cursor:grab"><svg class="ic" style="width:12px;height:12px"><use href="#i-play"/></svg>请求入口</span>
+            <span class="chip" style="cursor:grab"><svg class="ic" style="width:12px;height:12px"><use href="#i-filter"/></svg>匹配条件</span>
+            <span class="chip" style="cursor:grab;border-color:#E2DBF7;background:var(--violet-tint)"><svg class="ic" style="width:12px;height:12px"><use href="#i-git-merge"/></svg>分发节点</span>
+            <span class="chip" style="cursor:grab"><svg class="ic" style="width:12px;height:12px"><use href="#i-branch"/></svg>后置路由</span>
+            <span class="chip" style="cursor:grab"><svg class="ic" style="width:12px;height:12px"><use href="#i-zap"/></svg>插件</span>
+            <span class="chip" style="cursor:grab"><svg class="ic" style="width:12px;height:12px"><use href="#i-edit"/></svg>注释</span>
+            <div class="muted" style="font-size:11px;line-height:1.6;margin-top:4px">拖拽到画布放置；从节点边缘拉出连线。</div>
+          </div>
+        </div>
+
+        <div class="canvas-wrap" style="height:100%">
+          <div class="canvas-dots"></div>
+          <div class="ctoolbar">
+            <span class="cbtn"><svg class="ic"><use href="#i-git-merge"/></svg>自动布局</span>
+            <span class="cbtn"><svg class="ic"><use href="#i-eye"/></svg>适应画布</span>
+            <span class="cbtn"><svg class="ic"><use href="#i-search"/></svg>检索节点</span>
+            <div class="czoom"><span class="cbtn">−</span><span class="cbtn">100%</span><span class="cbtn">+</span></div>
+          </div>
+          <svg class="edges">
+            <defs><marker id="arr4" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7Z" fill="#B9C0CA"/></marker></defs>
+            <path d="M96 348 C 120 348, 124 348, 148 348" marker-end="url(#arr4)"/>
+            <path d="M278 348 C 306 348, 310 348, 338 348" marker-end="url(#arr4)"/>
+            <path d="M478 340 C 516 280, 520 220, 556 202" marker-end="url(#arr4)"/>
+            <path d="M482 348 C 512 348, 516 348, 556 348" marker-end="url(#arr4)"/>
+            <path d="M478 356 C 516 416, 520 470, 556 486" marker-end="url(#arr4)"/>
+          </svg>
+          <div class="edge-label" style="left:502px;top:278px">Header X-Channel = vip</div>
+          <div class="edge-label hot" style="left:544px;top:334px">默认 89.6%</div>
+          <div class="edge-label" style="left:506px;top:452px">Cookie beta = on</div>
+
+          <div class="cnode" style="left:26px;top:330px;width:74px;padding:6px 8px">
+            <div class="t"><svg class="ic"><use href="#i-play"/></svg>入口</div>
+            <div class="m">客户端请求</div>
+          </div>
+          <div class="cnode t-match" style="left:150px;top:326px;width:130px">
+            <div class="t"><svg class="ic"><use href="#i-filter"/></svg>匹配条件</div>
+            <div class="m">ANY /api/**</div>
+            <div class="m" style="margin-top:2px">Env = prod</div>
+          </div>
+          <div class="cnode t-dispatch" style="left:340px;top:318px;width:160px">
+            <div class="t"><svg class="ic"><use href="#i-git-merge"/></svg>api_gateway<span class="badge violet" style="margin-left:2px">分发</span></div>
+            <div class="m">3 分支 · 嵌套 1/5 层</div>
+            <div class="stats"><span>命中 <b>99.6%</b></span></div>
+          </div>
+          <div class="cnode" style="left:558px;top:152px;width:170px;border-color:#B7D3FE;outline:1.5px solid #7CA9F5">
+            <div class="t"><svg class="ic"><use href="#i-branch"/></svg>user_service<span class="badge ok" style="margin-left:auto">已发布</span></div>
+            <div class="m">GET /api/user/**</div>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">
+              <span class="chip" style="height:20px;font-size:11px">≡ 签名校验</span><span class="chip" style="height:20px;font-size:11px">≡ 限流 100</span>
+            </div>
+            <div class="stats"><span>上游 <b>user-pool · 2 实例</b></span></div>
+          </div>
+          <div class="cnode" style="left:558px;top:312px;width:170px">
+            <div class="t"><svg class="ic"><use href="#i-branch"/></svg>order_service<span class="badge warn" style="margin-left:auto">降级</span></div>
+            <div class="m">GET /api/order/**</div>
+            <div class="stats"><span>上游 <b>order-pool · 1/2</b></span></div>
+          </div>
+          <div class="cnode dim" style="left:558px;top:462px;width:186px">
+            <div class="t"><svg class="ic"><use href="#i-branch"/></svg>canary-checkout<span class="badge gray" style="margin-left:auto">草稿</span></div>
+            <div class="m">POST /api/pay/checkout/**</div>
+            <div class="stats"><span>权重分流 <b>10%</b></span></div>
+          </div>
+          <div style="position:absolute;left:12px;bottom:10px;display:flex;gap:8px;align-items:center;background:#fff;border:1px solid var(--border);border-radius:7px;padding:5px 10px;font-size:11.5px;color:var(--ink-2);box-shadow:var(--sh)">
+            <svg class="ic" style="width:13px;height:13px;color:var(--ok)"><use href="#i-check"/></svg>校验通过 · <b>6 节点 · 5 连线</b> · 环境引用 2 · 选中节点属性见右侧面板
+          </div>
+        </div>
+
+        <div class="card" style="align-self:start">
+          <div class="card-h"><b>属性 · user_service</b><span class="badge gray" style="margin-left:2px">后置路由</span><div class="r"><a class="top-ic" style="width:26px;height:26px"><svg class="ic"><use href="#i-x"/></svg></a></div></div>
+          <div class="card-b" style="display:flex;flex-direction:column;gap:12px">
+            <div><div class="muted" style="font-size:11.5px;margin-bottom:4px">名称</div>
+              <div style="border:1px solid var(--border-strong);border-radius:7px;padding:7px 10px;font-size:12.5px;background:#fff">user_service</div></div>
+            <div><div class="muted" style="font-size:11.5px;margin-bottom:4px">匹配条件（发给上游前重新收敛）</div>
+              <div class="b gap6" style="flex-wrap:wrap"><span class="chip method">GET</span><span class="chip path">/api/user/**</span><span class="chip"><svg class="ic" style="width:11px;height:11px"><use href="#i-plus"/></svg>加条件</span></div></div>
+            <div><div class="muted" style="font-size:11.5px;margin-bottom:5px">插件链（按序执行）</div>
+              <div style="display:flex;flex-direction:column;gap:5px">
+                <div class="b gap8" style="border:1px solid var(--border);border-radius:7px;padding:6px 9px"><span style="cursor:grab;color:var(--ink-3)">≡</span><span style="font-size:12.5px">签名校验</span><span class="mono muted" style="margin-left:auto;font-size:10.5px">0.4ms</span><span class="chip" style="height:18px;font-size:10.5px;background:var(--ok-tint);border-color:#BFE4D4;color:var(--ok)">开</span></div>
+                <div class="b gap8" style="border:1px solid var(--border);border-radius:7px;padding:6px 9px"><span style="cursor:grab;color:var(--ink-3)">≡</span><span style="font-size:12.5px">请求限流</span><span class="mono muted" style="margin-left:auto;font-size:10.5px">0.1ms</span><span class="chip" style="height:18px;font-size:10.5px;background:var(--ok-tint);border-color:#BFE4D4;color:var(--ok)">开</span></div>
+                <div class="b gap8" style="border:1px dashed var(--border-strong);border-radius:7px;padding:6px 9px;opacity:.65"><span style="cursor:grab;color:var(--ink-3)">≡</span><span style="font-size:12.5px">参数校验</span><span class="mono muted" style="margin-left:auto;font-size:10.5px">—</span><span class="chip" style="height:18px;font-size:10.5px">停用</span></div>
+              </div>
+              <button class="btn sm mt8" style="width:100%"><svg class="ic" style="width:12px;height:12px"><use href="#i-plus"/></svg>从插件市场添加</button></div>
+            <div><div class="muted" style="font-size:11.5px;margin-bottom:4px">转发目标</div>
+              <div class="b gap8" style="border:1px solid var(--border-strong);border-radius:7px;padding:7px 10px;background:#fff"><svg class="ic" style="color:var(--ok)"><use href="#i-database"/></svg><span style="font-size:12.5px">user-pool</span><span class="muted" style="font-size:11px;margin-left:auto">2 实例 · 健康</span><svg class="ic" style="color:var(--ink-3)"><use href="#i-chev-down"/></svg></div></div>
+            <div class="b gap8" style="padding-top:4px">
+              <button class="btn danger ghost" style="margin-left:auto"><svg class="ic"><use href="#i-x"/></svg>删除节点</button>
+              <button class="btn pri">完成</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+</body></html>

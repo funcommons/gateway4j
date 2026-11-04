@@ -1,0 +1,136 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<title>07 · 路由详情 · Gateway4j v2 原型</title>
+<link rel="stylesheet" href="assets/base.css"></head><body>
+<script src="assets/icons.js"></script>
+<div class="shell">
+  <aside class="side">
+    <div class="logo"><span class="logo-mark"></span><div><b>Gateway4j</b><i>可视化网关 · v2 原型</i></div></div>
+    <div class="nav-g">总览</div>
+    <a class="ni" href="01-overview-topology.html"><svg class="ic"><use href="#i-grid"/></svg>拓扑总览<span class="live"></span></a>
+    <div class="nav-g">路由</div>
+    <a class="ni active" href="02-route-list.html"><svg class="ic"><use href="#i-branch"/></svg>路由列表<span class="cnt">26</span></a>
+    <a class="ni" href="04-flow-canvas.html"><svg class="ic"><use href="#i-git-merge"/></svg>流程编排</a>
+    <a class="ni" href="05-decision-tree.html"><svg class="ic"><use href="#i-branch"/></svg>决策树视图</a>
+    <a class="ni" href="10-publish.html"><svg class="ic"><use href="#i-flag"/></svg>发布与版本<span class="cnt">2</span></a>
+    <div class="nav-g">插件</div>
+    <a class="ni" href="06-plugin-chain.html"><svg class="ic"><use href="#i-layers"/></svg>插件链</a>
+    <a class="ni" href="06-plugin-chain.html"><svg class="ic"><use href="#i-zap"/></svg>插件市场</a>
+    <div class="nav-g">可观测</div>
+    <a class="ni" href="08-monitoring.html"><svg class="ic"><use href="#i-activity"/></svg>监控大盘</a>
+    <a class="ni" href="09-debug.html"><svg class="ic"><use href="#i-terminal"/></svg>调试台</a>
+    <div class="nav-g">系统</div>
+    <a class="ni"><svg class="ic"><use href="#i-database"/></svg>服务与上游</a>
+    <a class="ni"><svg class="ic"><use href="#i-users"/></svg>用户权限</a>
+    <a class="ni"><svg class="ic"><use href="#i-sliders"/></svg>系统设置</a>
+    <div class="side-foot"><div class="env-pill"><span class="dot ok"></span>生产环境 · 网关正常<span class="mono" style="margin-left:auto">v1.4.2</span></div></div>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <div class="crumb">路由<span class="sep">/</span>路由列表<span class="sep">/</span><b>user_service</b></div>
+      <div class="top-search"><svg class="ic"><use href="#i-search"/></svg>搜索路由、插件、用户…<kbd>⌘K</kbd></div>
+      <a class="top-ic"><svg class="ic"><use href="#i-alert"/></svg></a>
+      <span class="avatar">管</span>
+    </header>
+    <section class="page">
+      <div class="page-head">
+        <div>
+          <div class="b gap8"><h1>user_service</h1><span class="badge ok"><span class="dot"></span>已发布</span><span class="badge gray">v2 · 生产</span></div>
+          <div class="sub b gap8" style="margin-top:5px">
+            <span class="chip method">GET</span><span class="chip path">/api/user/**</span>
+            <span class="muted">负责人 admin · 创建于 2026-09-12 · 上次发布 11-02 14:01</span>
+          </div>
+        </div>
+        <div class="acts">
+          <button class="btn"><svg class="ic"><use href="#i-terminal"/></svg>调试</button>
+          <button class="btn"><svg class="ic"><use href="#i-git-merge"/></svg>编辑画布</button>
+          <button class="btn pri"><svg class="ic"><use href="#i-flag"/></svg>发布</button>
+          <a class="top-ic" style="border:1px solid var(--border-strong)"><svg class="ic"><use href="#i-more"/></svg></a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><b>请求链路</b><span class="hint">一个请求穿过这条路由的全过程 · 数值为 P95</span>
+          <div class="r"><span class="chip mono"><svg class="ic" style="width:12px;height:12px"><use href="#i-clock"/></svg>网关侧合计 ≈ 2.6ms</span></div></div>
+        <div class="card-b">
+          <div class="b gap8" style="flex-wrap:wrap;align-items:stretch">
+            <div style="text-align:center"><span class="flow-chip"><svg class="ic"><use href="#i-globe"/></svg>客户端</span><div class="muted mono" style="font-size:10.5px;margin-top:4px">—</div></div>
+            <span class="flow-arrow" style="align-self:center"><svg class="ic" style="width:14px;height:14px"><use href="#i-arrow-right"/></svg></span>
+            <div style="text-align:center"><span class="flow-chip match"><svg class="ic"><use href="#i-filter"/></svg>匹配 /api/user/**</span><div class="mono" style="font-size:10.5px;margin-top:4px;color:var(--ink-3)">0.2ms</div></div>
+            <span class="flow-arrow" style="align-self:center"><svg class="ic" style="width:14px;height:14px"><use href="#i-arrow-right"/></svg></span>
+            <div style="text-align:center"><span class="flow-chip plugin"><svg class="ic"><use href="#i-shield"/></svg>签名校验</span><div class="mono" style="font-size:10.5px;margin-top:4px;color:var(--ink-3)">0.4ms</div></div>
+            <span class="flow-arrow" style="align-self:center"><svg class="ic" style="width:14px;height:14px"><use href="#i-arrow-right"/></svg></span>
+            <div style="text-align:center"><span class="flow-chip plugin"><svg class="ic"><use href="#i-zap"/></svg>请求限流</span><div class="mono" style="font-size:10.5px;margin-top:4px;color:var(--ink-3)">0.1ms</div></div>
+            <span class="flow-arrow" style="align-self:center"><svg class="ic" style="width:14px;height:14px"><use href="#i-arrow-right"/></svg></span>
+            <div style="text-align:center"><span class="flow-chip plugin"><svg class="ic"><use href="#i-activity"/></svg>链路追踪</span><div class="mono" style="font-size:10.5px;margin-top:4px;color:var(--ink-3)">0.2ms</div></div>
+            <span class="flow-arrow" style="align-self:center"><svg class="ic" style="width:14px;height:14px"><use href="#i-arrow-right"/></svg></span>
+            <div style="text-align:center"><span class="flow-chip"><svg class="ic"><use href="#i-cpu"/></svg>转发</span><div class="mono" style="font-size:10.5px;margin-top:4px;color:var(--ink-3)">1.2ms</div></div>
+            <span class="flow-arrow" style="align-self:center"><svg class="ic" style="width:14px;height:14px"><use href="#i-arrow-right"/></svg></span>
+            <div style="text-align:center"><span class="flow-chip up"><svg class="ic"><use href="#i-database"/></svg>user-pool · 2 实例</span><div class="mono" style="font-size:10.5px;margin-top:4px;color:var(--ink-3)">18ms（上游）</div></div>
+            <span class="flow-arrow" style="align-self:center"><svg class="ic" style="width:14px;height:14px"><use href="#i-arrow-right"/></svg></span>
+            <div style="text-align:center"><span class="flow-chip plugin"><svg class="ic"><use href="#i-eye"/></svg>脱敏(后置)</span><div class="mono" style="font-size:10.5px;margin-top:4px;color:var(--ink-3)">0.3ms</div></div>
+            <span class="flow-arrow" style="align-self:center"><svg class="ic" style="width:14px;height:14px"><use href="#i-arrow-right"/></svg></span>
+            <div style="text-align:center"><span class="flow-chip" style="border-color:#BFE4D4;background:var(--ok-tint)"><svg class="ic" style="color:var(--ok)"><use href="#i-check"/></svg>200 响应</span><div class="mono" style="font-size:10.5px;margin-top:4px;color:var(--ink-3)">P95 31ms</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid mt14" style="grid-template-columns:repeat(4,1fr)">
+        <div class="card"><div class="card-h"><b>QPS</b><span class="hint">24h</span><div class="r"><span class="badge gray">峰值 240</span></div></div>
+          <div class="card-b"><svg class="chart-wrap" viewBox="0 0 260 88" style="width:100%">
+            <line x1="0" y1="22" x2="260" y2="22" class="gridline"/><line x1="0" y1="44" x2="260" y2="44" class="gridline"/><line x1="0" y1="66" x2="260" y2="66" class="gridline"/>
+            <path d="M0 70 L20 66 L40 68 L60 60 L80 62 L100 50 L120 54 L140 44 L160 48 L180 36 L200 40 L220 30 L240 34 L260 28" fill="none" stroke="#C2410C" stroke-width="1.8"/>
+            <path d="M0 70 L20 66 L40 68 L60 60 L80 62 L100 50 L120 54 L140 44 L160 48 L180 36 L200 40 L220 30 L240 34 L260 28 L260 88 L0 88 Z" fill="#C2410C" opacity=".07"/>
+          </svg></div></div>
+        <div class="card"><div class="card-h"><b>延迟分位</b><span class="hint">ms</span><div class="r legend"><span><i style="background:#94A3B8"></i>P50</span><span><i style="background:#C2410C"></i>P95</span></div></div>
+          <div class="card-b"><svg class="chart-wrap" viewBox="0 0 260 88" style="width:100%">
+            <line x1="0" y1="22" x2="260" y2="22" class="gridline"/><line x1="0" y1="44" x2="260" y2="44" class="gridline"/><line x1="0" y1="66" x2="260" y2="66" class="gridline"/>
+            <path d="M0 62 L40 60 L80 63 L120 59 L160 61 L200 58 L260 60" fill="none" stroke="#94A3B8" stroke-width="1.6"/>
+            <path d="M0 38 L40 42 L80 36 L120 44 L160 40 L200 46 L260 42" fill="none" stroke="#C2410C" stroke-width="1.8"/>
+          </svg></div></div>
+        <div class="card"><div class="card-h"><b>错误率</b><span class="hint">%</span><div class="r"><span class="badge ok">0.18</span></div></div>
+          <div class="card-b"><svg class="chart-wrap" viewBox="0 0 260 88" style="width:100%">
+            <line x1="0" y1="44" x2="260" y2="44" class="gridline"/><line x1="0" y1="66" x2="260" y2="66" class="gridline"/>
+            <g fill="#D8DCE2"><rect x="8" y="66" width="10" height="22" rx="2"/><rect x="28" y="70" width="10" height="18" rx="2"/><rect x="48" y="62" width="10" height="26" rx="2"/><rect x="88" y="68" width="10" height="20" rx="2"/><rect x="108" y="64" width="10" height="24" rx="2"/><rect x="148" y="70" width="10" height="18" rx="2"/><rect x="168" y="66" width="10" height="22" rx="2"/><rect x="208" y="68" width="10" height="20" rx="2"/><rect x="228" y="62" width="10" height="26" rx="2"/><rect x="248" y="66" width="10" height="22" rx="2"/></g>
+            <g fill="#C2410C" opacity=".8"><rect x="68" y="52" width="10" height="36" rx="2"/><rect x="128" y="56" width="10" height="32" rx="2"/><rect x="188" y="54" width="10" height="34" rx="2"/></g>
+          </svg></div></div>
+        <div class="card"><div class="card-h"><b>状态码</b><span class="hint">24h</span></div>
+          <div class="card-b flex gap14 ai-c">
+            <div style="width:74px;height:74px;border-radius:50%;background:conic-gradient(#0E8A5F 0 358.5deg,#B45309 358.5deg 359.3deg,#C5303F 359.3deg 360deg);position:relative;flex:none"><div style="position:absolute;inset:16px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center"><b style="font-size:12px">99.7%</b></div></div>
+            <div style="display:flex;flex-direction:column;gap:6px;font-size:11.5px">
+              <span class="b gap6"><i style="width:8px;height:8px;border-radius:2px;background:#0E8A5F;display:inline-block"></i>2xx · 311.8k</span>
+              <span class="b gap6"><i style="width:8px;height:8px;border-radius:2px;background:#B45309;display:inline-block"></i>4xx · 0.7k</span>
+              <span class="b gap6"><i style="width:8px;height:8px;border-radius:2px;background:#C5303F;display:inline-block"></i>5xx · 0.4k</span>
+            </div>
+          </div></div>
+      </div>
+
+      <div class="grid mt14" style="grid-template-columns:1fr 1.2fr">
+        <div class="card">
+          <div class="card-h"><b>变更历史</b><div class="r"><a class="hint" style="color:var(--primary);text-decoration:none">全部 →</a></div></div>
+          <div class="card-b"><div class="tl">
+            <div class="tl-item cur"><div class="b gap8" style="flex-wrap:wrap"><b>v3 草稿</b><span class="badge pri"><span class="dot"></span>待发布</span><span class="muted" style="font-size:11.5px">admin · 今天 09:12</span></div>
+              <div class="muted" style="font-size:12px;margin-top:3px">调整上游重试 2 → 3 · 新增请求限流 100 QPS <a style="color:var(--primary)" href="10-publish.html">查看 diff →</a></div></div>
+            <div class="tl-item ok"><div class="b gap8"><b>v2 生产中</b><span class="muted" style="font-size:11.5px">admin · 11-02 14:01</span></div>
+              <div class="muted" style="font-size:12px;margin-top:3px">灰度 10% 观察 10 分钟后全量 · 5xx 无上涨</div></div>
+            <div class="tl-item"><div class="b gap8"><b>v1</b><span class="muted" style="font-size:11.5px">admin · 10-15</span></div>
+              <div class="muted" style="font-size:12px;margin-top:3px">初始发布：路径 + 上游 + 2 插件</div></div>
+            <div class="tl-item"><div class="b gap8"><b>创建</b><span class="muted" style="font-size:11.5px">可可 · 09-12</span></div>
+              <div class="muted" style="font-size:12px;margin-top:3px">使用「单服务转发」模板创建</div></div>
+          </div></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><b>命中日志</b><span class="hint">最近 5 条</span><div class="r"><span class="chip" style="cursor:pointer">实时 <span class="dot ok" style="margin-left:3px"></span></span></div></div>
+          <table class="tb">
+            <tr><th>时间</th><th>请求</th><th>状态</th><th>耗时</th><th>链路结果</th></tr>
+            <tr><td class="mono">14:32:08</td><td><span class="chip method">GET</span><span class="mono" style="margin-left:4px">/api/user/1001</span></td><td><span class="badge ok">200</span></td><td class="mono">24ms</td><td class="muted" style="font-size:11.5px">限流通过 · 脱敏 2 字段</td></tr>
+            <tr><td class="mono">14:32:05</td><td><span class="chip method">GET</span><span class="mono" style="margin-left:4px">/api/user/list</span></td><td><span class="badge ok">200</span></td><td class="mono">31ms</td><td class="muted" style="font-size:11.5px">缓存命中 41%</td></tr>
+            <tr><td class="mono">14:31:58</td><td><span class="chip method">GET</span><span class="mono" style="margin-left:4px">/api/user/88</span></td><td><span class="badge warn">429</span></td><td class="mono">3ms</td><td class="muted" style="font-size:11.5px">触发限流 100 QPS</td></tr>
+            <tr><td class="mono">14:31:51</td><td><span class="chip method">GET</span><span class="mono" style="margin-left:4px">/api/user/72</span></td><td><span class="badge danger">502</span></td><td class="mono">3.1s</td><td class="muted" style="font-size:11.5px">上游超时 · 重试 1 次后返回</td></tr>
+            <tr><td class="mono">14:31:44</td><td><span class="chip method">GET</span><span class="mono" style="margin-left:4px">/api/user/64</span></td><td><span class="badge ok">200</span></td><td class="mono">22ms</td><td class="muted" style="font-size:11.5px">正常</td></tr>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+</body></html>

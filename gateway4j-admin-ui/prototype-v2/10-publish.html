@@ -1,0 +1,121 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<title>10 · 发布与版本 · Gateway4j v2 原型</title>
+<link rel="stylesheet" href="assets/base.css"></head><body>
+<script src="assets/icons.js"></script>
+<div class="shell">
+  <aside class="side">
+    <div class="logo"><span class="logo-mark"></span><div><b>Gateway4j</b><i>可视化网关 · v2 原型</i></div></div>
+    <div class="nav-g">总览</div>
+    <a class="ni" href="01-overview-topology.html"><svg class="ic"><use href="#i-grid"/></svg>拓扑总览<span class="live"></span></a>
+    <div class="nav-g">路由</div>
+    <a class="ni" href="02-route-list.html"><svg class="ic"><use href="#i-branch"/></svg>路由列表<span class="cnt">26</span></a>
+    <a class="ni" href="04-flow-canvas.html"><svg class="ic"><use href="#i-git-merge"/></svg>流程编排</a>
+    <a class="ni" href="05-decision-tree.html"><svg class="ic"><use href="#i-branch"/></svg>决策树视图</a>
+    <a class="ni active"><svg class="ic"><use href="#i-flag"/></svg>发布与版本<span class="cnt">2</span></a>
+    <div class="nav-g">插件</div>
+    <a class="ni" href="06-plugin-chain.html"><svg class="ic"><use href="#i-layers"/></svg>插件链</a>
+    <a class="ni" href="06-plugin-chain.html"><svg class="ic"><use href="#i-zap"/></svg>插件市场</a>
+    <div class="nav-g">可观测</div>
+    <a class="ni" href="08-monitoring.html"><svg class="ic"><use href="#i-activity"/></svg>监控大盘</a>
+    <a class="ni" href="09-debug.html"><svg class="ic"><use href="#i-terminal"/></svg>调试台</a>
+    <div class="nav-g">系统</div>
+    <a class="ni"><svg class="ic"><use href="#i-database"/></svg>服务与上游</a>
+    <a class="ni"><svg class="ic"><use href="#i-users"/></svg>用户权限</a>
+    <a class="ni"><svg class="ic"><use href="#i-sliders"/></svg>系统设置</a>
+    <div class="side-foot"><div class="env-pill"><span class="dot ok"></span>生产环境 · 网关正常<span class="mono" style="margin-left:auto">v1.4.2</span></div></div>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <div class="crumb">路由<span class="sep">/</span>发布与版本<span class="sep">/</span><b>api_gateway</b>
+        <span class="badge pri" style="margin-left:8px"><span class="dot"></span>v3 待发布</span></div>
+      <div class="b gap8" style="margin-left:auto">
+        <button class="btn ghost"><svg class="ic"><use href="#i-refresh"/></svg>一键回滚 v2</button>
+        <button class="btn pri"><svg class="ic"><use href="#i-rocket"/></svg>发布向导</button>
+      </div>
+      <span class="avatar" style="margin-left:8px">管</span>
+    </header>
+    <section class="page">
+      <div class="page-head">
+        <div><h1>发布与版本</h1><div class="sub">改动先 diff、再试运行、再灰度，最后全量 —— 每一步都可回退，绝不让「保存」直接变成「生产事故」</div></div>
+      </div>
+
+      <div class="grid" style="grid-template-columns:288px 1fr">
+        <div class="card" style="align-self:start">
+          <div class="card-h"><b>版本时间线</b><span class="hint">api_gateway</span></div>
+          <div class="card-b"><div class="tl">
+            <div class="tl-item cur"><div class="b gap8"><b>v3</b><span class="badge pri"><span class="dot"></span>草稿</span></div>
+              <div class="muted" style="font-size:11.5px">admin · 今天 09:12 · 改动 3 处</div>
+              <div class="b gap6 mt8"><span class="chip" style="cursor:pointer">查看 diff</span><span class="chip" style="cursor:pointer">试运行报告 ✓</span></div></div>
+            <div class="tl-item ok"><div class="b gap8"><b>v2</b><span class="badge ok">生产中</span></div>
+              <div class="muted" style="font-size:11.5px">11-02 14:01 · admin · 灰度 26 分钟全量</div></div>
+            <div class="tl-item"><div class="b gap8"><b>v1</b><span class="badge gray">已归档</span></div>
+              <div class="muted" style="font-size:11.5px">10-15 · 初始发布</div></div>
+          </div></div>
+        </div>
+
+        <div class="flex" style="flex-direction:column;gap:14px;min-width:0">
+          <div class="grid" style="grid-template-columns:1.4fr 1fr">
+            <div class="card">
+              <div class="card-h"><b>配置对比</b><span class="mono muted">v2（左） → v3（右）</span><div class="r"><span class="badge pri">3 处变更</span></div></div>
+              <div class="card-b" style="padding:10px"><div class="code">
+<span class="k">"match"</span>: { <span class="k">"path"</span>: <span class="s">"/api/**"</span> }
+<span class="c">// 匹配未变</span>
+
+<span class="del">- "upstreamRetry": 2</span>
+<span class="add">+ "upstreamRetry": 3          // 重试上限提高</span>
+<span class="del">- "timeout": "3s"</span>
+<span class="add">+ "timeout": "5s"</span>
+
+<span class="add">+ "plugins": [{              // 新增插件</span>
+<span class="add">+   "type": "rate-limit",</span>
+<span class="add">+   "qps": 100, "strategy": "token"</span>
+<span class="add">+ }]</span></div></div></div>
+            <div class="flex" style="flex-direction:column;gap:14px">
+              <div class="card">
+                <div class="card-h"><b>影响面分析</b><span class="hint">基于近 24h 真实流量</span></div>
+                <div class="card-b" style="display:flex;flex-direction:column;gap:8px">
+                  <div class="flex gap8"><span class="badge violet" style="flex:none">命中</span><span style="font-size:12.5px">每日 <b>84k</b> 次经过此路由</span></div>
+                  <div class="flex gap8"><span class="badge info" style="flex:none">关联</span><span style="font-size:12.5px">3 条后置 · 5 个上游实例</span></div>
+                  <div class="flex gap8"><span class="badge warn" style="flex:none">风险</span><span style="font-size:12.5px">重试 2→3 会放大上游压力，order-pool 当前 1/2 实例</span></div>
+                  <div class="flex gap8"><span class="badge ok" style="flex:none">收益</span><span style="font-size:12.5px">限流保护 user-pool 高峰突刺</span></div>
+                </div>
+              </div>
+              <div class="card" style="background:#FBFCFD">
+                <div class="card-b">
+                  <div class="b gap8" style="margin-bottom:6px"><svg class="ic" style="color:var(--warn)"><use href="#i-alert"/></svg><b style="font-size:12.5px">试运行已完成（12 项）</b></div>
+                  <div class="muted" style="font-size:12px;line-height:1.7">配置合法 · 上游可达 · 插件参数校验通过 · 1 条提醒：建议等 order-pool 恢复后再全量。</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><b>发布流程</b><span class="hint">当前：灰度中 10% · 已持续 26 分钟</span>
+              <div class="r"><span class="chip mono"><svg class="ic" style="width:12px;height:12px"><use href="#i-clock"/></svg>可随时回滚 v2</span></div></div>
+            <div class="card-b">
+              <div class="steps" style="margin-bottom:16px">
+                <div class="step done"><span class="sn"><svg class="ic" style="width:12px;height:12px"><use href="#i-check"/></svg></span>试运行校验</div><div class="step-line done"></div>
+                <div class="step cur"><span class="sn">2</span>灰度 10%</div><div class="step-line"></div>
+                <div class="step"><span class="sn">3</span>全量发布</div>
+              </div>
+              <div class="grid" style="grid-template-columns:1fr 1fr 1fr;gap:12px">
+                <div class="card" style="box-shadow:none;opacity:.85"><div class="card-b">
+                  <div class="b gap8" style="margin-bottom:6px"><span class="dot ok"></span><b style="font-size:12.5px">1 · 试运行</b><span class="badge ok" style="height:18px;font-size:10.5px">12 项通过</span></div>
+                  <div class="muted" style="font-size:11.5px;line-height:1.6">不接真实流量，校验配置合法性、上游连通性、插件参数。</div></div></div>
+                <div class="card" style="box-shadow:none;border-color:#EAC7B3;outline:1.5px solid #E8B690"><div class="card-b">
+                  <div class="b gap8" style="margin-bottom:6px"><span class="dot warn"></span><b style="font-size:12.5px">2 · 灰度 10%</b><span class="badge warn" style="height:18px;font-size:10.5px">进行中 26 分钟</span></div>
+                  <div class="pbar mt8" style="margin-bottom:8px"><i style="width:10%"></i></div>
+                  <div class="mono" style="font-size:11px;color:var(--ink-2)">5xx 0.28% <span style="color:var(--ok)">▼</span> · P95 47ms <span style="color:var(--ok)">▼</span> · 其余指标正常</div></div></div>
+                <div class="card" style="box-shadow:none"><div class="card-b">
+                  <div class="b gap8" style="margin-bottom:6px"><span class="dot gray"></span><b style="font-size:12.5px">3 · 全量发布</b><span class="badge gray" style="height:18px;font-size:10.5px">待确认</span></div>
+                  <div class="muted" style="font-size:11.5px;line-height:1.6">灰度指标达标后一键全量；WebSocket 推送全实例秒级生效。</div>
+                  <div class="b gap8 mt8"><button class="btn sm" disabled style="opacity:.5">暂灰度</button><button class="btn sm pri"><svg class="ic" style="width:12px;height:12px"><use href="#i-rocket"/></svg>提升全量</button></div></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+</body></html>

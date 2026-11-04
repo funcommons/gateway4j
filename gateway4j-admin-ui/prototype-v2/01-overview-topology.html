@@ -1,0 +1,173 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<title>01 · 拓扑总览 · Gateway4j v2 原型</title>
+<link rel="stylesheet" href="assets/base.css"></head><body>
+<script src="assets/icons.js"></script>
+<div class="shell">
+  <aside class="side">
+    <div class="logo"><span class="logo-mark"></span><div><b>Gateway4j</b><i>可视化网关 · v2 原型</i></div></div>
+    <div class="nav-g">总览</div>
+    <a class="ni active"><svg class="ic"><use href="#i-grid"/></svg>拓扑总览<span class="live"></span></a>
+    <div class="nav-g">路由</div>
+    <a class="ni" href="02-route-list.html"><svg class="ic"><use href="#i-branch"/></svg>路由列表<span class="cnt">26</span></a>
+    <a class="ni" href="04-flow-canvas.html"><svg class="ic"><use href="#i-git-merge"/></svg>流程编排</a>
+    <a class="ni" href="05-decision-tree.html"><svg class="ic"><use href="#i-branch"/></svg>决策树视图</a>
+    <a class="ni" href="10-publish.html"><svg class="ic"><use href="#i-flag"/></svg>发布与版本<span class="cnt">2</span></a>
+    <div class="nav-g">插件</div>
+    <a class="ni" href="06-plugin-chain.html"><svg class="ic"><use href="#i-layers"/></svg>插件链</a>
+    <a class="ni" href="06-plugin-chain.html"><svg class="ic"><use href="#i-zap"/></svg>插件市场</a>
+    <div class="nav-g">可观测</div>
+    <a class="ni" href="08-monitoring.html"><svg class="ic"><use href="#i-activity"/></svg>监控大盘</a>
+    <a class="ni" href="09-debug.html"><svg class="ic"><use href="#i-terminal"/></svg>调试台</a>
+    <div class="nav-g">系统</div>
+    <a class="ni"><svg class="ic"><use href="#i-database"/></svg>服务与上游</a>
+    <a class="ni"><svg class="ic"><use href="#i-users"/></svg>用户权限</a>
+    <a class="ni"><svg class="ic"><use href="#i-sliders"/></svg>系统设置</a>
+    <div class="side-foot"><div class="env-pill"><span class="dot ok"></span>生产环境 · 网关正常<span class="mono" style="margin-left:auto">v1.4.2</span></div></div>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <div class="crumb">总览<span class="sep">/</span><b>拓扑总览</b></div>
+      <div class="top-search"><svg class="ic"><use href="#i-search"/></svg>搜索路由、插件、用户…<kbd>⌘K</kbd></div>
+      <a class="top-ic"><svg class="ic"><use href="#i-alert"/></svg><span class="dot-alert"></span></a>
+      <span class="avatar">管</span>
+    </header>
+    <section class="page">
+      <div class="page-head">
+        <div><h1>拓扑总览</h1><div class="sub">一次看清「流量从哪来、经过什么、到哪里去」—— 数据为近 1 小时实时均值</div></div>
+        <div class="acts">
+          <div class="seg"><a>近 1 小时</a><a class="on">近 24 小时</a><a>近 7 天</a></div>
+          <button class="btn"><svg class="ic"><use href="#i-refresh"/></svg>刷新</button>
+        </div>
+      </div>
+
+      <div class="grid" style="grid-template-columns:repeat(4,1fr)">
+        <div class="card kpi"><span class="lb"><svg class="ic" style="width:13px;height:13px"><use href="#i-activity"/></svg>今日请求</span>
+          <span class="v">1.28<small>M 次</small></span><span class="delta up">▲ 6.2% 较昨日</span>
+          <svg class="spark" width="86" height="26"><g><rect x="0" y="14" width="5" height="12" rx="1" fill="#F0B391"/><rect x="8" y="10" width="5" height="16" rx="1" fill="#F0B391"/><rect x="16" y="16" width="5" height="10" rx="1" fill="#F0B391"/><rect x="24" y="8" width="5" height="18" rx="1" fill="#EC8B57"/><rect x="32" y="12" width="5" height="14" rx="1" fill="#F0B391"/><rect x="40" y="6" width="5" height="20" rx="1" fill="#C2410C"/><rect x="48" y="10" width="5" height="16" rx="1" fill="#EC8B57"/><rect x="56" y="4" width="5" height="22" rx="1" fill="#C2410C"/><rect x="64" y="9" width="5" height="17" rx="1" fill="#EC8B57"/><rect x="72" y="2" width="5" height="24" rx="1" fill="#C2410C"/><rect x="80" y="7" width="5" height="19" rx="1" fill="#EC8B57"/></g></svg></div>
+        <div class="card kpi"><span class="lb">平均延迟</span>
+          <span class="v">42<small>ms · P95 87ms</small></span><span class="delta up">▼ 3.1% 较昨日</span>
+          <svg class="spark" width="86" height="26"><polyline points="0,8 12,11 24,7 36,14 48,10 60,16 72,12 86,17" fill="none" stroke="#0E8A5F" stroke-width="1.6"/></svg></div>
+        <div class="card kpi"><span class="lb">错误率</span>
+          <span class="v">0.32<small>%</small></span><span class="delta down">▲ 0.04% 需关注</span>
+          <svg class="spark" width="86" height="26"><polyline points="0,18 12,17 24,19 36,15 48,16 60,12 72,13 86,8" fill="none" stroke="#C5303F" stroke-width="1.6"/></svg></div>
+        <div class="card kpi"><span class="lb">活跃路由</span>
+          <span class="v">23<small>/ 26 条</small></span><span class="muted" style="font-size:11.5px">3 条草稿待发布 · 1 条灰度中</span></div>
+      </div>
+
+      <div class="grid mt14" style="grid-template-columns:1fr 336px">
+        <div class="card">
+          <div class="card-h"><b>实时拓扑</b><span class="hint">节点上数字为 QPS / P95 · 点击节点下钻</span>
+            <div class="r legend"><span><i style="background:#F0C4A8"></i>网关</span><span><i style="background:#C9B8F0"></i>分发</span><span><i style="background:#9DCBFF"></i>匹配</span><span><i style="background:#8FD3B8"></i>上游</span></div></div>
+          <div class="canvas-wrap" style="height:520px">
+            <div class="canvas-dots"></div>
+            <div class="ctoolbar">
+              <span class="cbtn"><svg class="ic"><use href="#i-eye"/></svg>实时流量</span>
+              <span class="cbtn"><svg class="ic"><use href="#i-filter"/></svg>环境：生产</span>
+              <div class="czoom"><span class="cbtn">−</span><span class="cbtn">100%</span><span class="cbtn">+</span></div>
+            </div>
+            <svg class="edges">
+              <defs>
+                <marker id="arr" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7Z" fill="#B9C0CA"/></marker>
+                <marker id="arrH" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7Z" fill="#C2410C"/></marker>
+              </defs>
+              <path d="M128 260 C 165 260, 165 260, 196 260" marker-end="url(#arr)"/>
+              <path d="M330 260 C 368 260, 368 260, 402 260" marker-end="url(#arrH)"/>
+              <path d="M545 240 C 590 190, 590 160, 630 148" marker-end="url(#arrH)"/>
+              <path d="M548 262 C 592 262, 592 262, 630 262" marker-end="url(#arrH)"/>
+              <path d="M545 284 C 590 330, 590 368, 630 380" marker-end="url(#arrH)"/>
+              <path d="M780 148 C 810 148, 810 150, 838 150" marker-end="url(#arr)"/>
+              <path d="M780 262 C 810 262, 810 262, 838 262" marker-end="url(#arr)"/>
+              <path d="M780 380 C 810 380, 810 378, 838 374" marker-end="url(#arr)"/>
+            </svg>
+            <div class="edge-label" style="left:158px;top:262px">入口</div>
+            <div class="edge-label hot" style="left:366px;top:262px">/api/**</div>
+            <div class="edge-label hot" style="left:592px;top:186px">/api/user/** 62%</div>
+            <div class="edge-label" style="left:590px;top:264px">/api/order/** 24%</div>
+            <div class="edge-label" style="left:592px;top:346px">/api/product/** 13%</div>
+
+            <div class="cnode dim" style="left:26px;top:236px;width:104px">
+              <div class="t"><svg class="ic"><use href="#i-globe"/></svg>客户端</div>
+              <div class="m">App / Web / 三方</div>
+            </div>
+            <div class="cnode t-gw" style="left:198px;top:230px;width:132px">
+              <div class="t"><svg class="ic"><use href="#i-cpu"/></svg>网关集群</div>
+              <div class="m">2 实例 · v1.4.2</div>
+              <div class="stats"><span>QPS <b>356</b></span><span>P95 <b>12ms</b></span></div>
+            </div>
+            <div class="cnode t-dispatch" style="left:404px;top:224px;width:142px">
+              <div class="t"><svg class="ic"><use href="#i-git-merge"/></svg>api_gateway</div>
+              <div class="m">分发 · 决策树 3 分支</div>
+              <div class="stats"><span>命中 <b>99.6%</b></span><span>P95 <b>2ms</b></span></div>
+            </div>
+            <div class="cnode" style="left:632px;top:118px;width:172px">
+              <div class="t"><svg class="ic"><use href="#i-branch"/></svg>user_service<span class="badge ok">已发布</span></div>
+              <div class="m">GET /api/user/**</div>
+              <div class="stats"><span>QPS <b>221</b></span><span>P95 <b>31ms</b></span></div>
+            </div>
+            <div class="cnode" style="left:632px;top:232px;width:172px;border-color:#EAC7A0">
+              <div class="t"><svg class="ic"><use href="#i-branch"/></svg>order_service<span class="badge warn">降级</span></div>
+              <div class="m">GET /api/order/**</div>
+              <div class="stats"><span>QPS <b>85</b></span><span>P95 <b style="color:#B45309">112ms</b></span></div>
+            </div>
+            <div class="cnode" style="left:632px;top:350px;width:172px">
+              <div class="t"><svg class="ic"><use href="#i-branch"/></svg>product_service<span class="badge ok">已发布</span></div>
+              <div class="m">GET /api/product/**</div>
+              <div class="stats"><span>QPS <b>49</b></span><span>P95 <b>36ms</b></span></div>
+            </div>
+            <div class="cnode t-up" style="left:840px;top:122px;width:118px">
+              <div class="t"><svg class="ic"><use href="#i-database"/></svg>user-pool</div>
+              <div class="stats"><span><b>2</b> 实例</span><span class="b gap6"><span class="dot ok"></span><span class="dot ok"></span></span></div>
+            </div>
+            <div class="cnode t-up" style="left:840px;top:236px;width:118px;border-color:#EAC7A0">
+              <div class="t"><svg class="ic"><use href="#i-database"/></svg>order-pool</div>
+              <div class="stats"><span><b>2</b> 实例</span><span class="b gap6"><span class="dot warn"></span><span class="dot gray"></span></span></div>
+            </div>
+            <div class="cnode t-up" style="left:840px;top:352px;width:118px">
+              <div class="t"><svg class="ic"><use href="#i-database"/></svg>product-pool</div>
+              <div class="stats"><span><b>1</b> 实例</span><span class="b gap6"><span class="dot ok"></span></span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex" style="flex-direction:column;gap:14px">
+          <div class="card">
+            <div class="card-h"><b>待处理</b><span class="badge warn">3</span></div>
+            <div class="card-b" style="padding:0">
+              <div style="display:flex;gap:10px;padding:11px 16px;border-bottom:1px solid var(--border)">
+                <svg class="ic" style="color:var(--primary)"><use href="#i-flag"/></svg>
+                <div style="min-width:0"><div style="font-weight:600">api_gateway v3 待发布</div><div class="muted" style="font-size:11.5px">3 处变更 · 影响每日 84k 次命中 <a href="10-publish.html" style="color:var(--primary)">查看对比 →</a></div></div>
+              </div>
+              <div style="display:flex;gap:10px;padding:11px 16px;border-bottom:1px solid var(--border)">
+                <svg class="ic" style="color:var(--warn)"><use href="#i-database"/></svg>
+                <div style="min-width:0"><div style="font-weight:600">order-pool 实例 02 已下线</div><div class="muted" style="font-size:11.5px">14:32 · P95 升至 112ms <a style="color:var(--primary)" href="08-monitoring.html">查看 →</a></div></div>
+              </div>
+              <div style="display:flex;gap:10px;padding:11px 16px">
+                <svg class="ic" style="color:var(--info)"><use href="#i-shield"/></svg>
+                <div style="min-width:0"><div style="font-weight:600">域名证书 30 天后到期</div><div class="muted" style="font-size:11.5px">*.gw4j.fun · 到期 2026-12-04</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><b>实时事件</b><div class="r"><span class="cbtn"><span class="dot ok"></span>接收中</span></div></div>
+            <div class="card-b"><div class="tl">
+              <div class="tl-item warn"><div style="font-weight:600">order_service 5xx 率突增至 2.1%</div><div class="muted" style="font-size:11.5px">14:32 · 已关联降级预案</div></div>
+              <div class="tl-item ok"><div style="font-weight:600">user_service v2 发布完成</div><div class="muted" style="font-size:11.5px">14:01 · admin · 灰度 10 分钟全量</div></div>
+              <div class="tl-item"><div style="font-weight:600">创建了草稿 canary-checkout</div><div class="muted" style="font-size:11.5px">13:47 · 可可 · 灰度发布模板</div></div>
+              <div class="tl-item"><div style="font-weight:600">系统巡检通过（12 项）</div><div class="muted" style="font-size:11.5px">13:20 · 自动</div></div>
+            </div></div>
+          </div>
+          <div class="card">
+            <div class="card-h"><b>上游健康</b><div class="r"><a class="hint" style="color:var(--primary);text-decoration:none">全部 6 个 →</a></div></div>
+            <div class="card-b" style="display:flex;flex-direction:column;gap:9px">
+              <div class="flex ai-c gap8"><span class="dot ok"></span><span style="width:96px">user-pool</span><div class="pbar" style="flex:1"><i style="width:96%"></i></div><span class="mono muted">P95 18ms</span></div>
+              <div class="flex ai-c gap8"><span class="dot warn"></span><span style="width:96px">order-pool</span><div class="pbar" style="flex:1"><i style="width:58%;background:#E4A34C"></i></div><span class="mono" style="color:var(--warn)">P95 96ms</span></div>
+              <div class="flex ai-c gap8"><span class="dot ok"></span><span style="width:96px">product-pool</span><div class="pbar" style="flex:1"><i style="width:93%"></i></div><span class="mono muted">P95 22ms</span></div>
+              <div class="flex ai-c gap8"><span class="dot ok"></span><span style="width:96px">payment-pool</span><div class="pbar" style="flex:1"><i style="width:91%"></i></div><span class="mono muted">P95 64ms</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+</body></html>

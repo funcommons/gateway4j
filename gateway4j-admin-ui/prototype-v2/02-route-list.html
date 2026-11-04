@@ -1,0 +1,149 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<title>02 · 路由列表 · Gateway4j v2 原型</title>
+<link rel="stylesheet" href="assets/base.css"></head><body>
+<script src="assets/icons.js"></script>
+<div class="shell">
+  <aside class="side">
+    <div class="logo"><span class="logo-mark"></span><div><b>Gateway4j</b><i>可视化网关 · v2 原型</i></div></div>
+    <div class="nav-g">总览</div>
+    <a class="ni" href="01-overview-topology.html"><svg class="ic"><use href="#i-grid"/></svg>拓扑总览<span class="live"></span></a>
+    <div class="nav-g">路由</div>
+    <a class="ni active"><svg class="ic"><use href="#i-branch"/></svg>路由列表<span class="cnt">26</span></a>
+    <a class="ni" href="04-flow-canvas.html"><svg class="ic"><use href="#i-git-merge"/></svg>流程编排</a>
+    <a class="ni" href="05-decision-tree.html"><svg class="ic"><use href="#i-branch"/></svg>决策树视图</a>
+    <a class="ni" href="10-publish.html"><svg class="ic"><use href="#i-flag"/></svg>发布与版本<span class="cnt">2</span></a>
+    <div class="nav-g">插件</div>
+    <a class="ni" href="06-plugin-chain.html"><svg class="ic"><use href="#i-layers"/></svg>插件链</a>
+    <a class="ni" href="06-plugin-chain.html"><svg class="ic"><use href="#i-zap"/></svg>插件市场</a>
+    <div class="nav-g">可观测</div>
+    <a class="ni" href="08-monitoring.html"><svg class="ic"><use href="#i-activity"/></svg>监控大盘</a>
+    <a class="ni" href="09-debug.html"><svg class="ic"><use href="#i-terminal"/></svg>调试台</a>
+    <div class="nav-g">系统</div>
+    <a class="ni"><svg class="ic"><use href="#i-database"/></svg>服务与上游</a>
+    <a class="ni"><svg class="ic"><use href="#i-users"/></svg>用户权限</a>
+    <a class="ni"><svg class="ic"><use href="#i-sliders"/></svg>系统设置</a>
+    <div class="side-foot"><div class="env-pill"><span class="dot ok"></span>生产环境 · 网关正常<span class="mono" style="margin-left:auto">v1.4.2</span></div></div>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <div class="crumb">路由<span class="sep">/</span><b>路由列表</b></div>
+      <div class="top-search"><svg class="ic"><use href="#i-search"/></svg>搜索路由、插件、用户…<kbd>⌘K</kbd></div>
+      <a class="top-ic"><svg class="ic"><use href="#i-alert"/></svg><span class="dot-alert"></span></a>
+      <span class="avatar">管</span>
+    </header>
+    <section class="page">
+      <div class="page-head">
+        <div><h1>路由列表</h1><div class="sub">26 条路由 · 昨日命中 1.02M 次 · 每行右侧迷你链路 = 「匹配 → 处理 → 转发」一眼读懂</div></div>
+        <div class="acts">
+          <button class="btn"><svg class="ic"><use href="#i-upload"/></svg>导入</button>
+          <button class="btn pri"><svg class="ic"><use href="#i-plus"/></svg>新建路由</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border)">
+          <div class="seg"><a class="on">全部 <span class="n">26</span></a><a>已发布 <span class="n">18</span></a><a>草稿 <span class="n">5</span></a><a>灰度中 <span class="n">1</span></a><a>已下线 <span class="n">3</span></a></div>
+          <span class="chip mono" style="height:32px;padding:0 12px;width:220px;color:var(--ink-3)"><svg class="ic" style="width:13px;height:13px"><use href="#i-search"/></svg>搜路径 / 名称 / 标签…</span>
+          <span class="muted" style="margin-left:auto;font-size:12px">按命中量排序</span>
+        </div>
+        <table class="tb">
+          <tr><th style="width:230px">路由</th><th>流量链路（匹配 → 处理 → 转发）</th><th style="width:110px">状态</th><th style="width:150px">近 24h 命中</th><th style="width:80px">P95</th><th style="width:130px">版本 / 变更</th><th style="width:52px"></th></tr>
+
+          <!-- 展开行示例：user_service -->
+          <tr style="background:#FDFBF9">
+            <td><div class="b gap8"><svg class="ic" style="color:var(--primary)"><use href="#i-chev-down"/></svg><b>user_service</b></div>
+              <div class="b gap6 mt8" style="padding-left:24px"><span class="chip method">GET</span><span class="chip path">/api/user/**</span></div></td>
+            <td>
+              <div class="b gap8" style="flex-wrap:wrap">
+                <span class="flow-chip match"><svg class="ic"><use href="#i-filter"/></svg>路径匹配</span><span class="flow-arrow"><svg class="ic" style="width:12px;height:12px"><use href="#i-arrow-right"/></svg></span>
+                <span class="flow-chip plugin"><svg class="ic"><use href="#i-layers"/></svg>4 插件</span><span class="flow-arrow"><svg class="ic" style="width:12px;height:12px"><use href="#i-arrow-right"/></svg></span>
+                <span class="flow-chip up"><svg class="ic"><use href="#i-database"/></svg>user-pool · 2 实例</span>
+              </div>
+              <div class="b gap6 mt8" style="padding-left:2px">
+                <span class="chip"><span class="k">插件</span>签名校验</span><span class="chip">请求限流 100/QPS</span><span class="chip">链路追踪</span><span class="chip">敏感字段脱敏</span>
+              </div>
+            </td>
+            <td><span class="badge ok"><span class="dot"></span>已发布</span></td>
+            <td><div class="b gap10 ai-c"><svg width="64" height="20"><g><rect x="0" y="10" width="4" height="10" rx="1" fill="#EC8B57"/><rect x="6" y="6" width="4" height="14" rx="1" fill="#EC8B57"/><rect x="12" y="12" width="4" height="8" rx="1" fill="#F0B391"/><rect x="18" y="4" width="4" height="16" rx="1" fill="#C2410C"/><rect x="24" y="8" width="4" height="12" rx="1" fill="#EC8B57"/><rect x="30" y="2" width="4" height="18" rx="1" fill="#C2410C"/><rect x="36" y="9" width="4" height="11" rx="1" fill="#F0B391"/><rect x="42" y="5" width="4" height="15" rx="1" fill="#EC8B57"/><rect x="48" y="11" width="4" height="9" rx="1" fill="#F0B391"/><rect x="54" y="7" width="4" height="13" rx="1" fill="#EC8B57"/><rect x="60" y="3" width="4" height="17" rx="1" fill="#C2410C"/></g></svg><span><b>312k</b> <span class="muted" style="font-size:11px">次</span></span></div></td>
+            <td><b class="mono" style="font-size:12.5px">31ms</b></td>
+            <td><div class="b gap6"><span class="mono">v2</span><span class="badge gray">无变更</span></div></td>
+            <td><div class="row-actions"><a class="top-ic" style="width:28px;height:28px"><svg class="ic"><use href="#i-more"/></svg></a></div></td>
+          </tr>
+          <tr style="background:#FBF8F5">
+            <td colspan="7" style="border-bottom:1px solid var(--border);padding:14px 16px 16px 24px">
+              <div class="grid" style="grid-template-columns:1fr 1fr 1fr;gap:14px">
+                <div class="card" style="box-shadow:none"><div class="card-h" style="padding:9px 12px"><b style="font-size:12.5px">上游实例</b><span class="hint">user-pool</span></div>
+                  <div class="card-b" style="padding:10px 12px;display:flex;flex-direction:column;gap:7px">
+                    <div class="b gap8"><span class="dot ok"></span><span class="mono">10.0.0.11:9001</span><span class="muted" style="margin-left:auto;font-size:11px">QPS 118 · 8ms</span></div>
+                    <div class="b gap8"><span class="dot ok"></span><span class="mono">10.0.0.12:9001</span><span class="muted" style="margin-left:auto;font-size:11px">QPS 103 · 9ms</span></div>
+                    <button class="btn sm" style="align-self:flex-start"><svg class="ic" style="width:12px;height:12px"><use href="#i-plus"/></svg>添加实例</button>
+                  </div></div>
+                <div class="card" style="box-shadow:none"><div class="card-h" style="padding:9px 12px"><b style="font-size:12.5px">插件链</b><span class="hint">路由级 4 · 继承全局 3</span></div>
+                  <div class="card-b" style="padding:10px 12px;display:flex;flex-wrap:wrap;gap:6px">
+                    <span class="chip">≡ 签名校验 <span class="mono muted">0.4ms</span></span><span class="chip">≡ 请求限流 <span class="mono muted">0.1ms</span></span><span class="chip">≡ 链路追踪 <span class="mono muted">0.2ms</span></span><span class="chip">≡ 敏感字段脱敏 <span class="mono muted">0.3ms</span></span>
+                    <button class="btn sm ghost"><svg class="ic" style="width:12px;height:12px"><use href="#i-plus"/></svg>添加插件</button>
+                  </div></div>
+                <div class="card" style="box-shadow:none"><div class="card-h" style="padding:9px 12px"><b style="font-size:12.5px">快捷操作</b></div>
+                  <div class="card-b" style="padding:10px 12px;display:flex;flex-wrap:wrap;gap:6px">
+                    <button class="btn sm"><svg class="ic" style="width:12px;height:12px"><use href="#i-terminal"/></svg>调试此路由</button>
+                    <button class="btn sm"><svg class="ic" style="width:12px;height:12px"><use href="#i-git-merge"/></svg>编辑画布</button>
+                    <button class="btn sm"><svg class="ic" style="width:12px;height:12px"><use href="#i-flag"/></svg>发布</button>
+                    <button class="btn sm"><svg class="ic" style="width:12px;height:12px"><use href="#i-copy"/></svg>复制配置</button>
+                  </div></div>
+              </div>
+            </td>
+          </tr>
+
+          <tr><td><div class="b gap8"><b style="padding-left:24px">api_gateway</b><span class="badge violet">分发</span></div>
+              <div class="b gap6 mt8" style="padding-left:24px"><span class="chip method">ANY</span><span class="chip path">/api/**</span></div></td>
+            <td><div class="b gap8"><span class="flow-chip match"><svg class="ic"><use href="#i-filter"/></svg>路径匹配</span><span class="flow-arrow"><svg class="ic" style="width:12px;height:12px"><use href="#i-arrow-right"/></svg></span><span class="flow-chip" style="border-color:#E2DBF7;background:var(--violet-tint)"><svg class="ic"><use href="#i-git-merge"/></svg>决策树 · 3 分支</span><span class="flow-arrow"><svg class="ic" style="width:12px;height:12px"><use href="#i-arrow-right"/></svg></span><span class="flow-chip up">3 后置路由</span></div></td>
+            <td><span class="badge ok"><span class="dot"></span>已发布</span></td>
+            <td><div class="b gap10 ai-c"><svg width="64" height="20"><g><rect x="0" y="12" width="4" height="8" rx="1" fill="#F0B391"/><rect x="6" y="8" width="4" height="12" rx="1" fill="#EC8B57"/><rect x="12" y="4" width="4" height="16" rx="1" fill="#C2410C"/><rect x="18" y="10" width="4" height="10" rx="1" fill="#F0B391"/><rect x="24" y="6" width="4" height="14" rx="1" fill="#EC8B57"/><rect x="30" y="2" width="4" height="18" rx="1" fill="#C2410C"/><rect x="36" y="8" width="4" height="12" rx="1" fill="#EC8B57"/><rect x="42" y="12" width="4" height="8" rx="1" fill="#F0B391"/><rect x="48" y="6" width="4" height="14" rx="1" fill="#EC8B57"/><rect x="54" y="10" width="4" height="10" rx="1" fill="#F0B391"/><rect x="60" y="4" width="4" height="16" rx="1" fill="#C2410C"/></g></svg><span><b>498k</b> 次</span></div></td>
+            <td><b class="mono" style="font-size:12.5px">48ms</b></td>
+            <td><div class="b gap6"><span class="mono">v3</span><span class="badge pri"><span class="dot"></span>待发布</span></div></td>
+            <td><div class="row-actions"><a class="top-ic" style="width:28px;height:28px"><svg class="ic"><use href="#i-more"/></svg></a></div></td></tr>
+
+          <tr><td><div class="b gap8"><b style="padding-left:24px">order_service</b></div>
+              <div class="b gap6 mt8" style="padding-left:24px"><span class="chip method">GET</span><span class="chip path">/api/order/**</span></div></td>
+            <td><div class="b gap8"><span class="flow-chip match"><svg class="ic"><use href="#i-filter"/></svg>路径匹配</span><span class="flow-arrow"><svg class="ic" style="width:12px;height:12px"><use href="#i-arrow-right"/></svg></span><span class="flow-chip plugin">2 插件</span><span class="flow-arrow"><svg class="ic" style="width:12px;height:12px"><use href="#i-arrow-right"/></svg></span><span class="flow-chip up" style="border-color:#EAC7A0;background:var(--warn-tint)"><svg class="ic"><use href="#i-database"/></svg>order-pool · 1/2 实例</span></div></td>
+            <td><span class="badge warn"><span class="dot"></span>上游降级</span></td>
+            <td><div class="b gap10 ai-c"><svg width="64" height="20"><g><rect x="0" y="14" width="4" height="6" rx="1" fill="#E4C48C"/><rect x="6" y="10" width="4" height="10" rx="1" fill="#D9AE5C"/><rect x="12" y="16" width="4" height="4" rx="1" fill="#E4C48C"/><rect x="18" y="8" width="4" height="12" rx="1" fill="#D9AE5C"/><rect x="24" y="12" width="4" height="8" rx="1" fill="#E4C48C"/><rect x="30" y="6" width="4" height="14" rx="1" fill="#D9AE5C"/><rect x="36" y="14" width="4" height="6" rx="1" fill="#E4C48C"/><rect x="42" y="10" width="4" height="10" rx="1" fill="#D9AE5C"/><rect x="48" y="16" width="4" height="4" rx="1" fill="#E4C48C"/><rect x="54" y="12" width="4" height="8" rx="1" fill="#D9AE5C"/><rect x="60" y="8" width="4" height="12" rx="1" fill="#D9AE5C"/></g></svg><span><b>121k</b> 次</span></div></td>
+            <td><b class="mono" style="font-size:12.5px;color:var(--warn)">112ms</b></td>
+            <td><div class="b gap6"><span class="mono">v1</span><span class="badge gray">无变更</span></div></td>
+            <td><div class="row-actions"><a class="top-ic" style="width:28px;height:28px"><svg class="ic"><use href="#i-more"/></svg></a></div></td></tr>
+
+          <tr><td><div class="b gap8"><b style="padding-left:24px">canary-checkout</b><span class="badge pri">灰度</span></div>
+              <div class="b gap6 mt8" style="padding-left:24px"><span class="chip method">POST</span><span class="chip path">/api/pay/checkout/**</span></div></td>
+            <td><div class="b gap8"><span class="flow-chip match"><svg class="ic"><use href="#i-filter"/></svg>路径匹配</span><span class="flow-arrow"><svg class="ic" style="width:12px;height:12px"><use href="#i-arrow-right"/></svg></span><span class="flow-chip" style="border-color:#F0C4A8;background:var(--primary-tint)"><svg class="ic"><use href="#i-zap"/></svg>权重分流 10%</span><span class="flow-arrow"><svg class="ic" style="width:12px;height:12px"><use href="#i-arrow-right"/></svg></span><span class="flow-chip up">payment-pool</span></div></td>
+            <td><span class="badge gray"><span class="dot gray"></span>草稿</span></td>
+            <td><span class="muted" style="font-size:12px">未发布 · 待灰度</span></td>
+            <td><span class="muted">—</span></td>
+            <td><div class="b gap6"><span class="mono">v1</span><span class="badge pri"><span class="dot"></span>新建</span></div></td>
+            <td><div class="row-actions"><a class="top-ic" style="width:28px;height:28px"><svg class="ic"><use href="#i-more"/></svg></a></div></td></tr>
+
+          <tr><td><div class="b gap8"><b style="padding-left:24px">product_service</b></div>
+              <div class="b gap6 mt8" style="padding-left:24px"><span class="chip method">GET</span><span class="chip path">/api/product/**</span></div></td>
+            <td><div class="b gap8"><span class="flow-chip match"><svg class="ic"><use href="#i-filter"/></svg>路径匹配</span><span class="flow-arrow"><svg class="ic" style="width:12px;height:12px"><use href="#i-arrow-right"/></svg></span><span class="flow-chip plugin">2 插件</span><span class="flow-arrow"><svg class="ic" style="width:12px;height:12px"><use href="#i-arrow-right"/></svg></span><span class="flow-chip up">product-pool · 1 实例</span></div></td>
+            <td><span class="badge ok"><span class="dot"></span>已发布</span></td>
+            <td><div class="b gap10 ai-c"><svg width="64" height="20"><g><rect x="0" y="12" width="4" height="8" rx="1" fill="#F0B391"/><rect x="6" y="14" width="4" height="6" rx="1" fill="#F0B391"/><rect x="12" y="8" width="4" height="12" rx="1" fill="#EC8B57"/><rect x="18" y="10" width="4" height="10" rx="1" fill="#EC8B57"/><rect x="24" y="6" width="4" height="14" rx="1" fill="#C2410C"/><rect x="30" y="12" width="4" height="8" rx="1" fill="#F0B391"/><rect x="36" y="8" width="4" height="12" rx="1" fill="#EC8B57"/><rect x="42" y="14" width="4" height="6" rx="1" fill="#F0B391"/><rect x="48" y="10" width="4" height="10" rx="1" fill="#EC8B57"/><rect x="54" y="6" width="4" height="14" rx="1" fill="#C2410C"/><rect x="60" y="12" width="4" height="8" rx="1" fill="#F0B391"/></g></svg><span><b>66k</b> 次</span></div></td>
+            <td><b class="mono" style="font-size:12.5px">36ms</b></td>
+            <td><div class="b gap6"><span class="mono">v1</span><span class="badge gray">无变更</span></div></td>
+            <td><div class="row-actions"><a class="top-ic" style="width:28px;height:28px"><svg class="ic"><use href="#i-more"/></svg></a></div></td></tr>
+
+          <tr style="opacity:.6"><td><div class="b gap8"><b style="padding-left:24px">internal_api</b></div>
+              <div class="b gap6 mt8" style="padding-left:24px"><span class="chip method">ANY</span><span class="chip path">/internal/**</span></div></td>
+            <td><span class="muted" style="font-size:12px">已下线 · 配置保留，可一键恢复</span></td>
+            <td><span class="badge gray"><span class="dot gray"></span>已下线</span></td>
+            <td><span class="muted">0 次</span></td><td><span class="muted">—</span></td>
+            <td><span class="mono">v1</span></td>
+            <td><div class="row-actions"><a class="top-ic" style="width:28px;height:28px"><svg class="ic"><use href="#i-more"/></svg></a></div></td></tr>
+        </table>
+        <div style="display:flex;align-items:center;padding:12px 16px;gap:10px">
+          <span class="muted" style="font-size:12px">共 26 条 · 第 1/2 页</span>
+          <div style="margin-left:auto" class="b gap6"><span class="chip">上一页</span><span class="chip" style="background:var(--primary-tint);border-color:#EAC7B3;color:var(--primary)">1</span><span class="chip">2</span><span class="chip">下一页</span></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+</body></html>

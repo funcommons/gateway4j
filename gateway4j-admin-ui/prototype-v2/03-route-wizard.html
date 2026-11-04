@@ -1,0 +1,158 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<title>03 · 新建路由向导 · Gateway4j v2 原型</title>
+<link rel="stylesheet" href="assets/base.css"></head><body>
+<script src="assets/icons.js"></script>
+<div class="shell">
+  <aside class="side">
+    <div class="logo"><span class="logo-mark"></span><div><b>Gateway4j</b><i>可视化网关 · v2 原型</i></div></div>
+    <div class="nav-g">总览</div>
+    <a class="ni" href="01-overview-topology.html"><svg class="ic"><use href="#i-grid"/></svg>拓扑总览<span class="live"></span></a>
+    <div class="nav-g">路由</div>
+    <a class="ni" href="02-route-list.html"><svg class="ic"><use href="#i-branch"/></svg>路由列表<span class="cnt">26</span></a>
+    <a class="ni" href="04-flow-canvas.html"><svg class="ic"><use href="#i-git-merge"/></svg>流程编排</a>
+    <a class="ni" href="05-decision-tree.html"><svg class="ic"><use href="#i-branch"/></svg>决策树视图</a>
+    <a class="ni" href="10-publish.html"><svg class="ic"><use href="#i-flag"/></svg>发布与版本<span class="cnt">2</span></a>
+    <div class="nav-g">插件</div>
+    <a class="ni" href="06-plugin-chain.html"><svg class="ic"><use href="#i-layers"/></svg>插件链</a>
+    <a class="ni" href="06-plugin-chain.html"><svg class="ic"><use href="#i-zap"/></svg>插件市场</a>
+    <div class="nav-g">可观测</div>
+    <a class="ni" href="08-monitoring.html"><svg class="ic"><use href="#i-activity"/></svg>监控大盘</a>
+    <a class="ni" href="09-debug.html"><svg class="ic"><use href="#i-terminal"/></svg>调试台</a>
+    <div class="nav-g">系统</div>
+    <a class="ni"><svg class="ic"><use href="#i-database"/></svg>服务与上游</a>
+    <a class="ni"><svg class="ic"><use href="#i-users"/></svg>用户权限</a>
+    <a class="ni"><svg class="ic"><use href="#i-sliders"/></svg>系统设置</a>
+    <div class="side-foot"><div class="env-pill"><span class="dot ok"></span>生产环境 · 网关正常<span class="mono" style="margin-left:auto">v1.4.2</span></div></div>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <div class="crumb">路由<span class="sep">/</span>新建路由<span class="sep">/</span><b>选择模板</b></div>
+      <div class="top-search"><svg class="ic"><use href="#i-search"/></svg>搜索路由、插件、用户…<kbd>⌘K</kbd></div>
+      <a class="top-ic"><svg class="ic"><use href="#i-alert"/></svg></a>
+      <span class="avatar">管</span>
+    </header>
+    <section class="page">
+      <div class="card" style="padding:14px 20px;margin-bottom:16px">
+        <div class="steps">
+          <div class="step cur"><span class="sn">1</span>选择模板</div><div class="step-line"></div>
+          <div class="step"><span class="sn">2</span>匹配条件</div><div class="step-line"></div>
+          <div class="step"><span class="sn">3</span>转发目标</div><div class="step-line"></div>
+          <div class="step"><span class="sn">4</span>插件链</div><div class="step-line"></div>
+          <div class="step"><span class="sn">5</span>发布生效</div>
+          <span class="muted" style="margin-left:auto;font-size:12px">选模板后只需 3 步 · 预计 2 分钟 · 草稿自动保存</span>
+        </div>
+      </div>
+
+      <div class="grid" style="grid-template-columns:1fr 348px">
+        <div>
+          <div class="grid" style="grid-template-columns:1fr 1fr">
+            <div class="card" style="border-color:var(--primary);outline:1.5px solid var(--primary);position:relative">
+              <span class="badge pri" style="position:absolute;top:12px;right:12px">最常用</span>
+              <div style="padding:14px 16px 6px"><b style="font-size:14px">单服务转发</b>
+                <div class="muted" style="font-size:12px;margin-top:3px">路径匹配后转发到一个后端服务</div></div>
+              <svg viewBox="0 0 320 74" style="display:block;width:100%;padding:4px 10px">
+                <rect x="4" y="26" width="58" height="22" rx="5" fill="#fff" stroke="#D4D8DE"/><text x="33" y="40" text-anchor="middle" font-size="9" fill="#4E5561">请求</text>
+                <path d="M62 37 H90" stroke="#B9C0CA" stroke-width="1.4" marker-end="url(#warr)"/>
+                <defs><marker id="warr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0L6 3L0 6Z" fill="#B9C0CA"/></marker></defs>
+                <rect x="92" y="26" width="86" height="22" rx="5" fill="#EAF0FE" stroke="#B7D3FE"/><text x="135" y="40" text-anchor="middle" font-size="9" fill="#2563EB">路径匹配 /x/**</text>
+                <path d="M178 37 H206" stroke="#B9C0CA" stroke-width="1.4" marker-end="url(#warr)"/>
+                <rect x="208" y="26" width="70" height="22" rx="5" fill="#E9F7F1" stroke="#BFE4D4"/><text x="243" y="40" text-anchor="middle" font-size="9" fill="#0E8A5F">后端服务</text>
+                <rect x="92" y="56" width="86" height="14" rx="4" fill="#EFEBFB"/><text x="135" y="66" text-anchor="middle" font-size="8" fill="#6D5BD0">可选：插件链</text>
+                <path d="M135 48 v8" stroke="#D9CFf5" stroke-width="1.2"/>
+              </svg>
+              <div style="padding:8px 16px 12px;display:flex;gap:6px;flex-wrap:wrap"><span class="chip">适合：单一微服务</span><span class="chip">支持重试/超时</span></div>
+            </div>
+            <div class="card">
+              <span class="badge violet" style="position:absolute;top:12px;right:12px">本产品特色</span>
+              <div style="padding:14px 16px 6px"><b style="font-size:14px">分发路由（决策树）</b>
+                <div class="muted" style="font-size:12px;margin-top:3px">按条件把请求分发到多个后置路由</div></div>
+              <svg viewBox="0 0 320 74" style="display:block;width:100%;padding:4px 10px">
+                <rect x="4" y="26" width="58" height="22" rx="5" fill="#fff" stroke="#D4D8DE"/><text x="33" y="40" text-anchor="middle" font-size="9" fill="#4E5561">请求</text>
+                <path d="M62 37 H84" stroke="#B9C0CA" stroke-width="1.4"/>
+                <rect x="86" y="18" width="90" height="38" rx="6" fill="#F4F0FC" stroke="#C9B8F0"/><text x="131" y="34" text-anchor="middle" font-size="9" fill="#6D5BD0">分发 ◇</text><text x="131" y="48" text-anchor="middle" font-size="8" fill="#7C6BC9">按 Header / 权重</text>
+                <path d="M176 28 C 200 16, 210 14, 236 14" stroke="#B9C0CA" fill="none" stroke-width="1.4"/>
+                <path d="M176 37 H236" stroke="#B9C0CA" stroke-width="1.4"/>
+                <path d="M176 46 C 200 58, 210 60, 236 60" stroke="#B9C0CA" fill="none" stroke-width="1.4"/>
+                <rect x="238" y="6" width="76" height="16" rx="4" fill="#E9F7F1" stroke="#BFE4D4"/><text x="276" y="17" text-anchor="middle" font-size="8" fill="#0E8A5F">后置 A</text>
+                <rect x="238" y="29" width="76" height="16" rx="4" fill="#E9F7F1" stroke="#BFE4D4"/><text x="276" y="40" text-anchor="middle" font-size="8" fill="#0E8A5F">后置 B</text>
+                <rect x="238" y="52" width="76" height="16" rx="4" fill="#E9F7F1" stroke="#BFE4D4"/><text x="276" y="63" text-anchor="middle" font-size="8" fill="#0E8A5F">后置 C</text>
+              </svg>
+              <div style="padding:8px 16px 12px;display:flex;gap:6px;flex-wrap:wrap"><span class="chip">VIP 分流</span><span class="chip">灰度切流</span><span class="chip">嵌套 ≤5 层</span></div>
+            </div>
+            <div class="card">
+              <div style="padding:14px 16px 6px"><b style="font-size:14px">灰度发布</b>
+                <div class="muted" style="font-size:12px;margin-top:3px">新旧版本按权重或 Header 切流</div></div>
+              <svg viewBox="0 0 320 74" style="display:block;width:100%;padding:4px 10px">
+                <rect x="4" y="26" width="58" height="22" rx="5" fill="#fff" stroke="#D4D8DE"/><text x="33" y="40" text-anchor="middle" font-size="9" fill="#4E5561">请求</text>
+                <path d="M62 37 H86" stroke="#B9C0CA" stroke-width="1.4"/>
+                <rect x="88" y="22" width="92" height="30" rx="6" fill="#FDF0E8" stroke="#EAC7B3"/><text x="134" y="35" text-anchor="middle" font-size="9" fill="#C2410C">权重分流</text><text x="134" y="47" text-anchor="middle" font-size="8" fill="#B45309">90% / 10%</text>
+                <path d="M180 30 H210" stroke="#B9C0CA" stroke-width="1.4"/><path d="M180 44 H210" stroke="#B9C0CA" stroke-width="1.4"/>
+                <rect x="212" y="22" width="72" height="16" rx="4" fill="#fff" stroke="#D4D8DE"/><text x="248" y="33" text-anchor="middle" font-size="8" fill="#4E5561">v1 稳定 90%</text>
+                <rect x="212" y="44" width="72" height="16" rx="4" fill="#FDF0E8" stroke="#EAC7B3"/><text x="248" y="55" text-anchor="middle" font-size="8" fill="#C2410C">v2 灰度 10%</text>
+              </svg>
+              <div style="padding:8px 16px 12px;display:flex;gap:6px;flex-wrap:wrap"><span class="chip">一键回滚</span><span class="chip">指标看板</span></div>
+            </div>
+            <div class="card">
+              <div style="padding:14px 16px 6px"><b style="font-size:14px">从现有路由复制</b>
+                <div class="muted" style="font-size:12px;margin-top:3px">选一条路由复制配置起步，改路径即用</div></div>
+              <div style="padding:10px 16px">
+                <div class="b gap8" style="border:1px solid var(--border);border-radius:8px;padding:9px 12px"><span class="chip method">GET</span><span class="chip path">/api/user/**</span><span class="muted" style="margin-left:auto;font-size:11px">user_service</span></div>
+                <div class="b gap8 mt8" style="border:1px solid var(--border);border-radius:8px;padding:9px 12px;opacity:.6"><span class="chip method">GET</span><span class="chip path">/api/order/**</span><span class="muted" style="margin-left:auto;font-size:11px">order_service</span></div>
+              </div>
+            </div>
+            <div class="card" style="grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:13px 16px">
+              <svg class="ic" style="width:18px;height:18px;color:var(--ink-3)"><use href="#i-plus"/></svg>
+              <b>空白自建</b><span class="muted" style="font-size:12px">不使用模板，完全手动配置每个环节</span>
+              <span class="chip" style="margin-left:auto">适合熟悉网关概念的用户</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex" style="flex-direction:column;gap:14px">
+          <div class="card">
+            <div class="card-h"><b>实时预览</b><span class="hint">随右侧步骤逐步长出</span></div>
+            <div style="padding:10px 14px 14px">
+              <svg viewBox="0 0 300 128" style="width:100%">
+                <rect x="6" y="53" width="56" height="22" rx="5" fill="#fff" stroke="#D4D8DE" stroke-dasharray="3 2"/>
+                <text x="34" y="67" text-anchor="middle" font-size="9" fill="#7A828E">请求</text>
+                <path d="M62 64 H92" stroke="#D4D8DE" stroke-width="1.4" stroke-dasharray="3 2"/>
+                <rect x="94" y="50" width="104" height="28" rx="6" fill="#FDF0E8" stroke="#EAC7B3"/>
+                <text x="146" y="62" text-anchor="middle" font-size="9" fill="#C2410C" font-weight="600">分发路由（已选）</text>
+                <text x="146" y="73" text-anchor="middle" font-size="8" fill="#B45309">等待「匹配条件」</text>
+                <path d="M198 64 H228" stroke="#D4D8DE" stroke-width="1.4" stroke-dasharray="3 2"/>
+                <g opacity=".45"><rect x="230" y="26" width="60" height="16" rx="4" fill="#E9F7F1" stroke="#BFE4D4"/><text x="260" y="37" text-anchor="middle" font-size="8" fill="#0E8A5F">后置 ？</text>
+                <rect x="230" y="56" width="60" height="16" rx="4" fill="#E9F7F1" stroke="#BFE4D4"/><text x="260" y="67" text-anchor="middle" font-size="8" fill="#0E8A5F">后置 ？</text>
+                <rect x="230" y="86" width="60" height="16" rx="4" fill="#E9F7F1" stroke="#BFE4D4"/><text x="260" y="97" text-anchor="middle" font-size="8" fill="#0E8A5F">后置 ？</text></g>
+              </svg>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><b>配置进度</b></div>
+            <div class="card-b" style="display:flex;flex-direction:column;gap:10px">
+              <div class="b gap8"><svg class="ic" style="color:var(--ok)"><use href="#i-check"/></svg>模板：<b>分发路由</b></div>
+              <div class="b gap8"><svg class="ic" style="color:var(--ink-3)"><use href="#i-clock"/></svg>匹配条件<span class="muted" style="font-size:12px">—— 路径 / Header / 方法</span></div>
+              <div class="b gap8"><svg class="ic" style="color:var(--ink-3)"><use href="#i-clock"/></svg>转发目标<span class="muted" style="font-size:12px">—— 选择或新建后置路由</span></div>
+              <div class="b gap8"><svg class="ic" style="color:var(--ok)"><use href="#i-check"/></svg>插件链<span class="muted" style="font-size:12px">默认继承全局 3 个</span></div>
+            </div>
+          </div>
+          <div class="card" style="background:#FBFCFD">
+            <div class="card-b">
+              <div class="b gap8" style="margin-bottom:8px"><svg class="ic" style="color:var(--info)"><use href="#i-alert"/></svg><b style="font-size:12.5px">不懂概念也没关系</b></div>
+              <div class="muted" style="font-size:12px;line-height:1.7">每一步都用大白话解释，最终生成的配置随时可查看；保存后不会立即生效，需在「发布」确认。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt14" style="position:sticky;bottom:0;display:flex;align-items:center;gap:10px;padding:12px 16px">
+        <button class="btn ghost"><svg class="ic"><use href="#i-edit"/></svg>保存草稿</button>
+        <span class="muted" style="font-size:12px">已自动保存 · 刚刚</span>
+        <div style="margin-left:auto" class="b gap8">
+          <button class="btn" disabled>上一步</button>
+          <button class="btn pri">下一步：匹配条件<svg class="ic"><use href="#i-arrow-right"/></svg></button>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+</body></html>
