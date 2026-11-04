@@ -39,9 +39,34 @@ const routes: RouteRecordRaw[] = [
   }
 ]
 
+/**
+ * UI v2 路由表 (S1 骨架) —— 唯一事实源见 docs/ui-v2/实施契约.md §1.
+ * 所有 name 以 V2 前缀避免与旧表冲突; meta.permission 与旧路由一致,
+ * 守卫复用下方同一个 beforeEach (含 auth.init / requireAuth / permission), 不另立新守卫.
+ */
+const v2Routes: RouteRecordRaw[] = [
+  {
+    path: '/v2',
+    component: () => import('@/layouts/LayoutV2.vue'),
+    meta: { requireAuth: true },
+    children: [
+      { path: '', redirect: '/v2/overview' },
+      { path: 'overview', name: 'V2Overview', component: () => import('@/views-v2/overview/Overview.vue'), meta: { title: 'v2.page.overview', permission: 'monitor:read' } },
+      { path: 'routes', name: 'V2Routes', component: () => import('@/views-v2/routes/List.vue'), meta: { title: 'v2.page.routes', permission: 'route:read' } },
+      { path: 'routes/wizard', name: 'V2RouteWizard', component: () => import('@/views-v2/routes/Wizard.vue'), meta: { title: 'v2.page.wizard', permission: 'route:edit' } },
+      { path: 'routes/:id/detail', name: 'V2RouteDetail', component: () => import('@/views-v2/routes/Detail.vue'), meta: { title: 'v2.page.detail', permission: 'route:read' } },
+      { path: 'routes/tree/:id', name: 'V2DecisionTree', component: () => import('@/views-v2/routes/DecisionTree.vue'), meta: { title: 'v2.page.tree', permission: 'route:read' } },
+      { path: 'plugins/chain', name: 'V2PluginChain', component: () => import('@/views-v2/plugins/Chain.vue'), meta: { title: 'v2.page.chain', permission: 'plugin:read' } },
+      { path: 'publish/:id', name: 'V2Publish', component: () => import('@/views-v2/publish/Publish.vue'), meta: { title: 'v2.page.publish', permission: 'route:edit' } },
+      { path: 'monitor', name: 'V2Monitor', component: () => import('@/views-v2/monitor/Monitor.vue'), meta: { title: 'v2.page.monitor', permission: 'monitor:read' } },
+      { path: 'debug', name: 'V2Debug', component: () => import('@/views-v2/debug/Debug.vue'), meta: { title: 'v2.page.debug', permission: 'route:edit' } }
+    ]
+  }
+]
+
 export const router = createRouter({
   history: createWebHistory(),
-  routes
+  routes: [...routes, ...v2Routes]
 })
 
 let authInitialized = false

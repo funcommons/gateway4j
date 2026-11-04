@@ -602,5 +602,87 @@ export default {
       'banner-discard': 'Discard changes',
       'banner-restore-btn': 'Restore saved version'
     }
+  },
+  // UI v2 (docs/ui-v2/contract): sidebar groups + page titles + topbar entry + placeholder copy
+  v2: {
+    nav: {
+      group: {
+        overview: 'Overview',
+        routes: 'Routes',
+        plugins: 'Plugins',
+        observability: 'Observability',
+        system: 'System'
+      },
+      overview: 'Topology Overview',
+      routes: 'Route List',
+      wizard: 'New Route Wizard',
+      pluginChain: 'Plugin Chain',
+      monitor: 'Monitoring',
+      debug: 'Debug Console',
+      systemEmpty: 'This group opens in a later step',
+      subtitle: 'Visual gateway · v2'
+    },
+    layout: {
+      backToLegacy: 'Back to legacy UI'
+    },
+    page: {
+      overview: 'Topology Overview',
+      routes: 'Route List',
+      wizard: 'Route Wizard',
+      detail: 'Route Detail',
+      tree: 'Decision Tree',
+      chain: 'Plugin Chain',
+      publish: 'Publish & Versions',
+      monitor: 'Monitoring',
+      debug: 'Debug Console'
+    },
+    topbar: {
+      tryV2: 'New experience',
+      kbd: '⌘K',
+      searchPlaceholder: 'Search routes, plugins, users…',
+      notifications: 'Notifications',
+      user: 'User'
+    },
+    placeholder: {
+      hint: 'This module will be implemented in a later step',
+      prototype: 'Reference prototype: prototype-v2/{file}'
+    },
+    routes: {
+      create: 'New route',
+      statusPublished: 'Published',
+      statusDraft: 'Draft',
+      statusOffline: 'Offline',
+      statusChanging: 'Changing',
+      upstreamUnreachable: 'Upstream unreachable',
+      flowMatch: 'Path match',
+      pluginCount: '{n} plugins',
+      decisionTree: 'Decision tree',
+      branchCount: '{n} branches',
+      healthOk: 'Healthy',
+      healthBad: 'Unreachable',
+      healthUnknown: 'Unknown',
+      snapshotFallback: 'Prometheus unavailable — showing snapshot data; P95 values are estimated',
+      trafficLoadFailed: 'Failed to load traffic metrics — traffic columns are unavailable',
+      empty: 'No routes yet — create one from the top-right',
+      filterAll: 'All',
+      searchPlaceholder: 'Search path / name…',
+      colName: 'Route',
+      colPath: 'Path',
+      colFlow: 'Traffic flow',
+      colStatus: 'Status',
+      colHits: 'Hits (24h)',
+      colP95: 'P95',
+      colHealth: 'Health',
+      cardUpstream: 'Upstream health',
+      cardPlugins: 'Plugin chain',
+      cardActions: 'Quick actions',
+      actDebug: 'Debug',
+      actCanvas: 'Edit canvas',
+      actPublish: 'Publish',
+      actCopy: 'Duplicate config',
+      copySuccess: 'Route config duplicated',
+      copyFailed: 'Failed to duplicate route config',
+      placeholder: '—'
+    }
   }
 }

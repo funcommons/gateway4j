@@ -599,5 +599,87 @@ export default {
       'banner-discard': '放弃修改',
       'banner-restore-btn': '恢复已保存内容'
     }
+  },
+  // UI v2 (docs/ui-v2/实施契约.md): 侧栏五组 + 页面标题 + 顶栏入口 + 占位文案
+  v2: {
+    nav: {
+      group: {
+        overview: '总览',
+        routes: '路由',
+        plugins: '插件',
+        observability: '可观测',
+        system: '系统'
+      },
+      overview: '拓扑总览',
+      routes: '路由列表',
+      wizard: '新建路由向导',
+      pluginChain: '插件链',
+      monitor: '监控大盘',
+      debug: '调试台',
+      systemEmpty: '该分组将在后续步骤开放',
+      subtitle: '可视化网关 · v2'
+    },
+    layout: {
+      backToLegacy: '返回旧版'
+    },
+    page: {
+      overview: '拓扑总览',
+      routes: '路由列表',
+      wizard: '新建路由向导',
+      detail: '路由详情',
+      tree: '决策树视图',
+      chain: '插件链',
+      publish: '发布与版本',
+      monitor: '监控大盘',
+      debug: '调试台'
+    },
+    topbar: {
+      tryV2: '新版体验',
+      kbd: '⌘K',
+      searchPlaceholder: '搜索路由、插件、用户…',
+      notifications: '通知',
+      user: '用户'
+    },
+    placeholder: {
+      hint: '该模块在后续步骤实现',
+      prototype: '对应原型: prototype-v2/{file}'
+    },
+    routes: {
+      create: '新建路由',
+      statusPublished: '已发布',
+      statusDraft: '草稿',
+      statusOffline: '已下线',
+      statusChanging: '变更中',
+      upstreamUnreachable: '上游不可达',
+      flowMatch: '路径匹配',
+      pluginCount: '{n} 插件',
+      decisionTree: '决策树',
+      branchCount: '{n} 分支',
+      healthOk: '正常',
+      healthBad: '不可达',
+      healthUnknown: '未知',
+      snapshotFallback: 'Prometheus 暂不可用，当前展示快照兜底数据，P95 为估算值',
+      trafficLoadFailed: '流量指标加载失败，流量列暂不可用',
+      empty: '暂无路由，点击右上角「新建路由」开始',
+      filterAll: '全部',
+      searchPlaceholder: '搜路径 / 名称…',
+      colName: '路由',
+      colPath: '路径',
+      colFlow: '流量链路',
+      colStatus: '状态',
+      colHits: '近 24h 命中',
+      colP95: 'P95',
+      colHealth: '健康',
+      cardUpstream: '上游健康',
+      cardPlugins: '插件链',
+      cardActions: '快捷操作',
+      actDebug: '调试',
+      actCanvas: '编辑画布',
+      actPublish: '发布',
+      actCopy: '复制配置',
+      copySuccess: '已复制路由配置',
+      copyFailed: '复制路由配置失败',
+      placeholder: '—'
+    }
   }
 }

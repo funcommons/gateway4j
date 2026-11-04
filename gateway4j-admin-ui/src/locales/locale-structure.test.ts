@@ -7,9 +7,10 @@ import enUS from './en-US'
 // test will catch it, but these structure tests document the expected shape.
 
 describe('locale structure', () => {
-  it('zh-CN has 14 top-level sections', () => {
+  it('zh-CN has 15 top-level sections', () => {
+    // 'v2' = UI v2 新命名空间，见 docs/ui-v2/实施契约.md §2（2026-11-04 主 agent 裁决适配）
     expect(Object.keys(zhCN).sort()).toEqual([
-      'app', 'auth', 'common', 'emptyState', 'env', 'importExport', 'monitor', 'plugin', 'role', 'route', 'settings', 'sidebar', 'user', 'ux'
+      'app', 'auth', 'common', 'emptyState', 'env', 'importExport', 'monitor', 'plugin', 'role', 'route', 'settings', 'sidebar', 'user', 'ux', 'v2'
     ].sort())
   })
 

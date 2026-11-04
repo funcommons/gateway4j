@@ -31,6 +31,10 @@
             </span>
           </FcButton>
           <FcThemeSwitcher />
+          <!-- UI v2 新版体验入口 (契约 §1, 仅导航跳转, 不改既有逻辑) -->
+          <FcButton variant="text" size="sm" data-testid="v2-entry" @click="router.push('/v2/overview')">
+            {{ t('v2.topbar.tryV2') }}
+          </FcButton>
           <FcButton variant="text" @click="onLogout">{{ t('auth.logout') }}</FcButton>
         </template>
       </FcHeader>
