@@ -19,7 +19,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 // 本项目 jsdom 环境不提供可用 localStorage（同 recent-images.test.ts 的惯例），装 Map 桩
 const localStorageMock = (() => {
-  let store = new Map<string, string>()
+  const store = new Map<string, string>()
   return {
     getItem: (k: string) => store.get(k) ?? null,
     setItem: (k: string, v: string) => void store.set(k, String(v)),

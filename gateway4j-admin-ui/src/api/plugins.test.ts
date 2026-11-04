@@ -59,7 +59,7 @@ describe('plugins api — list', () => {
 
 describe('plugins api — CRUD', () => {
   it('createPlugin -> POST /v1/plugins with payload', async () => {
-    const payload = { plugin_name: 'p', plugin_id: 'p1', plugin_type: 'BUILTIN' }
+    const payload = { plugin_name: 'p', plugin_id: 'p1', plugin_type: 'BUILTIN' as const }
     await api.createPlugin(payload)
     expect(mocks.post).toHaveBeenCalledWith('/v1/plugins', payload)
   })

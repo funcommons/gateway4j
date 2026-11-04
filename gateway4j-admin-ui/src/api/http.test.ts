@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest'
 import axios from 'axios'
 import { envelope, getToken, setToken } from '@/api/http'
 
@@ -44,8 +44,8 @@ describe('envelope', () => {
 
 describe('interceptors behaviour', () => {
   const interceptors: any = { reqs: [] as any[] }
-  const setReq = axios.interceptors.request.use as unknown as vi.Mock
-  const setRes = axios.interceptors.response.use as unknown as vi.Mock
+  const setReq = axios.interceptors.request.use as unknown as Mock
+  const setRes = axios.interceptors.response.use as unknown as Mock
 
   beforeEach(() => {
     interceptors.reqs = []
@@ -57,7 +57,7 @@ describe('interceptors behaviour', () => {
   it('attaches Authorization header from localStorage', async () => {
     const adapter = (cfg: any) => {
       interceptors.reqs.push(cfg)
-      return Promise.resolve({ status: 200, data: { code: 0, data: {} }, config: cfg, headers: {} as any })
+      return Promise.resolve({ status: 200, statusText: '', data: { code: 0, data: {} }, config: cfg, headers: {} as any })
     }
     const instance = axios.create({ adapter })
     instance.interceptors.request.use((cfg: any) => {

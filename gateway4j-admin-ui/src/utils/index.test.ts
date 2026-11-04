@@ -102,7 +102,7 @@ describe('utils/deepMerge', () => {
   })
 
   it('deep-merges nested objects', () => {
-    const a = { config: { host: 'h1', port: 80 } }
+    const a: { config: Record<string, unknown> } = { config: { host: 'h1', port: 80 } }
     const b = { config: { port: 8080, tls: true } }
     expect(deepMerge(a, b)).toEqual({
       config: { host: 'h1', port: 8080, tls: true }
@@ -110,7 +110,7 @@ describe('utils/deepMerge', () => {
   })
 
   it('does not mutate the source objects', () => {
-    const a = { config: { host: 'h1' } }
+    const a: { config: Record<string, unknown> } = { config: { host: 'h1' } }
     const b = { config: { port: 8080 } }
     const merged: any = deepMerge(a, b)
     merged.config.host = 'mutated'

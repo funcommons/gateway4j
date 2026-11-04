@@ -18,14 +18,14 @@ describe('utils/deepMerge — array behavior', () => {
   })
 
   it('array in source but not target — added', () => {
-    const a = { name: 'foo' }
+    const a: Record<string, unknown> = { name: 'foo' }
     const b = { tags: ['a', 'b'] }
     const result = deepMerge(a, b)
     expect(result).toEqual({ name: 'foo', tags: ['a', 'b'] })
   })
 
   it('array in target but not source — preserved', () => {
-    const a = { tags: ['a', 'b'] }
+    const a: Record<string, unknown> = { tags: ['a', 'b'] }
     const b = { name: 'foo' }
     const result = deepMerge(a, b)
     expect(result).toEqual({ tags: ['a', 'b'], name: 'foo' })
@@ -55,28 +55,28 @@ describe('utils/deepMerge — array behavior', () => {
 
 describe('utils/deepMerge — type conflicts (array vs object)', () => {
   it('object in target, array in source — source wins (replaces)', () => {
-    const a = { data: { x: 1 } }
+    const a: Record<string, unknown> = { data: { x: 1 } }
     const b = { data: [1, 2] }
     const result = deepMerge(a, b)
     expect(result).toEqual({ data: [1, 2] })
   })
 
   it('array in target, object in source — source wins (replaces)', () => {
-    const a = { data: [1, 2, 3] }
+    const a: Record<string, unknown> = { data: [1, 2, 3] }
     const b = { data: { x: 1 } }
     const result = deepMerge(a, b)
     expect(result).toEqual({ data: { x: 1 } })
   })
 
   it('string in target, object in source — source wins', () => {
-    const a = { x: 'hello' }
+    const a: Record<string, unknown> = { x: 'hello' }
     const b = { x: { nested: true } }
     const result = deepMerge(a, b)
     expect(result).toEqual({ x: { nested: true } })
   })
 
   it('null in target, object in source — source wins', () => {
-    const a = { x: null }
+    const a: Record<string, unknown> = { x: null }
     const b = { x: { nested: true } }
     const result = deepMerge(a, b)
     expect(result).toEqual({ x: { nested: true } })
@@ -102,7 +102,7 @@ describe('utils/deepMerge — undefined handling', () => {
 
 describe('utils/deepMerge — does not mutate inputs', () => {
   it('source object is not mutated', () => {
-    const a = { x: 1, y: { z: 2 } }
+    const a: Record<string, unknown> = { x: 1, y: { z: 2 } }
     const b = { y: { w: 3 } }
     const aSnapshot = JSON.parse(JSON.stringify(a))
     const bSnapshot = JSON.parse(JSON.stringify(b))
@@ -112,7 +112,7 @@ describe('utils/deepMerge — does not mutate inputs', () => {
   })
 
   it('returns a new top-level reference (not a or b)', () => {
-    const a = { x: 1 }
+    const a: Record<string, unknown> = { x: 1 }
     const b = { y: 2 }
     const result = deepMerge(a, b)
     expect(result).not.toBe(a)

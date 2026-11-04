@@ -56,7 +56,7 @@ describe('en-US locale quality', () => {
 
   it('no en-US string contains Chinese characters', () => {
     const hanRegex = /[一-鿿]/
-    function walk(o: any) {
+    function walk(o: any): string | null {
       if (typeof o === 'string') return hanRegex.test(o) ? o : null
       if (o && typeof o === 'object') {
         for (const k of Object.keys(o)) {
