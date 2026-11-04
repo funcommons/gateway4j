@@ -29,99 +29,107 @@
         el-table 无行级 attrs 挂载点，故本页用语义化 <table> + Fc 原子组件（SDK 惯例分支），
         颜色/圆角/阴影全部走 token。
       -->
-      <table v-else-if="filteredRows.length" class="rt-table">
-        <thead>
-          <tr>
-            <th scope="col" class="col-name">{{ t('v2.routes.colName') }}</th>
-            <th scope="col">{{ t('v2.routes.colPath') }}</th>
-            <th scope="col">{{ t('v2.routes.colFlow') }}</th>
-            <th scope="col">{{ t('v2.routes.colStatus') }}</th>
-            <th scope="col" class="col-num">{{ t('v2.routes.colHits') }}</th>
-            <th scope="col" class="col-num">{{ t('v2.routes.colP95') }}</th>
-            <th scope="col">{{ t('v2.routes.colHealth') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <template v-for="row in filteredRows" :key="row.id">
-            <tr class="rt-row" :class="{ 'is-open': isOpen(row.id) }" :data-testid="`route-row-${row.id}`" @click="onRowClick(row, $event)">
-              <td class="col-name">
-                <FcButton class="rt-toggle" :class="{ 'is-open': isOpen(row.id) }" variant="text" size="sm" circle :aria-expanded="isOpen(row.id)" :aria-label="row.route_name" :data-testid="`route-expand-${row.id}`" @click.stop="toggleRow(row.id)">
-                  <FcIcon name="ri-arrow-down-s-line" :size="14" />
-                </FcButton>
-                <span class="rt-name" :style="{ paddingLeft: `${row.depth * 16}px` }">{{ row.route_name }}</span>
-              </td>
-              <td><FcTag data-testid="route-path" color="gray" size="sm" class="rt-path">{{ row.path || '—' }}</FcTag></td>
-              <td>
-                <div class="rt-flow" data-testid="route-flow">
-                  <template v-for="(chip, i) in flowChips(row)" :key="`${row.id}-${i}`">
-                    <span v-if="i > 0" class="rt-arrow" aria-hidden="true"><FcIcon name="ri-arrow-right-s-line" :size="12" /></span>
-                    <FcTag :color="chip.color" size="sm" data-testid="flow-chip">{{ chip.text }}</FcTag>
-                  </template>
-                </div>
-              </td>
-              <td><span data-testid="route-status"><FcStatusBadge v-bind="statusBadge(row)" /></span></td>
-              <td class="col-num" data-testid="route-hits"><span class="rt-num">{{ formatHits(summaryOf(row.id)?.hits_24h) }}</span></td>
-              <td class="col-num" data-testid="route-p95"><span class="rt-num">{{ formatMs(summaryOf(row.id)?.p95_latency_ms) }}</span></td>
-              <td data-testid="route-health"><FcStatusBadge v-bind="healthBadge(row)" /></td>
+      <!-- P1-1b: 表格包进固定横滚容器（overflow-x:auto + min-width:0）—— 375 宽下 body 不再被撑开，仅容器内横滚 -->
+      <div v-else-if="filteredRows.length" class="rt-table-scroll">
+        <table class="rt-table">
+          <thead>
+            <tr>
+              <th scope="col" class="col-name">{{ t('v2.routes.colName') }}</th>
+              <th scope="col">{{ t('v2.routes.colPath') }}</th>
+              <th scope="col">{{ t('v2.routes.colFlow') }}</th>
+              <th scope="col">{{ t('v2.routes.colStatus') }}</th>
+              <th scope="col" class="col-num">{{ t('v2.routes.colHits') }}</th>
+              <th scope="col" class="col-num">{{ t('v2.routes.colP95') }}</th>
+              <th scope="col">{{ t('v2.routes.colHealth') }}</th>
             </tr>
-            <!-- 展开行：懒加载时序 spark + 三卡片 -->
-            <tr v-if="isOpen(row.id)" class="rt-detail-row">
-              <td :colspan="7">
-                <div class="rt-detail" :data-testid="`route-detail-${row.id}`">
-                  <div class="rt-spark-wrap">
-                    <FcSkeleton v-if="sparkOf(row.id)?.status === 'loading'" variant="text" :rows="1" />
-                    <div v-else class="rt-spark" :data-testid="`route-spark-${row.id}`">
-                      <div v-if="sparkPoints(row.id).length" class="rt-spark-bars" aria-hidden="true">
-                        <span v-for="(p, i) in sparkPoints(row.id)" :key="i" class="rt-spark-bar" :style="{ height: barHeight(p, row.id) }" />
-                      </div>
-                      <span v-else class="rt-num">{{ t('v2.routes.placeholder') }}</span>
-                    </div>
+          </thead>
+          <tbody>
+            <template v-for="row in filteredRows" :key="row.id">
+              <tr class="rt-row" :class="{ 'is-open': isOpen(row.id) }" :data-testid="`route-row-${row.id}`" @click="onRowClick(row, $event)">
+                <td class="col-name">
+                  <FcButton class="rt-toggle" :class="{ 'is-open': isOpen(row.id) }" variant="text" size="sm" circle :aria-expanded="isOpen(row.id)" :aria-label="row.route_name" :data-testid="`route-expand-${row.id}`" @click.stop="toggleRow(row.id)">
+                    <FcIcon name="ri-arrow-down-s-line" :size="14" />
+                  </FcButton>
+                  <span class="rt-name" :style="{ paddingLeft: `${row.depth * 16}px` }">{{ row.route_name }}</span>
+                </td>
+                <td><FcTag data-testid="route-path" color="gray" size="sm" class="rt-path">{{ row.path || '—' }}</FcTag></td>
+                <td>
+                  <div class="rt-flow" data-testid="route-flow">
+                    <template v-for="(chip, i) in flowChips(row)" :key="`${row.id}-${i}`">
+                      <span v-if="i > 0" class="rt-arrow" aria-hidden="true"><FcIcon name="ri-arrow-right-s-line" :size="12" /></span>
+                      <FcTag :color="chip.color" :class="chip.cls" size="sm" data-testid="flow-chip">{{ chip.text }}</FcTag>
+                    </template>
                   </div>
-                  <div class="rt-cards">
-                    <FcSectionCard padding="sm" shadow="sm" class="rt-card" data-testid="card-upstream">
-                      <p class="rt-card-title">{{ t('v2.routes.cardUpstream') }}</p>
-                      <div class="rt-card-body">
-                        <span class="rt-mono">{{ upstreamHost(row.upstream_url) }}</span>
-                        <FcStatusBadge :label="upstreamLatencyLabel(row)" :tone="healthBadge(row).tone" />
+                </td>
+                <td><span data-testid="route-status"><FcStatusBadge v-bind="statusBadge(row)" /></span></td>
+                <td class="col-num" data-testid="route-hits"><span class="rt-num">{{ formatHits(summaryOf(row.id)?.hits_24h) }}</span></td>
+                <td class="col-num" data-testid="route-p95"><span class="rt-num">{{ formatMs(summaryOf(row.id)?.p95_latency_ms) }}</span></td>
+                <td data-testid="route-health"><FcStatusBadge v-bind="healthBadge(row)" /></td>
+              </tr>
+              <!-- 展开行：懒加载时序 spark + 三卡片 -->
+              <tr v-if="isOpen(row.id)" class="rt-detail-row">
+                <td :colspan="7">
+                  <div class="rt-detail" :data-testid="`route-detail-${row.id}`">
+                    <div class="rt-spark-wrap">
+                      <FcSkeleton v-if="sparkOf(row.id)?.status === 'loading'" variant="text" :rows="1" />
+                      <!-- P3-1: 时序拉取失败 → 弱文案占位（收起再展开可重试） -->
+                      <div v-else-if="sparkOf(row.id)?.status === 'error'" class="rt-spark-err" :data-testid="`route-spark-err-${row.id}`">
+                        <FcIcon name="ri-error-warning-line" :size="13" />
+                        <span>{{ t('v2.routes.sparkUnavailable') }}</span>
                       </div>
-                    </FcSectionCard>
-                    <FcSectionCard padding="sm" shadow="sm" class="rt-card" data-testid="card-plugins">
-                      <p class="rt-card-title">{{ t('v2.routes.cardPlugins') }}</p>
-                      <div class="rt-card-body rt-wrap">
-                        <template v-if="sortedPlugins(row).length">
-                          <FcTag v-for="p in sortedPlugins(row)" :key="p.plugin_id" color="gray" size="sm">{{ p.plugin_name }}</FcTag>
-                        </template>
+                      <div v-else class="rt-spark" :data-testid="`route-spark-${row.id}`">
+                        <div v-if="sparkPoints(row.id).length" class="rt-spark-bars" aria-hidden="true">
+                          <span v-for="(p, i) in sparkPoints(row.id)" :key="i" class="rt-spark-bar" :style="{ height: barHeight(p, row.id) }" />
+                        </div>
                         <span v-else class="rt-num">{{ t('v2.routes.placeholder') }}</span>
                       </div>
-                    </FcSectionCard>
-                    <FcSectionCard padding="sm" shadow="sm" class="rt-card" data-testid="card-actions">
-                      <p class="rt-card-title">{{ t('v2.routes.cardActions') }}</p>
-                      <div class="rt-card-body rt-wrap">
-                        <FcButton variant="secondary" size="sm" data-testid="act-debug" @click="router.push('/v2/debug')">
-                          <FcIcon name="ri-terminal-line" :size="13" />
-                          {{ t('v2.routes.actDebug') }}
-                        </FcButton>
-                        <FcButton variant="secondary" size="sm" data-testid="act-canvas" @click="router.push(`/v2/routes/canvas/${row.id}`)">
-                          <FcIcon name="ri-edit-line" :size="13" />
-                          {{ t('v2.routes.actCanvas') }}
-                        </FcButton>
-                        <FcButton variant="secondary" size="sm" data-testid="act-publish" @click="router.push(`/v2/publish/${row.id}`)">
-                          <FcIcon name="ri-upload-2-line" :size="13" />
-                          {{ t('v2.routes.actPublish') }}
-                        </FcButton>
-                        <FcButton variant="secondary" size="sm" data-testid="act-copy" @click="onCopy(row)">
-                          <FcIcon name="ri-clipboard-line" :size="13" />
-                          {{ t('v2.routes.actCopy') }}
-                        </FcButton>
-                      </div>
-                    </FcSectionCard>
+                    </div>
+                    <div class="rt-cards">
+                      <FcSectionCard padding="sm" shadow="sm" class="rt-card" data-testid="card-upstream">
+                        <p class="rt-card-title">{{ t('v2.routes.cardUpstream') }}</p>
+                        <div class="rt-card-body">
+                          <span class="rt-mono">{{ upstreamHost(row.upstream_url) }}</span>
+                          <FcStatusBadge :label="upstreamLatencyLabel(row)" :tone="healthBadge(row).tone" />
+                        </div>
+                      </FcSectionCard>
+                      <FcSectionCard padding="sm" shadow="sm" class="rt-card" data-testid="card-plugins">
+                        <p class="rt-card-title">{{ t('v2.routes.cardPlugins') }}</p>
+                        <div class="rt-card-body rt-wrap">
+                          <template v-if="sortedPlugins(row).length">
+                            <FcTag v-for="p in sortedPlugins(row)" :key="p.plugin_id" color="gray" size="sm">{{ p.plugin_name }}</FcTag>
+                          </template>
+                          <span v-else class="rt-num">{{ t('v2.routes.placeholder') }}</span>
+                        </div>
+                      </FcSectionCard>
+                      <FcSectionCard padding="sm" shadow="sm" class="rt-card" data-testid="card-actions">
+                        <p class="rt-card-title">{{ t('v2.routes.cardActions') }}</p>
+                        <div class="rt-card-body rt-wrap">
+                          <FcButton variant="secondary" size="sm" data-testid="act-debug" @click="router.push('/v2/debug')">
+                            <FcIcon name="ri-terminal-line" :size="13" />
+                            {{ t('v2.routes.actDebug') }}
+                          </FcButton>
+                          <FcButton variant="secondary" size="sm" data-testid="act-canvas" @click="router.push(`/v2/routes/canvas/${row.id}`)">
+                            <FcIcon name="ri-edit-line" :size="13" />
+                            {{ t('v2.routes.actCanvas') }}
+                          </FcButton>
+                          <FcButton variant="secondary" size="sm" data-testid="act-publish" @click="router.push(`/v2/publish/${row.id}`)">
+                            <FcIcon name="ri-upload-2-line" :size="13" />
+                            {{ t('v2.routes.actPublish') }}
+                          </FcButton>
+                          <FcButton variant="secondary" size="sm" data-testid="act-copy" @click="onCopy(row)">
+                            <FcIcon name="ri-clipboard-line" :size="13" />
+                            {{ t('v2.routes.actCopy') }}
+                          </FcButton>
+                        </div>
+                      </FcSectionCard>
+                    </div>
                   </div>
-                </div>
-              </td>
-            </tr>
-          </template>
-        </tbody>
-      </table>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
       <FcEmpty v-else data-testid="route-empty" type="empty" :title="t('v2.routes.empty')" />
     </FcSection>
   </div>
@@ -322,10 +330,16 @@ function upstreamHost(url?: string): string {
 
 interface FlowChip {
   text: string
-  color: 'primary' | 'gray' | 'brand'
+  /** FcTag 色板：primary=蓝(info 系) / success=绿(ok 系) / brand / gray */
+  color: 'primary' | 'gray' | 'success' | 'brand'
+  /** FcTag 色板没有的色相（violet 系）挂此类，由页面局部 token 覆写 --tag-color/--tag-ink */
+  cls?: string
 }
 
-/** 行内链路 chips：匹配 → N 插件 / 决策树 → 上游 host / 分支数（arrow 分隔） */
+/**
+ * 行内链路 chips（P3-2 三段分色）：匹配=info 系 / 插件=violet 系 / 上游=ok 系；
+ * 分发路由：匹配 → 决策树 → 分支数（决策树保持 brand、分支数为中性元数据）。
+ */
 function flowChips(row: DisplayRow): FlowChip[] {
   if (row.route_type === 'DISPATCH') {
     return [
@@ -336,8 +350,8 @@ function flowChips(row: DisplayRow): FlowChip[] {
   }
   return [
     { text: t('v2.routes.flowMatch'), color: 'primary' },
-    { text: t('v2.routes.pluginCount', { n: row.plugins?.length ?? 0 }), color: 'gray' },
-    { text: upstreamHost(row.upstream_url), color: 'gray' }
+    { text: t('v2.routes.pluginCount', { n: row.plugins?.length ?? 0 }), color: 'primary', cls: 'rt-chip-violet' },
+    { text: upstreamHost(row.upstream_url), color: 'success' }
   ]
 }
 
@@ -416,9 +430,18 @@ async function onCopy(row: DisplayRow) {
   }
 }
 
+/* —— P1-1b: 窄视口横向溢出收口 —— 表格在自身容器内横滚，页面 body 不再被撑开。
+   min-width:0 允许容器在 flex/grid 祖先里收缩到可用宽度以下再出滚动条。 */
+.rt-table-scroll {
+  min-width: 0;
+  overflow-x: auto;
+}
+
 /* —— 语义化表格（token only）—— */
 .rt-table {
   width: 100%;
+  /* 可读下限：容器窄于 720px 时容器内出横滚，而不是把 7 列压扁 */
+  min-width: 720px;
   border-collapse: collapse;
   font-size: 13px;
 
@@ -500,11 +523,26 @@ th.col-num {
 }
 
 /* —— 行内链路 chips —— */
+/* P3-2 三段分色：匹配=info 系（FcTag primary，蓝）· 插件=violet 系 · 上游=ok 系（FcTag success）。
+   violet 系在全局语义 token（success/warning/danger/primary）里没有对应档，
+   就近定义页面作用域 token（字面值只出现在 token 定义层，等价 app-aliases 模式）；
+   规则本体一律走 token —— 墨色向 --app-text 混，light/dark 自动翻转，不按主题写死。 */
+.v2-route-list {
+  --rt-violet: #7c5cff;
+}
+
 .rt-flow {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 4px;
+}
+
+/* 覆写 FcTag 内部的色调/墨色变量：底 = 12% violet 染色底（与 FcTag 各色档同一配方），
+   墨 = 60% violet + 40% 主题前景（浅色主题得深 violet、深色主题得浅 violet，均过 4.5:1） */
+.rt-flow :deep(.rt-chip-violet) {
+  --tag-color: var(--rt-violet);
+  --tag-ink: color-mix(in srgb, var(--rt-violet) 60%, var(--app-text));
 }
 
 .rt-arrow {
@@ -524,6 +562,16 @@ th.col-num {
 
 .rt-spark-wrap {
   margin-bottom: 12px;
+}
+
+/* P3-1: 时序不可用占位 —— 弱文案（三级灰），不用警示红（加载失败已有 traffic-error 全局条） */
+.rt-spark-err {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  font-size: 12px;
+  color: var(--app-text-tertiary);
 }
 
 .rt-spark-bars {

@@ -1,6 +1,8 @@
 <template>
   <div class="v2-shell">
-    <aside class="v2-side">
+    <!-- 窄视口（≤768px）遮罩：点按收抽屉；≥769px 整体 display:none，宽屏零影响 -->
+    <div class="v2-scrim" :class="{ 'is-on': sideOpen }" aria-hidden="true" data-testid="v2-scrim" @click="closeSide" />
+    <aside id="v2-side" class="v2-side" :class="{ 'is-open': sideOpen }">
       <div class="v2-logo">
         <span class="v2-logo-mark" aria-hidden="true"></span>
         <div class="v2-logo-text">
@@ -19,7 +21,7 @@
               :class="{ 'is-active': isActive(item) }"
               :href="item.path"
               :aria-current="isActive(item) ? 'page' : undefined"
-              @click.prevent="go(item.path)"
+              @click.prevent="onNav(item.path)"
             >
               <FcIcon :name="item.icon" :size="15" />
               <span class="v2-nav-item-label">{{ t(item.labelKey) }}</span>
@@ -29,7 +31,7 @@
         </div>
       </nav>
       <div class="v2-side-foot">
-        <a class="v2-nav-item" :href="LEGACY_PATH" @click.prevent="goLegacy">
+        <a class="v2-nav-item" :href="LEGACY_PATH" @click.prevent="onNav(LEGACY_PATH)">
           <FcIcon name="ri-arrow-left-line" :size="15" />
           <span class="v2-nav-item-label">{{ t('v2.layout.backToLegacy') }}</span>
         </a>
@@ -37,6 +39,19 @@
     </aside>
     <div class="v2-main">
       <header class="v2-top">
+        <!-- 窄视口抽屉开关（≥769px display:none）；「返回旧版」只保留侧栏底部一处（P3-3） -->
+        <FcButton
+          class="v2-menu-btn"
+          variant="text"
+          size="sm"
+          :aria-label="t('v2.topbar.menu')"
+          :aria-expanded="sideOpen"
+          aria-controls="v2-side"
+          data-testid="v2-menu-btn"
+          @click="sideOpen = !sideOpen"
+        >
+          <FcIcon name="ri-menu-line" :size="16" />
+        </FcButton>
         <div class="v2-crumb">
           <span class="v2-crumb-root">{{ t('app.shortTitle') }}</span>
           <span class="v2-crumb-sep" aria-hidden="true"></span>
@@ -54,9 +69,6 @@
           <span class="v2-top-avatar" role="img" :aria-label="t('v2.topbar.user')">
             <FcIcon name="ri-user-line" :size="14" />
           </span>
-          <FcButton variant="text" size="sm" data-testid="v2-back-legacy" @click="goLegacy">
-            {{ t('v2.layout.backToLegacy') }}
-          </FcButton>
         </div>
       </header>
       <main class="v2-page">
@@ -67,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { FcButton, FcIcon } from '@/components'
@@ -79,6 +91,45 @@ const router = useRouter()
 const { hasPermission } = usePermission()
 
 const LEGACY_PATH = '/routes'
+
+/**
+ * 窄视口（≤768px）侧栏抽屉开关（P1-1）。
+ * 仅样式收放，不影响路由与导航判定；跳转入口统一走 onNav（先收抽屉再跳）。
+ */
+const sideOpen = ref(false)
+
+function closeSide() {
+  sideOpen.value = false
+}
+
+/** 跳转前先收抽屉（宽视口下 sideOpen=false 无副作用） */
+async function onNav(path: string) {
+  sideOpen.value = false
+  await go(path)
+}
+
+function onDocKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') closeSide()
+}
+
+/** 回到宽视口时收起抽屉，避免残留展开态（scrim/抽屉样式在 ≥769px 不生效，仅清状态） */
+const narrowMq: MediaQueryList | undefined =
+  typeof window.matchMedia === 'function' ? window.matchMedia('(max-width: 768px)') : undefined
+
+function onMqChange(e: MediaQueryListEvent) {
+  if (!e.matches) closeSide()
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', onDocKeydown)
+  // 可选调用：测试环境（jsdom）的 MediaQueryList 可能未实现 addEventListener
+  narrowMq?.addEventListener?.('change', onMqChange)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onDocKeydown)
+  narrowMq?.removeEventListener?.('change', onMqChange)
+})
 
 interface V2NavItem {
   /** 路由 name (V2 前缀), active 态按它判断 */
@@ -176,10 +227,6 @@ const crumbTitle = computed(() => {
 
 async function go(path: string) {
   await router.push(path)
-}
-
-async function goLegacy() {
-  await router.push(LEGACY_PATH)
 }
 </script>
 
@@ -309,19 +356,20 @@ async function goLegacy() {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: var(--app-header-bg);
-  border-bottom: 1px solid var(--app-header-border-color);
+  /* P1-2: 顶栏回归浅色（原型 01 白底深字）。--app-header-bg 是品牌可换肤 token
+     （如 ldx2 品牌为深色表面），配 --app-text-* 深字会深压深；改用主题卡片底 token，
+     light/dark（及品牌层）自动翻转，无需按主题写死。描边同理走主题 separator。 */
+  background: var(--app-bg-card);
+  border-bottom: 1px solid var(--app-separator);
 }
+/* P1-2: 面包屑深字压浅底 —— 当前段用强调色 */
 .v2-crumb {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
   font-size: 13px;
-  color: var(--app-text-secondary);
-}
-.v2-crumb-root {
-  color: var(--app-text-secondary);
+  color: var(--app-text-primary);
 }
 .v2-crumb-sep {
   color: var(--app-text-secondary);
@@ -332,10 +380,14 @@ async function goLegacy() {
   content: '/';
 }
 .v2-crumb-current {
-  color: var(--app-text-primary);
+  color: var(--app-accent-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* 窄视口抽屉开关：默认隐藏，≤768px 显示（见底部断点） */
+.v2-menu-btn {
+  display: none;
 }
 /* ⌘K 搜索占位 (S1 不可交互, aria-hidden) */
 .v2-top-search {
@@ -382,8 +434,51 @@ async function goLegacy() {
   background: var(--app-bg-muted);
   color: var(--app-text-secondary);
 }
+/* —— 窄视口（≤768px）抽屉化：遮罩 + 侧栏覆盖（P1-1），≥769px 完全不生效 —— */
+.v2-scrim {
+  display: none;
+}
+@media (max-width: 768px) {
+  .v2-menu-btn {
+    display: inline-flex;
+  }
+  .v2-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: var(--app-overlay-strong);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .v2-scrim.is-on {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  /* 侧栏从 sticky 列切为覆盖式抽屉：默认移出屏外并 visibility:hidden（键盘不可达），
+     is-open 后滑入。过渡只动 transform/opacity/visibility。 */
+  .v2-side {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 60;
+    flex: 0 0 auto;
+    width: 264px;
+    max-width: 82vw;
+    transform: translateX(-100%);
+    visibility: hidden;
+    box-shadow: var(--app-shadow-lg);
+    transition: transform 0.2s ease, visibility 0.2s;
+  }
+  .v2-side.is-open {
+    transform: translateX(0);
+    visibility: visible;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
-  .v2-nav-item {
+  .v2-nav-item,
+  .v2-side,
+  .v2-scrim {
     transition: none;
   }
 }

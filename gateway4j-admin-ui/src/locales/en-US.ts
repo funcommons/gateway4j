@@ -641,7 +641,8 @@ export default {
       kbd: '⌘K',
       searchPlaceholder: 'Search routes, plugins, users…',
       notifications: 'Notifications',
-      user: 'User'
+      user: 'User',
+      menu: 'Menu'
     },
     placeholder: {
       hint: 'This module will be implemented in a later step',
@@ -682,6 +683,7 @@ export default {
       actCopy: 'Duplicate config',
       copySuccess: 'Route config duplicated',
       copyFailed: 'Failed to duplicate route config',
+      sparkUnavailable: 'Timeseries unavailable',
       placeholder: '—'
     }
   }

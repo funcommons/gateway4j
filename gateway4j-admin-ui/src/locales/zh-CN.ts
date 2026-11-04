@@ -638,7 +638,8 @@ export default {
       kbd: '⌘K',
       searchPlaceholder: '搜索路由、插件、用户…',
       notifications: '通知',
-      user: '用户'
+      user: '用户',
+      menu: '菜单'
     },
     placeholder: {
       hint: '该模块在后续步骤实现',
@@ -679,6 +680,7 @@ export default {
       actCopy: '复制配置',
       copySuccess: '已复制路由配置',
       copyFailed: '复制路由配置失败',
+      sparkUnavailable: '时序暂不可用',
       placeholder: '—'
     }
   }
