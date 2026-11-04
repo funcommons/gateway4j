@@ -8,6 +8,7 @@ import fun.commons.gateway4j.admin.service.RouteCanvasService;
 import fun.commons.gateway4j.admin.service.RoutePackage;
 import fun.commons.gateway4j.admin.service.RouteService;
 import fun.commons.gateway4j.admin.service.RouteTransferService;
+import fun.commons.gateway4j.admin.service.RouteVersionService;
 import fun.commons.gateway4j.common.constant.ErrorCode;
 import fun.commons.gateway4j.common.exception.BusinessException;
 import fun.commons.gateway4j.common.exception.CyclicReferenceException;
@@ -38,6 +39,7 @@ class RouteControllerTest {
     @Mock private RouteTransferService routeTransferService;
     @Mock private ImportSnapshotService importSnapshotService;
     @Mock private RouteEnvironmentDiffService routeEnvironmentDiffService;
+    @Mock private RouteVersionService routeVersionService;
     @InjectMocks private RouteController controller;
 
     @Test
@@ -172,7 +174,8 @@ class RouteControllerTest {
         when(routeService.getById(1L)).thenReturn(route);
 
         Route result = controller.publishRoute(1L, null);
-        verify(routeService).publishRoute(1L);
+        // S5a 契约：change_description + actor（测试环境无 token 归 system）持久化
+        verify(routeService).publishRoute(1L, null, "system");
     }
 
     /** P2-4 流程档轻量：publish 可选 body change_description 兼容（无 body 亦可）。 */
@@ -183,7 +186,7 @@ class RouteControllerTest {
 
         Route result = controller.publishRoute(1L,
                 new RouteController.PublishRequest("修复 /api/users 前缀遗漏"));
-        verify(routeService).publishRoute(1L);
+        verify(routeService).publishRoute(1L, "修复 /api/users 前缀遗漏", "system");
         assertNotNull(result);
     }
 
@@ -228,16 +231,16 @@ class RouteControllerTest {
         assertEquals("只改备注", patch.getRemark());
     }
 
-    /** P2-4 流程档轻量：bulk-publish 可选 change_description（缺省兼容旧调用）。 */
+    /** P2-4 流程档轻量：bulk-publish 可选 change_description（透传 3 参重载）。 */
     @Test
     void bulkPublishWithChangeDescription() {
-        doNothing().when(routeService).publishRoute(7L);
+        doNothing().when(routeService).publishRoute(7L, "割接窗口发布", "system");
 
         Map<String, Object> result = controller.bulkPublish(
                 new RouteController.BulkIdsRequest(List.of(7L), "割接窗口发布"));
 
         assertEquals(1, ((List<?>) result.get("succeeded")).size());
-        verify(routeService).publishRoute(7L);
+        verify(routeService).publishRoute(7L, "割接窗口发布", "system");
     }
 
     @Test
@@ -246,7 +249,7 @@ class RouteControllerTest {
         when(routeService.getById(1L)).thenReturn(route);
 
         Route result = controller.offlineRoute(1L);
-        verify(routeService).offlineRoute(1L);
+        verify(routeService).offlineRoute(1L, "system");
     }
 
     @Test
@@ -459,10 +462,10 @@ class RouteControllerTest {
 
     @Test
     void bulkPublishPartialSuccess() {
-        // T3：批量发布（逐条执行、失败不中断）
-        doNothing().when(routeService).publishRoute(1L);
+        // T3：批量发布（逐条执行、失败不中断）；2 参构造缺省 description → 透传 null
+        doNothing().when(routeService).publishRoute(1L, null, "system");
         doThrow(new BusinessException(ErrorCode.CONFIG_SYNC_FAILED, "仅 DRAFT/OFFLINE 状态可发布"))
-                .when(routeService).publishRoute(2L);
+                .when(routeService).publishRoute(2L, null, "system");
 
         Map<String, Object> result = controller.bulkPublish(new RouteController.BulkIdsRequest(List.of(1L, 2L)));
 

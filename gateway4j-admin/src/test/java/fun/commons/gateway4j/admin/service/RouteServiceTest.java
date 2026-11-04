@@ -30,6 +30,7 @@ class RouteServiceTest {
     @Mock private RouteValidator routeValidator;
     @Mock private PluginService pluginService;
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private RouteVersionService routeVersionService;
 
     private RouteService routeService;
 
@@ -38,7 +39,8 @@ class RouteServiceTest {
     @BeforeEach
     void setUp() throws Exception {
         MockitoAnnotations.openMocks(this);
-        routeService = new RouteService(conditionMapper, bindingMapper, routeValidator, pluginService, eventPublisher);
+        routeService = new RouteService(conditionMapper, bindingMapper, routeValidator, pluginService,
+                eventPublisher, routeVersionService);
         setBaseMapper(routeService, routeMapper);
 
         // 纯单测无 MyBatis-Plus 启动流程：手动注册 Route 的 TableInfo，

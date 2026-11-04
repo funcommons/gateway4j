@@ -2,8 +2,10 @@ package fun.commons.gateway4j.admin.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import fun.commons.framework4j.accesstoken.annotation.RequiresToken;
+import fun.commons.framework4j.accesstoken.context.TokenContext;
 import fun.commons.framework4j.audit.annotation.Auditable;
 import fun.commons.framework4j.ratelimit.annotation.RateLimit;
+import fun.commons.framework4j.web.ApiResponse;
 import fun.commons.gateway4j.admin.service.ImportSnapshotService;
 import fun.commons.gateway4j.admin.service.RouteBindingService;
 import fun.commons.gateway4j.admin.service.RouteEnvironmentDiffService;
@@ -12,6 +14,7 @@ import fun.commons.gateway4j.admin.service.RouteCanvasService;
 import fun.commons.gateway4j.admin.service.RoutePackage;
 import fun.commons.gateway4j.admin.service.RouteService;
 import fun.commons.gateway4j.admin.service.RouteTransferService;
+import fun.commons.gateway4j.admin.service.RouteVersionService;
 import fun.commons.gateway4j.common.constant.ErrorCode;
 import fun.commons.gateway4j.common.exception.BusinessException;
 import fun.commons.gateway4j.common.exception.CyclicReferenceException;
@@ -20,6 +23,7 @@ import fun.commons.gateway4j.common.model.Route;
 import fun.commons.gateway4j.common.model.RouteCanvas;
 import fun.commons.gateway4j.common.model.RouteCondition;
 import fun.commons.gateway4j.common.model.RoutePluginBinding;
+import fun.commons.gateway4j.common.model.RouteVersion;
 import fun.commons.gateway4j.admin.validation.ValidBackendRouteCreate;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -47,13 +51,15 @@ public class RouteController {
     private final RouteTransferService routeTransferService;
     private final ImportSnapshotService importSnapshotService;
     private final RouteEnvironmentDiffService routeEnvironmentDiffService;
+    private final RouteVersionService routeVersionService;
 
     public RouteController(RouteService routeService, RouteCanvasService routeCanvasService,
                            RouteCanvasApplyService routeCanvasApplyService,
                            RouteBindingService routeBindingService,
                            RouteTransferService routeTransferService,
                            ImportSnapshotService importSnapshotService,
-                           RouteEnvironmentDiffService routeEnvironmentDiffService) {
+                           RouteEnvironmentDiffService routeEnvironmentDiffService,
+                           RouteVersionService routeVersionService) {
         this.routeService = routeService;
         this.routeCanvasService = routeCanvasService;
         this.routeCanvasApplyService = routeCanvasApplyService;
@@ -61,6 +67,7 @@ public class RouteController {
         this.routeTransferService = routeTransferService;
         this.importSnapshotService = importSnapshotService;
         this.routeEnvironmentDiffService = routeEnvironmentDiffService;
+        this.routeVersionService = routeVersionService;
     }
 
     @GetMapping
@@ -170,7 +177,10 @@ public class RouteController {
         // P2-4 流程档轻量：可选 change_description 随方法参数被 framework4j-audit
         // 切面（logArgs 默认 true）序列化进审计行 args_json——审计 action 仍为
         // PUBLISH_ROUTE，不带 body 的旧调用完全兼容。
-        routeService.publishRoute(id);
+        // 契约 §4 S5a：change_description + actor 透传进发布事务，落版本快照。
+        routeService.publishRoute(id,
+                request != null ? request.changeDescription() : null,
+                resolveActor());
         return routeService.getById(id);
     }
 
@@ -183,8 +193,36 @@ public class RouteController {
     @PostMapping("/{id}/offline")
     @Auditable(action = "OFFLINE_ROUTE", targetType = "ROUTE", targetIdSpel = "#id")
     public Route offlineRoute(@PathVariable Long id) {
-        routeService.offlineRoute(id);
+        // 契约 §4 S5a：actor 透传进下线事务，落版本快照
+        routeService.offlineRoute(id, resolveActor());
         return routeService.getById(id);
+    }
+
+    // ==================== 契约 §4 S5a：路由版本快照 ====================
+
+    /** 版本时间线：某路由全部快照，config_version 倒序。 */
+    @GetMapping("/{id}/versions")
+    public ApiResponse<List<RouteVersion>> listVersions(@PathVariable Long id) {
+        return ApiResponse.success(routeVersionService.listVersions(id));
+    }
+
+    /** 两版本逐字段 diff：平铺 {field, from, to}，未变字段不输出（字段集同 EnvDiff）。 */
+    @GetMapping("/{id}/versions/diff")
+    public ApiResponse<List<Map<String, Object>>> diffVersions(@PathVariable Long id,
+                                                               @RequestParam Long from,
+                                                               @RequestParam Long to) {
+        return ApiResponse.success(routeVersionService.diff(id, from, to));
+    }
+
+    /** 从现有身份设施取登录名；开放 API/系统内部调用等无登录态时归 system。 */
+    private String resolveActor() {
+        try {
+            Object username = TokenContext.getClaim("username");
+            return username != null && !String.valueOf(username).isBlank()
+                    ? String.valueOf(username) : "system";
+        } catch (Exception e) {
+            return "system";
+        }
     }
 
     @PostMapping("/validate")
@@ -260,12 +298,14 @@ public class RouteController {
         return routeService.duplicateRoute(id);
     }
 
-    /** 批量发布（逐个执行单条逻辑：仅 DRAFT/OFFLINE 可发布），返回 {succeeded, failed}。 */
+    /** 批量发布（逐个执行单条逻辑：仅 DRAFT/OFFLINE 可发布），返回 {succeeded, failed}；
+     * 请求体 change_description 透传至各路由发布快照（缺省 null）。 */
     @PostMapping("/bulk-publish")
     @Auditable(action = "BULK_PUBLISH_ROUTES", targetType = "ROUTE")
     @RateLimit(limit = 30, window = "1m", scope = "ip")
     public Map<String, Object> bulkPublish(@RequestBody BulkIdsRequest request) {
-        return bulkExecute(request.ids(), routeService::publishRoute);
+        return bulkExecute(request.ids(),
+                id -> routeService.publishRoute(id, request.changeDescription(), "system"));
     }
 
     /** 批量下线（仅 PUBLISHED 可下线）。 */

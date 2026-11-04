@@ -32,17 +32,20 @@ public class RouteService extends ServiceImpl<RouteMapper, Route> {
     private final RouteValidator routeValidator;
     private final PluginService pluginService;
     private final ApplicationEventPublisher eventPublisher;
+    private final RouteVersionService routeVersionService;
 
     public RouteService(RouteConditionMapper conditionMapper,
                         RoutePluginBindingMapper bindingMapper,
                         RouteValidator routeValidator,
                         @Lazy PluginService pluginService,
-                        ApplicationEventPublisher eventPublisher) {
+                        ApplicationEventPublisher eventPublisher,
+                        RouteVersionService routeVersionService) {
         this.conditionMapper = conditionMapper;
         this.bindingMapper = bindingMapper;
         this.routeValidator = routeValidator;
         this.pluginService = pluginService;
         this.eventPublisher = eventPublisher;
+        this.routeVersionService = routeVersionService;
     }
 
     private void publishRouteChange(Long routeId, Long version, String changeType) {
@@ -264,6 +267,10 @@ public class RouteService extends ServiceImpl<RouteMapper, Route> {
                 bindingMapper.insert(binding);
             }
         }
+        // 契约 §4 S5a：修改成功路径写 UPDATE 快照（同版本多次修改按替换语义；
+        // 签名保持三参——actor 与 publish/offline 委托入口同约定记 "system"，
+        // 变更说明 update 请求无此字段传 null）
+        routeVersionService.recordSnapshot(existing, "UPDATE", "system", null);
         publishRouteChange(route.getId(), existing.getConfigVersion(), "UPDATE");
     }
 
@@ -326,8 +333,20 @@ public class RouteService extends ServiceImpl<RouteMapper, Route> {
         publishRouteChange(routeId, existing.getConfigVersion(), "DELETE");
     }
 
+    /** 旧调用兼容入口（批量/OpenApi 等无身份上下文）：actor 记 system、无变更说明。 */
     @Transactional
     public void publishRoute(Long routeId) {
+        publishRoute(routeId, null, "system");
+    }
+
+    /** 旧调用兼容入口（批量/OpenApi 等无身份上下文）：actor 记 system。 */
+    @Transactional
+    public void offlineRoute(Long routeId) {
+        offlineRoute(routeId, "system");
+    }
+
+    @Transactional
+    public void publishRoute(Long routeId, String changeDescription, String actor) {
         Route route = getById(routeId);
         if (route == null) {
             throw new BusinessException(ErrorCode.ROUTE_NOT_FOUND);
@@ -339,11 +358,13 @@ public class RouteService extends ServiceImpl<RouteMapper, Route> {
         route.setStatus("PUBLISHED");
         route.setConfigVersion((route.getConfigVersion() != null ? route.getConfigVersion() : 0L) + 1);
         updateById(route);
+        // 契约 §4 S5a：发布事务内写版本快照（写失败抛 BusinessException → 本事务回滚）
+        routeVersionService.recordSnapshot(route, "PUBLISH", actor, changeDescription);
         publishRouteChange(routeId, route.getConfigVersion(), "PUBLISH");
     }
 
     @Transactional
-    public void offlineRoute(Long routeId) {
+    public void offlineRoute(Long routeId, String actor) {
         Route route = getById(routeId);
         if (route == null) {
             throw new BusinessException(ErrorCode.ROUTE_NOT_FOUND);
@@ -355,6 +376,8 @@ public class RouteService extends ServiceImpl<RouteMapper, Route> {
         route.setStatus("OFFLINE");
         route.setConfigVersion((route.getConfigVersion() != null ? route.getConfigVersion() : 0L) + 1);
         updateById(route);
+        // 契约 §4 S5a：下线事务内写版本快照（语义同发布）
+        routeVersionService.recordSnapshot(route, "OFFLINE", actor, null);
         publishRouteChange(routeId, route.getConfigVersion(), "OFFLINE");
     }
 
