@@ -1,10 +1,12 @@
 package fun.commons.gateway4j.admin.controller;
 
 import fun.commons.framework4j.accesstoken.annotation.RequiresToken;
+import fun.commons.framework4j.web.ApiResponse;
 import fun.commons.gateway4j.common.mapper.RouteConditionMapper;
 import fun.commons.gateway4j.admin.service.MonitorTimeseriesService;
 import fun.commons.gateway4j.admin.service.RouteService;
 import fun.commons.gateway4j.admin.service.RouteSimulateService;
+import fun.commons.gateway4j.admin.service.RouteTrafficSummaryService;
 import fun.commons.gateway4j.admin.service.UpstreamHealthProbe;
 import fun.commons.gateway4j.common.model.Route;
 import fun.commons.gateway4j.common.model.RouteCondition;
@@ -21,17 +23,20 @@ public class MonitorController {
     private final RouteConditionMapper conditionMapper;
     private final MonitorTimeseriesService timeseriesService;
     private final RouteSimulateService routeSimulateService;
+    private final RouteTrafficSummaryService trafficSummaryService;
     private final UpstreamHealthProbe upstreamHealthProbe;
 
     public MonitorController(RouteService routeService,
                              RouteConditionMapper conditionMapper,
                              MonitorTimeseriesService timeseriesService,
                              RouteSimulateService routeSimulateService,
+                             RouteTrafficSummaryService trafficSummaryService,
                              UpstreamHealthProbe upstreamHealthProbe) {
         this.routeService = routeService;
         this.conditionMapper = conditionMapper;
         this.timeseriesService = timeseriesService;
         this.routeSimulateService = routeSimulateService;
+        this.trafficSummaryService = trafficSummaryService;
         this.upstreamHealthProbe = upstreamHealthProbe;
     }
 
@@ -56,6 +61,16 @@ public class MonitorController {
             result.add(status);
         }
         return result;
+    }
+
+    /**
+     * 路由流量聚合（v2 列表页聚合，见 docs/ui-v2/实施契约.md §4 S2）：
+     * 近 24h hits/qps/p95/errors/状态码分布 + sparkline + 单上游健康，
+     * Prometheus 优先、快照兜底，任何外部依赖异常不抛不 500。
+     */
+    @GetMapping("/routes/traffic-summary")
+    public ApiResponse<List<Map<String, Object>>> routeTrafficSummary() {
+        return ApiResponse.success(trafficSummaryService.summary());
     }
 
     /**

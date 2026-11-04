@@ -6,6 +6,7 @@ import fun.commons.gateway4j.admin.service.MetricsSnapshotReader;
 import fun.commons.gateway4j.admin.service.MonitorTimeseriesService;
 import fun.commons.gateway4j.admin.service.RouteSimulateService;
 import fun.commons.gateway4j.admin.service.RouteService;
+import fun.commons.gateway4j.admin.service.RouteTrafficSummaryService;
 import fun.commons.gateway4j.admin.service.UpstreamHealthProbe;
 import fun.commons.gateway4j.common.model.Route;
 import fun.commons.gateway4j.common.model.RouteCondition;
@@ -41,6 +42,7 @@ class MonitorControllerTest {
     @Mock private HashOperations<String, Object, Object> hashOperations;
     @Mock private org.springframework.beans.factory.ObjectProvider<MultiRedisManager> redisManagerProvider;
     @Mock private RouteSimulateService routeSimulateService;
+    @Mock private RouteTrafficSummaryService trafficSummaryService;
 
     private SimpleMeterRegistry meterRegistry;
     private MonitorController controller;
@@ -54,7 +56,7 @@ class MonitorControllerTest {
                 routeService, meterRegistry, snapshotReader, new ObjectMapper(), "");
         UpstreamHealthProbe healthProbe = new UpstreamHealthProbe(routeService, redisManagerProvider);
         controller = new MonitorController(routeService, conditionMapper, timeseriesService,
-                routeSimulateService, healthProbe);
+                routeSimulateService, trafficSummaryService, healthProbe);
         lenient().when(redisManagerProvider.getIfAvailable()).thenReturn(multiRedisManager);
         lenient().when(multiRedisManager.getStringRedisTemplate("default")).thenReturn(stringRedisTemplate);
         lenient().when(stringRedisTemplate.opsForHash()).thenReturn(hashOperations);
