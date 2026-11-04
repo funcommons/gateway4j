@@ -298,3 +298,38 @@ export interface SnapshotResult {
 export function createImportSnapshot() {
   return envelope<SnapshotResult>(http.post('/v1/routes/import/snapshot', {}))
 }
+
+/** S5a：路由版本行（gw_route_version；接口按 config_version 倒序返回） */
+export interface RouteVersionDto {
+  id?: string
+  route_id: string
+  /** 字符串数字（Long→String 契约） */
+  config_version: string
+  /** 'CREATE' | 'PUBLISH' | 'OFFLINE'（其它值页面原样展示） */
+  change_type: string
+  /** 发布时路由全量快照（含 conditions，灰度只读卡数据源） */
+  snapshot_data?: Record<string, unknown> | null
+  change_description?: string | null
+  actor?: string
+  /** epoch ms */
+  published_at?: number | null
+}
+
+/** S5a：版本 diff 行（from===to 视为未变更） */
+export interface RouteVersionDiffRow {
+  field: string
+  from: string
+  to: string
+}
+
+/** 版本时间线：某路由全部版本（倒序） */
+export function getRouteVersions(id: string) {
+  return envelope<RouteVersionDto[]>(http.get(`/v1/routes/${id}/versions`))
+}
+
+/** 相邻版本快照 diff（from/to = config_version） */
+export function getRouteVersionDiff(id: string, from: string, to: string) {
+  return envelope<RouteVersionDiffRow[]>(
+    http.get(`/v1/routes/${id}/versions/diff`, { params: { from, to } })
+  )
+}

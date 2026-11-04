@@ -730,6 +730,29 @@ export default {
       progressTitle: 'Progress',
       placeholder: '—',
       summarySep: ':'
+    },
+    publish: {
+      title: 'Publish & Versions',
+      versionTimeline: 'Version timeline',
+      current: 'Current',
+      changeCreate: 'Create',
+      changePublish: 'Publish',
+      viewDiff: 'View diff',
+      diffTitle: 'Config diff',
+      diffFrom: 'From',
+      diffTo: 'To',
+      noDiff: 'No differences between these versions',
+      affectedTitle: 'Impact analysis',
+      impactHits: '{n} hits/day',
+      impactChildren: '{n} backend routes',
+      readonlyGray: 'Gray-release weights are read-only; adjust them in the decision tree / condition editor',
+      changeDescription: 'Change description',
+      descriptionPlaceholder: 'Describe what this publish changes (1-200 chars)',
+      publishNow: 'Publish now',
+      published: 'Published — the new version is live',
+      publishFailed: 'Publish failed, please retry later',
+      errorLoad: 'Failed to load version history',
+      empty: 'No versions yet — one is created on first publish'
     }
   }
 }

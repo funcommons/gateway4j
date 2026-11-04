@@ -727,6 +727,29 @@ export default {
       progressTitle: '配置进度',
       placeholder: '—',
       summarySep: ':'
+    },
+    publish: {
+      title: '发布与版本',
+      versionTimeline: '版本时间线',
+      current: '当前',
+      changeCreate: '创建',
+      changePublish: '发布',
+      viewDiff: '查看 diff',
+      diffTitle: '配置对比',
+      diffFrom: '自',
+      diffTo: '至',
+      noDiff: '两个版本之间没有差异',
+      affectedTitle: '影响面分析',
+      impactHits: '每日 {n} 次命中',
+      impactChildren: '{n} 条后置',
+      readonlyGray: '灰度权重只读展示，调整请到决策树 / 条件编辑',
+      changeDescription: '变更说明',
+      descriptionPlaceholder: '描述这次发布改了什么（1-200 字）',
+      publishNow: '立即发布',
+      published: '发布成功，新版本已生效',
+      publishFailed: '发布失败，请稍后重试',
+      errorLoad: '版本历史加载失败',
+      empty: '暂无版本记录，发布后自动生成'
     }
   }
 }
