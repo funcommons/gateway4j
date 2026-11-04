@@ -104,6 +104,11 @@
                       <FcSectionCard padding="sm" shadow="sm" class="rt-card" data-testid="card-actions">
                         <p class="rt-card-title">{{ t('v2.routes.cardActions') }}</p>
                         <div class="rt-card-body rt-wrap">
+                          <!-- S8 顺带：详情入口（v2 详情页），只增不改既有元素 -->
+                          <FcButton variant="secondary" size="sm" data-testid="act-detail" @click="router.push(`/v2/routes/${row.id}/detail`)">
+                            <FcIcon name="ri-file-list-3-line" :size="13" />
+                            {{ t('v2.routes.actDetail') }}
+                          </FcButton>
                           <FcButton variant="secondary" size="sm" data-testid="act-debug" @click="router.push('/v2/debug')">
                             <FcIcon name="ri-terminal-line" :size="13" />
                             {{ t('v2.routes.actDebug') }}
