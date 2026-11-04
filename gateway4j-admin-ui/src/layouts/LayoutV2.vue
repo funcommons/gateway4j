@@ -442,6 +442,15 @@ async function go(path: string) {
   .v2-menu-btn {
     display: inline-flex;
   }
+  /* P2: 375 窄视口横向溢出收口 —— ⌘K 搜索占位为纯装饰 (aria-hidden, S1 不可交互),
+     窄视口直接隐藏, 消除 260px 固定宽把 .v2-top-actions 顶出视口的根因。
+     面包屑改为主轴伸展 (min-width:0 已有, 截断省略), 顶栏动作区仍贴右缘。 */
+  .v2-top-search {
+    display: none;
+  }
+  .v2-crumb {
+    flex: 1 1 auto;
+  }
   .v2-scrim {
     display: block;
     position: fixed;
