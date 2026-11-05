@@ -6,6 +6,7 @@ import fun.commons.gateway4j.engine.metrics.InFlightRequestTracker;
 import fun.commons.gateway4j.engine.plugin.metrics.PluginExecutionStats;
 import fun.commons.gateway4j.engine.plugin.runtime.PluginInstanceRegistry;
 import fun.commons.gateway4j.engine.route.dispatcher.RouteDispatcher;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -57,12 +58,18 @@ public class GatewayFilterBeansConfiguration {
         return new PluginExecutionStats(meterRegistry.getIfAvailable());
     }
 
+    /**
+     * S11a：第 5 参数为影子回放共享口令（{@code gateway4j.debug.shadow-token}，
+     * 默认空 = 影子识别关闭）。admin 调试台以 {@code X-Gw4j-Shadow} 头携带同值
+     * 口令，引擎据此豁免影子请求的 in-flight gauge 与插件级统计。
+     */
     @Bean
     public PluginExecutionFilter pluginExecutionFilter(ConfigService configService,
                                                        PluginInstanceRegistry pluginInstanceRegistry,
                                                        InFlightRequestTracker inFlightRequestTracker,
-                                                       PluginExecutionStats pluginExecutionStats) {
+                                                       PluginExecutionStats pluginExecutionStats,
+                                                       @Value("${gateway4j.debug.shadow-token:}") String shadowToken) {
         return new PluginExecutionFilter(configService, pluginInstanceRegistry,
-                inFlightRequestTracker, pluginExecutionStats);
+                inFlightRequestTracker, pluginExecutionStats, shadowToken);
     }
 }

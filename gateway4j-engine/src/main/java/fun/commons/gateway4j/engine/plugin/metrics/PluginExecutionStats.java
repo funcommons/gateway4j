@@ -1,7 +1,9 @@
 package fun.commons.gateway4j.engine.plugin.metrics;
 
+import fun.commons.gateway4j.common.constant.GatewayConstants;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.web.server.ServerWebExchange;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -99,6 +101,23 @@ public class PluginExecutionStats {
         } catch (Exception ignored) {
             // metrics must never break the request path (fail-open)
         }
+    }
+
+    /**
+     * Shadow-aware overload (S11a 调试回放守卫): records nothing when the exchange
+     * carries the {@link GatewayConstants#SHADOW_KEY} attribute (set by
+     * PluginExecutionFilter when the X-Gw4j-Shadow token matched) — debug traffic
+     * must not pollute the Micrometer meter nor the Redis runtime catalog stats,
+     * covering both chain-time ok/error and composition-time skipped. Any other
+     * exchange (null, no attr) is exactly equivalent to
+     * {@link #record(String, String, String, Result)}.
+     */
+    public void record(ServerWebExchange exchange, String pluginId, String pluginName,
+                       String phase, Result result) {
+        if (exchange != null && exchange.getAttribute(GatewayConstants.SHADOW_KEY) != null) {
+            return;
+        }
+        record(pluginId, pluginName, phase, result);
     }
 
     /** Cumulative stats for one plugin_id: [executed, skipped, error]; zeros when unknown. */

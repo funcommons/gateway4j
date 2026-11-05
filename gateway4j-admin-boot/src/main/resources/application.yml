@@ -123,3 +123,13 @@ gateway4j:
     # 留空 = 未配置，GET /v1/monitor/timeseries 走快照平铺（source=snapshot）；
     # 配置但不可达同样自动回退快照，接口不 500。
     prometheus-url: ${GATEWAY4J_PROMETHEUS_URL:}
+
+  debug:
+    # S11a 影子回放：调试台经本服务把请求真实转发到网关数据面。
+    # shadow-token 须与 gateway-boot 的 gateway4j.debug.shadow-token 一致
+    # （X-Gw4j-Shadow 头防伪造口令，引擎空/不匹配一律按普通流量计数）；
+    # 默认值仅供本地联调，生产必改（两侧同步覆盖，或置空禁用影子链路）。
+    shadow-token: local-debug-shadow
+    # 网关数据面基址：回放转发目标 {base}{path}?{query}（connect 1s / read 3s，
+    # 不可达/超时按 SERVICE_UNAVAILABLE=10607 报错）
+    gateway-base-url: ${GATEWAY4J_GATEWAY_URL:http://127.0.0.1:9300}

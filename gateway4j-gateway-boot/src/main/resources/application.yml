@@ -90,3 +90,8 @@ gateway4j:
   open-api:
     app-key: gateway4j-open
     app-secret: dev-test-secret-key
+  debug:
+    # S11a 影子回放共享口令：admin 调试台以 X-Gw4j-Shadow 头携带此口令标记影子
+    # 请求（引擎豁免其 in-flight gauge / 插件级统计 / 路由计数，插件链照跑留痕）。
+    # 空值 = 影子识别关闭（任何头都不构成影子）。默认值仅供本地联调，生产必改。
+    shadow-token: local-debug-shadow

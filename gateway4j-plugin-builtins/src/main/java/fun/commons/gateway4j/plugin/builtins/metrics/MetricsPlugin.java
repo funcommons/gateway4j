@@ -69,6 +69,12 @@ public class MetricsPlugin extends AbstractGatewayPlugin {
 
     @Override
     public Mono<Void> execute(ServerWebExchange exchange, PluginChain chain) {
+        // S11a 影子请求早退（契约细则②）：admin 调试回放（X-Gw4j-Shadow 口令匹配，
+        // 引擎置 gw4j:shadow attr）直通下游插件链，路由计数/时延/错误全部不记；
+        // 早退只是跳过统计，LoggingPlugin 等其余插件照常执行（留痕是特性）。
+        if (exchange.getAttribute(GatewayConstants.SHADOW_KEY) != null) {
+            return chain.execute(exchange);
+        }
         if (config == null || !config.isEnabled() || meterRegistry == null) {
             return chain.execute(exchange);
         }

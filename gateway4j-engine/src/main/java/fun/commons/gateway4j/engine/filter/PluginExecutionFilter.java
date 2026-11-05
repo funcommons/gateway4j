@@ -85,16 +85,30 @@ public class PluginExecutionFilter implements GlobalFilter, org.springframework.
     private final InFlightRequestTracker inFlightTracker;
     private final PluginExecutionStats executionStats;
 
+    /**
+     * S11a 影子回放共享口令（{@code gateway4j.debug.shadow-token}）；{@code null}/blank
+     * 表示影子识别关闭（任何头都不构成影子请求）。空/不匹配一律按普通流量计数。
+     */
+    private final String shadowToken;
+
     public PluginExecutionFilter(ConfigService configService, PluginInstanceRegistry pluginRegistry) {
         this(configService, pluginRegistry, null, null);
     }
 
+    /** 影子识别关闭的等价构造（既有调用方兼容口径）。 */
     public PluginExecutionFilter(ConfigService configService, PluginInstanceRegistry pluginRegistry,
                                  InFlightRequestTracker inFlightTracker, PluginExecutionStats executionStats) {
+        this(configService, pluginRegistry, inFlightTracker, executionStats, null);
+    }
+
+    public PluginExecutionFilter(ConfigService configService, PluginInstanceRegistry pluginRegistry,
+                                 InFlightRequestTracker inFlightTracker, PluginExecutionStats executionStats,
+                                 String shadowToken) {
         this.configService = configService;
         this.pluginRegistry = pluginRegistry;
         this.inFlightTracker = inFlightTracker;
         this.executionStats = executionStats;
+        this.shadowToken = shadowToken;
     }
 
     @Override
@@ -105,6 +119,13 @@ public class PluginExecutionFilter implements GlobalFilter, org.springframework.
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         exchange.getAttributes().putIfAbsent(GatewayConstants.REQUEST_START_TIME_KEY, System.nanoTime());
+        // S11a 影子请求识别（廉价操作：一次头读 + 字符串比对）：口令匹配才置
+        // SHADOW_KEY attr（MetricsPlugin 早退与 PluginExecutionStats 守卫据此豁免
+        // 统计）；空/不匹配一律按普通流量处理（防伪造头逃逸统计）。
+        boolean shadow = isShadowRequest(exchange);
+        if (shadow) {
+            exchange.getAttributes().put(GatewayConstants.SHADOW_KEY, Boolean.TRUE);
+        }
         Long routeId = resolveRouteId(exchange);
         exposeRoutePathPattern(exchange, routeId);
 
@@ -112,20 +133,27 @@ public class PluginExecutionFilter implements GlobalFilter, org.springframework.
         // Mono terminates (forward + POST chain included). Requests that never match
         // a route never reach this filter (fail fast with 404) and are not counted;
         // a route whose path pattern is unreadable lands in the "_other" bucket.
+        // Shadow (debug replay) requests are NOT counted; the doFinally decrement
+        // below stays untouched — decrementing a never-incremented bucket is a
+        // safe no-op.
         String inFlightBucket = inFlightTracker == null ? null
                 : inFlightTracker.bucketFor(exchange.getAttribute(ROUTE_PATH_PATTERN_ATTR));
-        if (inFlightTracker != null) {
+        if (inFlightTracker != null && !shadow) {
             inFlightTracker.increment(inFlightBucket);
         }
 
-        List<GatewayPlugin> pre = compose(PHASE_PRE, routeId);
-        List<GatewayPlugin> post = compose(PHASE_POST, routeId);
+        // 影子请求不记插件级统计（ok/skipped/error 全豁免）：runner 侧传 null 即关，
+        // 编排期 skipped 由 appendInstances 走 exchange-aware record 守卫。
+        PluginExecutionStats activeStats = shadow ? null : executionStats;
+
+        List<GatewayPlugin> pre = compose(PHASE_PRE, routeId, exchange);
+        List<GatewayPlugin> post = compose(PHASE_POST, routeId, exchange);
         if (log.isDebugEnabled() && (!pre.isEmpty() || !post.isEmpty())) {
             log.debug("Plugin chain for route {}: pre={}, post={}", routeId,
                     ids(pre), ids(post));
         }
 
-        return new FailSafePluginChainRunner(pre, executionStats).execute(exchange, Mono.empty())
+        return new FailSafePluginChainRunner(pre, activeStats).execute(exchange, Mono.empty())
                 .then(Mono.defer(() -> {
                     if (exchange.getResponse().isCommitted()) {
                         // A PRE plugin short-circuited (already wrote the response):
@@ -147,7 +175,7 @@ public class PluginExecutionFilter implements GlobalFilter, org.springframework.
                                 // request as an error even though no status was rendered yet).
                                 exchange.getAttributes().put(FORWARD_ERROR_ATTR,
                                         forwardError.getClass().getSimpleName());
-                                return new FailSafePluginChainRunner(post, executionStats)
+                                return new FailSafePluginChainRunner(post, activeStats)
                                         .execute(exchange, Mono.empty())
                                         .onErrorResume(postError -> {
                                             log.warn("POST plugin chain failed on error path, propagating original forward error: {}",
@@ -156,7 +184,7 @@ public class PluginExecutionFilter implements GlobalFilter, org.springframework.
                                         })
                                         .then(Mono.error(forwardError));
                             })
-                            .then(Mono.defer(() -> new FailSafePluginChainRunner(post, executionStats)
+                            .then(Mono.defer(() -> new FailSafePluginChainRunner(post, activeStats)
                                     .execute(exchange, Mono.empty())));
                 }))
                 .doFinally(signal -> {
@@ -234,24 +262,35 @@ public class PluginExecutionFilter implements GlobalFilter, org.springframework.
         }
     }
 
-    private List<GatewayPlugin> compose(String phase, Long routeId) {
+    private List<GatewayPlugin> compose(String phase, Long routeId, ServerWebExchange exchange) {
         List<GatewayPlugin> composed = new ArrayList<>();
         if (PHASE_PRE.equals(phase)) {
             // 全局前置 → 路由前置
-            appendInstances(composed, filterPhase(configService.getGlobalPlugins(phase), phase));
+            appendInstances(composed, filterPhase(configService.getGlobalPlugins(phase), phase), exchange);
             if (routeId != null) {
                 appendInstances(composed,
-                        filterPhase(configService.getRouteBoundPluginRows(routeId), phase));
+                        filterPhase(configService.getRouteBoundPluginRows(routeId), phase), exchange);
             }
         } else {
             // 路由后置 → 全局后置
             if (routeId != null) {
                 appendInstances(composed,
-                        filterPhase(configService.getRouteBoundPluginRows(routeId), phase));
+                        filterPhase(configService.getRouteBoundPluginRows(routeId), phase), exchange);
             }
-            appendInstances(composed, filterPhase(configService.getGlobalPlugins(phase), phase));
+            appendInstances(composed, filterPhase(configService.getGlobalPlugins(phase), phase), exchange);
         }
         return composed;
+    }
+
+    /**
+     * S11a：口令匹配（配置口令非空且 {@code X-Gw4j-Shadow} 头值相等）→ 影子请求。
+     * 廉价操作：一次头读 + 一次字符串 equals，热路径零反射零正则。
+     */
+    private boolean isShadowRequest(ServerWebExchange exchange) {
+        if (shadowToken == null || shadowToken.isBlank()) {
+            return false;
+        }
+        return shadowToken.equals(exchange.getRequest().getHeaders().getFirst(GatewayConstants.SHADOW_HEADER));
     }
 
     private List<Plugin> filterPhase(List<Plugin> rows, String phase) {
@@ -267,7 +306,7 @@ public class PluginExecutionFilter implements GlobalFilter, org.springframework.
      * row's raw config JSON travels along on the ConfiguredPlugin for the
      * generic on_error policy extraction.
      */
-    private void appendInstances(List<GatewayPlugin> target, List<Plugin> rows) {
+    private void appendInstances(List<GatewayPlugin> target, List<Plugin> rows, ServerWebExchange exchange) {
         if (rows == null) {
             return;
         }
@@ -277,7 +316,8 @@ public class PluginExecutionFilter implements GlobalFilter, org.springframework.
                 log.debug("Plugin row {} (plugin_id={}, type={}) has no runtime instance, skipping",
                         row.getId(), row.getPluginId(), row.getPluginType());
                 if (executionStats != null) {
-                    executionStats.record(row.getPluginId(), row.getPluginName(),
+                    // exchange-aware 守卫：影子请求的编排期 skipped 一并豁免
+                    executionStats.record(exchange, row.getPluginId(), row.getPluginName(),
                             row.getPluginPhase(), PluginExecutionStats.Result.SKIPPED);
                 }
                 continue;
