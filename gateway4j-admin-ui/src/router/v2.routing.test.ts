@@ -10,6 +10,9 @@
  *   vue-router 会把带前导斜杠的 child path 当根级路径，拼不出 /v2/*，本测试直接红。
  * - /v2 → /v2/overview 的 redirect 写在父记录或 path:'' 子记录上均可，测试两种都认。
  * - S1 不注册 V2Canvas（契约 §1：S9 时再加）；全部 v2 name 以 V2 前缀。
+ *   【S9-T 已更新】S9a 按契约 §1 注册第 10 行 V2Canvas（views-v2/canvas/Canvas.vue，
+ *   path /v2/routes/canvas/:id，permission route:edit）——同时修复 v2 List.vue act-canvas 死链。
+ *   vue-router 静态段 'canvas' 优先于 V2RouteDetail 的 ':id' 动态段，行序无关。
  */
 import { describe, it, expect } from 'vitest'
 import { router } from '@/router'
@@ -22,6 +25,7 @@ const V2_TABLE: Array<{ name: string; path: string; permission: string }> = [
   { name: 'V2RouteWizard', path: '/v2/routes/wizard', permission: 'route:edit' },
   { name: 'V2RouteDetail', path: '/v2/routes/:id/detail', permission: 'route:read' },
   { name: 'V2DecisionTree', path: '/v2/routes/tree/:id', permission: 'route:read' },
+  { name: 'V2Canvas', path: '/v2/routes/canvas/:id', permission: 'route:edit' },
   { name: 'V2PluginChain', path: '/v2/plugins/chain', permission: 'plugin:read' },
   { name: 'V2Publish', path: '/v2/publish/:id', permission: 'route:edit' },
   { name: 'V2Monitor', path: '/v2/monitor', permission: 'monitor:read' },
@@ -88,7 +92,7 @@ describe('/v2 路由表 — 契约 §1', () => {
     expect((record!.meta as Record<string, unknown>).permission).toBe(permission)
   })
 
-  it('v2 路由 name 全部以 V2 前缀且恰好 9 条（S1 不建 V2Canvas，S9 再加）', () => {
+  it('v2 路由 name 全部以 V2 前缀且恰好 10 条（S9a 注册 V2Canvas，契约 §1）', () => {
     const v2Names = router.getRoutes()
       .map((r) => String(r.name))
       .filter((n) => n.startsWith('V2'))

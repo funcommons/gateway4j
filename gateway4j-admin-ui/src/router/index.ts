@@ -56,6 +56,9 @@ const v2Routes: RouteRecordRaw[] = [
       { path: 'routes/wizard', name: 'V2RouteWizard', component: () => import('@/views-v2/routes/Wizard.vue'), meta: { title: 'v2.page.wizard', permission: 'route:edit' } },
       { path: 'routes/:id/detail', name: 'V2RouteDetail', component: () => import('@/views-v2/routes/Detail.vue'), meta: { title: 'v2.page.detail', permission: 'route:read' } },
       { path: 'routes/tree/:id', name: 'V2DecisionTree', component: () => import('@/views-v2/routes/DecisionTree.vue'), meta: { title: 'v2.page.tree', permission: 'route:read' } },
+      // S9a：静态段 'canvas' 优先于 V2RouteDetail 的 ':id' 动态段（vue-router 路由排序，行序无关）；
+      // 注册即修复 v2 List.vue act-canvas 死链（契约 §1 第 10 行）
+      { path: 'routes/canvas/:id', name: 'V2Canvas', component: () => import('@/views-v2/canvas/Canvas.vue'), meta: { title: 'v2.page.canvas', permission: 'route:edit' } },
       { path: 'plugins/chain', name: 'V2PluginChain', component: () => import('@/views-v2/plugins/Chain.vue'), meta: { title: 'v2.page.chain', permission: 'plugin:read' } },
       { path: 'publish/:id', name: 'V2Publish', component: () => import('@/views-v2/publish/Publish.vue'), meta: { title: 'v2.page.publish', permission: 'route:edit' } },
       { path: 'monitor', name: 'V2Monitor', component: () => import('@/views-v2/monitor/Monitor.vue'), meta: { title: 'v2.page.monitor', permission: 'monitor:read' } },
