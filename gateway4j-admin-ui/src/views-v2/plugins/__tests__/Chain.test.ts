@@ -4,8 +4,8 @@
  * 与 shots/06-plugin-chain.png。测试基座：Publish.test.ts（vi.hoisted/factory/it.each/dig）
  * + DecisionTree.test.ts（头注模式 + 源码 grep）。
  * 先红是预期：页面由 S10a-C 实现（当前为 V2PagePlaceholder 占位）。
- * S10b（路由级 scope 的 binding 泳道/排序/启停/join）不在本文件范围 —— 本文件只断言
- * 「路由级 tab 存在且全局 tab 激活，点击路由级 tab 无动作或占位」（H16），内容断言归 S10b-T。
+ * S10b（路由级 scope 的 binding 泳道/排序/启停/join）测试在本文件尾部 S10b-T 追加段；
+ * H16 的「点击路由级 tab 后五泳道保持渲染」语义被 S10b 保留（路由级也不卸载五泳道）。
  *
  * ── 数据源侦察（已裁决，C 按此实现）────────────────────────────────────────
  * ① 泳道 = 前端派生（引擎 PluginPhase 只有 PRE/POST，PluginExecutionFilter 为序权威）：
@@ -90,6 +90,54 @@
  *   → BuiltinTypeMeta（category 缺省 = 服务端不下发，页面走 PLUGIN_CATEGORY_MAP 兜底）；
  * makeRuntimeStatus({ available?, items? }) → PluginRuntimeStatusResponse
  *   （stats 用字符串数字，验证 Long→String 直通）。
+ *
+ * ══════════ S10b-T 追加段（路由级 scope：选择器/绑定泳道/排序/启停/join）══════════
+ * 契约：§4 S10 行 S10b 半步（~500 行）。上方 S10a 面保持不变；以下裁决只约束文件尾部的
+ * S10b-* describe 块。先红是预期：当前页面为 S10a 实现（路由级 tab 点击只置 routeWip 占位）。
+ *
+ * ── API 面裁决（src/api/routes.ts 实际存在，已对 RouteController/RouteBindingService 核实）──
+ * listRoutes()：路由选择器数据源。RouteNode 嵌入 plugins 数组无 binding_id → 不作绑定泳道
+ *   数据源；惰性拉取 = 首次进入路由级 scope 才调，全局 scope 不发请求。
+ * listBindings(routeId)：绑定泳道数据源 → GET /v1/routes/{id}/plugins。后端实际返回
+ *   binding_id / route_id / plugin_id / plugin_name / plugin_phase / sort_order / binding_config，
+ *   其中 plugin_id = gw_plugin 行主键（Long→String 后与 PluginItem.id 同域）。
+ * sortRoutePlugins(routeId, pluginPhase, bindingIds)：绑定排序 → PUT /v1/routes/{id}/plugins/sort，
+ *   body { plugin_phase, binding_ids }；binding_ids = 全 lane【绑定主键】全量提交（同
+ *   sortGlobalPlugins 语义），成功 reload、失败 reload 回滚 + chn-action-error（裁决⑦随迁）。
+ * 启停裁决：gw_route_plugin_binding 无 status 列、RouteBindingService 无绑定级 enable/disable
+ *   —— 引擎 ConfigService.getRouteBoundPluginRows 只吃底层行 ENABLED → 绑定卡启停 =
+ *   enablePlugin/disablePlugin(底层 gw_plugin 行主键)（@/api/plugins 既有成员；disable 需
+ *   confirm({ variant:'danger' }) 模式沿用裁决⑦）；底层行状态 = 页面 join 全量 listPlugins
+ *   （【不带 scope】的第二取数，路由级选中路由后发起；mock 分支：params.scope==='GLOBAL' →
+ *   全局泳道页，其余 → 绑定 join 行页，两分支 fixture 见 routeBoundRows/defaultGlobalRows）。
+ * 禁用名单（页面 import 即红 —— vi.mock('@/api/routes') 不导出）：bindPlugin / updateBinding /
+ *   unbindPlugin / getPluginChain / getRoute 等 —— S10b 无绑定增删改配置流，绑定泳道
+ *   chn-add-* 占位保持 S10a 静态渲染。
+ *
+ * ── POST 相序裁决（PluginExecutionFilter.compose L237-255 为序权威）──
+ * PRE = 全局先、路由绑定后；POST = 路由绑定先、全局后（与 PRE 镜像）。路由级不重排五泳道
+ * DOM 序（lane4 整体先于 lane5 执行）；join 语义（路由级链插在全局帧内、执行完回到全局后置链）
+ * 由 chn-join-hint + routeJoinHint 文案钉住。
+ *
+ * ── 绑定泳道卡序裁决（与全局泳道唯一差异）──
+ * 卡序 = binding sort_order 升序，停用卡【不】沉尾：后端 listBindings orderByAsc(sort_order)
+ * 即权威序，绑定 sort_order 是每路由泳道的持久化序，状态分桶会与 sortRoutePlugins 全量提交
+ * 打架 —— 停用卡仅置灰 + data-state="disabled" 标记（fixture 903 sort_order=0 刻意小于 902
+ * 且停用，仍居 lane4 首位，钉死该差异）。
+ *
+ * ── S10b 新增 testid（chn-* 前缀延续，并入上表）──
+ * chn-route-picker（路由选择器容器，仅路由级 scope 渲染）
+ * chn-route-search（搜索输入，route_name + path 客户端子串过滤）
+ * chn-route-opt-<route.id>（路由选项行 = route_name + path；data-selected="true" 标选中）
+ * chn-route-empty（未选路由空态 = routeSelectEmpty；选中后退场）
+ * chn-join-hint（join 语义提示 = routeJoinHint，仅路由级 scope 渲染）
+ * 绑定卡复用 chn-card-<binding_id> / chn-switch-<binding_id> —— testid key 是 binding_id，
+ *   启停 API 参数是底层行主键：fixture 刻意错位（binding 90x / 行主键 8x），传错即红。
+ *
+ * ── S10b 新增 i18n key（v2.chain.* 树，zh/en 同步；不引用 plugin.* 旧树）──
+ * routePickerLabel / routeSearchPlaceholder / routeSelectEmpty / routeJoinHint / badgeRoute
+ * （routeScopeWip 保留在 locale —— 既有 KEYS it.each 依赖；S10b 起页面不再渲染该占位，
+ *   S10b-B1 断言其退场。）
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
@@ -110,6 +158,10 @@ const mocks = vi.hoisted(() => ({
   sortGlobalPlugins: vi.fn(),
   createPlugin: vi.fn(),
   getRuntimeStatus: vi.fn(),
+  // S10b-T 追加：路由级 binding 面（页面将 import 的全部成员 —— 契约⑩）
+  listRoutes: vi.fn(),
+  listBindings: vi.fn(),
+  sortRoutePlugins: vi.fn(),
   fcConfirm: vi.fn(() => Promise.resolve(true)),
   hasPermission: vi.fn(() => true),
   hasAnyPermission: vi.fn(() => true),
@@ -124,6 +176,13 @@ vi.mock('@/api/plugins', () => ({
   sortGlobalPlugins: mocks.sortGlobalPlugins,
   createPlugin: mocks.createPlugin,
   getRuntimeStatus: mocks.getRuntimeStatus
+}))
+// S10b-T：路由级 binding 面（只导出页面允许 import 的 3 个成员；bindPlugin/updateBinding/
+// unbindPlugin/getPluginChain 等属禁用名单 —— 页面 import 即红，见头注 S10b 段）
+vi.mock('@/api/routes', () => ({
+  listRoutes: mocks.listRoutes,
+  listBindings: mocks.listBindings,
+  sortRoutePlugins: mocks.sortRoutePlugins
 }))
 vi.mock('@/composables/useFcConfirm', () => ({
   useFcConfirm: () => ({ confirm: mocks.fcConfirm })
@@ -275,6 +334,20 @@ beforeEach(() => {
   mocks.getRuntimeStatus.mockReset().mockImplementation(() => Promise.resolve(makeRuntimeStatus()))
   mocks.fcConfirm.mockReset().mockResolvedValue(true)
   mocks.canEdit.mockReturnValue(true)
+})
+
+// S10b-T 取数分支（后注册后执行，覆盖上一条 listPlugins 实现；对 S10a 用例行为等价 ——
+// 它们只以 scope:'GLOBAL' 调用，走同一全局页分支）：
+// scope:'GLOBAL' → 全局泳道页；其余（无 scope 全量 / scope:'ROUTE'）→ 绑定 join 行页
+beforeEach(() => {
+  mocks.listRoutes.mockReset().mockImplementation(() => Promise.resolve(defaultRoutes().map((r) => ({ ...r }))))
+  mocks.listBindings.mockReset().mockImplementation(() => Promise.resolve(defaultBindings().map((b) => ({ ...b }))))
+  mocks.sortRoutePlugins.mockReset().mockResolvedValue({})
+  mocks.listPlugins.mockImplementation((params?: { scope?: string }) =>
+    params?.scope === 'GLOBAL'
+      ? Promise.resolve(pageOf(defaultGlobalRows().map((r) => ({ ...r }))))
+      : Promise.resolve(pageOf(routeBoundRows().map((r) => ({ ...r }))))
+  )
 })
 
 const KEYS = ['subtitle', 'scopeGlobal', 'scopeRoute', 'routeScopeWip',
@@ -653,5 +726,271 @@ describe('H18 — 模板无造数文案（裁决② 缺口不造数）', () => {
     expect(template).not.toMatch(/QPS\s*剩余/)
     expect(template).not.toMatch(/合计开销/)
     expect(template).not.toMatch(/\d+(?:\.\d+)?\s*ms/)
+  })
+})
+
+// ═══════════════ S10b-T：路由级 scope（选择器/绑定泳道/排序/启停/join）═══════════════
+// 契约：§4 S10 行 S10b 半步（~500 行）。裁决与 testid/i18n 契约见文件头注 S10b 追加段。
+
+/** RouteNode fixture（Long→String 下 id 为字符串；嵌入 plugins/children 本步不用） */
+function makeRouteNode(f: { id: string; route_name: string; route_type?: 'DISPATCH' | 'BACKEND'; path?: string }) {
+  return {
+    id: f.id,
+    route_name: f.route_name,
+    route_type: f.route_type ?? 'BACKEND',
+    path: f.path,
+    upstream_url: '',
+    status: 'PUBLISHED',
+    sort_order: 1,
+    remark: '',
+    tags: '',
+    config_version: '7',
+    created_at: 1793750400000,
+    updated_at: 1793750400000,
+    plugins: [] as unknown[],
+    children: [] as unknown[]
+  }
+}
+
+function defaultRoutes() {
+  return [
+    makeRouteNode({ id: '5001', route_name: '用户服务分发', route_type: 'DISPATCH', path: '/api/u/**' }),
+    makeRouteNode({ id: '5002', route_name: '订单服务', path: '/api/o/**' }),
+    makeRouteNode({ id: '5003', route_name: '商品服务', path: '/api/p/**' })
+  ]
+}
+
+/** 绑定行（RouteBindingService.listBindings 实际返回形状；plugin_id = gw_plugin 行主键） */
+function makeBinding(f: { binding_id: string; plugin_id: string; plugin_name: string; plugin_phase: 'PRE' | 'POST'; sort_order: number }) {
+  return {
+    binding_id: f.binding_id,
+    route_id: '5001',
+    plugin_id: f.plugin_id,
+    plugin_name: f.plugin_name,
+    plugin_phase: f.plugin_phase,
+    sort_order: f.sort_order,
+    binding_config: '{}'
+  }
+}
+
+/** 5001 的绑定集：PRE ×1；POST ×2 —— 903（底层行停用、sort_order=0 更小）刻意排在 902 之前，
+ *  钉死「绑定泳道停用卡不重排」（与全局泳道状态分桶规则相反，见头注裁决）。
+ *  binding_id 用 90x、底层行主键用 8x —— 启停参数一旦传错（binding_id 当行 id）立刻红。 */
+function defaultBindings() {
+  return [
+    makeBinding({ binding_id: '901', plugin_id: '81', plugin_name: '路由JWT校验', plugin_phase: 'PRE', sort_order: 1 }),
+    makeBinding({ binding_id: '903', plugin_id: '83', plugin_name: '路由重试(停用)', plugin_phase: 'POST', sort_order: 0 }),
+    makeBinding({ binding_id: '902', plugin_id: '82', plugin_name: '路由日志采样', plugin_phase: 'POST', sort_order: 1 })
+  ]
+}
+
+/** 绑定卡启停状态 join 源：binding.plugin_id（gw_plugin 行主键）→ 全量 listPlugins（无 scope）行 */
+function routeBoundRows() {
+  return [
+    makePlugin({ plugin_id: '81', plugin_name: '路由JWT校验', plugin_phase: 'PRE', scope: 'ROUTE', sort_order: 1 }),
+    makePlugin({ plugin_id: '82', plugin_name: '路由日志采样', plugin_phase: 'POST', scope: 'ROUTE', sort_order: 1 }),
+    makePlugin({ plugin_id: '83', plugin_name: '路由重试(停用)', plugin_phase: 'POST', scope: 'ROUTE', status: 'DISABLED', sort_order: 0 })
+  ]
+}
+
+async function enterRouteScope(w: VueWrapper<any>) {
+  await one(w, 'chn-scope-route').trigger('click')
+  await flushPromises()
+}
+
+async function selectRoute(w: VueWrapper<any>, id = '5001') {
+  await enterRouteScope(w)
+  await one(w, `chn-route-opt-${id}`).trigger('click')
+  await flushPromises()
+}
+
+const S10B_KEYS = ['routePickerLabel', 'routeSearchPlaceholder', 'routeSelectEmpty', 'routeJoinHint', 'badgeRoute']
+  .map((k) => `v2.chain.${k}`)
+
+// ── S10b i18n ─────────────────────────────────────────────────────────────
+describe('S10b-i18n — 路由级新增 key 双语存在（铁律 6，v2.chain.* 树）', () => {
+  it.each(S10B_KEYS)('%s 在 zh-CN 与 en-US 都存在', (key) => {
+    expect(dig(zhCN, key), `zh-CN 缺少 ${key}`).toBeDefined()
+    expect(dig(enUS, key), `en-US 缺少 ${key}`).toBeDefined()
+  })
+})
+
+// ── S10b-B1 ───────────────────────────────────────────────────────────────
+describe('S10b-B1 — scope 切换与路由选择器（惰性拉取）', () => {
+  it('进入路由级：激活态翻转 + 选择器/join 提示渲染 + WIP 占位退场 + listRoutes 惰性首拉', async () => {
+    const { wrapper } = await factory()
+    // 全局 scope：选择器不渲染、路由清单不拉
+    expect(one(wrapper, 'chn-route-picker').exists()).toBe(false)
+    expect(mocks.listRoutes).not.toHaveBeenCalled()
+    await enterRouteScope(wrapper)
+    expect(one(wrapper, 'chn-scope-route').attributes('data-active')).toBe('true')
+    expect(one(wrapper, 'chn-scope-global').attributes('data-active')).toBe('false')
+    expect(one(wrapper, 'chn-route-picker').exists()).toBe(true)
+    expect(one(wrapper, 'chn-join-hint').exists()).toBe(true)
+    // S10a 的 routeScopeWip 占位在 S10b 实装后退场（key 留在 locale 供既有 it.each）
+    expect(one(wrapper, 'chn-page').text()).not.toContain(t('v2.chain.routeScopeWip'))
+    expect(mocks.listRoutes).toHaveBeenCalledTimes(1)
+  })
+
+  it('路由级切回全局：全局 tab 复活 + 选择器退场 + 五泳道保持全局内容（H16 语义延续）', async () => {
+    const { wrapper } = await factory()
+    await enterRouteScope(wrapper)
+    await one(wrapper, 'chn-scope-global').trigger('click')
+    await flushPromises()
+    expect(one(wrapper, 'chn-scope-global').attributes('data-active')).toBe('true')
+    expect(one(wrapper, 'chn-scope-route').attributes('data-active')).toBe('false')
+    expect(one(wrapper, 'chn-route-picker').exists()).toBe(false)
+    expect(laneCards(wrapper, 'chn-lane-pre-global')).toEqual(['sign', 'tracing', 'security'])
+  })
+})
+
+// ── S10b-B2 ───────────────────────────────────────────────────────────────
+describe('S10b-B2 — 路由搜索与选中', () => {
+  it('搜索按 route_name/path 客户端过滤、清空恢复；选项行含名称与路径', async () => {
+    const { wrapper } = await factory()
+    await enterRouteScope(wrapper)
+    const optIds = () => wrapper.findAll('[data-testid^="chn-route-opt-"]').map((o) => o.attributes('data-testid'))
+    expect(optIds()).toEqual(['chn-route-opt-5001', 'chn-route-opt-5002', 'chn-route-opt-5003'])
+    expect(one(wrapper, 'chn-route-opt-5001').text()).toContain('用户服务分发')
+    expect(one(wrapper, 'chn-route-opt-5001').text()).toContain('/api/u/**')
+    await one(wrapper, 'chn-route-search').setValue('订单')
+    expect(optIds()).toEqual(['chn-route-opt-5002'])
+    await one(wrapper, 'chn-route-search').setValue('')
+    expect(optIds()).toEqual(['chn-route-opt-5001', 'chn-route-opt-5002', 'chn-route-opt-5003'])
+  })
+
+  it('选中路由：data-selected 标记 + listBindings(route.id) + lane2/lane4 出现绑定卡 + 空态退场', async () => {
+    const { wrapper } = await factory()
+    await enterRouteScope(wrapper)
+    expect(one(wrapper, 'chn-route-empty').exists()).toBe(true)
+    expect(mocks.listBindings).not.toHaveBeenCalled()
+    await one(wrapper, 'chn-route-opt-5001').trigger('click')
+    await flushPromises()
+    expect(one(wrapper, 'chn-route-opt-5001').attributes('data-selected')).toBe('true')
+    expect(one(wrapper, 'chn-route-opt-5002').attributes('data-selected')).not.toBe('true')
+    expect(mocks.listBindings).toHaveBeenCalledTimes(1)
+    expect(mocks.listBindings).toHaveBeenCalledWith('5001')
+    expect(one(wrapper, 'chn-route-empty').exists()).toBe(false)
+    expect(laneCards(wrapper, 'chn-lane-pre-route')).toEqual(['901'])
+    expect(laneCards(wrapper, 'chn-lane-post-route')).toEqual(['903', '902'])
+  })
+})
+
+// ── S10b-B3 ───────────────────────────────────────────────────────────────
+describe('S10b-B3 — 绑定卡归位/卡序/徽标', () => {
+  it('PRE→lane2、POST→lane4；卡序 = binding sort_order 升序且停用卡不重排（903 停用仍居首）', async () => {
+    const { wrapper } = await factory()
+    await selectRoute(wrapper)
+    expect(laneCards(wrapper, 'chn-lane-pre-route')).toEqual(['901'])
+    expect(laneCards(wrapper, 'chn-lane-post-route')).toEqual(['903', '902'])
+    const disabled = one(wrapper, 'chn-card-903')
+    expect(disabled.attributes('data-state')).toBe('disabled')
+    expect(disabled.text()).toContain(t('v2.chain.disabledLabel'))
+    expect(one(wrapper, 'chn-card-902').attributes('data-state')).toBe('enabled')
+  })
+
+  it('绑定卡徽标 = badgeRoute（不带 badgeGlobal）；泳道 ×N 计数含停用；chn-add-* 占位沿用', async () => {
+    const { wrapper } = await factory()
+    await selectRoute(wrapper)
+    const card = one(wrapper, 'chn-card-901')
+    expect(card.text()).toContain(t('v2.chain.badgeRoute'))
+    expect(card.text()).not.toContain(t('v2.chain.badgeGlobal'))
+    expect(one(wrapper, 'chn-lane-pre-route').text()).toMatch(/×1/)
+    expect(one(wrapper, 'chn-lane-post-route').text()).toMatch(/×2/)
+    expect(one(wrapper, 'chn-add-pre-route').exists()).toBe(true)
+    expect(one(wrapper, 'chn-add-post-route').exists()).toBe(true)
+  })
+})
+
+// ── S10b-B4 ───────────────────────────────────────────────────────────────
+describe('S10b-B4 — 绑定启停（作用于底层 gw_plugin 行，confirm 模式沿用）', () => {
+  it('ENABLED 行卡：confirm(danger) + disablePlugin(\'82\')（行主键，非 binding_id \'902\'）；DISABLED 行卡：无 confirm + enablePlugin(\'83\')；成功重拉绑定', async () => {
+    const { wrapper } = await factory()
+    await selectRoute(wrapper)
+    mocks.listBindings.mockClear()
+    await one(wrapper, 'chn-switch-902').trigger('click')
+    await flushPromises()
+    expect(mocks.fcConfirm).toHaveBeenCalledTimes(1)
+    expect(mocks.fcConfirm).toHaveBeenCalledWith(expect.objectContaining({ variant: 'danger' }))
+    expect(mocks.disablePlugin).toHaveBeenCalledTimes(1)
+    expect(mocks.disablePlugin).toHaveBeenCalledWith('82')
+    expect(mocks.enablePlugin).not.toHaveBeenCalled()
+    expect(mocks.listBindings).toHaveBeenCalledTimes(1)
+    await one(wrapper, 'chn-switch-903').trigger('click')
+    await flushPromises()
+    expect(mocks.fcConfirm).toHaveBeenCalledTimes(1)
+    expect(mocks.enablePlugin).toHaveBeenCalledTimes(1)
+    expect(mocks.enablePlugin).toHaveBeenCalledWith('83')
+  })
+
+  it('启停失败 → chn-action-error 文案取 e?.message', async () => {
+    mocks.disablePlugin.mockRejectedValueOnce(new Error('row locked'))
+    const { wrapper } = await factory()
+    await selectRoute(wrapper)
+    await one(wrapper, 'chn-switch-902').trigger('click')
+    await flushPromises()
+    expect(one(wrapper, 'chn-action-error').exists()).toBe(true)
+    expect(one(wrapper, 'chn-action-error').text()).toContain('row locked')
+  })
+})
+
+// ── S10b-B5 ───────────────────────────────────────────────────────────────
+describe('S10b-B5 — 绑定拖拽排序（sortRoutePlugins，失败回滚）', () => {
+  it('lane4 启用卡拖到首位 → sortRoutePlugins(\'5001\', \'POST\', 新序 binding_ids) + 成功重拉；不误调 sortGlobalPlugins', async () => {
+    const { wrapper } = await factory()
+    await selectRoute(wrapper)
+    mocks.listBindings.mockClear()
+    const cards = one(wrapper, 'chn-lane-post-route').findAll('[data-testid^="chn-card-"]')
+    await cards[1].trigger('dragstart')
+    await cards[0].trigger('drop')
+    await flushPromises()
+    expect(mocks.sortRoutePlugins).toHaveBeenCalledTimes(1)
+    expect(mocks.sortRoutePlugins).toHaveBeenCalledWith('5001', 'POST', ['902', '903'])
+    expect(mocks.sortGlobalPlugins).not.toHaveBeenCalled()
+    expect(mocks.listBindings).toHaveBeenCalledTimes(1)
+  })
+
+  it('排序失败 → 重拉回滚（卡序恢复 903→902）+ chn-action-error', async () => {
+    mocks.sortRoutePlugins.mockRejectedValueOnce(new Error('binding sort rejected'))
+    const { wrapper } = await factory()
+    await selectRoute(wrapper)
+    const cards = one(wrapper, 'chn-lane-post-route').findAll('[data-testid^="chn-card-"]')
+    await cards[1].trigger('dragstart')
+    await cards[0].trigger('drop')
+    await flushPromises()
+    expect(one(wrapper, 'chn-action-error').exists()).toBe(true)
+    expect(one(wrapper, 'chn-action-error').text()).toContain('binding sort rejected')
+    expect(laneCards(wrapper, 'chn-lane-post-route')).toEqual(['903', '902'])
+  })
+})
+
+// ── S10b-B6 ───────────────────────────────────────────────────────────────
+describe('S10b-B6 — join 语义与 POST 相序（PluginExecutionFilter.compose 为权威）', () => {
+  it('chn-join-hint 钉住「执行完回到全局后置链」；五泳道 DOM 序不变（post-route 先于 post-global）', async () => {
+    const { wrapper } = await factory()
+    await selectRoute(wrapper)
+    const hint = one(wrapper, 'chn-join-hint')
+    expect(hint.exists()).toBe(true)
+    expect(hint.text()).toContain(t('v2.chain.routeJoinHint'))
+    // join 语义本体钉在文案里（引擎 compose：POST = 路由绑定先、全局后）
+    expect(String(dig(zhCN, 'v2.chain.routeJoinHint'))).toContain('全局后置')
+    expect(String(dig(enUS, 'v2.chain.routeJoinHint'))).toMatch(/global POST/i)
+    const lanes = wrapper.findAll('[data-testid^="chn-lane-"]').map((l) => l.attributes('data-testid'))
+    expect(lanes).toEqual([
+      'chn-lane-pre-global', 'chn-lane-pre-route', 'chn-lane-forward', 'chn-lane-post-route', 'chn-lane-post-global'
+    ])
+  })
+})
+
+// ── S10b-B7 ───────────────────────────────────────────────────────────────
+describe('S10b-B7 — 未选路由空态', () => {
+  it('路由级已激活未选路由：chn-route-empty（routeSelectEmpty）+ 绑定泳道无卡 + 不发 listBindings', async () => {
+    const { wrapper } = await factory()
+    await enterRouteScope(wrapper)
+    expect(one(wrapper, 'chn-route-empty').exists()).toBe(true)
+    expect(one(wrapper, 'chn-route-empty').text()).toContain(t('v2.chain.routeSelectEmpty'))
+    expect(one(wrapper, 'chn-lane-pre-route').findAll('[data-testid^="chn-card-"]').length).toBe(0)
+    expect(one(wrapper, 'chn-lane-post-route').findAll('[data-testid^="chn-card-"]').length).toBe(0)
+    expect(mocks.listBindings).not.toHaveBeenCalled()
   })
 })

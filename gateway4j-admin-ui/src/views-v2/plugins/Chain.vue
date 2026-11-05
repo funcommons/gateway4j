@@ -1,7 +1,7 @@
 <template>
   <div class="v2-chain" :class="{ 'is-editable': canWrite }" data-testid="chn-page">
     <FcSection>
-      <!-- Page head: title + scope tabs (S10a keeps global active; route tab is a S10b placeholder) -->
+      <!-- Page head: title + scope tabs (data-active follows the active scope; five lanes are never unmounted) -->
       <div class="chain-head">
         <div class="chain-head-main">
           <h1>{{ t('v2.page.chain') }}</h1>
@@ -12,10 +12,10 @@
             type="button"
             class="scope-tab"
             data-testid="chn-scope-global"
-            data-active="true"
+            :data-active="scope === 'global' ? 'true' : 'false'"
             role="tab"
-            aria-selected="true"
-            @click="routeWip = false"
+            :aria-selected="scope === 'global'"
+            @click="scope = 'global'"
           >
             <span>{{ t('v2.chain.scopeGlobal') }}</span>
             <span class="scope-n">{{ globalCount }}</span>
@@ -24,10 +24,10 @@
             type="button"
             class="scope-tab"
             data-testid="chn-scope-route"
-            data-active="false"
+            :data-active="scope === 'route' ? 'true' : 'false'"
             role="tab"
-            aria-selected="false"
-            @click="routeWip = true"
+            :aria-selected="scope === 'route'"
+            @click="enterRouteScope"
           >
             <span>{{ t('v2.chain.scopeRoute') }}</span>
           </button>
@@ -39,7 +39,38 @@
         <FcIcon name="ri-information-line" :size="13" />
         <span>{{ t('v2.chain.syncHint') }}</span>
       </p>
-      <p v-if="routeWip" class="scope-wip" role="status">{{ t('v2.chain.routeScopeWip') }}</p>
+      <!-- Route scope (S10b): picker (lazy first pull on scope entry) + unselected empty state + join semantics note -->
+      <template v-if="scope === 'route'">
+        <div class="route-picker" data-testid="chn-route-picker">
+          <label class="rp-label" for="chn-route-search">{{ t('v2.chain.routePickerLabel') }}</label>
+          <FcInput
+            v-model="routeSearch"
+            id="chn-route-search"
+            data-testid="chn-route-search"
+            size="small"
+            :placeholder="t('v2.chain.routeSearchPlaceholder')"
+          />
+          <div class="rp-list">
+            <button
+              v-for="r in filteredRoutes"
+              :key="r.id"
+              type="button"
+              class="rp-opt"
+              :data-testid="`chn-route-opt-${r.id}`"
+              :data-selected="selectedRouteId === r.id ? 'true' : 'false'"
+              @click="selectRoute(r.id)"
+            >
+              <b class="rp-opt-name">{{ r.route_name }}</b>
+              <span v-if="r.path" class="rp-opt-path">{{ r.path }}</span>
+            </button>
+          </div>
+        </div>
+        <p v-if="!selectedRouteId" class="route-empty" data-testid="chn-route-empty" role="status">{{ t('v2.chain.routeSelectEmpty') }}</p>
+        <p class="join-hint" data-testid="chn-join-hint" role="note">
+          <FcIcon name="ri-git-branch-line" :size="13" />
+          <span>{{ t('v2.chain.routeJoinHint') }}</span>
+        </p>
+      </template>
 
       <!-- Load failed: banner + retry; retry stays clickable while a request is in flight (loadEpoch drops stale responses) -->
       <div v-if="failed" class="hint-banner is-error chain-error" data-testid="chn-error" role="alert">
@@ -75,7 +106,8 @@
               </div>
             </section>
 
-            <!-- Pluggable lane: header count includes disabled cards; disabled ones sink to the tail -->
+            <!-- Pluggable lane: header count includes disabled cards; global lanes bucket disabled to the tail,
+                 binding lanes keep binding sort_order as-is (disabled never sink) -->
             <section v-else class="lane" :data-testid="`chn-lane-${lane.key}`">
               <header class="lane-h">
                 <b>{{ t(lane.labelKey) }}</b>
@@ -83,12 +115,12 @@
               </header>
               <div class="lane-b">
                 <article
-                  v-for="(p, i) in lane.cards"
-                  :key="p.id"
+                  v-for="(card, i) in lane.cards"
+                  :key="card.key"
                   class="pg"
-                  :class="{ 'is-disabled': p.status === 'DISABLED' }"
-                  :data-state="p.status === 'DISABLED' ? 'disabled' : 'enabled'"
-                  :data-testid="`chn-card-${p.id}`"
+                  :class="{ 'is-disabled': card.status === 'DISABLED' }"
+                  :data-state="card.status === 'DISABLED' ? 'disabled' : 'enabled'"
+                  :data-testid="`chn-card-${card.id}`"
                   :draggable="canWrite ? 'true' : 'false'"
                   @dragstart="onDragStart(i, lane.key)"
                   @dragover.prevent
@@ -97,27 +129,27 @@
                 >
                   <div class="pg-top">
                     <span v-if="canWrite" class="pg-grip" aria-hidden="true">⠿</span>
-                    <b class="pg-name" :title="p.plugin_name">{{ p.plugin_name }}</b>
-                    <FcTag color="gray" size="sm">{{ t('v2.chain.badgeGlobal') }}</FcTag>
-                    <FcTag v-if="p.status === 'DISABLED'" color="warning" size="sm">{{ t('v2.chain.disabledLabel') }}</FcTag>
+                    <b class="pg-name" :title="card.name">{{ card.name }}</b>
+                    <FcTag color="gray" size="sm">{{ card.kind === 'global' ? t('v2.chain.badgeGlobal') : t('v2.chain.badgeRoute') }}</FcTag>
+                    <FcTag v-if="card.status === 'DISABLED'" color="warning" size="sm">{{ t('v2.chain.disabledLabel') }}</FcTag>
                     <FcTag
-                      v-if="runtimeBadge(p) === 'wired'"
+                      v-if="runtimeBadge(card) === 'wired'"
                       color="success"
                       size="sm"
-                      :data-testid="`chn-runtime-${p.id}`"
+                      :data-testid="`chn-runtime-${card.id}`"
                     >{{ t('v2.chain.runtimeWired') }}</FcTag>
                     <FcTag
-                      v-else-if="runtimeBadge(p) === 'unwired'"
+                      v-else-if="runtimeBadge(card) === 'unwired'"
                       color="warning"
                       size="sm"
-                      :data-testid="`chn-runtime-${p.id}`"
+                      :data-testid="`chn-runtime-${card.id}`"
                     >{{ t('v2.chain.runtimeUnwired') }}</FcTag>
                     <!-- FcSwitch drops attrs (inheritAttrs:false): testid + click live on this wrapper span -->
-                    <span v-if="canWrite" class="pg-switch" :data-testid="`chn-switch-${p.id}`" @click="togglePlugin(p)">
-                      <FcSwitch :model-value="p.status !== 'DISABLED'" size="small" />
+                    <span v-if="canWrite" class="pg-switch" :data-testid="`chn-switch-${card.id}`" @click="toggleCard(card)">
+                      <FcSwitch :model-value="card.status !== 'DISABLED'" size="small" />
                     </span>
                   </div>
-                  <p v-if="statsText(p)" class="pg-stats" :data-testid="`chn-stats-${p.id}`">{{ statsText(p) }}</p>
+                  <p v-if="statsText(card)" class="pg-stats" :data-testid="`chn-stats-${card.id}`">{{ statsText(card) }}</p>
                 </article>
                 <div class="lane-add" :data-testid="`chn-add-${lane.key}`">
                   <FcIcon name="ri-add-line" :size="13" />
@@ -186,11 +218,12 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useFcConfirm } from '@/composables/useFcConfirm'
 import { usePermission } from '@/composables/usePermission'
-import { FcButton, FcIcon, FcSection, FcSkeleton, FcSwitch, FcTag } from '@/components'
+import { FcButton, FcIcon, FcInput, FcSection, FcSkeleton, FcSwitch, FcTag } from '@/components'
 import {
   listPlugins, listBuiltinTypes, enablePlugin, disablePlugin, sortGlobalPlugins, createPlugin, getRuntimeStatus,
   type PluginItem, type BuiltinTypeMeta
 } from '@/api/plugins'
+import { listRoutes, listBindings, sortRoutePlugins, type RouteNode } from '@/api/routes'
 import { getBuiltinCategory, BUILTIN_CATEGORIES, type BuiltinCategoryKey } from '@/views/plugins/builtinCategories'
 
 /**
@@ -211,10 +244,51 @@ import { getBuiltinCategory, BUILTIN_CATEGORIES, type BuiltinCategoryKey } from 
  *   成功后 reload；管理 = 跳旧路由 /plugins/:id/edit（只读导航，不受 canEdit 限制）。
  * - runtime 徽标 = getRuntimeStatus()（items 按 plugin_id 接线；available=false 或接口异常
  *   静默降级无徽标不崩）；仅 BUILTIN 卡渲染（JAR/GROOVY/GROUP 与数据面接线无关）。
+ *
+ * S10b-C：路由级 scope（路由选择器 / 绑定泳道 / 绑定启停 / 绑定排序 / join 提示）。
+ * - 惰性取数：进入路由级 scope 才拉 listRoutes()；选中路由才发 listBindings(routeId) +
+ *   不带 scope 的 listPlugins()（第二取数，join 解析绑定卡底层 gw_plugin 行启停状态）。
+ * - 绑定泳道卡序 = binding sort_order 升序、停用卡【不】沉尾（listBindings orderByAsc 即权威序，
+ *   状态分桶会与 sortRoutePlugins 全量提交打架）——与全局泳道状态分桶规则刻意相反。
+ * - 绑定启停 = enablePlugin/disablePlugin(底层行主键 binding.plugin_id)，testid 用 binding_id
+ *   （两者刻意错位防传错）；disable 需 confirm({ variant:'danger' })；成功重拉绑定。
+ * - 绑定排序 = sortRoutePlugins(routeId, phase, bindingIds) 全量提交；POST 相序 = 绑定先、
+ *   全局后（PluginExecutionFilter.compose 权威），由 chn-join-hint 文案钉住 join 语义。
+ * - scope 往返五泳道不卸载；routeScopeWip 占位退场（key 留在 locale 供既有用例）。
  */
 
 type ChainLaneKey = 'pre-global' | 'pre-route' | 'post-route' | 'post-global'
 type LaneDefKey = ChainLaneKey | 'forward'
+
+/**
+ * 泳道卡视图模型（global / binding 两类卡共用一套渲染）：
+ * - global：testid key = gw_plugin 行 id，targetId = 同一行 id（启停参数）。
+ * - binding：testid key = binding_id，targetId = binding.plugin_id（底层 gw_plugin 行主键，
+ *   启停参数）—— 两者刻意错位，传错即红。
+ */
+type LaneCard = {
+  key: string
+  /** testid key：global = 插件行 id；binding = binding_id */
+  id: string
+  name: string
+  status: 'ENABLED' | 'DISABLED'
+  kind: 'global' | 'binding'
+  /** 启停 API 参数：底层 gw_plugin 行主键 */
+  targetId: string
+  /** global 卡回引用（runtime 徽标 / stats）；binding 行不带接线数据 → 无（缺口不造数） */
+  plugin: PluginItem | null
+}
+
+/** listBindings 实际返回行（RouteBindingService；BindingDto 类型未覆盖 plugin_name/plugin_phase） */
+type BindingRow = {
+  binding_id: string
+  route_id?: string
+  plugin_id: string
+  plugin_name?: string
+  plugin_phase?: string
+  sort_order?: number | string
+  binding_config?: string
+}
 
 const { t } = useI18n()
 const router = useRouter()
@@ -248,12 +322,20 @@ const loading = ref(false)
 const failed = ref(false)
 const rowsLoaded = ref(false)
 const actionError = ref('')
-/** S10a：路由级 tab 点击只提示占位，不切换（内容归 S10b） */
-const routeWip = ref(false)
 
 const rows = ref<PluginItem[]>([])
-const lanes = ref<Record<ChainLaneKey, PluginItem[]>>({ 'pre-global': [], 'pre-route': [], 'post-route': [], 'post-global': [] })
+const lanes = ref<Record<ChainLaneKey, LaneCard[]>>({ 'pre-global': [], 'pre-route': [], 'post-route': [], 'post-global': [] })
 const builtinTypes = ref<BuiltinTypeMeta[]>([])
+
+// ── S10b 路由级 scope 状态（惰性取数：进 scope 才拉路由清单，选中路由才拉绑定 + join 行）──
+const scope = ref<'global' | 'route'>('global')
+const routesLoaded = ref(false)
+const routes = ref<RouteNode[]>([])
+const routeSearch = ref('')
+const selectedRouteId = ref('')
+const bindings = ref<BindingRow[]>([])
+/** 绑定卡启停状态 join 源：listPlugins 不带 scope 的全量行（plugin 行主键 → status） */
+const routeRows = ref<PluginItem[]>([])
 
 let loadEpoch = 0
 let dragFrom = -1
@@ -287,12 +369,97 @@ async function reload() {
 
 function applyRows(list: PluginItem[]) {
   rows.value = list
+  rebuildLanes()
+}
+
+/**
+ * 泳道重建（全局 + 绑定两路数据汇齐后统一派生）：
+ * - lane1/lane5（GLOBAL）：ENABLED 按 sort_order 升序在前，DISABLED 置灰排尾；
+ * - lane2/lane4（绑定）：binding sort_order 升序即权威序，停用卡【不】沉尾
+ *   （绑定 sort_order 是每路由泳道的持久化序，状态分桶会与 sortRoutePlugins 全量提交打架）。
+ */
+function rebuildLanes() {
+  const rowStatus = new Map(routeRows.value.map((r) => [r.id, r.status]))
+  const toGlobalCard = (p: PluginItem): LaneCard => ({
+    key: `g-${p.id}`,
+    id: p.id,
+    name: p.plugin_name,
+    status: p.status === 'DISABLED' ? 'DISABLED' : 'ENABLED',
+    kind: 'global',
+    targetId: p.id,
+    plugin: p
+  })
+  const bindingRank = (b: BindingRow) => (Number.isFinite(Number(b.sort_order)) ? Number(b.sort_order) : 0)
+  const bindingCards = (phase: 'PRE' | 'POST'): LaneCard[] =>
+    bindings.value
+      .filter((b) => (b.plugin_phase ?? 'PRE') === phase)
+      .sort((a, b) => bindingRank(a) - bindingRank(b))
+      .map((b) => ({
+        key: `b-${b.binding_id}`,
+        id: b.binding_id,
+        name: b.plugin_name ?? b.plugin_id,
+        status: rowStatus.get(b.plugin_id) === 'DISABLED' ? 'DISABLED' : 'ENABLED',
+        kind: 'binding' as const,
+        targetId: b.plugin_id,
+        plugin: null
+      }))
   lanes.value = {
-    'pre-global': orderLane(list.filter((p) => p.plugin_phase === 'PRE')),
-    'pre-route': [],
-    'post-route': [],
-    'post-global': orderLane(list.filter((p) => p.plugin_phase === 'POST'))
+    'pre-global': orderLane(rows.value.filter((p) => p.plugin_phase === 'PRE')).map(toGlobalCard),
+    'pre-route': bindingCards('PRE'),
+    'post-route': bindingCards('POST'),
+    'post-global': orderLane(rows.value.filter((p) => p.plugin_phase === 'POST')).map(toGlobalCard)
   }
+}
+
+// ── S10b：路由选择器（惰性首拉 + 客户端子串过滤）─────────────────────────
+const filteredRoutes = computed(() => {
+  const q = routeSearch.value.trim().toLowerCase()
+  if (!q) return routes.value
+  return routes.value.filter((r) => r.route_name?.toLowerCase().includes(q) || r.path?.toLowerCase().includes(q))
+})
+
+/** 进入路由级 scope：路由清单只在首次进入时拉取（全局 scope 不发请求） */
+async function enterRouteScope() {
+  if (scope.value === 'route') return
+  scope.value = 'route'
+  if (routesLoaded.value) return
+  try {
+    routes.value = (await listRoutes()) ?? []
+    routesLoaded.value = true
+  } catch {
+    routes.value = []
+  }
+}
+
+/** 选中路由：拉绑定泳道 + join 全量插件行（解析绑定卡底层行启停状态） */
+async function selectRoute(id: string) {
+  selectedRouteId.value = id
+  actionError.value = ''
+  await refreshRouteData()
+}
+
+async function reloadBindings() {
+  if (!selectedRouteId.value) return
+  try {
+    bindings.value = ((await listBindings(selectedRouteId.value)) ?? []) as BindingRow[]
+    rebuildLanes()
+  } catch (e: any) {
+    actionError.value = e?.message || t('v2.chain.actionFailed')
+  }
+}
+
+async function loadRouteRows() {
+  try {
+    const page = await listPlugins({ page: 1, pageSize: 200 })
+    routeRows.value = page?.records ?? []
+    rebuildLanes()
+  } catch {
+    // 状态未知：保留上次 join 结果，不造数
+  }
+}
+
+async function refreshRouteData() {
+  await Promise.all([reloadBindings(), loadRouteRows()])
 }
 
 /** 泳道序：ENABLED 按 sort_order 升序在前，DISABLED 置灰排尾（两桶各自按 sort_order 升序） */
@@ -337,17 +504,19 @@ async function loadRuntimeStatus() {
   }
 }
 
-/** 数据面徽标：仅 BUILTIN 卡与接线有关；未知（无 runtime 数据）→ 未接线（沿用 Builtin.vue 先例） */
-function runtimeBadge(p: PluginItem): 'wired' | 'unwired' | 'none' {
-  if (p.plugin_type !== 'BUILTIN') return 'none'
+/** 数据面徽标：仅 global BUILTIN 卡与接线有关（绑定行不带接线数据）；未知 → 未接线（Builtin.vue 先例） */
+function runtimeBadge(card: LaneCard): 'wired' | 'unwired' | 'none' {
+  if (card.kind !== 'global' || !card.plugin) return 'none'
+  if (card.plugin.plugin_type !== 'BUILTIN') return 'none'
   if (!runtimeAvailable.value) return 'none'
-  return runtimeMap.value[p.plugin_id]?.registered ? 'wired' : 'unwired'
+  return runtimeMap.value[card.plugin.plugin_id]?.registered ? 'wired' : 'unwired'
 }
 
 /** 执行计数：Long→String 契约下按字符串原样直出（不千分位）；引擎未上报 → 不渲染 */
-function statsText(p: PluginItem): string | null {
+function statsText(card: LaneCard): string | null {
+  if (card.kind !== 'global' || !card.plugin) return null
   if (!runtimeAvailable.value) return null
-  const s = runtimeMap.value[p.plugin_id]?.stats
+  const s = runtimeMap.value[card.plugin.plugin_id]?.stats
   if (!s || typeof s !== 'object') return null
   const { executed, skipped, error } = s
   if (executed == null && skipped == null && error == null) return null
@@ -391,18 +560,24 @@ const installedIds = computed(() => new Set(rows.value.map((p) => p.plugin_id)))
 const isInstalled = (pluginId: string) => installedIds.value.has(pluginId)
 
 // ── 写操作：启停 / 安装 / 排序 ────────────────────────────────────────────
-/** 启停：disable 需 confirm(danger)，enable 直接；失败 → action-error（e.message 直出） */
-async function togglePlugin(p: PluginItem) {
+/**
+ * 启停（全局卡 / 绑定卡共用）：disable 需 confirm(danger)，enable 直接；失败 → action-error。
+ * 参数 = card.targetId（底层 gw_plugin 行主键；绑定卡 = binding.plugin_id，非 binding_id）。
+ * 成功后按卡类型重拉：绑定卡重拉绑定 + join 行，全局卡重拉全局泳道。
+ */
+async function toggleCard(card: LaneCard) {
   if (!canEdit('plugin')) return
-  if (p.status !== 'DISABLED') {
+  const isDisabled = card.status === 'DISABLED'
+  if (!isDisabled) {
     const ok = await confirm({ title: t('common.confirmDisablePlugin'), variant: 'danger' })
     if (!ok) return
   }
   actionError.value = ''
   try {
-    if (p.status !== 'DISABLED') await disablePlugin(p.id)
-    else await enablePlugin(p.id)
-    await reload()
+    if (isDisabled) await enablePlugin(card.targetId)
+    else await disablePlugin(card.targetId)
+    if (card.kind === 'binding') await refreshRouteData()
+    else await reload()
   } catch (e: any) {
     actionError.value = e?.message || t('v2.chain.actionFailed')
   }
@@ -428,7 +603,7 @@ async function installBuiltin(item: BuiltinTypeMeta) {
   }
 }
 
-/** 同 lane reorder → sortGlobalPlugins(phase, 全 lane ids 含停用)；失败 reload 回滚 + 错误条 */
+/** 全局泳道同 lane reorder → sortGlobalPlugins(phase, 全 lane ids 含停用)；失败 reload 回滚 + 错误条 */
 async function saveSort(laneKey: ChainLaneKey, ids: string[]) {
   if (!canEdit('plugin')) return
   actionError.value = ''
@@ -439,6 +614,21 @@ async function saveSort(laneKey: ChainLaneKey, ids: string[]) {
   } catch (e: any) {
     const msg = e?.message || t('v2.chain.actionFailed')
     await reload()
+    actionError.value = msg
+  }
+}
+
+/** 绑定泳道同 lane reorder → sortRoutePlugins(routeId, phase, binding_ids 全量)；失败重拉回滚 + 错误条 */
+async function saveBindingSort(laneKey: ChainLaneKey, bindingIds: string[]) {
+  if (!canEdit('plugin') || !selectedRouteId.value) return
+  actionError.value = ''
+  const phase = laneKey === 'pre-route' ? 'PRE' : 'POST'
+  try {
+    await sortRoutePlugins(selectedRouteId.value, phase, bindingIds)
+    await reloadBindings()
+  } catch (e: any) {
+    const msg = e?.message || t('v2.chain.actionFailed')
+    await reloadBindings()
     actionError.value = msg
   }
 }
@@ -462,7 +652,11 @@ function onDrop(index: number, laneKey: ChainLaneKey) {
   lanes.value = { ...lanes.value, [laneKey]: list }
   dragFrom = -1
   dragLane = ''
-  void saveSort(laneKey, list.map((p) => p.id))
+  if (laneKey === 'pre-route' || laneKey === 'post-route') {
+    void saveBindingSort(laneKey, list.map((c) => c.id))
+  } else {
+    void saveSort(laneKey, list.map((c) => c.targetId))
+  }
 }
 
 function onDragEnd() {
@@ -573,10 +767,92 @@ function managePlugin(p: PluginItem) {
   color: var(--app-text-tertiary);
 }
 
-.scope-wip {
-  margin: -6px 0 12px;
+/* —— S10b 路由级 scope：选择器 + 未选空态 + join 提示 —— */
+.route-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  background: var(--app-bg-card);
+  border: 1px solid var(--app-border-extra-light);
+  border-radius: var(--app-radius-lg);
+}
+
+.rp-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.rp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.rp-opt {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--app-radius-md);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+
+  &:hover {
+    background: var(--app-bg-muted);
+  }
+
+  &[data-selected='true'] {
+    background: color-mix(in srgb, var(--app-primary) 10%, var(--app-bg-card));
+    border-color: color-mix(in srgb, var(--app-primary) 35%, transparent);
+  }
+}
+
+.rp-opt-name {
+  flex: none;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.rp-opt-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 11.5px;
-  color: var(--app-color-warning-text);
+  color: var(--app-text-tertiary);
+}
+
+.route-empty {
+  margin: 0 0 12px;
+  padding: 14px;
+  font-size: 12px;
+  color: var(--app-text-tertiary);
+  text-align: center;
+  background: var(--app-bg-muted);
+  border: 1px dashed var(--app-border-strong);
+  border-radius: var(--app-radius-md);
+}
+
+.join-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 12px;
+  font-size: 11.5px;
+  color: var(--app-text-tertiary);
 }
 
 /* —— 提示条（加载失败 / 操作失败，同 v2 页配方）—— */
