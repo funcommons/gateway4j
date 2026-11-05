@@ -8,11 +8,15 @@ import fun.commons.gateway4j.common.model.Route;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -28,8 +32,10 @@ import java.util.Map;
  * <ul>
  *   <li>route_id 仅 admin 侧校验（数据面无 route_id 直查，path 首命中）：不存在或
  *       非 PUBLISHED → {@link BusinessException}(ROUTE_NOT_FOUND=10601)；</li>
- *   <li>网关不可达 / connect 1s、read 3s 超时 →
- *       {@link BusinessException}(SERVICE_UNAVAILABLE=10607)；</li>
+ *   <li>网关的任何 HTTP 响应（含 4xx/5xx）都进结果路径：status/headers/body 原样
+ *       回传、latency_ms 照记（C 步契约「4xx/5xx 不抛」，V 轮实播评审缺陷①修复）；
+ *       仅传输级失败（connect 1s / read 3s 超时、连接拒绝、DNS、响应体读取中断）
+ *       → {@link BusinessException}(SERVICE_UNAVAILABLE=10607)；</li>
  *   <li>响应 Map（snake_case）：{@code status}（上游真实状态码）、{@code latency_ms}
  *       （回放墙钟 ≥0）、{@code headers}（上游响应头）、{@code body}（响应体，&gt;64KB
  *       截断为前 65536 字符前缀）、{@code simulate}（预测段原样内嵌，不做拷贝改造）。</li>
@@ -100,15 +106,25 @@ public class DebugReplayService {
                     });
             RestClient.RequestHeadersSpec<?> headersSpec = request.body() == null
                     ? spec : spec.body(request.body());
-            // 4xx/5xx 不抛：上游真实状态码原样回传给调试台
+            // 4xx/5xx 不抛（V 轮评审缺陷①修复）：RestClient 的 status handler 链尾恒挂内置
+            // defaultHandler（isError → 抛 HttpServerErrorException/HttpClientErrorException），
+            // 故必须注册一个【匹配 isError 的 no-op handler】抢先命中且不抛——响应才会按
+            // 正常路径读体并 toEntity 返回。此前 onStatus(status -> false, no-op) 谓词永不命中，
+            // 500 仍落进内置 handler 抛异常、被误判为「网关不可达」10607。
             entity = headersSpec.retrieve()
-                    .onStatus(ignored -> false, (req, res) -> { })
+                    .onStatus(HttpStatusCode::isError, (req, res) -> { })
                     .toEntity(String.class);
         } catch (BusinessException e) {
             throw e;
-        } catch (Exception e) {
-            log.warn("[调试回放] 网关不可达/超时（{}{}）: {}", gatewayBaseUrl, request.path(), e.toString());
-            throw new BusinessException(ErrorCode.SERVICE_UNAVAILABLE, e.getClass().getSimpleName());
+        } catch (RestClientException e) {
+            // 仅传输级失败才映射 10607：ResourceAccessException（connect 1s / read 3s 超时、
+            // 连接拒绝、DNS）或底层 IO 中断（响应体读取时断连/超时，DefaultRestClient 包装为
+            // cause=IOException 的 RestClientException）。其余异常原样上抛，不得误标「网关不可达」。
+            if (e instanceof ResourceAccessException || e.getCause() instanceof IOException) {
+                log.warn("[调试回放] 网关不可达/超时（{}{}）: {}", gatewayBaseUrl, request.path(), e.toString());
+                throw new BusinessException(ErrorCode.SERVICE_UNAVAILABLE, e.getClass().getSimpleName());
+            }
+            throw e;
         }
         long latencyMs = Math.max(0, (System.nanoTime() - start) / 1_000_000);
 

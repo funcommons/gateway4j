@@ -151,3 +151,34 @@ describe('LayoutV2 — 返回旧版（契约 §1 侧栏切换入口）', () => {
     expect(router.currentRoute.value.path).toBe('/routes')
   })
 })
+
+// ═══════════ S11b-T 追加：调试台入口裁决（契约 §4 S11 行 S11b）═══════════
+// 入口接线 S1 已落（上方 LEAVES 含 v2.nav.debug→/v2/debug，it.each 已断言点击跳转）：
+// S11b 不新增入口、不动 NAV_GROUPS —— 页面实现原地替换 @/views-v2/debug/Debug.vue 占位
+// （页面契约见 src/views-v2/debug/__tests__/DebugConsole.test.ts 头注「入口接线裁决」；
+//   路由 meta/component 契约见 src/router/v2.routing.test.ts S11b 追加段）。
+// 「该分组将在后续步骤开放」（v2.nav.systemEmpty）与调试台入口无关：它只挂在【零可见条目】
+// 的分组（现为 system 组），随 system 组首个条目实装才退场 —— S11b 不动它，用例钉住边界。
+describe('S11b 追加 — 调试台入口归组与占位文案边界', () => {
+  it('「调试台」叶子归可观测分组，排监控大盘之后（IA 契约钉住，S11b 不改侧栏）', async () => {
+    const { wrapper } = await factory()
+    const text = wrapper.text()
+    const monitorAt = text.indexOf(String(dig(zhCN, 'v2.nav.monitor')))
+    const debugAt = text.indexOf(String(dig(zhCN, 'v2.nav.debug')))
+    expect(debugAt, '调试台入口未渲染').toBeGreaterThan(-1)
+    expect(debugAt, '调试台入口应排在监控大盘之后（可观测组内）').toBeGreaterThan(monitorAt)
+  })
+
+  it('v2.nav.systemEmpty 占位只属于零可见条目的分组：含调试台的 observability 组不渲染该文案', async () => {
+    const { wrapper } = await factory()
+    const emptyText = String(dig(zhCN, 'v2.nav.systemEmpty'))
+    const side = wrapper.find('#v2-side')
+    expect(side.exists()).toBe(true)
+    // system 组仍空 → 占位文案全侧栏仍存在一处（S11b 后依旧如此，随 system 组实装才退场）
+    expect(side.text()).toContain(emptyText)
+    const groups = side.findAll('.v2-nav-group')
+    const obs = groups.find((g) => g.text().includes(String(dig(zhCN, 'v2.nav.debug'))))
+    expect(obs, '未找到含调试台条目的分组').toBeDefined()
+    expect(obs!.text()).not.toContain(emptyText)
+  })
+})

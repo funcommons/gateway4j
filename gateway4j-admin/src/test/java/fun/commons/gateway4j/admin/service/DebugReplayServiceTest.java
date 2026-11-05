@@ -274,6 +274,53 @@ class DebugReplayServiceTest {
                 "截断必须是上游响应体的前缀（不夹带省略标记）");
     }
 
+    // ==================== 网关非 2xx 原样回传（V 轮实播评审缺陷①回归） ====================
+
+    /** 假网关返回 500 + 错误体 → 必须进结果路径（status/body 原样），不得抛 BusinessException(10607)。 */
+    @Test
+    void gateway500IsReturnedAsResultNotMappedToServiceUnavailable() {
+        Map<String, Object> simulateStub = simulateStub();
+        when(simulateService.simulate("/api/users", "GET", Map.of(), Map.of()))
+                .thenReturn(simulateStub);
+        when(routeService.getById(7L)).thenReturn(route(7L, "PUBLISHED"));
+        respondStatus = 500;
+        respondBody = "{\"code\":\"GW_INTERNAL\"}".getBytes(StandardCharsets.UTF_8);
+
+        Map<String, Object> result = assertDoesNotThrow(() ->
+                service.replay(new V2DebugReplayRequest("/api/users", "GET", Map.of(), Map.of(), null), 7L),
+                "网关 5xx 是上游真实响应，必须原样回传而不是误判为网关不可达(10607)");
+
+        Object status = result.get("status");
+        int statusValue = status instanceof Number n ? n.intValue()
+                : Integer.parseInt(String.valueOf(status));
+        assertEquals(500, statusValue, "status 必须是上游真实状态码 500");
+        assertEquals("{\"code\":\"GW_INTERNAL\"}", result.get("body"), "body 必须是上游错误体原样");
+        assertEquals("pong", headerOf(result, "X-Upstream-Reply"), "headers 照常携带上游响应头");
+        assertTrue(((Number) result.get("latency_ms")).longValue() >= 0, "latency_ms 照记");
+        assertSame(simulateStub, result.get("simulate"), "simulate 预测段照常内嵌");
+    }
+
+    /** 假网关返回 404 → 同样原样回传（契约：任何网关 HTTP 响应都不抛、不误判不可达）。 */
+    @Test
+    void gateway404IsReturnedAsResultToo() {
+        Map<String, Object> simulateStub = simulateStub();
+        when(simulateService.simulate("/api/users", "GET", Map.of(), Map.of()))
+                .thenReturn(simulateStub);
+        when(routeService.getById(7L)).thenReturn(route(7L, "PUBLISHED"));
+        respondStatus = 404;
+        respondBody = "nope".getBytes(StandardCharsets.UTF_8);
+
+        Map<String, Object> result = assertDoesNotThrow(() ->
+                service.replay(new V2DebugReplayRequest("/api/users", "GET", Map.of(), Map.of(), null), 7L));
+
+        Object status = result.get("status");
+        int statusValue = status instanceof Number n ? n.intValue()
+                : Integer.parseInt(String.valueOf(status));
+        assertEquals(404, statusValue, "4xx 同样原样回传真实状态码");
+        assertEquals("nope", result.get("body"), "4xx body 同样原样回传");
+        assertEquals("pong", headerOf(result, "X-Upstream-Reply"), "4xx headers 照常携带上游响应头");
+    }
+
     // ==================== fixture 工具 ====================
 
     private V2DebugReplayRequest simpleGet() {

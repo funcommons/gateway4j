@@ -100,6 +100,33 @@ describe('/v2 路由表 — 契约 §1', () => {
   })
 })
 
+// ═══════════ S11b-T 追加：/v2/debug 页面接线（对齐 V2Canvas 行写法）═══════════
+// 契约：docs/ui-v2/实施契约.md §4 S11 行 S11b 半步 + §1 第 10 行。
+// /v2/debug 行 S1 已在上方 V2_TABLE（path+permission），本段只追加 meta.title 与
+// component 契约，不改既有任何行/断言。裁决：S11b-C 在 @/views-v2/debug/Debug.vue
+// 【原地替换】V2PagePlaceholder 占位 —— 不新建组件、不动路由表与侧栏（nav 断言见
+// src/layouts/__tests__/LayoutV2.test.ts S11b 追加段；页面契约见 DebugConsole.test.ts 头注）。
+describe('S11b 追加 — V2Debug meta 与组件接线', () => {
+  it('V2Debug meta.title=v2.page.debug（面包屑数据源）且 permission=route:edit 不变', () => {
+    const record = recordByName('V2Debug')
+    expect(record, 'v2 路由 V2Debug 未注册').toBeDefined()
+    expect((record!.meta as Record<string, unknown>).title).toBe('v2.page.debug')
+    expect((record!.meta as Record<string, unknown>).permission).toBe('route:edit')
+  })
+
+  it('V2Debug component 指向 @/views-v2/debug/Debug.vue（S11b 原地实现，路由零改动）', async () => {
+    const v2Parent = router.options.routes.find((r) => r.path === '/v2')
+    const row = v2Parent?.children?.find((c) => c.name === 'V2Debug')
+    expect(row, '未在 /v2 children 找到 V2Debug').toBeDefined()
+    const loader = (row as unknown as Record<string, unknown>).component as
+      (() => Promise<{ default: unknown }>) | undefined
+    expect(typeof loader).toBe('function')
+    const mod = await loader!()
+    const expected = await import('@/views-v2/debug/Debug.vue')
+    expect(mod.default).toBe(expected.default)
+  })
+})
+
 describe('旧路由零变化 — 契约 §0 铁律 1', () => {
   it.each(LEGACY_TABLE)('旧路由 $name 仍存在且 path/permission 不变', ({ name, path, permission }) => {
     const record = recordByName(name)
