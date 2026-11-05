@@ -73,8 +73,28 @@
  *
  * ── SDK-only（铁律 2）────────────────────────────────────────────────────────
  * 源码禁 <el- 直用；template 块禁 CJK（文案一律 t()，中文注释只允许在 script 块）。
+ *
+ * ── S9b-T 追记（本步追加，既有 70 用例一字未动）─────────────────────────────
+ * 上文「S9a 范围 / mock 只含 getCanvas/getRoute / saveCanvas 不得被 import」的约束自本步起
+ * 按铁律放开：mock '@/api/routes' 补齐 saveCanvas/applyCanvas 两成员（页面 import 的全部成员
+ * 必须被 mock 导出）；文件尾部追加「S9b 接线」describe 块（属性面板出现/消失 + cnv-save-chip
+ * 保存状态 chip + 自动保存触发，先红预期，S9b-C 落地后自绿）。
+ * 注意：文件内「S9a 边界」用例（源码不得 import saveCanvas/applyCanvas）在 S9b-C 接线后必然
+ * 转红——属预期过时用例，S9b 验收时删除该用例（本 T 步不改既有断言，故保留原样）。
+ * S9b 接线契约（头注存证，详见尾部 describe）：
+ * - PropertyPanel（name V2PropertyPanel）挂 cnv-prop-panel，随 selectedNode/selectedEdge
+ *   出现/消失；canEdit=false 不渲染（编辑入口只读全隐）。
+ * - ApplyDiffDialog（name V2ApplyDiffDialog）常驻挂载；工具栏 cnv-apply 入口（文案
+ *   v2.canvas.applyTitle），守卫（孤儿/嵌套）通过后调 open()；canEdit=false 入口不渲染。
+ * - cnv-status 内新增 cnv-save-chip：data-state ∈ idle|dirty|saving|saved|failed，文案
+ *   saveDirty/saveSaving/saveSaved/saveFailed；canEdit=false 不渲染。
+ * - 自动保存：任何画布图变更（addNodeType/delete/undo/redo/connect/setEdgeWeight/属性面板编辑）
+ *   置 dirty 并重启 3s 防抖 → saveCanvas(routeId, { nodes, edges })（composable 契约见
+ *   useCanvasAutosave.test.ts 头注）。
+ * - 新 i18n key（v2.canvas.*，尾部 it.each 锁双语）：saveDirty / saveSaving / saveSaved /
+ *   saveFailed / applyTitle。
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { nextTick } from 'vue'
 import { setActivePinia, createPinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
@@ -90,15 +110,20 @@ import { WEIGHT_MIN, WEIGHT_MAX, parseWeight } from '@/utils/weight'
 const mocks = vi.hoisted(() => ({
   getCanvas: vi.fn(),
   getRoute: vi.fn(),
+  saveCanvas: vi.fn(),
+  applyCanvas: vi.fn(),
   hasPermission: vi.fn(() => true),
   hasAnyPermission: vi.fn(() => true),
   canEdit: vi.fn(() => true)
 }))
 
-// S9a 只读画布数据：mock 仅 getCanvas/getRoute（saveCanvas/applyCanvas 归 S9b，不 mock 不引用）
+// S9a 只用 getCanvas/getRoute；S9b-T 起按铁律补齐 saveCanvas/applyCanvas 两成员
+// （页面 import 的全部成员 mock 必须导出，否则 S9b-C 接线后整文件收集失败）
 vi.mock('@/api/routes', () => ({
   getCanvas: mocks.getCanvas,
-  getRoute: mocks.getRoute
+  getRoute: mocks.getRoute,
+  saveCanvas: mocks.saveCanvas,
+  applyCanvas: mocks.applyCanvas
 }))
 vi.mock('@/composables/usePermission', () => ({
   usePermission: () => ({
@@ -674,10 +699,102 @@ describe('v2 canvas/Canvas — SDK-only 与 375 横滚容器（源码 grep，铁
     expect(scroller.find('[data-testid="cnv-canvas"]').exists()).toBe(true)
     expect(readSource()).toMatch(/overflow-x:\s*auto/)
   })
+})
 
-  it('S9a 边界：@/api/routes 仅 import getCanvas/getRoute（保存/应用归 S9b，mock 工厂无此导出）', () => {
-    const importStmt = readSource().match(/import\s*\{[^}]*\}\s*from\s*'@\/api\/routes'/)?.[0] ?? ''
-    expect(importStmt).toContain('getCanvas')
-    expect(importStmt).not.toMatch(/saveCanvas|applyCanvas/)
+// ═════════════════════════════════════════════════════════════════════════════
+// S9b-T 追加（本步新增，S9b-C 落地后自绿；先红预期 = 断言级失败，非模块缺失）：
+// 属性面板接线 + 保存状态 chip + 自动保存触发 + 应用入口。
+// 既有 70 用例一字未动；mock 工厂已按铁律补齐 saveCanvas/applyCanvas（见头注追记）。
+// ═════════════════════════════════════════════════════════════════════════════
+
+// S9b 新 i18n key（v2.canvas.*，接线层消费；zh/en 双语存在，铁律 6）
+const S9B_KEYS = ['saveDirty', 'saveSaving', 'saveSaved', 'saveFailed', 'applyTitle']
+  .map((k) => `v2.canvas.${k}`)
+
+describe('v2 canvas/Canvas — S9b 接线（属性面板 + 保存状态 + 自动保存 + 应用入口）', () => {
+  beforeEach(() => {
+    mocks.saveCanvas.mockReset().mockResolvedValue(undefined)
+    mocks.applyCanvas.mockReset().mockResolvedValue({ to_create: [], to_update: [], to_delete: [] })
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  describe('i18n key 双语存在（S9b 增量，铁律 6）', () => {
+    it.each(S9B_KEYS)('%s 在 zh-CN 与 en-US 都存在', (key) => {
+      expect(dig(zhCN, key), `zh-CN 缺少 ${key}`).toBeDefined()
+      expect(dig(enUS, key), `en-US 缺少 ${key}`).toBeDefined()
+    })
+  })
+
+  it('面板随选中出现/消失：无选中不渲染 → onNodeClick 出现且名称字段 = 节点 label → onPaneClick 消失', async () => {
+    const { wrapper } = await factory()
+    expect(byTestid(wrapper, 'cnv-prop-panel').exists()).toBe(false)
+    const vm = wrapper.vm as any
+    vm.onNodeClick({ node: vm.nodes.find((n: any) => n.id === 'd1') })
+    await nextTick()
+    expect(byTestid(wrapper, 'cnv-prop-panel').exists()).toBe(true)
+    expect((byTestid(wrapper, 'cnv-prop-name').element as HTMLInputElement).value).toBe('D1')
+    vm.onPaneClick()
+    await nextTick()
+    expect(byTestid(wrapper, 'cnv-prop-panel').exists()).toBe(false)
+  })
+
+  it('只读（canEdit=false）：cnv-prop-panel / cnv-apply / cnv-save-chip 均不渲染（可写 UI 全隐）', async () => {
+    mocks.canEdit.mockReturnValue(false)
+    const { wrapper } = await factory()
+    const vm = wrapper.vm as any
+    vm.onNodeClick({ node: vm.nodes[0] })
+    await nextTick()
+    expect(byTestid(wrapper, 'cnv-prop-panel').exists()).toBe(false)
+    expect(byTestid(wrapper, 'cnv-apply').exists()).toBe(false)
+    expect(byTestid(wrapper, 'cnv-save-chip').exists()).toBe(false)
+  })
+
+  it('应用入口：cnv-apply（文案 applyTitle）存在 + ApplyDiffDialog 常驻挂载（name V2ApplyDiffDialog）', async () => {
+    const { wrapper } = await factory()
+    expect(byTestid(wrapper, 'cnv-apply').exists()).toBe(true)
+    expect(byTestid(wrapper, 'cnv-apply').text()).toContain(t('v2.canvas.applyTitle'))
+    expect(wrapper.findComponent({ name: 'V2ApplyDiffDialog' }).exists()).toBe(true)
+    // 属性面板组件同款可定位（供细粒度用例 findComponent）
+    expect(wrapper.findComponent({ name: 'V2PropertyPanel' }).exists()).toBe(true)
+  })
+
+  it('保存状态 chip：初始 data-state=idle；图变更（addNodeType）→ dirty + saveDirty 文案', async () => {
+    const { wrapper } = await factory()
+    expect(byTestid(wrapper, 'cnv-save-chip').attributes('data-state')).toBe('idle')
+    await byTestid(wrapper, 'cnv-add-dispatch').trigger('click')
+    await nextTick()
+    expect(byTestid(wrapper, 'cnv-save-chip').attributes('data-state')).toBe('dirty')
+    expect(byTestid(wrapper, 'cnv-save-chip').text()).toContain(t('v2.canvas.saveDirty'))
+  })
+
+  it('自动保存触发：编辑后 3s 防抖恰一次 saveCanvas(routeId,{nodes,edges}) → chip=saved（saveSaved）', async () => {
+    const { wrapper } = await factory() // factory 内 flushPromises 走真实时钟
+    const vm = wrapper.vm as any
+    vi.useFakeTimers()
+    await byTestid(wrapper, 'cnv-add-dispatch').trigger('click')
+    expect(mocks.saveCanvas).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(2999)
+    expect(mocks.saveCanvas).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(mocks.saveCanvas).toHaveBeenCalledTimes(1)
+    expect(mocks.saveCanvas).toHaveBeenCalledWith('r1', { nodes: vm.nodes, edges: vm.edges })
+    await vi.advanceTimersByTimeAsync(0)
+    await nextTick()
+    expect(byTestid(wrapper, 'cnv-save-chip').attributes('data-state')).toBe('saved')
+    expect(byTestid(wrapper, 'cnv-save-chip').text()).toContain(t('v2.canvas.saveSaved'))
+  })
+
+  it('自动保存防抖重启：3s 窗口内二次编辑 → 定时重置，仍只发一次', async () => {
+    const { wrapper } = await factory()
+    vi.useFakeTimers()
+    await byTestid(wrapper, 'cnv-add-dispatch').trigger('click')
+    await vi.advanceTimersByTimeAsync(2000)
+    await byTestid(wrapper, 'cnv-add-backend').trigger('click')
+    await vi.advanceTimersByTimeAsync(2000) // 距末次编辑仅 2s，不得发出
+    expect(mocks.saveCanvas).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(mocks.saveCanvas).toHaveBeenCalledTimes(1)
   })
 })

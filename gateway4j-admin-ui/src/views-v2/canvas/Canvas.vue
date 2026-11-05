@@ -70,6 +70,16 @@
             {{ t('v2.canvas.delete') }}
           </FcButton>
         </span>
+        <!-- S9b: apply-to-route-tree entry; guards (orphan / depth) run before the dialog opens -->
+        <FcButton
+          v-if="canEditRoute"
+          variant="primary"
+          size="sm"
+          data-testid="cnv-apply"
+          @click="onApplyClick"
+        >
+          {{ t('v2.canvas.applyTitle') }}
+        </FcButton>
         <span class="cnv-chips">
           <span v-if="limitHit" class="cnv-chip is-warn" data-testid="cnv-limit-chip">{{ t('v2.canvas.limitWarn') }}</span>
           <span v-if="connectionError" class="cnv-chip is-warn" data-testid="cnv-conn-error">{{ connErrorText }}</span>
@@ -110,6 +120,7 @@
                 :nodes-draggable="canEditRoute"
                 :elements-selectable="true"
                 @node-click="onNodeClick"
+                @edge-click="onEdgeClick"
                 @pane-click="onPaneClick"
                 @connect="onConnect"
               >
@@ -129,20 +140,49 @@
               </div>
             </div>
           </div>
+          <!-- S9b: property panel dock (appears only while a node/edge is selected) -->
+          <PropertyPanel
+            v-if="canEditRoute"
+            class="cnv-prop-dock"
+            :node="selectedNode"
+            :edge="selectedEdge"
+            :can-edit="canEditRoute"
+            @dirty="touch"
+            @delete="onPanelDelete"
+            @set-weight="setEdgeWeight"
+          />
           <!-- Bottom status bar: counters stay visible in read-only (viewing is never restricted) -->
           <div class="cnv-status" data-testid="cnv-status">
             {{ t('v2.canvas.statusNodes', { n: nodes.length }) }}
             <span class="cnv-status-sep" aria-hidden="true">·</span>
             {{ t('v2.canvas.statusEdges', { n: edges.length }) }}
+            <!-- S9b: autosave state chip (idle | dirty | saving | saved | failed) -->
+            <span
+              v-if="canEditRoute"
+              class="cnv-save-chip"
+              :class="`is-${saveState}`"
+              data-testid="cnv-save-chip"
+              :data-state="saveState"
+            >
+              <span v-if="saveStateTextKey">{{ t(saveStateTextKey) }}</span>
+            </span>
           </div>
         </div>
       </div>
     </FcSection>
+    <!-- S9b: apply-to-tree dialog stays mounted while editable; entry guards live in onApplyClick -->
+    <ApplyDiffDialog
+      v-if="canEditRoute"
+      ref="applyRef"
+      :route-id="routeId"
+      :get-snapshot="getSnapshot"
+      @applied="onApplied"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { VueFlow } from '@vue-flow/core'
@@ -154,20 +194,24 @@ import '@vue-flow/core/dist/theme-default.css'
 import '@vue-flow/controls/dist/style.css'
 import '@vue-flow/minimap/dist/style.css'
 
-import { FcButton, FcIcon, FcSection } from '@/components'
+import { FcButton, FcIcon, FcSection, toast } from '@/components'
 import { usePermission } from '@/composables/usePermission'
 import { getCanvas, getRoute } from '@/api/routes'
 import { useCanvasGraph } from './composables/useCanvasGraph'
+import { useCanvasAutosave } from './composables/useCanvasAutosave'
 import { MAX_DISPATCH_DEPTH, maxDispatchDepth, orphanDispatchNodes } from './composables/useCanvasValidation'
+import PropertyPanel from './PropertyPanel.vue'
+import ApplyDiffDialog from './ApplyDiffDialog.vue'
 
 /**
- * S9a-C：v2 流程编排画布（原型 04）—— 内核 + 节点库（点击添加）+ 工具栏 + 校验 chips。
- * 本地编辑不落库：无保存 / 应用 / 自动保存 / 属性面板（S9b 接线）。
- * - 内核全部在 useCanvasGraph（旧画布五段逻辑随迁：parse/loadEpoch/快照栈/连线/权重写/键盘）；
- * - 校验纯函数在 useCanvasValidation（reason 枚举），本组件只做 i18n 文案映射；
- * - 只读态（canEdit('route')=false）：节点库隐藏、undo/redo/delete disabled、
- *   VueFlow nodesConnectable/nodesDraggable=false；看图（status/chips/back）不受限；
- * - 权重边 label 读侧 `${n}%`，其余边 label=condition_value（utils/weight 原封复用）。
+ * S9b-C 接线：v2 流程编排画布（原型 04）—— 内核 + 节点库 + 工具栏 + 校验 chips
+ * + 属性面板 + 自动保存（3s 防抖 + 3 重试）+ 应用到路由树（dry_run 三段式弹窗）。
+ * - 内核/校验在 useCanvasGraph / useCanvasValidation（旧画布五段逻辑随迁）；
+ * - 自动保存在 useCanvasAutosave：图变更（增删/连线/undo/redo/权重/面板编辑）→ markDirty；
+ *   load 尾部 → markLoaded（旧 dirty=false 语义随迁）；状态 chip idle/dirty/saving/saved/failed；
+ * - 应用入口守卫（孤儿分发 / 嵌套深度）通过后才 open() 弹窗；成功 toast 归本层（S9b 范围）；
+ * - 只读态（canEdit('route')=false）：可写 UI（节点库/面板/应用入口/保存 chip）全隐，
+ *   undo/redo/delete disabled；看图（status/chips/back）不受限。
  */
 defineOptions({ name: 'V2Canvas' })
 
@@ -178,13 +222,36 @@ const { canEdit } = usePermission()
 const canEditRoute = computed(() => canEdit('route'))
 const routeId = computed(() => String(route.params.id ?? ''))
 
+const autosave = useCanvasAutosave({
+  routeId,
+  getSnapshot
+})
+
+function touch() {
+  if (!canEditRoute.value) return
+  autosave.markDirty()
+}
+
+function onGraphLoaded() {
+  autosave.markLoaded()
+}
+
 const {
-  loading, loadError, nodes, edges, selectedNode,
+  loading, loadError, nodes, edges, selectedNode, selectedEdge,
   connectionError, limitHit, canUndo, canRedo,
-  load, addNodeType, deleteSelected, onConnect, onNodeClick, onPaneClick,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- S9a 无属性面板；S9b 接线位，测试经 vm.setEdgeWeight 调用
+  load, addNodeType, deleteSelected, deleteEdge, onConnect, onNodeClick, onPaneClick, onEdgeClick,
   undo, redo, setEdgeWeight
-} = useCanvasGraph(routeId, { loadCanvas: getCanvas, loadRoute: getRoute })
+} = useCanvasGraph(routeId, {
+  loadCanvas: getCanvas,
+  loadRoute: getRoute,
+  onMutate: touch,
+  onLoaded: onGraphLoaded
+})
+
+/** live 取数器：自动保存与应用弹窗共用（保存语义 saveCanvas(routeId, { nodes, edges })） */
+function getSnapshot() {
+  return { nodes: nodes.value, edges: edges.value }
+}
 
 // 删除动作统一入口（宿主 span + 按钮键盘路径双入口，均幂等：第二次进入时
 // selectedNode 已被 deleteSelected 清空直接早退）。点击时以最新选中态判定，
@@ -192,6 +259,49 @@ const {
 function onDeleteClick() {
   if (!canEditRoute.value || !selectedNode.value) return
   deleteSelected()
+}
+
+// —— S9b：属性面板删除 → 图删除（节点走选中删除；边按 id）——
+function onPanelDelete(payload: { kind: 'node' | 'edge'; id: string }) {
+  if (!canEditRoute.value) return
+  if (payload.kind === 'node') {
+    if (selectedNode.value?.id === payload.id) deleteSelected()
+  } else {
+    deleteEdge(payload.id)
+  }
+}
+
+// —— S9b：保存状态 chip（idle/dirty/saving/saved/failed；文案仅非 idle 有）——
+type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'failed'
+const saveState = computed<SaveState>(() => {
+  if (autosave.failed.value) return 'failed'
+  if (autosave.saving.value) return 'saving'
+  if (autosave.dirty.value) return 'dirty'
+  if (autosave.lastSavedAt.value) return 'saved'
+  return 'idle'
+})
+const saveStateTextKey = computed(() => {
+  const keys: Record<SaveState, string> = {
+    dirty: 'v2.canvas.saveDirty',
+    saving: 'v2.canvas.saveSaving',
+    saved: 'v2.canvas.saveSaved',
+    failed: 'v2.canvas.saveFailed',
+    idle: ''
+  }
+  return keys[saveState.value]
+})
+
+// —— S9b：应用到路由树（入口守卫：孤儿分发 / 嵌套深度，通过后才开弹窗）——
+const applyRef = ref<InstanceType<typeof ApplyDiffDialog> | null>(null)
+
+async function onApplyClick() {
+  if (!canEditRoute.value || loading.value) return
+  if (orphanCount.value > 0 || maxDepth.value > MAX_DISPATCH_DEPTH) return
+  await applyRef.value?.open()
+}
+
+function onApplied() {
+  toast.success(t('v2.canvas.applySuccess'))
 }
 
 // 校验 chips 数据（纯函数 + computed；check 与 orphan/depth 互斥由模板 v-if 链保证）
@@ -442,6 +552,48 @@ const palette = computed(() => [
 }
 .cnv-status-sep {
   color: var(--app-text-quaternary);
+}
+/* —— S9b：自动保存状态 chip（idle/dirty/saving/saved/failed 五态，token-only 配色）—— */
+.cnv-save-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  padding: 2px 10px;
+  font-size: 11.5px;
+  border: 1px solid transparent;
+  border-radius: var(--app-radius-full);
+
+  &.is-idle {
+    color: var(--app-text-tertiary);
+    background: var(--app-bg-muted);
+    border-color: var(--app-border-extra-light);
+  }
+  &.is-dirty {
+    color: var(--app-color-warning-text-on-tint);
+    background: color-mix(in srgb, var(--app-color-warning) 12%, transparent);
+    border-color: color-mix(in srgb, var(--app-color-warning) 30%, transparent);
+  }
+  &.is-saving {
+    color: var(--app-text-secondary);
+    background: var(--app-bg-muted);
+    border-color: var(--app-border-light, var(--app-border-extra-light));
+  }
+  &.is-saved {
+    color: var(--app-color-success-text-on-tint);
+    background: color-mix(in srgb, var(--app-color-success) 12%, transparent);
+    border-color: color-mix(in srgb, var(--app-color-success) 30%, transparent);
+  }
+  &.is-failed {
+    color: var(--app-color-danger-text-on-tint);
+    background: color-mix(in srgb, var(--app-color-danger) 12%, transparent);
+    border-color: color-mix(in srgb, var(--app-color-danger) 30%, transparent);
+  }
+}
+/* —— S9b：属性面板停靠卡片（选中即现于画布下方）—— */
+.cnv-prop-dock {
+  margin-top: 12px;
+  max-width: 560px;
 }
 
 /* —— 窄视口：节点库下沉为横向 chip 行，画布降高（横滚由容器吸收，页面无横向溢出）—— */

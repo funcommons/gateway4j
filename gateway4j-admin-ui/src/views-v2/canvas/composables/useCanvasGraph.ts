@@ -38,6 +38,10 @@ export type CanvasConnError = '' | 'selfLoop' | 'backendOutgoing'
 export interface CanvasLoaders {
   loadCanvas: (id: string) => Promise<any>
   loadRoute: (id: string) => Promise<any>
+  /** S9b：load 尾部回调（旧 load() finally 里 dirty=false 语义随迁 → autosave.markLoaded） */
+  onLoaded?: () => void
+  /** S9b：任意图变更成功落地后的回调（→ autosave.markDirty；键盘 undo/redo 同样触发） */
+  onMutate?: () => void
 }
 
 export function useCanvasGraph(routeId: Ref<string>, loaders: CanvasLoaders = { loadCanvas: getCanvas, loadRoute: getRoute }) {
@@ -46,6 +50,7 @@ export function useCanvasGraph(routeId: Ref<string>, loaders: CanvasLoaders = { 
   const nodes = ref<any[]>([])
   const edges = ref<any[]>([])
   const selectedNode = ref<any>(null)
+  const selectedEdge = ref<any>(null)
   const connectionError = ref<CanvasConnError>('')
   const limitHit = ref(false)
 
@@ -98,6 +103,7 @@ export function useCanvasGraph(routeId: Ref<string>, loaders: CanvasLoaders = { 
       }
     }
     selectedNode.value = null
+    selectedEdge.value = null
     syncLabels()
     pushHistory()
   }
@@ -122,7 +128,11 @@ export function useCanvasGraph(routeId: Ref<string>, loaders: CanvasLoaders = { 
       // 不透传原始异常 message（契约：错误条文案一律 i18n）
       loadError.value = 'loadFailed'
     } finally {
-      if (myEpoch === loadEpoch) loading.value = false
+      if (myEpoch === loadEpoch) {
+        loading.value = false
+        // S9b：load 尾部（旧 dirty=false 语义随迁）→ autosave.markLoaded
+        loaders.onLoaded?.()
+      }
     }
   }
 
@@ -154,7 +164,9 @@ export function useCanvasGraph(routeId: Ref<string>, loaders: CanvasLoaders = { 
     nodes.value = state.nodes
     edges.value = state.edges
     selectedNode.value = null
+    selectedEdge.value = null
     syncLabels()
+    loaders.onMutate?.()
   }
 
   function redo() {
@@ -164,7 +176,9 @@ export function useCanvasGraph(routeId: Ref<string>, loaders: CanvasLoaders = { 
     nodes.value = state.nodes
     edges.value = state.edges
     selectedNode.value = null
+    selectedEdge.value = null
     syncLabels()
+    loaders.onMutate?.()
   }
 
   // ── 节点增删（旧 onDrop 拖放语义 → addNodeType 点击添加，拆步裁决④）───────
@@ -178,6 +192,7 @@ export function useCanvasGraph(routeId: Ref<string>, loaders: CanvasLoaders = { 
     const n = nodes.value.length
     nodes.value = [...nodes.value, { id, type, position: { x: 40 + (n % 8) * 36, y: 40 + (n % 8) * 36 }, data: { label: type } }]
     pushHistory()
+    loaders.onMutate?.()
   }
 
   // 节点数回退到上限内后解除 limit 提示（旧 watch(len) 清除语义随迁）
@@ -194,6 +209,18 @@ export function useCanvasGraph(routeId: Ref<string>, loaders: CanvasLoaders = { 
     selectedNode.value = null
     syncLabels()
     pushHistory()
+    loaders.onMutate?.()
+  }
+
+  /** S9b：按 id 删除单条边（属性面板删除连线入口，pushHistory 可撤销） */
+  function deleteEdge(id: string) {
+    const before = edges.value.length
+    edges.value = edges.value.filter(e => e.id !== id)
+    if (edges.value.length === before) return
+    if (selectedEdge.value?.id === id) selectedEdge.value = null
+    syncLabels()
+    pushHistory()
+    loaders.onMutate?.()
   }
 
   // ── 连线（旧 onConnect 随迁：判定走纯函数，错误存 reason 枚举）────────────
@@ -212,16 +239,25 @@ export function useCanvasGraph(routeId: Ref<string>, loaders: CanvasLoaders = { 
     edge.label = edgeLabelOf(edge)
     edges.value = [...edges.value, edge]
     pushHistory()
+    loaders.onMutate?.()
   }
 
-  // ── 选择（旧 onNodeClick / onPaneClick 随迁；边选择与属性面板归 S9b）───────
+  // ── 选择（旧 onNodeClick / onPaneClick / onEdgeClick 随迁）─────────────────
   function onNodeClick({ node }: any) {
     if (!node.data) node.data = {}
     selectedNode.value = node
+    selectedEdge.value = null
   }
 
   function onPaneClick() {
     selectedNode.value = null
+    selectedEdge.value = null
+  }
+
+  function onEdgeClick({ edge }: any) {
+    if (!edge.data) edge.data = { condition_type: 'PATH', condition_value: '', priority: 1 }
+    selectedNode.value = null
+    selectedEdge.value = edge
   }
 
   // ── 权重写（旧 updateEdgeWeight 写语义随迁，edge 改为入参）─────────────────
@@ -235,6 +271,7 @@ export function useCanvasGraph(routeId: Ref<string>, loaders: CanvasLoaders = { 
     edge.data.condition_value = ''
     syncLabels()
     pushHistory()
+    loaders.onMutate?.()
   }
 
   // ── 键盘（旧 L730-752 随迁，配对卸载）────────────────────────────────────
@@ -263,9 +300,9 @@ export function useCanvasGraph(routeId: Ref<string>, loaders: CanvasLoaders = { 
   })
 
   return {
-    loading, loadError, nodes, edges, selectedNode,
+    loading, loadError, nodes, edges, selectedNode, selectedEdge,
     connectionError, limitHit, canUndo, canRedo,
-    load, addNodeType, deleteSelected, onConnect, onNodeClick, onPaneClick,
+    load, addNodeType, deleteSelected, deleteEdge, onConnect, onNodeClick, onPaneClick, onEdgeClick,
     undo, redo, setEdgeWeight
   }
 }
