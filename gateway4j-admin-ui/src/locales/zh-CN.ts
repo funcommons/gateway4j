@@ -675,6 +675,29 @@ export default {
       snapshotHint: 'Prometheus 暂不可用，部分路由展示快照兜底数据',
       loadFailed: '流量指标加载失败，指标卡暂不可用'
     },
+    // P4b-1 监控大盘静态版（与 en-US 严格同步；砍除项不设 key：告警/环境/delta/实例矩阵缺口不造数）
+    monitor: {
+      subtitle: '网关级与路由级指标聚合 · Prometheus 采集',
+      kpiHits: '近 24h 请求',
+      kpiQps: '当前 QPS',
+      kpiP95: '平均 P95',
+      kpiErrorRate: '错误率',
+      kpiConnections: '活跃连接',
+      upstreamTitle: '上游健康',
+      upOk: '可达',
+      upBad: '不可达',
+      upBadCount: '{n} 个上游不可达',
+      upstreamEmpty: '暂无上游探测数据',
+      upstreamFailed: '上游健康加载失败',
+      slowTitle: '慢路由 Top 5',
+      slowHint: '按 P95 延迟降序 · 红档 ≥ 300ms',
+      slowEmpty: '暂无慢路由数据',
+      donutTitle: '状态码分布',
+      donutHint: '近 24h 聚合',
+      donutEmpty: '暂无状态码数据',
+      snapshotHint: 'Prometheus 暂不可用，部分路由展示快照兜底数据',
+      loadFailed: '流量指标加载失败，指标卡暂不可用'
+    },
     routes: {
       create: '新建路由',
       statusPublished: '已发布',

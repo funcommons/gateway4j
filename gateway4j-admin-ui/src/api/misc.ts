@@ -15,6 +15,8 @@ export interface RouteStatusItem {
   error_rate: number
   /** P2-6 配套：上游健康探测结果（可选，旧版后端不下发 → undefined 不展示徽标） */
   upstream?: { reachable: boolean; latency_ms?: number | string; checked_at?: string | number } | null
+  /** P1-1 在途请求数 gauge（MonitorController buildStatus 下发；Long→String 契约下可能为字符串，旧版不下发 → 按 0 计） */
+  active_connections?: number | string
 }
 
 export function listRouteStatus(routeId?: string) {

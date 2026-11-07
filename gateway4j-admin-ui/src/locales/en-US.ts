@@ -678,6 +678,29 @@ export default {
       snapshotHint: 'Prometheus unavailable — some routes show snapshot fallback data',
       loadFailed: 'Failed to load traffic metrics — KPI cards unavailable'
     },
+    // P4b-1 monitoring dashboard, static version (kept strictly in sync with zh-CN; cut blocks get no keys)
+    monitor: {
+      subtitle: 'Gateway-level and route-level metric aggregation · Prometheus',
+      kpiHits: 'Requests (24h)',
+      kpiQps: 'Current QPS',
+      kpiP95: 'Avg P95',
+      kpiErrorRate: 'Error rate',
+      kpiConnections: 'Active connections',
+      upstreamTitle: 'Upstream health',
+      upOk: 'Reachable',
+      upBad: 'Unreachable',
+      upBadCount: '{n} unreachable upstreams',
+      upstreamEmpty: 'No upstream probe data',
+      upstreamFailed: 'Failed to load upstream health',
+      slowTitle: 'Slow routes Top 5',
+      slowHint: 'Sorted by P95 latency · red tier >= 300ms',
+      slowEmpty: 'No slow-route data',
+      donutTitle: 'Status code distribution',
+      donutHint: 'Aggregated over 24h',
+      donutEmpty: 'No status code data',
+      snapshotHint: 'Prometheus unavailable — some routes show snapshot fallback data',
+      loadFailed: 'Failed to load traffic metrics — KPI cards unavailable'
+    },
     routes: {
       create: 'New route',
       statusPublished: 'Published',
