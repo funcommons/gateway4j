@@ -119,6 +119,26 @@ public class MonitorController {
         return timeseriesService.timeseries(routeId, timeRange, granularity);
     }
 
+    /**
+     * 网关级聚合时序（P4b-2a，docs/ui-v2/实施契约.md §4 P4 表）：6 条 range query
+     * 全部网关级 sum 单序列聚合（无 path 过滤/分组、无 routeId 输入），Prometheus
+     * 优先、快照兜底，service 侧语义见
+     * {@link MonitorTimeseriesService#gatewayTimeseries}。返回 ApiResponse.success
+     * 信封（区别于旧 {@link #timeseries} 的裸 Map）；类级 {@code @RequiresToken}
+     * 沿用。
+     *
+     * <p><b>quantile_fallback 两处语义区分（契约 S2/S8 双注记）</b>：本端点所属
+     * timeseries 侧 {@code quantile_fallback=true} = p50/p95/p99 <b>按 avg 退化
+     * 填充</b>（有值，可直接画线）；S2 traffic-summary 侧 p95 缺失 = null 占位
+     * （前端须判空）。监控大盘 v2 的文案与判空逻辑不得混用两种语义。</p>
+     */
+    @GetMapping("/gateway/timeseries")
+    public ApiResponse<Map<String, Object>> gatewayTimeseries(
+            @RequestParam(name = "time_range", defaultValue = "1h") String timeRange,
+            @RequestParam(name = "granularity", defaultValue = "1m") String granularity) {
+        return ApiResponse.success(timeseriesService.gatewayTimeseries(timeRange, granularity));
+    }
+
     @GetMapping("/topology")
     public Map<String, Object> getTopology() {
         List<Route> routes = routeService.listRoutes(null, null, null);

@@ -111,6 +111,43 @@ public class MonitorTimeseriesService {
         return result;
     }
 
+    /**
+     * 网关级聚合时序（P4b-2a，docs/ui-v2/实施契约.md §4 P4 表）：与
+     * {@link #timeseries(Long, String, String)} 同一套 6 序列 query_range 组装
+     * （total / errors / avg 合并单 query / q0.5 / q0.95 / q0.99），但全部查询为
+     * <b>网关级 sum 单序列聚合</b> —— 不带 path 过滤、不带 {@code by (path)} 分组
+     * （多 path 序列在 mergeRange 按时间戳 assign 语义下会互相覆盖，total 退化为
+     * 任意单 path 值），因此本入口不触达 RouteService。粒度映射
+     * （rangeMsFor/stepMsFor/pointsFor 上限 500）、秒→ms 换算、ISO-8601 timestamp、
+     * quantile_fallback（分位缺失按 avg 退化填充并标 true）与降级口径
+     * （Prometheus 异常 → warn + source=snapshot，点数按网格补齐）全部随迁既有
+     * {@code /timeseries}。
+     */
+    public Map<String, Object> gatewayTimeseries(String timeRange, String granularity) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        if (isPrometheusConfigured()) {
+            try {
+                result.put("source", "prometheus");
+                var prometheusResult = queryPrometheusGateway(timeRange, granularity);
+                result.put("data_points", prometheusResult.getValue());
+                // quantile 序列缺失 → 该分位已按 avg 退化（与路由级同一标注口径）
+                if (prometheusResult.getKey()) {
+                    result.put("quantile_fallback", true);
+                }
+                return result;
+            } catch (Exception e) {
+                // 查询失败 → 快照回退，绝不 500
+                log.warn("[指标时序] 网关级 Prometheus 查询失败（url={}），回退快照: {}",
+                        prometheusUrl, e.getMessage());
+            }
+        }
+        result.put("source", "snapshot");
+        // 网关级无 path 输入 → normalizePath(null)="unknown"：快照兜底沿既有平铺
+        // 网格口径（缺口不造数，点数仍按 pointsFor 补齐）
+        result.put("data_points", snapshotDataPoints(normalizePath(null), timeRange, granularity));
+        return result;
+    }
+
     // ==================== 快照兜底（原 /metrics 平铺逻辑平移） ====================
 
     /** 路由状态条（大盘卡片）合成指标：本地注册表 + Redis 快照一次读齐。 */
@@ -310,6 +347,62 @@ public class MonitorTimeseriesService {
                 (p, v) -> p.p95 = v * 1000d);
         mergeRange(grid, rangeQuery(quantileQuery(normalized, "0.99"), startSec, endSec, stepSec),
                 (p, v) -> p.p99 = v * 1000d);
+        var built = gridToDataPoints(grid);
+        if (built.getValue().isEmpty()) {
+            // Prometheus 可达但区间无任何序列 → 补齐 step 网格零点，保持返回形状稳定
+            return Map.entry(false, snapshotDataPoints(normalized, timeRange, granularity));
+        }
+        if (built.getKey()) {
+            log.info("[指标时序] Prometheus 分位序列缺失，p50/p95/p99 已按 avg 退化（path={}）", normalized);
+        }
+        return built;
+    }
+
+    /**
+     * 网关级聚合 range query（P4b-2a）：与 {@link #queryPrometheus} 同一套网格组装，
+     * 但 6 条查询全部为<b>网关级单序列聚合</b> —— 查询串不得出现任何 path 引用
+     * （过滤 {@code path="..."} / 分组 {@code by (path)} / 路由路径归一产物
+     * {@code {id}}），见 {@link #gatewayTimeseries}。
+     */
+    /** @return key=quantile 是否退化（缺 quantile 序列），value=data_points */
+    private Map.Entry<Boolean, List<Map<String, Object>>> queryPrometheusGateway(String timeRange,
+                                                                                  String granularity) throws Exception {
+        long rangeMs = rangeMsFor(timeRange);
+        long stepMs = stepMsFor(granularity);
+        long endSec = System.currentTimeMillis() / 1000;
+        long startSec = endSec - rangeMs / 1000;
+        String stepSec = String.valueOf(Math.max(1, stepMs / 1000));
+
+        TreeMap<Long, Point> grid = new TreeMap<>();
+        mergeRange(grid, rangeQuery("sum(gateway4j_requests_total)", startSec, endSec, stepSec),
+                (p, v) -> p.total = Math.round(v));
+        mergeRange(grid, rangeQuery("sum(gateway4j_requests_errors)", startSec, endSec, stepSec),
+                (p, v) -> p.errors = Math.round(v));
+        mergeRange(grid, rangeQuery(gatewayAvgLatencyQuery(Math.max(2 * stepMs / 1000, 120)),
+                startSec, endSec, stepSec), (p, v) -> p.avg = v * 1000d);
+        mergeRange(grid, rangeQuery(gatewayQuantileQuery("0.5"), startSec, endSec, stepSec),
+                (p, v) -> p.p50 = v * 1000d);
+        mergeRange(grid, rangeQuery(gatewayQuantileQuery("0.95"), startSec, endSec, stepSec),
+                (p, v) -> p.p95 = v * 1000d);
+        mergeRange(grid, rangeQuery(gatewayQuantileQuery("0.99"), startSec, endSec, stepSec),
+                (p, v) -> p.p99 = v * 1000d);
+
+        var built = gridToDataPoints(grid);
+        if (built.getValue().isEmpty()) {
+            // Prometheus 可达但区间无任何序列 → 补齐 step 网格零点，保持返回形状稳定
+            return Map.entry(false, snapshotDataPoints(normalizePath(null), timeRange, granularity));
+        }
+        if (built.getKey()) {
+            log.info("[指标时序] Prometheus 网关级分位序列缺失，p50/p95/p99 已按 avg 退化");
+        }
+        return built;
+    }
+
+    /**
+     * 网格 → (quantile 是否退化, data_points)：分位缺失按 avg 退化填充，8 字段契约
+     * 与秒→ms/ISO-8601 换算路由级、网关级两条入口共用（口径单点）。
+     */
+    private Map.Entry<Boolean, List<Map<String, Object>>> gridToDataPoints(TreeMap<Long, Point> grid) {
         boolean quantileFallback = grid.values().stream()
                 .anyMatch(p -> p.p50 == null || p.p95 == null || p.p99 == null);
 
@@ -332,13 +425,6 @@ public class MonitorTimeseriesService {
             dp.put("p95_latency_ms", round3(p.p95 == null ? p.avg : p.p95));
             dp.put("p99_latency_ms", round3(p.p99 == null ? p.avg : p.p99));
             dataPoints.add(dp);
-        }
-        if (dataPoints.isEmpty()) {
-            // Prometheus 可达但区间无任何序列 → 补齐 step 网格零点，保持返回形状稳定
-            return Map.entry(false, snapshotDataPoints(normalized, timeRange, granularity));
-        }
-        if (quantileFallback) {
-            log.info("[指标时序] Prometheus 分位序列缺失，p50/p95/p99 已按 avg 退化（path={}）", normalized);
         }
         return Map.entry(quantileFallback, dataPoints);
     }
@@ -393,6 +479,18 @@ public class MonitorTimeseriesService {
     private String quantileQuery(String normalized, String quantile) {
         return "max by (path) (gateway4j_request_latency_seconds"
                 + labelFilter(normalized).replace("}", ",quantile=\"" + quantile + "\"}") + ")";
+    }
+
+    /** 网关级 avg（秒）：与 {@link #avgLatencyQuery(String, long)} 同构，仅去掉 by (path) 分组与 path 过滤。 */
+    private String gatewayAvgLatencyQuery(long rateWindowSec) {
+        String w = "[" + rateWindowSec + "s]";
+        return "sum(rate(gateway4j_request_latency_seconds_sum" + w + "))"
+                + " / sum(rate(gateway4j_request_latency_seconds_count" + w + "))";
+    }
+
+    /** 网关级分位 gauge：max 聚合全网关同名 quantile 序列（保守取上界，单序列输出）。 */
+    private String gatewayQuantileQuery(String quantile) {
+        return "max(gateway4j_request_latency_seconds{quantile=\"" + quantile + "\"})";
     }
 
     /** quantile 过滤写在 labelFilter 花括号里：{path="..."} → {path="...",quantile="0.5"}。 */
