@@ -176,7 +176,10 @@ const NAV_GROUPS: V2NavGroup[] = [
     labelKey: 'v2.nav.group.plugins',
     items: [
       { name: 'V2PluginChain', path: '/v2/plugins/chain', labelKey: 'v2.nav.pluginChain', icon: 'ri-stack-line' },
-      // P4a-1：插件组第二叶子。permission 字段 = 路由 meta.permission 的同值兜底（测试桩路由
+      // P4a-2：插件管理（插件组中间叶子 —— 链页保持 S1 首位、编辑器深页殿后）。
+      // permission 字段 = 路由 meta.permission 的同值兜底（测试桩路由不带 meta）
+      { name: 'V2PluginList', path: '/v2/plugins', labelKey: 'v2.nav.pluginList', icon: 'ri-list-check', permission: 'plugin:read' },
+      // P4a-1：插件编辑器叶子。permission 字段 = 路由 meta.permission 的同值兜底（测试桩路由
       // 不带 meta，canAccess 优先读 meta、缺省回退到这里；真实路由表两者一致，判据仍与守卫同源）
       { name: 'V2PluginEditor', path: '/v2/plugins/editor', labelKey: 'v2.nav.pluginEditor', icon: 'ri-edit-box-line', permission: 'plugin:edit' }
     ]

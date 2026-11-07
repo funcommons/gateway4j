@@ -20,6 +20,13 @@
  *   vue-router 静态段 'editor' 优先于无冲突动态段；:id? 可选参数缺省即 create 模式、
  *   保留字 'new' 同 create（页面语义见 views-v2/plugins/__tests__/Editor.test.ts 头注）。
  *   LayoutV2 插件组第二叶子断言见文末 P4a-1 追加段（nav 挂载模式沿 LayoutV2.test.ts）。
+ * - 【P4a-2-T 追加（2026-11-07，契约 §4 P4 表 P4a-2 行）】注册 V2PluginList
+ *   （views-v2/plugins/List.vue，path /v2/plugins，permission plugin:read，
+ *   meta.title=v2.page.pluginList）—— V2_TABLE 加行 +「恰好」计数标题随改（既有行改动
+ *   同 P4a-1 惯例，均为裁决直接后果）。/v2/plugins 为静态精确路径，不吞 /v2/plugins/chain
+ *   与 /v2/plugins/editor/*（vue-router 静态段优先，追加段有断言）。LayoutV2 插件组
+ *   「插件管理」叶子断言见文末 P4a-2 追加段：插在「插件链」之后、「插件编辑器」之前
+ *   （插件组中间叶子，T 裁决 —— 链页保持 S1 首位，编辑器深页殿后）。
  */
 import { describe, it, expect, vi } from 'vitest'
 import { router } from '@/router'
@@ -42,6 +49,7 @@ const V2_TABLE: Array<{ name: string; path: string; permission: string }> = [
   { name: 'V2DecisionTree', path: '/v2/routes/tree/:id', permission: 'route:read' },
   { name: 'V2Canvas', path: '/v2/routes/canvas/:id', permission: 'route:edit' },
   { name: 'V2PluginChain', path: '/v2/plugins/chain', permission: 'plugin:read' },
+  { name: 'V2PluginList', path: '/v2/plugins', permission: 'plugin:read' },
   { name: 'V2PluginEditor', path: '/v2/plugins/editor/:id?', permission: 'plugin:edit' },
   { name: 'V2Publish', path: '/v2/publish/:id', permission: 'route:edit' },
   { name: 'V2Monitor', path: '/v2/monitor', permission: 'monitor:read' },
@@ -108,7 +116,7 @@ describe('/v2 路由表 — 契约 §1', () => {
     expect((record!.meta as Record<string, unknown>).permission).toBe(permission)
   })
 
-  it('v2 路由 name 全部以 V2 前缀且恰好 11 条（S9a 注册 V2Canvas；P4a-1 注册 V2PluginEditor，契约 §1 + P4a 行）', () => {
+  it('v2 路由 name 全部以 V2 前缀且恰好 12 条（S9a 注册 V2Canvas；P4a-1 注册 V2PluginEditor；P4a-2 注册 V2PluginList，契约 §1 + P4a 行）', () => {
     const v2Names = router.getRoutes()
       .map((r) => String(r.name))
       .filter((n) => n.startsWith('V2'))
@@ -281,6 +289,115 @@ describe('P4a-1 追加 — LayoutV2 插件组第二叶子（插件编辑器）',
       expect(leaf, '无 plugin:edit 权限时插件编辑器叶子不应渲染').toBeUndefined()
     } finally {
       navAuth.permissions.push('plugin:edit')
+    }
+  })
+})
+
+// ═══════════ P4a-2-T 追加：/v2/plugins 管理列表行 + LayoutV2 插件组「插件管理」叶子 ═══════════
+// 契约：docs/ui-v2/实施契约.md §4 P4 表 P4a-2 行（2026-11-07）。V2PluginList 行已在上方
+// V2_TABLE（path+permission，it.each 自动覆盖）；本段追加 meta.title / component 接线 /
+// 静态路径边界 / nav 叶子（挂载模式沿上方 P4a-1 追加段）。先红是预期：V2PluginList 路由、
+// v2.page.pluginList / v2.nav.pluginList key、src/views-v2/plugins/List.vue 均未落。
+// 【与 P4a-1 的一处手法差异】component 接线走 fs 源码断言而非动态 import 身份比对：
+// 动态 import 字面量会被 vite import-analysis 在 transform 期静态解析，List.vue 缺位时
+// 整个本文件套件收集失败（35 条既有用例在 C 落地前全部停跑）；fs 断言让既有用例全程可观测。
+// 页面本体契约见 src/views-v2/plugins/__tests__/List.test.ts（那边整文件 import 失败即 RED）。
+describe('P4a-2 追加 — V2PluginList meta 与组件接线', () => {
+  it('V2PluginList meta.title=v2.page.pluginList（面包屑数据源）且 permission=plugin:read 不变', () => {
+    const record = recordByName('V2PluginList')
+    expect(record, 'v2 路由 V2PluginList 未注册').toBeDefined()
+    expect((record!.meta as Record<string, unknown>).title).toBe('v2.page.pluginList')
+    expect((record!.meta as Record<string, unknown>).permission).toBe('plugin:read')
+  })
+
+  it('v2.page.pluginList 在 zh-CN 与 en-US 都存在（铁律 6）', () => {
+    expect(digNav(zhCN, 'v2.page.pluginList'), 'zh-CN 缺少 v2.page.pluginList').toBeDefined()
+    expect(digNav(enUS, 'v2.page.pluginList'), 'en-US 缺少 v2.page.pluginList').toBeDefined()
+  })
+
+  it('V2PluginList 注册行源码契约：path plugins + component 指向 @/views-v2/plugins/List.vue + meta 三件（P4a-2-C 落行）', () => {
+    const source = fs.readFileSync(path.resolve(__dirname, './index.ts'), 'utf-8')
+    const row = source.match(/\{[^{}]*name:\s*'V2PluginList'[^{}]*\}/)
+    expect(row, "未在 src/router/index.ts /v2 children 找到 name: 'V2PluginList' 注册行").toBeTruthy()
+    expect(row![0]).toContain("path: 'plugins'")
+    expect(row![0]).toMatch(/import\((['"])@\/views-v2\/plugins\/List\.vue\1\)/)
+    expect(row![0]).toContain("title: 'v2.page.pluginList'")
+    expect(row![0]).toContain("permission: 'plugin:read'")
+  })
+
+  it('/v2/plugins 静态精确匹配：不吞 /v2/plugins/chain 与 /v2/plugins/editor/*（静态段优先，行序无关）', () => {
+    expect(router.resolve('/v2/plugins').name).toBe('V2PluginList')
+    expect(router.resolve('/v2/plugins/chain').name).toBe('V2PluginChain')
+    expect(router.resolve('/v2/plugins/editor/7001').name).toBe('V2PluginEditor')
+    expect(router.resolve('/v2/plugins/editor/new').name).toBe('V2PluginEditor')
+  })
+})
+
+// ── LayoutV2 插件组「插件管理」叶子（挂载模式沿 P4a-1 追加段；auth mock 可变权限集复用 navAuth）──
+const P4A2_NAV_KEY = 'v2.nav.pluginList'
+
+function makeNavRouterP4a2(): ReturnType<typeof createRouter> {
+  return createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/v2', component: LayoutV2, children: [
+        { path: 'overview', name: 'V2Overview', component: NAV_STUB },
+        { path: 'plugins/chain', name: 'V2PluginChain', component: NAV_STUB },
+        { path: 'plugins', name: 'V2PluginList', component: NAV_STUB },
+        { path: 'plugins/editor/:id?', name: 'V2PluginEditor', component: NAV_STUB }
+      ] },
+      { path: '/routes', name: 'Routes', component: NAV_STUB }
+    ]
+  })
+}
+
+async function mountNavP4a2() {
+  const navRouter = makeNavRouterP4a2()
+  await navRouter.push('/v2/overview')
+  await navRouter.isReady()
+  const navI18n = createI18n({ legacy: false, locale: 'zh-CN', fallbackLocale: 'en-US', messages: { 'zh-CN': zhCN, 'en-US': enUS } })
+  const wrapper = mount(LayoutV2, { global: { plugins: [ElementPlus, navI18n, navRouter] } })
+  await flushPromises()
+  return { wrapper, navRouter }
+}
+
+describe('P4a-2 追加 — LayoutV2 插件组「插件管理」叶子', () => {
+  it('v2.nav.pluginList 在 zh-CN 与 en-US 都存在（铁律 6）', () => {
+    expect(digNav(zhCN, P4A2_NAV_KEY), 'zh-CN 缺少 v2.nav.pluginList').toBeDefined()
+    expect(digNav(enUS, P4A2_NAV_KEY), 'en-US 缺少 v2.nav.pluginList').toBeDefined()
+  })
+
+  it('「插件管理」叶子归插件分组、排「插件链」之后「插件编辑器」之前（插件组中间叶子，T 裁决），点击跳 /v2/plugins 且 name=V2PluginList', async () => {
+    const { wrapper, navRouter } = await mountNavP4a2()
+    const label = String(digNav(zhCN, P4A2_NAV_KEY))
+    const side = wrapper.find('#v2-side')
+    expect(side.exists()).toBe(true)
+    const groups = side.findAll('.v2-nav-group')
+    const pluginGroup = groups.find((g) => g.text().includes(String(digNav(zhCN, 'v2.nav.group.plugins'))))
+    expect(pluginGroup, '未找到插件分组').toBeDefined()
+    const chainAt = pluginGroup!.text().indexOf(String(digNav(zhCN, 'v2.nav.pluginChain')))
+    const listAt = pluginGroup!.text().indexOf(label)
+    const editorAt = pluginGroup!.text().indexOf(String(digNav(zhCN, 'v2.nav.pluginEditor')))
+    expect(listAt, '插件管理叶子未渲染').toBeGreaterThan(-1)
+    expect(listAt, '插件管理应排插件链之后').toBeGreaterThan(chainAt)
+    expect(listAt, '插件管理应排插件编辑器之前（插件组中间叶子）').toBeLessThan(editorAt)
+    const leaf = wrapper.findAll('.el-menu-item, [role="menuitem"], a').find((n) => n.text().includes(label))
+    expect(leaf, `找不到文案为「${label}」(${P4A2_NAV_KEY}) 的导航项`).toBeDefined()
+    await leaf!.trigger('click')
+    await flushPromises()
+    expect(navRouter.currentRoute.value.path).toBe('/v2/plugins')
+    expect(navRouter.currentRoute.value.name).toBe('V2PluginList')
+  })
+
+  it('无 plugin:read 权限 → 叶子被侧栏可见性判据隐藏（canAccess 与守卫同源）', async () => {
+    navAuth.permissions = navAuth.permissions.filter((c: string) => c !== 'plugin:read')
+    try {
+      const { wrapper } = await mountNavP4a2()
+      const label = String(digNav(zhCN, P4A2_NAV_KEY))
+      const leaf = wrapper.findAll('.el-menu-item, [role="menuitem"], a').find((n) => n.text().includes(label))
+      expect(leaf, '无 plugin:read 权限时插件管理叶子不应渲染').toBeUndefined()
+    } finally {
+      navAuth.permissions.push('plugin:read')
     }
   })
 })

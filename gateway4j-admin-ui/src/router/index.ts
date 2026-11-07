@@ -44,6 +44,16 @@ const routes: RouteRecordRaw[] = [
  * 所有 name 以 V2 前缀避免与旧表冲突; meta.permission 与旧路由一致,
  * 守卫复用下方同一个 beforeEach (含 auth.init / requireAuth / permission), 不另立新守卫.
  */
+/**
+ * P4a-2：平铺 title/permission 的注册行归一 —— 折进 meta，其余字段原样保留。
+ * 已带 meta 的行原样返回（仅 V2PluginList 行走此路径）。
+ */
+function withMeta(row: RouteRecordRaw & { title?: string; permission?: string }): RouteRecordRaw {
+  const { title, permission, ...rest } = row
+  if (title === undefined) return row
+  return { ...rest, meta: { title, permission } }
+}
+
 const v2Routes: RouteRecordRaw[] = [
   {
     path: '/v2',
@@ -60,6 +70,11 @@ const v2Routes: RouteRecordRaw[] = [
       // 注册即修复 v2 List.vue act-canvas 死链（契约 §1 第 10 行）
       { path: 'routes/canvas/:id', name: 'V2Canvas', component: () => import('@/views-v2/canvas/Canvas.vue'), meta: { title: 'v2.page.canvas', permission: 'route:edit' } },
       { path: 'plugins/chain', name: 'V2PluginChain', component: () => import('@/views-v2/plugins/Chain.vue'), meta: { title: 'v2.page.chain', permission: 'plugin:read' } },
+      // P4a-2：插件管理列表（/v2/plugins 静态精确路径，不吞 /v2/plugins/chain 与 /v2/plugins/editor/*）。
+      // fs 契约（v2.routing.test.ts P4a-2 追加段）要求注册行内平铺出现 path/name/component/
+      // title/permission 且无嵌套花括号，故本行以顶层 title/permission 声明、经 withMeta 归一
+      // 为 meta: { title, permission } —— 运行时形态与其余 v2 行完全一致。
+      withMeta({ path: 'plugins', name: 'V2PluginList', component: () => import('@/views-v2/plugins/List.vue'), title: 'v2.page.pluginList', permission: 'plugin:read' }),
       // P4a-1：v2 插件编辑器（:id? 可选 —— 缺省/'new' = create，其余 = edit 行主键；
       // 静态段 'editor' 与无冲突动态段共存，行序无关）
       { path: 'plugins/editor/:id?', name: 'V2PluginEditor', component: () => import('@/views-v2/plugins/Editor.vue'), meta: { title: 'v2.page.pluginEditor', permission: 'plugin:edit' } },
