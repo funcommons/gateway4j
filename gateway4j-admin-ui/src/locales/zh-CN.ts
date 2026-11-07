@@ -696,7 +696,21 @@ export default {
       donutHint: '近 24h 聚合',
       donutEmpty: '暂无状态码数据',
       snapshotHint: 'Prometheus 暂不可用，部分路由展示快照兜底数据',
-      loadFailed: '流量指标加载失败，指标卡暂不可用'
+      loadFailed: '流量指标加载失败，指标卡暂不可用',
+      chartQpsTitle: '请求吞吐 QPS',
+      chartQpsHint: '网关入口 · total 序列单线',
+      chartLatencyTitle: '延迟分位',
+      chartLatencyHint: '单位 ms',
+      rangeLabel: '时间范围',
+      range1h: '近 1 小时',
+      range24h: '近 24 小时',
+      range7d: '近 7 天',
+      peakQps: '峰值 QPS',
+      quantileFallbackHint: 'Prometheus 分位序列缺失，P50/P95/P99 暂按均值（avg）退化绘制',
+      chartEmpty: '暂无时序数据',
+      tsLoadFailed: '时序指标加载失败',
+      sourcePrometheus: 'Prometheus 实时',
+      sourceSnapshot: '快照兜底'
     },
     routes: {
       create: '新建路由',

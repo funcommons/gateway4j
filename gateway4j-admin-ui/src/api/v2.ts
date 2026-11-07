@@ -54,6 +54,35 @@ export function fetchRouteTimeseries(routeId: string, timeRange = '24h', granula
   )
 }
 
+// ===== P4b-2b：网关级聚合时序（GET /v1/monitor/gateway/timeseries，P4b-2a 后端契约） =====
+
+/** 时序点（MonitorTimeseriesService#gatewayTimeseries 8 字段权威；Instant → ISO-8601 直解） */
+export interface GatewayTimeseriesPoint {
+  timestamp: string
+  /** Long→String 契约下可能以字符串到达，展示前 Number() 归一 */
+  total_requests: number
+  error_count: number
+  error_rate: number
+  avg_latency_ms?: number
+  p50_latency_ms?: number
+  p95_latency_ms?: number
+  p99_latency_ms?: number
+}
+
+/** 网关级聚合时序载荷（source 快照口径与 traffic-summary 一致） */
+export interface GatewayTimeseriesResponse {
+  source: 'prometheus' | 'snapshot'
+  data_points: GatewayTimeseriesPoint[]
+  /** true = 分位序列缺失按 avg 退化填充（有值可画，非 null 占位） */
+  quantile_fallback?: boolean
+}
+
+/** 网关级聚合时序（网关级 sum 单序列聚合，不带 path 过滤；wire 参数 snake_case 随后端） */
+export function fetchGatewayTimeseries(timeRange = '24h', granularity = '1h') {
+  return envelope<GatewayTimeseriesResponse>(http.get('/v1/monitor/gateway/timeseries',
+    { params: { time_range: timeRange, granularity } }))
+}
+
 // ===== S7：分发决策树（GET /v1/v2/routes/{id}/decision-tree，S7a 后端契约） =====
 
 /** 分支条件四元组（gw_route_condition；condition_type ∈ HEADER/PATH/QUERY/BODY/GROOVY） */

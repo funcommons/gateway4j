@@ -70,6 +70,91 @@
  * （p95 降序前 5）；mon-slow-val-<route_id>（'412 ms' / '—'）；mon-slow-pbar-<route_id>（fill，
  * style 宽 % + is-hot/is-warm，null 无此元素）；mon-slow-empty；mon-donut；mon-ring（stroke-dasharray
  * SVG）；mon-ring-total（中心总量）；mon-bucket-c2xx / mon-bucket-c4xx / mon-bucket-c5xx；mon-donut-empty
+ *
+ * ══ P4b-2b 追加段（时序图区，文件第二批；页面未实现 → 下方新增用例先红为预期）════════
+ * 契约：§4 P4b 行 P4b-2b（~350 行前端）。QPS 面积图=网关级 total 序列【单线】（原型 08
+ * 「入口 vs 上游转发」双线的上游侧序列无端点 → 不造数降单线：卡内画线 polyline 恰 1 +
+ * hint 含「单线」+ 源码无「上游转发」字样三重拦截）；延迟分位图=p50/p95/p99 三线
+ * （Detail.vue:487 linePoints 缩放先例，线元素以 data-quantile="p50|p95|p99" 可辨）；
+ * 时间范围 FcSegmented 三档 1h/24h/7d 直映射 /v1/monitor/gateway/timeseries 既有参数
+ * （后端 3327250 已落库，响应形状以 MonitorTimeseriesService#gatewayTimeseries 为权威：
+ * {source, data_points: 8 字段点数组, quantile_fallback?}）；KPI 峰值@时刻从序列 max
+ * 推导补显（真实推导，非造数）。
+ *
+ * ── P4b-2b 与旧页差异裁决（头注钉死，C 勿引入混布）────────────────────────────
+ * 404 回退旧 /metrics 混布（Index.timeseries 先例）在网关级【不随迁】：旧 /metrics 是
+ * routeId 必填的路由级兼容端点，网关级没有旧端点可回退 → 裁决：404/失败 = mon-ts-error
+ * 错误条 + 图区空态文案 + KPI 峰值 —，无混布。源码断言拦截 getRouteTimeseries /
+ * getRouteMetrics / fetchRouteTimeseries 与旧端点 URL 字样（用例见降级组第三条）。
+ *
+ * ── P4b-2b api 函数签名（C 步在 src/api/v2.ts 新建；本测试 mock 该成员，api 尚不存在）──
+ * export interface GatewayTimeseriesPoint {
+ *   timestamp: string              // ISO-8601（后端 Instant.toString()，new Date 直解）
+ *   total_requests: number         // Long→String 契约下可能以字符串到达，页面 Number() 归一
+ *   error_count: number
+ *   error_rate: number
+ *   avg_latency_ms?: number
+ *   p50_latency_ms?: number
+ *   p95_latency_ms?: number
+ *   p99_latency_ms?: number
+ * }
+ * export interface GatewayTimeseriesResponse {
+ *   source: 'prometheus' | 'snapshot'
+ *   data_points: GatewayTimeseriesPoint[]
+ *   quantile_fallback?: boolean    // true = 分位按 avg 退化填充（有值可画，非 null 占位）
+ * }
+ * export function fetchGatewayTimeseries(timeRange = '24h', granularity = '1h') {
+ *   return envelope<GatewayTimeseriesResponse>(http.get('/v1/monitor/gateway/timeseries',
+ *     { params: { time_range: timeRange, granularity } }))
+ * }
+ * （wire 参数名 time_range snake_case 随后端 @RequestParam(name="time_range")，granularity
+ *  原名不 rename；页面调用须双参显式传，不赖 api 默认值。）
+ *
+ * ── P4b-2b 口径裁决（T 定死，C 照做）──────────────────────────────────────────
+ * - 时间范围→参数映射（后端 rangeMsFor/stepMsFor 已支持档内选点，均 ≤ pointsFor 500 上限）：
+ *   近1h→('1h','1m')（后端默认档配对，60 点）/ 近24h→('24h','1h')（fetchRouteTimeseries
+ *   v2 先例，24 点）/ 近7d→('7d','1h')（168 点）；不引 '5m'/'6h' 档。挂载默认 24h 档。
+ * - QPS 面积图（原型 08 形态）：单 polyline（线）+ 面积 path（同序列闭包 d 以 Z 收口 +
+ *   fill 属性）；polyline points 坐标对数 = data_points 长度（jsdom 直读 points 属性抽样，
+ *   Detail.test.ts drawnLines「points 非空 polyline」先例）。
+ * - 延迟分位图：三 polyline data-quantile=p50/p95/p99 + 图例字面量 P50/P95/P99
+ *   （Detail dtl-legend 先例：分位名为 mono 字面量不进 i18n）；quantile_fallback=true →
+ *   mon-quantile-fallback 提示条，语义=分位【按 avg 退化填充、有值照画三线】，区别于 S2
+ *   traffic-summary 的 p95=null 占位（MonitorController javadoc 双注记，两语义不得混用）。
+ * - KPI 峰值：max(total_requests)（并列取首个，稳定）；值 formatHits 同口径；@时刻 同日
+ *   'HH:mm' / 跨天 'MM-DD HH:mm'（旧 Index.chart-axis「跨天带日期」口径随迁，精度到分）；
+ *   timestamp 解析失败的点不参与峰值；空序列/加载失败 → '—'（无 @）。峰值卡归时序区
+ *   （gateway ts 源），不入 kpi-grid 五卡（traffic 源）。
+ * - source 徽标 mon-ts-source：恒显于时序区（加载成功时），data-state=prometheus|snapshot
+ *   双态 + 文案 sourcePrometheus/sourceSnapshot；加载失败无徽标。snapshot 响应不带
+ *   quantile_fallback（后端仅 prometheus 路径标注）→ 无退化提示条，与徽标互独立。
+ * - loadEpoch 竞态随迁（List.load-epoch 先例）：慢 24h 挂起切 1h，先返回者胜，
+ *   陈旧响应后到不覆盖、不闪空。
+ *
+ * ── P4b-2b testid 追加表（mon-* 前缀延续，7 个）───────────────────────────────
+ * mon-range-seg（FcSegmented 三档，默认 24h is-active）；mon-chart-qps（svg + 单 polyline
+ * + 面积 path[fill]）；mon-chart-latency（svg + 三 polyline[data-quantile] + 图例
+ * P50/P95/P99 字面量）；mon-kpi-peak（峰值卡：label=peakQps + '512 @ 10:04' 形态文本）；
+ * mon-ts-error（时序加载失败错误条 role=alert）；mon-ts-source（source 徽标 data-state
+ * 双态）；mon-quantile-fallback（退化提示条 role=status，仅 quantile_fallback=true 渲染）。
+ * 空序列/失败空态文案 chartEmpty 渲染在两张图卡内（text 断言，不另设 testid）。
+ *
+ * ── P4b-2b i18n 追加 key 清单（v2.monitor.* 延续，zh/en 同步，14 个）─────────────
+ * chartQpsTitle('请求吞吐 QPS') / chartQpsHint('网关入口 · total 序列单线') /
+ * chartLatencyTitle('延迟分位') / chartLatencyHint('单位 ms') / rangeLabel('时间范围') /
+ * range1h('近 1 小时') / range24h('近 24 小时') / range7d('近 7 天') / peakQps('峰值 QPS') /
+ * quantileFallbackHint('Prometheus 分位序列缺失，P50/P95/P99 暂按均值（avg）退化绘制') /
+ * chartEmpty('暂无时序数据') / tsLoadFailed('时序指标加载失败') /
+ * sourcePrometheus('Prometheus 实时') / sourceSnapshot('快照兜底')
+ *
+ * ── ⚠ 与既有「砍除三区块 + delta」用例的冲突（主 agent 裁决项；T 铁律禁改既有 41 用例）──
+ * P4b-1 头注自注「峰值@时刻归 P4b-2 序列推导」——本步契约解除该临时 ban 后，既有用例
+ * 「无告警表/环境 tabs/delta▲%/峰值…三层皆无」在 C 步接线时必红，命中三处：i18n key
+ * peakQps 命中 key 正则 /peak/i、值「峰值 QPS」命中值正则 /峰值/、渲染文本同命中
+ * /峰值/（若 mon-kpi-peak 静态写出还命中 testid 正则 /peak/i，动态绑定可避开该处）。
+ * C 步需把该用例 ban 收窄为 alert/env/delta/instance/▲▼（去 peak 与 峰值 两 token，其余
+ * 砍除区保留）——属契约演进而非回退；其余 40 条既有用例与 P4b-2b 无冲突（import 面 ban
+ * 名单不含 fetchGatewayTimeseries）。
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
@@ -84,6 +169,9 @@ import enUS from '@/locales/en-US'
 
 const mocks = vi.hoisted(() => ({
   fetchTrafficSummary: vi.fn(),
+  // P4b-2b 增补第三成员（任务铁律授权的 mock 面增补）：api 函数尚不存在，C 步建
+  // fetchGatewayTimeseries（签名见头注 P4b-2b 段）+ 页面接线
+  fetchGatewayTimeseries: vi.fn(),
   listRouteStatus: vi.fn(),
   hasPermission: vi.fn(() => true),
   hasAnyPermission: vi.fn(() => true),
@@ -91,7 +179,8 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@/api/v2', () => ({
-  fetchTrafficSummary: mocks.fetchTrafficSummary
+  fetchTrafficSummary: mocks.fetchTrafficSummary,
+  fetchGatewayTimeseries: mocks.fetchGatewayTimeseries
 }))
 vi.mock('@/api/misc', () => ({
   listRouteStatus: mocks.listRouteStatus
@@ -468,19 +557,22 @@ describe('v2 monitor — 只读与 SDK-only 源码契约（S9a/S8 先例）', ()
 })
 
 describe('v2 monitor — 砍除三区块 + delta（P4b 契约钉除，缺口不造数）', () => {
-  it('无告警表/环境 tabs/delta▲%/峰值：testid 与 v2.monitor.* key/value 三层皆无', async () => {
+  // 契约演进（P4b-2b，T 裁决批准的唯一既有用例收窄）：P4b-1 临时 ban 的 peak/峰值 两 token
+  // 已解除 —— 峰值@时刻由 P4b-2b 从网关级时序序列 max 真实推导补显（mon-kpi-peak +
+  // peakQps key），属本步契约内容而非回退；alert/env/delta/instance/▲▼ 砍除区 ban 照旧。
+  it('无告警表/环境 tabs/delta▲%：testid 与 v2.monitor.* key/value 三层皆无', async () => {
     const { wrapper } = await factory()
     for (const tid of staticTestids()) {
-      expect(tid).not.toMatch(/alert|env|delta|peak/i)
+      expect(tid).not.toMatch(/alert|env|delta/i)
     }
     const keys = collectKeys(dig(zhCN, 'v2.monitor')).map((k) => k.toLowerCase())
     for (const key of keys) {
-      expect(key.match(/alert|env|delta|peak|instance/), `i18n key ${key} 落入砍除区`).toBeNull()
+      expect(key.match(/alert|env|delta|instance/), `i18n key ${key} 落入砍除区`).toBeNull()
     }
     for (const val of collectValues(dig(zhCN, 'v2.monitor'))) {
-      expect(val, `i18n 文案「${val}」落入砍除区`).not.toMatch(/告警|环境|峰值|▲|▼/)
+      expect(val, `i18n 文案「${val}」落入砍除区`).not.toMatch(/告警|环境|▲|▼/)
     }
-    expect(wrapper.text()).not.toMatch(/告警|环境|峰值|▲|▼/)
+    expect(wrapper.text()).not.toMatch(/告警|环境|▲|▼/)
   })
 
   it('禁实例矩阵（S2 单上游语义）：无 instance/inst-* testid、无「实例」文案（原型 01/02/03 槽位不落实现）', async () => {
@@ -492,5 +584,254 @@ describe('v2 monitor — 砍除三区块 + delta（P4b 契约钉除，缺口不�
       expect(val, `i18n 文案「${val}」含实例矩阵语义`).not.toContain('实例')
     }
     expect(wrapper.text()).not.toContain('实例')
+  })
+})
+
+// ═══════════════════ P4b-2b 时序图区（T 步追加，先红为预期）══════════════════
+// 契约权威见文件头注「P4b-2b 追加段」；此处只落用例。mock 面：@/api/v2 增补
+// fetchGatewayTimeseries 成员（api 尚不存在，C 步建函数 + 页面接线）。
+
+const KEYS_P4B2B = ['chartQpsTitle', 'chartQpsHint', 'chartLatencyTitle', 'chartLatencyHint',
+  'rangeLabel', 'range1h', 'range24h', 'range7d', 'peakQps', 'quantileFallbackHint',
+  'chartEmpty', 'tsLoadFailed', 'sourcePrometheus', 'sourceSnapshot'].map((k) => `v2.monitor.${k}`)
+
+// ── P4b-2b fixtures（后端 gatewayTimeseries 8 字段点契约，snake_case 原样透传）──────
+
+/** 时序点工厂：timestamp = 今天本地 setHours(8+i, 4) → toISOString 往返（跨时区稳定）；
+ * 峰值场景把 total_requests 钉在 i=2 的 512（@ 10:04 同日）。 */
+function makeTsPoint(i: number, over: Record<string, unknown> = {}) {
+  return {
+    timestamp: new Date(new Date().setHours(8 + i, 4, 0, 0)).toISOString(),
+    total_requests: 0, error_count: 0, error_rate: 0,
+    avg_latency_ms: 12, p50_latency_ms: 10, p95_latency_ms: 40, p99_latency_ms: 80,
+    ...over
+  }
+}
+
+/** 默认 6 点 prometheus 响应（无 quantile_fallback）：total=[120,340,512,90,260,180] →
+ * 峰值 512 @ 今日 10:04；QPS polyline 6 对坐标；延迟三线全有值。 */
+function defaultGatewayTs() {
+  const totals = [120, 340, 512, 90, 260, 180]
+  return { source: 'prometheus', data_points: totals.map((n, i) => makeTsPoint(i, { total_requests: n })) }
+}
+
+/** FcSegmented 选项按钮：按 label 文案定位（Editor.test.ts segOption 先例） */
+function segBtn(w: ReturnType<typeof mount>, tid: string, label: string) {
+  return one(w, tid).findAll('button').find((b) => b.text().includes(label))
+}
+
+/** 图卡内「画出来的线」首根 polyline 的坐标对数组（Detail.test.ts drawnLines
+ * 「points 非空 polyline」先例；jsdom 直读 points 属性抽样）。 */
+function drawnPointPairs(w: ReturnType<typeof mount>, tid: string): string[] {
+  const lines = one(w, tid).findAll('polyline').filter((p) => (p.attributes('points') ?? '').trim() !== '')
+  return lines.length ? (lines[0].attributes('points') ?? '').trim().split(/\s+/) : []
+}
+
+// 既有 beforeEach 之后的第二钩子（registration 顺序在后，仅增补 gateway 时序默认 mock，
+// 不动既有两源 stub）：P4b-2b 的时间范围默认 24h 档 → 参数 ('24h','1h')。
+beforeEach(() => {
+  mocks.fetchGatewayTimeseries.mockReset().mockResolvedValue(defaultGatewayTs())
+})
+
+describe('v2 monitor P4b-2b — i18n 追加 key 双语存在（铁律 6，v2.monitor.* 树延续）', () => {
+  it.each(KEYS_P4B2B)('%s 在 zh-CN 与 en-US 都存在', (key) => {
+    expect(dig(zhCN, key), `zh-CN 缺少 ${key}`).toBeDefined()
+    expect(dig(enUS, key), `en-US 缺少 ${key}`).toBeDefined()
+  })
+})
+
+describe('v2 monitor P4b-2b — 时序拉取与时间范围 seg（默认 24h/1h + 三档透传 + loadEpoch 竞态）', () => {
+  it('挂载后调 gateway 时序端点恰一次，默认参数 (\'24h\',\'1h\') 双参显式透传；seg 三档渲染且默认选中 24h', async () => {
+    const { wrapper } = await factory()
+    expect(mocks.fetchGatewayTimeseries).toHaveBeenCalledTimes(1)
+    expect(mocks.fetchGatewayTimeseries).toHaveBeenNthCalledWith(1, '24h', '1h')
+    const seg = one(wrapper, 'mon-range-seg')
+    expect(seg.exists(), '缺 mon-range-seg 时间范围分段控件').toBe(true)
+    const labels = [t('v2.monitor.range1h'), t('v2.monitor.range24h'), t('v2.monitor.range7d')]
+    expect(seg.findAll('button').map((b) => b.text().trim())).toEqual(labels)
+    const active = seg.findAll('button').find((b) => b.classes().includes('is-active'))
+    expect(active?.text().trim(), '默认选中档应为 24h').toBe(t('v2.monitor.range24h'))
+  })
+
+  it('点击 近1h → (\'1h\',\'1m\') 重拉；近7d → (\'7d\',\'1h\') 重拉（T 裁决粒度映射），选中态随迁', async () => {
+    const { wrapper } = await factory()
+    const seg = one(wrapper, 'mon-range-seg')
+    expect(seg.exists(), '缺 mon-range-seg 时间范围分段控件').toBe(true)
+    const pick = async (label: string) => {
+      const btn = segBtn(wrapper, 'mon-range-seg', label)
+      expect(btn, `缺少选项「${label}」`).toBeDefined()
+      await btn!.trigger('click')
+      await flushPromises()
+    }
+    await pick(t('v2.monitor.range1h'))
+    expect(mocks.fetchGatewayTimeseries).toHaveBeenNthCalledWith(2, '1h', '1m')
+    await pick(t('v2.monitor.range7d'))
+    expect(mocks.fetchGatewayTimeseries).toHaveBeenNthCalledWith(3, '7d', '1h')
+    expect(mocks.fetchGatewayTimeseries).toHaveBeenCalledTimes(3)
+    const active = seg.findAll('button').find((b) => b.classes().includes('is-active'))
+    expect(active?.text().trim()).toBe(t('v2.monitor.range7d'))
+  })
+
+  it('loadEpoch 竞态：慢 24h 挂起时切 1h 先返回者胜；慢 24h 后到不覆盖（List.load-epoch 先例随迁）', async () => {
+    const slowData = defaultGatewayTs()
+    let resolveSlow!: (v: unknown) => void
+    mocks.fetchGatewayTimeseries.mockImplementation((range: string) => {
+      if (range === '24h') return new Promise((r) => { resolveSlow = () => r(slowData) })
+      return Promise.resolve({ source: 'prometheus', data_points: [makeTsPoint(0, { total_requests: 11 }), makeTsPoint(1, { total_requests: 22 }), makeTsPoint(2, { total_requests: 33 })] })
+    })
+    const { wrapper } = await factory()
+    await flushPromises()
+    expect(drawnPointPairs(wrapper, 'mon-chart-qps')).toHaveLength(0)
+    const btn = segBtn(wrapper, 'mon-range-seg', t('v2.monitor.range1h'))
+    expect(btn, '缺近 1 小时选项').toBeDefined()
+    await btn!.trigger('click')
+    await flushPromises()
+    expect(drawnPointPairs(wrapper, 'mon-chart-qps')).toHaveLength(3)
+    resolveSlow(slowData)
+    await flushPromises()
+    expect(drawnPointPairs(wrapper, 'mon-chart-qps'), '陈旧 24h 响应后到不得覆盖').toHaveLength(3)
+    expect(mocks.fetchGatewayTimeseries).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('v2 monitor P4b-2b — QPS 面积图（网关级 total 单线，原型 08 双线降单线）', () => {
+  it('svg + 单 polyline 存在且点数=序列长度（6 对 x,y 坐标）+ 面积 path 闭包（d 含 Z 收口 + fill）', async () => {
+    const { wrapper } = await factory()
+    const card = one(wrapper, 'mon-chart-qps')
+    expect(card.exists(), '缺 mon-chart-qps 图卡').toBe(true)
+    expect(card.find('svg').exists()).toBe(true)
+    const lines = card.findAll('polyline').filter((p) => (p.attributes('points') ?? '').trim() !== '')
+    expect(lines.length).toBe(1)
+    const pairs = drawnPointPairs(wrapper, 'mon-chart-qps')
+    expect(pairs, 'polyline 坐标对数应=序列长度 6').toHaveLength(6)
+    for (const pair of pairs) {
+      expect(pair).toMatch(/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/)
+    }
+    const area = card.find('path[fill]')
+    expect(area.exists(), '缺面积 path（原型 08 闭包 fill 形态）').toBe(true)
+    expect(area.attributes('d') ?? '').toMatch(/Z\s*$/)
+  })
+
+  it('空序列 → 两张图卡各显 chartEmpty 空态文案、无 polyline（不白屏）；峰值 —', async () => {
+    mocks.fetchGatewayTimeseries.mockResolvedValue({ source: 'prometheus', data_points: [] })
+    const { wrapper } = await factory()
+    expect(one(wrapper, 'mon-chart-qps').text()).toContain(t('v2.monitor.chartEmpty'))
+    expect(one(wrapper, 'mon-chart-latency').text()).toContain(t('v2.monitor.chartEmpty'))
+    expect(one(wrapper, 'mon-chart-qps').findAll('polyline').length).toBe(0)
+    expect(one(wrapper, 'mon-chart-latency').findAll('polyline').length).toBe(0)
+    expect(one(wrapper, 'mon-kpi-peak').text()).toContain('—')
+    expect(one(wrapper, 'mon-kpi-peak').text()).not.toContain('@')
+  })
+
+  it('单线裁决：卡内画线 polyline 恰 1 + hint 含「单线」+ 源码无「上游转发」双线语义（原型双线不造数）', async () => {
+    const { wrapper } = await factory()
+    const card = one(wrapper, 'mon-chart-qps')
+    expect(card.exists(), '缺 mon-chart-qps 图卡').toBe(true)
+    expect(card.findAll('polyline').filter((p) => (p.attributes('points') ?? '').trim() !== '').length).toBe(1)
+    expect(card.text()).toContain(t('v2.monitor.chartQpsHint'))
+    expect(t('v2.monitor.chartQpsHint'), 'hint 文案本身应带「单线」语义').toContain('单线')
+    expect(readSource()).not.toContain('上游转发')
+  })
+})
+
+describe('v2 monitor P4b-2b — 延迟分位图（p50/p95/p99 三线 + quantile_fallback 退化提示）', () => {
+  it('三条 polyline 以 data-quantile=p50/p95/p99 各自可辨且 points 非空；图例字面量 P50/P95/P99（dtl-legend 先例）', async () => {
+    const { wrapper } = await factory()
+    const card = one(wrapper, 'mon-chart-latency')
+    expect(card.exists(), '缺 mon-chart-latency 图卡').toBe(true)
+    expect(card.find('svg').exists()).toBe(true)
+    expect(card.findAll('polyline').length).toBe(3)
+    for (const q of ['p50', 'p95', 'p99']) {
+      const line = card.find(`polyline[data-quantile="${q}"]`)
+      expect(line.exists(), `缺 ${q} 分位线`).toBe(true)
+      expect((line.attributes('points') ?? '').trim()).not.toBe('')
+    }
+    for (const label of ['P50', 'P95', 'P99']) {
+      expect(card.text()).toContain(label)
+    }
+  })
+
+  it('quantile_fallback=true → mon-quantile-fallback 提示条（分位按 avg 退化文案）；三线照画（有值非 null 占位）', async () => {
+    mocks.fetchGatewayTimeseries.mockResolvedValue({ ...defaultGatewayTs(), quantile_fallback: true })
+    const { wrapper } = await factory()
+    const hint = one(wrapper, 'mon-quantile-fallback')
+    expect(hint.exists(), 'quantile_fallback=true 应出退化提示条').toBe(true)
+    expect(hint.text()).toContain(t('v2.monitor.quantileFallbackHint'))
+    expect(one(wrapper, 'mon-chart-latency').findAll('polyline').length).toBe(3)
+  })
+
+  it('quantile_fallback 缺省（prometheus 正常）→ 无退化提示条', async () => {
+    const { wrapper } = await factory()
+    expect(one(wrapper, 'mon-quantile-fallback').exists()).toBe(false)
+  })
+})
+
+describe('v2 monitor P4b-2b — KPI 峰值@时刻（序列 max 推导，旧 chart-axis 跨天口径随迁）', () => {
+  it('非空序列 → mon-kpi-peak 显 max(total_requests)=512 @ 同日 10:04（HH:mm，无日期前缀）', async () => {
+    const { wrapper } = await factory()
+    const peak = one(wrapper, 'mon-kpi-peak')
+    expect(peak.exists(), '缺 mon-kpi-peak 峰值卡').toBe(true)
+    expect(peak.text()).toContain(t('v2.monitor.peakQps'))
+    expect(peak.text()).toMatch(/512\s*@\s*10:04/)
+    expect(peak.text()).not.toMatch(/\d{2}-\d{2}\s/)
+  })
+
+  it('峰值时间戳跨天（2 天前）→ @时刻带日期前缀 MM-DD HH:mm（旧 Index.chart-axis 口径）', async () => {
+    const d = new Date()
+    d.setDate(d.getDate() - 2)
+    d.setHours(9, 30, 0, 0)
+    mocks.fetchGatewayTimeseries.mockResolvedValue({
+      source: 'prometheus',
+      data_points: [makeTsPoint(0, { total_requests: 512, timestamp: d.toISOString() })]
+    })
+    const { wrapper } = await factory()
+    const peak = one(wrapper, 'mon-kpi-peak')
+    expect(peak.exists(), '缺 mon-kpi-peak 峰值卡').toBe(true)
+    const p = (x: number) => String(x).padStart(2, '0')
+    expect(peak.text()).toMatch(new RegExp(`512\\s*@\\s*${p(d.getMonth() + 1)}-${p(d.getDate())} 09:30`))
+  })
+})
+
+describe('v2 monitor P4b-2b — 降级无混布与 source 徽标（网关级无旧端点可回退）', () => {
+  it('fetchGatewayTimeseries reject（404/500 同途）→ mon-ts-error 错误条 + 图区空态不白屏 + 峰值 —；traffic 区不被污染', async () => {
+    mocks.fetchGatewayTimeseries.mockRejectedValue(new Error('HTTP 500'))
+    const { wrapper } = await factory()
+    const err = one(wrapper, 'mon-ts-error')
+    expect(err.exists(), '缺 mon-ts-error 错误条').toBe(true)
+    expect(err.text()).toContain(t('v2.monitor.tsLoadFailed'))
+    expect(one(wrapper, 'mon-page').exists()).toBe(true)
+    expect(one(wrapper, 'mon-chart-qps').text()).toContain(t('v2.monitor.chartEmpty'))
+    expect(one(wrapper, 'mon-chart-latency').text()).toContain(t('v2.monitor.chartEmpty'))
+    expect(one(wrapper, 'mon-kpi-peak').text()).toContain('—')
+    expect(one(wrapper, 'mon-ts-source').exists()).toBe(false)
+    expect(one(wrapper, 'mon-quantile-fallback').exists()).toBe(false)
+    expect(one(wrapper, 'mon-ts-error').findAll('polyline').length).toBe(0)
+    // 分区独立降级（Overview 先例）：traffic 源的 KPI/慢路由不陪葬
+    expect(one(wrapper, 'mon-kpi-hits').text()).toContain('1.7M')
+    expect(one(wrapper, 'mon-slow-row-s1').exists()).toBe(true)
+  })
+
+  it('source 徽标双态：prometheus → sourcePrometheus + data-state=prometheus；snapshot → sourceSnapshot + data-state=snapshot（且 snapshot 不带 quantile_fallback → 无退化提示条）', async () => {
+    const { wrapper } = await factory()
+    const badge = one(wrapper, 'mon-ts-source')
+    expect(badge.exists(), '缺 mon-ts-source 徽标').toBe(true)
+    expect(badge.text()).toContain(t('v2.monitor.sourcePrometheus'))
+    expect(badge.attributes('data-state')).toBe('prometheus')
+
+    mocks.fetchGatewayTimeseries.mockResolvedValue({ ...defaultGatewayTs(), source: 'snapshot' })
+    const second = await factory()
+    const badge2 = one(second.wrapper, 'mon-ts-source')
+    expect(badge2.exists()).toBe(true)
+    expect(badge2.text()).toContain(t('v2.monitor.sourceSnapshot'))
+    expect(badge2.attributes('data-state')).toBe('snapshot')
+    expect(one(second.wrapper, 'mon-quantile-fallback').exists()).toBe(false)
+  })
+
+  it('无混布裁决（与旧页差异，头注钉死）：import 面含 fetchGatewayTimeseries；源码无旧 /metrics、/timeseries 端点与回退函数字样', () => {
+    const source = readSource()
+    const v2Import = source.match(/import\s*\{[^}]*\}\s*from\s*'@\/api\/v2'/)?.[0] ?? ''
+    expect(v2Import, '页面需从 @/api/v2 具名导入 fetchGatewayTimeseries').toContain('fetchGatewayTimeseries')
+    expect(source).not.toMatch(/getRouteTimeseries|getRouteMetrics|fetchRouteTimeseries/)
+    expect(source).not.toMatch(/\/v1\/monitor\/timeseries|\/v1\/monitor\/routes\/.*\/metrics/)
   })
 })

@@ -699,7 +699,21 @@ export default {
       donutHint: 'Aggregated over 24h',
       donutEmpty: 'No status code data',
       snapshotHint: 'Prometheus unavailable — some routes show snapshot fallback data',
-      loadFailed: 'Failed to load traffic metrics — KPI cards unavailable'
+      loadFailed: 'Failed to load traffic metrics — KPI cards unavailable',
+      chartQpsTitle: 'Request throughput (QPS)',
+      chartQpsHint: 'Gateway ingress · single total series',
+      chartLatencyTitle: 'Latency quantiles',
+      chartLatencyHint: 'Unit: ms',
+      rangeLabel: 'Time range',
+      range1h: 'Last hour',
+      range24h: 'Last 24 hours',
+      range7d: 'Last 7 days',
+      peakQps: 'Peak QPS',
+      quantileFallbackHint: 'Prometheus quantile series missing — P50/P95/P99 drawn from mean (avg) as fallback',
+      chartEmpty: 'No timeseries data',
+      tsLoadFailed: 'Failed to load timeseries metrics',
+      sourcePrometheus: 'Prometheus live',
+      sourceSnapshot: 'Snapshot fallback'
     },
     routes: {
       create: 'New route',

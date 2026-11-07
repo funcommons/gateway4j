@@ -99,6 +99,73 @@
           <span v-else class="mon-empty" data-testid="mon-donut-empty">{{ t('v2.monitor.donutEmpty') }}</span>
         </div>
       </div>
+
+      <!-- Gateway timeseries zone (P4b-2b): range seg + peak KPI + two hand-drawn SVG charts.
+           Gateway level has NO legacy route-scoped endpoint to fall back to — failure is a
+           banner + empty charts + peak dash, no hybrid legacy source. -->
+      <div class="ts-zone">
+        <div v-if="tsFailed" class="hint-banner is-error" data-testid="mon-ts-error" role="alert">
+          <FcIcon name="ri-error-warning-line" :size="14" />
+          <span>{{ t('v2.monitor.tsLoadFailed') }}</span>
+        </div>
+        <div v-if="tsQuantileFallback" class="hint-banner is-warn" data-testid="mon-quantile-fallback" role="status">
+          <FcIcon name="ri-error-warning-line" :size="14" />
+          <span>{{ t('v2.monitor.quantileFallbackHint') }}</span>
+        </div>
+        <div class="ts-toolbar">
+          <span class="ts-range-label">{{ t('v2.monitor.rangeLabel') }}</span>
+          <FcSegmented v-model="timeRange" :options="rangeOpts" size="sm" data-testid="mon-range-seg" @change="loadTimeseries" />
+          <span v-if="tsSource" class="ts-source" data-testid="mon-ts-source" :data-state="tsSource">
+            {{ tsSource === 'snapshot' ? t('v2.monitor.sourceSnapshot') : t('v2.monitor.sourcePrometheus') }}
+          </span>
+        </div>
+        <div class="kpi-card ts-peak" data-testid="mon-kpi-peak">
+          <span class="kpi-lb"><FcIcon name="ri-arrow-up-line" :size="13" />{{ t('v2.monitor.peakQps') }}</span>
+          <span class="kpi-v">{{ peakText }}</span>
+        </div>
+        <div class="ts-charts">
+          <!-- QPS area chart: gateway total series, SINGLE line (upstream side of the prototype
+               dual-line has no endpoint — no fabricated series) + closed area path (prototype 08) -->
+          <div class="mon-card" data-testid="mon-chart-qps">
+            <div class="mon-card-h">
+              <b>{{ t('v2.monitor.chartQpsTitle') }}</b>
+              <span class="mon-card-hint">{{ t('v2.monitor.chartQpsHint') }}</span>
+            </div>
+            <div class="mon-card-b">
+              <svg v-if="qpsValues.length" class="ts-chart" viewBox="0 0 320 120" role="img" :aria-label="t('v2.monitor.chartQpsTitle')">
+                <line class="ts-grid" x1="0" y1="30" x2="320" y2="30" />
+                <line class="ts-grid" x1="0" y1="60" x2="320" y2="60" />
+                <line class="ts-grid" x1="0" y1="90" x2="320" y2="90" />
+                <path class="ts-area" :d="qpsArea" fill="currentColor" />
+                <polyline class="ts-line is-primary" :points="qpsPointsStr" />
+              </svg>
+              <span v-else class="mon-empty">{{ t('v2.monitor.chartEmpty') }}</span>
+            </div>
+          </div>
+          <!-- Latency quantile chart: p50/p95/p99 three lines (Detail scaling precedent);
+               quantile_fallback=true means avg-degraded values (drawable, not null placeholders) -->
+          <div class="mon-card" data-testid="mon-chart-latency">
+            <div class="mon-card-h">
+              <b>{{ t('v2.monitor.chartLatencyTitle') }}</b>
+              <span class="mon-card-hint">{{ t('v2.monitor.chartLatencyHint') }}</span>
+              <span v-if="quantileLines.length" class="ts-legend">
+                <span v-for="q in quantileLines" :key="q.attr" class="ts-legend-item">
+                  <i class="ts-legend-dot" :class="q.cls" aria-hidden="true"></i>{{ q.label }}
+                </span>
+              </span>
+            </div>
+            <div class="mon-card-b">
+              <svg v-if="quantileLines.length" class="ts-chart" viewBox="0 0 320 120" role="img" :aria-label="t('v2.monitor.chartLatencyTitle')">
+                <line class="ts-grid" x1="0" y1="30" x2="320" y2="30" />
+                <line class="ts-grid" x1="0" y1="60" x2="320" y2="60" />
+                <line class="ts-grid" x1="0" y1="90" x2="320" y2="90" />
+                <polyline v-for="q in quantileLines" :key="q.attr" class="ts-line" :class="q.cls" :data-quantile="q.attr" :points="q.points" />
+              </svg>
+              <span v-else class="mon-empty">{{ t('v2.monitor.chartEmpty') }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </FcSection>
   </div>
 </template>
@@ -106,8 +173,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { FcIcon, FcSection } from '@/components'
-import { fetchTrafficSummary, type RouteTrafficSummaryItem } from '@/api/v2'
+import { FcIcon, FcSection, FcSegmented } from '@/components'
+import {
+  fetchTrafficSummary, fetchGatewayTimeseries,
+  type RouteTrafficSummaryItem, type GatewayTimeseriesPoint
+} from '@/api/v2'
 import { listRouteStatus, type RouteStatusItem } from '@/api/misc'
 
 /**
@@ -125,6 +195,7 @@ const statusFailed = ref(false)
 onMounted(() => {
   void loadTraffic()
   void loadStatus()
+  void loadTimeseries()
 })
 
 /** KPI/Top5/donut 数据源；失败降级为全 — 而非整页报错 */
@@ -285,6 +356,128 @@ const donut = computed<{ totalText: string; segs: RingSeg[] } | null>(() => {
   })
   return { totalText: formatHits(total), segs }
 })
+
+// ── 网关级时序区（P4b-2b）：时间范围 seg → 聚合时序 → 峰值/双图卡 ────────────
+const tsPoints = ref<GatewayTimeseriesPoint[]>([])
+const tsSource = ref<'prometheus' | 'snapshot' | ''>('')
+const tsQuantileFallback = ref(false)
+const tsFailed = ref(false)
+const timeRange = ref('24h')
+
+/** 时间范围 → (time_range, granularity) 双参显式映射（后端既有档位，均 ≤ 500 点上限） */
+const RANGE_PARAMS: Record<string, [string, string]> = {
+  '1h': ['1h', '1m'],
+  '24h': ['24h', '1h'],
+  '7d': ['7d', '1h']
+}
+
+const rangeOpts = computed(() => [
+  { value: '1h', label: t('v2.monitor.range1h') },
+  { value: '24h', label: t('v2.monitor.range24h') },
+  { value: '7d', label: t('v2.monitor.range7d') }
+])
+
+/** loadEpoch 竞态守卫（plugins List.load-epoch 随迁）：慢请求挂起切档先返回者胜，
+ * 陈旧响应后到不覆盖、不闪空 */
+let tsEpoch = 0
+
+async function loadTimeseries() {
+  const myEpoch = ++tsEpoch
+  const [range, granularity] = RANGE_PARAMS[timeRange.value] ?? ['24h', '1h']
+  try {
+    const res = await fetchGatewayTimeseries(range, granularity)
+    if (myEpoch !== tsEpoch) return
+    tsPoints.value = res.data_points ?? []
+    tsSource.value = res.source
+    tsQuantileFallback.value = res.quantile_fallback === true
+    tsFailed.value = false
+  } catch {
+    if (myEpoch !== tsEpoch) return
+    // 网关级无旧端点可回退：失败 = 错误条 + 图区空态 + 峰值 —，不混布旧路由级数据
+    tsPoints.value = []
+    tsSource.value = ''
+    tsQuantileFallback.value = false
+    tsFailed.value = true
+  }
+}
+
+// ── 图形几何（Detail 四联图缩放先例：viewBox 内留 pad，最低可见 2px）─────────
+const TS_CHART_W = 320
+const TS_CHART_H = 120
+const TS_CHART_PAD = 10
+
+function roundTs(v: number): number {
+  return Math.round(v * 100) / 100
+}
+
+/** 序列 → polyline points（x,y 坐标对空格分隔；单点退化为水平短线） */
+function tsLinePoints(values: number[]): string {
+  if (!values.length) return ''
+  const max = Math.max(...values, 1)
+  const stepX = values.length > 1 ? (TS_CHART_W - TS_CHART_PAD * 2) / (values.length - 1) : 0
+  return values
+    .map((v, i) => {
+      const x = TS_CHART_PAD + i * stepX
+      const h = Math.max(2, (Math.max(0, v) / max) * (TS_CHART_H - TS_CHART_PAD * 2))
+      return `${roundTs(x)},${roundTs(TS_CHART_H - TS_CHART_PAD - h)}`
+    })
+    .join(' ')
+}
+
+const qpsValues = computed(() => tsPoints.value.map((p) => Math.max(0, toNum(p.total_requests) || 0)))
+const qpsPointsStr = computed(() => tsLinePoints(qpsValues.value))
+
+/** QPS 面积 path：同序列闭包沿底线（y=H-PAD）回封、Z 收口（原型 08 形态） */
+const qpsArea = computed(() => {
+  const pairs = qpsPointsStr.value.split(' ').filter(Boolean)
+  if (!pairs.length) return ''
+  const baseY = roundTs(TS_CHART_H - TS_CHART_PAD)
+  const firstX = pairs[0]?.split(',')[0] ?? ''
+  const lastX = pairs[pairs.length - 1]?.split(',')[0] ?? ''
+  return `M${pairs.join(' L')} L${lastX},${baseY} L${firstX},${baseY} Z`
+})
+
+/** 延迟分位三线：任一点缺值即放弃该线（Detail quantile 先例）。quantile_fallback=true
+ * 时后端已按 avg 退化填充（有值，非 null 占位）→ 三线照画，语义见 mon-quantile-fallback */
+const QUANTILE_DEFS = [
+  { key: 'p50_latency_ms', attr: 'p50', label: 'P50', cls: 'is-q50' },
+  { key: 'p95_latency_ms', attr: 'p95', label: 'P95', cls: 'is-q95' },
+  { key: 'p99_latency_ms', attr: 'p99', label: 'P99', cls: 'is-q99' }
+] as const
+
+const quantileLines = computed(() => {
+  if (!tsPoints.value.length) return []
+  const lines: Array<{ attr: string; label: string; cls: string; points: string }> = []
+  for (const def of QUANTILE_DEFS) {
+    const series = tsPoints.value.map((p) => toNum(p[def.key]))
+    if (!series.every(Number.isFinite)) continue
+    lines.push({ attr: def.attr, label: def.label, cls: def.cls, points: tsLinePoints(series.map((n) => Math.max(0, n))) })
+  }
+  return lines
+})
+
+// ── 峰值 @ 时刻（序列 max 真实推导，非造数；并列取首个稳定）──────────────────
+/** 同日 HH:mm / 跨天 MM-DD HH:mm（旧大盘 chart-axis「跨天带日期」口径随迁，精度到分） */
+function tsPeakTime(d: Date): string {
+  const p2 = (n: number) => String(n).padStart(2, '0')
+  const hm = `${p2(d.getHours())}:${p2(d.getMinutes())}`
+  const now = new Date()
+  const sameDay = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()
+  return sameDay ? hm : `${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${hm}`
+}
+
+const peakText = computed(() => {
+  if (tsFailed.value) return '—'
+  let best: { v: number; d: Date } | null = null
+  for (const p of tsPoints.value) {
+    const v = toNum(p.total_requests)
+    const d = new Date(p.timestamp)
+    // timestamp 解析失败 / 值缺失的点不参与峰值
+    if (!Number.isFinite(v) || Number.isNaN(d.getTime())) continue
+    if (!best || v > best.v) best = { v, d }
+  }
+  return best ? `${formatHits(best.v)} @ ${tsPeakTime(best.d)}` : '—'
+})
 </script>
 
 <style scoped lang="scss">
@@ -408,6 +601,54 @@ const donut = computed<{ totalText: string; segs: RingSeg[] } | null>(() => {
 .bucket-val { margin-left: auto; color: var(--app-text); font-variant-numeric: tabular-nums; }
 .bucket-pct { flex: none; min-width: 44px; text-align: right; color: var(--app-text-tertiary); font-variant-numeric: tabular-nums; }
 
+/* —— 网关级时序区（P4b-2b：seg 工具行 + 峰值卡 + 双图卡）—— */
+.ts-zone { margin-top: 14px; }
+.ts-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.ts-range-label { font-size: 12px; color: var(--app-text-secondary); }
+.ts-source {
+  display: inline-flex; align-items: center; gap: 6px; margin-left: auto; padding: 3px 10px;
+  font-size: 11.5px; border-radius: var(--app-radius-full); font-variant-numeric: tabular-nums;
+  color: var(--app-text-secondary); background: var(--app-bg-muted);
+  border: 1px solid var(--app-border-extra-light);
+
+  &[data-state='prometheus'] {
+    color: var(--app-color-success-text);
+    background: color-mix(in srgb, var(--app-color-success) 10%, transparent);
+    border-color: color-mix(in srgb, var(--app-color-success) 28%, transparent);
+  }
+  &[data-state='snapshot'] {
+    color: var(--app-color-warning-text);
+    background: color-mix(in srgb, var(--app-color-warning) 10%, transparent);
+    border-color: color-mix(in srgb, var(--app-color-warning) 28%, transparent);
+  }
+}
+.ts-peak { margin-bottom: 14px; }
+.ts-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.ts-chart { display: block; width: 100%; height: auto; }
+.ts-grid { stroke: var(--app-border-extra-light); stroke-width: 1; }
+.ts-line {
+  fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+
+  &.is-primary { stroke: var(--app-primary); }
+  &.is-q50 { stroke: var(--app-text-quaternary); }
+  &.is-q95 { stroke: var(--app-primary); }
+  &.is-q99 { stroke: color-mix(in srgb, var(--app-color-warning) 80%, transparent); }
+}
+.ts-area { color: var(--app-primary); fill: currentColor; opacity: 0.08; }
+.ts-legend { display: inline-flex; align-items: center; gap: 10px; }
+.ts-legend-item {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 11px;
+  color: var(--app-text-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.ts-legend-dot {
+  width: 8px; height: 8px; border-radius: 2px;
+
+  &.is-q50 { background: var(--app-text-quaternary); }
+  &.is-q95 { background: var(--app-primary); }
+  &.is-q99 { background: color-mix(in srgb, var(--app-color-warning) 80%, transparent); }
+}
+
 /* 窄视口：5 卡折列（CSS-only，S6 同弃 jsdom 实测）。
    1280 档：慢路由行 name/bar 轨道改 minmax(0,N) 可收缩（≥761px 任一宽度不横向溢出；
    20px 序号/70px 耗值保留定宽 —— 内容仅数字符，且定宽让各行 pbar 左缘对齐）。 */
@@ -416,12 +657,16 @@ const donut = computed<{ totalText: string; segs: RingSeg[] } | null>(() => {
   .slow-row { grid-template-columns: 20px minmax(0, 140px) minmax(0, 1fr) 70px minmax(0, 140px); }
 }
 /* 760 档（手机）：上游行名称改弹性（ellipsis 让位给状态/耗时）；慢路由行藏 pbar、
-   path 折到名称下方第二行 —— 375 视口五列单行放不下（实测 464px 溢出根因）。 */
+   path 折到名称下方第二行 —— 375 视口五列单行放不下（实测 464px 溢出根因）。
+   时序区：图卡满宽单列、工具行换行（P4b-2b 随 P4b-1 响应式模式）。 */
 @media (max-width: 760px) {
   .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .up-name { flex: 1 1 auto; width: auto; min-width: 0; }
   .slow-row { grid-template-columns: auto minmax(0, 1fr) auto; gap: 6px 8px; }
   .slow-bar { display: none; }
   .slow-path { grid-column: 2; grid-row: 2; }
+  .ts-charts { grid-template-columns: minmax(0, 1fr); }
+  .ts-toolbar { flex-wrap: wrap; }
+  .ts-source { margin-left: 0; }
 }
 </style>
