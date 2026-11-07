@@ -710,7 +710,16 @@ export default {
       chartEmpty: '暂无时序数据',
       tsLoadFailed: '时序指标加载失败',
       sourcePrometheus: 'Prometheus 实时',
-      sourceSnapshot: '快照兜底'
+      sourceSnapshot: '快照兜底',
+      // P4b-3 实时化（与 en-US 严格同步；key/value 均不撞砍除区正则 alert/env/delta/instance、告警/环境/▲▼/实例）
+      autoRefresh: '自动刷新',
+      lastRefresh: '最近刷新 {time}',
+      streamSummaryTitle: '实时摘要',
+      streamLive: '实时',
+      streamPolling: '轮询兜底',
+      streamRoutes: '路由数',
+      streamErrors: '错误数',
+      streamRequests: '请求总量'
     },
     routes: {
       create: '新建路由',

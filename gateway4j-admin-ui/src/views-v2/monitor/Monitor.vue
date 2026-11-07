@@ -6,6 +6,31 @@
         <h1>{{ t('v2.page.monitor') }}</h1>
         <p class="mon-head-sub">{{ t('v2.monitor.subtitle') }}</p>
       </div>
+      <!-- Realtime stream bar (P4b-3): SSE summary lives HERE, never over the traffic-fed KPI five
+           (different field/source per contract). Degraded polling clears stale pushed summaries
+           (old Index watch(streamMode) precedent) — polling state never fakes a pushed summary.
+           FcSwitch inheritAttrs:false swallows data-testid → pinned on wrapper (Index label precedent). -->
+      <div class="mon-stream" data-testid="mon-stream-badge" :data-state="streamState">
+        <span class="mon-stream-title">{{ t('v2.monitor.streamSummaryTitle') }}</span>
+        <span class="mon-stream-state">{{ streamState === 'live' ? t('v2.monitor.streamLive') : t('v2.monitor.streamPolling') }}</span>
+        <span class="mon-badge" data-testid="mon-badge-routes">
+          <span class="mon-badge-lb">{{ t('v2.monitor.streamRoutes') }}</span>
+          <b class="mon-badge-val">{{ badgeRoutes }}</b>
+        </span>
+        <span class="mon-badge" data-testid="mon-badge-errors">
+          <span class="mon-badge-lb">{{ t('v2.monitor.streamErrors') }}</span>
+          <b class="mon-badge-val">{{ badgeErrors }}</b>
+        </span>
+        <span class="mon-badge" data-testid="mon-badge-requests">
+          <span class="mon-badge-lb">{{ t('v2.monitor.streamRequests') }}</span>
+          <b class="mon-badge-val">{{ badgeRequests }}</b>
+        </span>
+        <span class="mon-last-refresh" data-testid="mon-last-refresh">{{ t('v2.monitor.lastRefresh', { time: lastRefresh }) }}</span>
+        <label class="mon-autorefresh" data-testid="mon-autorefresh-switch">
+          <FcSwitch v-model="autoRefresh" size="small" />
+          <span>{{ t('v2.monitor.autoRefresh') }}</span>
+        </label>
+      </div>
       <!-- Snapshot fallback hint: shown whenever ANY row reports source=snapshot (S3/S6 lenient rule) -->
       <div v-if="showSnapshotHint" class="hint-banner is-warn" data-testid="mon-source-hint" role="status">
         <FcIcon name="ri-error-warning-line" :size="14" />
@@ -171,9 +196,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { FcIcon, FcSection, FcSegmented } from '@/components'
+import { FcIcon, FcSection, FcSegmented, FcSwitch } from '@/components'
+import { useMonitorStream, type MonitorStreamMetrics } from '@/composables/useMonitorStream'
 import {
   fetchTrafficSummary, fetchGatewayTimeseries,
   type RouteTrafficSummaryItem, type GatewayTimeseriesPoint
@@ -184,6 +210,9 @@ import { listRouteStatus, type RouteStatusItem } from '@/api/misc'
  * P4b-1C：v2 监控大盘静态版（契约 docs/ui-v2/实施契约.md §4 P4b 行 P4b-1；视觉参照原型 08）。
  * 两源两区独立降级（Overview 先例）：fetchTrafficSummary（KPI 四卡 + 慢路由 Top5 + donut）与
  * listRouteStatus（上游健康卡 + Σactive_connections）互不拖垮；砍除项（告警/环境/delta/实例矩阵）缺口不造数。
+ * P4b-3C：实时化 —— useMonitorStream 零改动复用（页面只消费回调与 ref）；页头实时摘要条三徽标
+ * （不覆盖五 KPI 卡，字段不同源不同）；降级 5s 轮询兜底 + autoRefresh 开关（单一 interval 三源各重拉）；
+ * config_changed 已去抖回调定向重拉 traffic+timeseries（listRouteStatus 是运行态探测不随拉）。
  */
 const { t } = useI18n()
 
@@ -192,13 +221,7 @@ const trafficFailed = ref(false)
 const statuses = ref<RouteStatusItem[]>([])
 const statusFailed = ref(false)
 
-onMounted(() => {
-  void loadTraffic()
-  void loadStatus()
-  void loadTimeseries()
-})
-
-/** KPI/Top5/donut 数据源；失败降级为全 — 而非整页报错 */
+/** KPI/Top5/donut 数据源；失败降级为全 — 而非整页报错。每次拉取（含失败）后更新最近刷新时钟 */
 async function loadTraffic() {
   try {
     traffic.value = await fetchTrafficSummary()
@@ -207,6 +230,7 @@ async function loadTraffic() {
     traffic.value = []
     trafficFailed.value = true
   }
+  lastRefresh.value = fmtClock(new Date())
 }
 
 /** 上游健康 + 连接数数据源；失败只降级上游卡与连接数卡，traffic 区不被污染 */
@@ -218,6 +242,7 @@ async function loadStatus() {
     statuses.value = []
     statusFailed.value = true
   }
+  lastRefresh.value = fmtClock(new Date())
 }
 
 /** Long→String 契约兜底：数值/数值字符串归一，null/undefined → NaN（展示为 — 或按 0 求和） */
@@ -386,11 +411,12 @@ async function loadTimeseries() {
   const [range, granularity] = RANGE_PARAMS[timeRange.value] ?? ['24h', '1h']
   try {
     const res = await fetchGatewayTimeseries(range, granularity)
-    if (myEpoch !== tsEpoch) return
-    tsPoints.value = res.data_points ?? []
-    tsSource.value = res.source
-    tsQuantileFallback.value = res.quantile_fallback === true
-    tsFailed.value = false
+    if (myEpoch === tsEpoch) {
+      tsPoints.value = res.data_points ?? []
+      tsSource.value = res.source
+      tsQuantileFallback.value = res.quantile_fallback === true
+      tsFailed.value = false
+    }
   } catch {
     if (myEpoch !== tsEpoch) return
     // 网关级无旧端点可回退：失败 = 错误条 + 图区空态 + 峰值 —，不混布旧路由级数据
@@ -399,6 +425,7 @@ async function loadTimeseries() {
     tsQuantileFallback.value = false
     tsFailed.value = true
   }
+  lastRefresh.value = fmtClock(new Date())
 }
 
 // ── 图形几何（Detail 四联图缩放先例：viewBox 内留 pad，最低可见 2px）─────────
@@ -478,6 +505,81 @@ const peakText = computed(() => {
   }
   return best ? `${formatHits(best.v)} @ ${tsPeakTime(best.d)}` : '—'
 })
+
+// ── 实时化（P4b-3）：useMonitorStream 零改动复用，页面只消费回调与 ref ─────
+const autoRefresh = ref(true)
+const lastRefresh = ref('')
+const streamSummary = ref<MonitorStreamMetrics | null>(null)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+
+/** 24 小时制 HH:mm:ss 手写 pad（项目无 dayjs；不用 locale 化时间 API —— 12 小时制/区域漂移防回归，旧大盘 P0-2 先例） */
+function fmtClock(d: Date): string {
+  const pad = (n: number) => (n < 10 ? '0' + n : '' + n)
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
+/** 单一 5s interval 三源各重拉（v2 大盘三源全是指标数据，无「只刷部分」的收窄对象） */
+function loadAll() {
+  void loadTraffic()
+  void loadStatus()
+  void loadTimeseries()
+}
+
+function setupAutoRefresh() {
+  clearRefreshTimer()
+  if (autoRefresh.value) {
+    refreshTimer = setInterval(() => loadAll(), 5000)
+  }
+}
+
+function clearRefreshTimer() {
+  if (refreshTimer) {
+    clearInterval(refreshTimer)
+    refreshTimer = null
+  }
+}
+
+watch(autoRefresh, setupAutoRefresh)
+
+const {
+  mode: streamMode,
+  start: startStream,
+  dispose: disposeStream
+} = useMonitorStream({
+  // SSE metrics 摘要只进页头实时摘要条（不覆盖 traffic 源的五 KPI 卡，字段不同源不同）
+  onMetrics: (m) => { streamSummary.value = m },
+  // config_changed（composable 已按默认 2s 去抖，页面不得覆写 configDebounceMs）→ 定向重拉：
+  // traffic + timeseries 恰一次各；listRouteStatus 不随拉（上游可达性是运行态探测非配置态）
+  onConfigChanged: () => { void loadTraffic(); void loadTimeseries() },
+  // 降级链：SSE 放弃（单向终态，无 SSE 恢复路径）→ 确保 5s 轮询在跑；
+  // autoRefresh 关 = 用户已明确弃用自动刷新，降级不起轮询（不逆其意，旧 Index 同款门控）
+  onFallback: () => { if (autoRefresh.value && !refreshTimer) setupAutoRefresh() }
+})
+
+// 降级/暂停时清陈旧推送摘要（旧 Index watch(streamMode) 先例随迁）——polling 态不伪造推送摘要
+watch(streamMode, (m) => {
+  if (m !== 'sse') streamSummary.value = null
+})
+
+const streamState = computed(() => (streamMode.value === 'sse' ? 'live' : 'polling'))
+
+/** 摘要徽标值：toNum 归一（Long→String 字符串数值同口径）+ formatHits；无摘要/字段缺省 '—'（不造数） */
+const badgeRoutes = computed(() => (streamSummary.value ? formatHits(toNum(streamSummary.value.routes_total)) : '—'))
+const badgeErrors = computed(() => (streamSummary.value ? formatHits(toNum(streamSummary.value.error_count)) : '—'))
+const badgeRequests = computed(() => (streamSummary.value ? formatHits(toNum(streamSummary.value.total_requests)) : '—'))
+
+onMounted(() => {
+  loadAll()
+  setupAutoRefresh()
+  // 订阅监控 SSE（失败自动降级静默；页面隐藏暂停/可见重连归 composable 自带的文档可见性监听）
+  startStream()
+})
+
+onUnmounted(() => {
+  clearRefreshTimer()
+  // 页面级断连（与真实 composable 内部 onUnmounted(dispose) 幂等共存）
+  disposeStream()
+})
 </script>
 
 <style scoped lang="scss">
@@ -490,6 +592,33 @@ const peakText = computed(() => {
   h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; color: var(--app-text); }
 }
 .mon-head-sub { margin: 4px 0 0; font-size: 12px; color: var(--app-text-tertiary); }
+
+/* —— 实时摘要条（P4b-3：SSE 摘要三徽标 + 最近刷新 + 自动刷新开关）—— */
+.mon-stream {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px;
+  padding: 8px 12px; margin-bottom: 12px;
+  font-size: 12px; border-radius: var(--app-radius-md);
+  background: var(--app-bg-muted); border: 1px solid var(--app-border-extra-light);
+}
+.mon-stream-title { font-weight: 600; color: var(--app-text); }
+.mon-stream-state {
+  display: inline-flex; align-items: center; padding: 2px 8px;
+  border-radius: var(--app-radius-full); color: var(--app-text-secondary);
+  background: var(--app-bg-card); border: 1px solid var(--app-border-extra-light);
+
+  [data-state='live'] & { color: var(--app-color-success-text); }
+  [data-state='polling'] & { color: var(--app-color-warning-text); }
+}
+.mon-badge { display: inline-flex; align-items: baseline; gap: 5px; }
+.mon-badge-lb { color: var(--app-text-tertiary); }
+.mon-badge-val { color: var(--app-text); font-variant-numeric: tabular-nums; }
+.mon-last-refresh {
+  margin-left: auto; color: var(--app-text-tertiary); font-variant-numeric: tabular-nums;
+}
+.mon-autorefresh {
+  display: inline-flex; align-items: center; gap: 6px;
+  cursor: pointer; white-space: nowrap; color: var(--app-text-secondary);
+}
 
 /* —— 提示条（快照兜底 / 流量加载失败 / 上游卡局部失败）—— */
 .hint-banner {
@@ -668,5 +797,6 @@ const peakText = computed(() => {
   .ts-charts { grid-template-columns: minmax(0, 1fr); }
   .ts-toolbar { flex-wrap: wrap; }
   .ts-source { margin-left: 0; }
+  .mon-last-refresh { margin-left: 0; }
 }
 </style>

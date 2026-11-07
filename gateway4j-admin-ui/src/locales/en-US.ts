@@ -713,7 +713,16 @@ export default {
       chartEmpty: 'No timeseries data',
       tsLoadFailed: 'Failed to load timeseries metrics',
       sourcePrometheus: 'Prometheus live',
-      sourceSnapshot: 'Snapshot fallback'
+      sourceSnapshot: 'Snapshot fallback',
+      // P4b-3 realtime (kept strictly in sync with zh-CN)
+      autoRefresh: 'Auto refresh',
+      lastRefresh: 'Refreshed at {time}',
+      streamSummaryTitle: 'Live summary',
+      streamLive: 'Live',
+      streamPolling: 'Polling fallback',
+      streamRoutes: 'Routes',
+      streamErrors: 'Errors',
+      streamRequests: 'Total requests'
     },
     routes: {
       create: 'New route',

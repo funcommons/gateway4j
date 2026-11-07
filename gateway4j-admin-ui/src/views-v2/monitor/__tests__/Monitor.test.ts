@@ -155,8 +155,86 @@
  * C 步需把该用例 ban 收窄为 alert/env/delta/instance/▲▼（去 peak 与 峰值 两 token，其余
  * 砍除区保留）——属契约演进而非回退；其余 40 条既有用例与 P4b-2b 无冲突（import 面 ban
  * 名单不含 fetchGatewayTimeseries）。
+ *
+ * ══ P4b-3 实时化追加段（T 步第三批；页面未实现 → 下方新增用例先红为预期）════════
+ * 契约：§4 P4b 行 P4b-3（~300 行前端）。useMonitorStream 零改动复用（src/composables/
+ * useMonitorStream.ts 269 行公开面：start/stop/dispose + mode/connected/lastMetrics/
+ * lastConfigChange 四 ref；节流/去抖/降级链/visibilitychange 全归 composable），页面只
+ * 消费回调与 ref。
+ *
+ * ── mock 策略（与前两批不同：vi.mock composable，不用 FakeEventSource）────────────
+ * 任务铁律「mock useMonitorStream（vi.mock composable，不 mock 真连接）」：工厂 async
+ * （vi.hoisted 内无法 import vue，ref 在工厂内 await import('vue') 动态取）。返回对象
+ * 的 mode/connected/lastMetrics/lastConfigChange 必须是【真实 Vue ref】——页面模板的
+ * 响应式依赖真实 ref，fake 若用普通对象，正确的 C 实现也不会重渲染 → 假红，故必须真
+ * ref。__ 前缀方法（__open/__fail/__metrics/__configChanged）是测试驱动把手（非真实
+ * composable 公开面）：__metrics 立即送达（真实 composable 节流 1s 但 leading 立即，
+ * 首条行为一致）；__configChanged 逐字复刻 debouncedFireConfigChanged（configDebounceMs
+ * ?? 2000、末次胜出）——2s 去抖语义归 composable 所有（零改动复用），fake 内置同款仅为
+ * 页面级可测，该语义的真源仍是 useMonitorStream.test.ts（其「config_changed 去抖 2s」
+ * 用例已覆盖，不在此重复验证 composable 本体）。mock 工厂只导出 useMonitorStream 一
+ * 成员：页面若越界 import parseStreamData 等 = undefined → TypeError 自曝（页面消费
+ * 全走回调，无需 parseStreamData）。
+ *
+ * ── P4b-3 口径裁决（T 定死，C 照做）──────────────────────────────────────────
+ * - 【SSE 摘要呈现裁决】SSE metrics 摘要（后端 MonitorStreamService#buildSummary：
+ *   {routes_total,error_count,total_requests,at}，at=epoch 毫秒）与 P4b-1 五 KPI 卡
+ *   （Σhits_24h/Σqps/均值P95/错误率/Σactive_connections，traffic+status 两源）字段不同
+ *   源不同 → 摘要【不覆盖】五 KPI 卡；改为页头「实时摘要」条 mon-stream-badge：
+ *   routes_total/error_count/total_requests 三徽标（mon-badge-routes/errors/requests），
+ *   值 toNum 归一 + formatHits（Long→String 字符串数值同口径，'1234567'→'1.2M'），
+ *   无摘要 '—'；data-state='live'(sse)/'polling'(降级)。降级时摘要清空回 '—'（旧 Index
+ *   watch(streamMode)「非 sse 清陈旧摘要」先例随迁）——polling 态不伪造推送摘要。
+ * - 【降级终态裁决】useMonitorStream 既有语义：fallback 单向终态（mode='polling' 后
+ *   start() no-op、onFallback 幂等、「polling owns the loop」）→【无「SSE 恢复停轮询」
+ *   路径】，降级后 5s 轮询跑到卸载为止、stream.start 不重入。onFallback → 若 autoRefresh
+ *   开则 ensure 5s interval（旧 Index onFallback `if (autoRefresh.value && !refreshTimer)
+ *   setupAutoRefresh()` 同款）；autoRefresh 关时降级不起轮询（用户已明确弃用自动刷新，
+ *   不逆其意）。
+ * - 【autoRefresh 裁决】FcSwitch 默认开（旧 Index ref(true) 先例）；单一 5s interval
+ *   （轮询与 autoRefresh 共用同一定时器，旧 Index 模式）：开→每 5s 重拉三源各一次
+ *   （traffic+status+timeseries —— v2 大盘无旧 Index 的 topology 重载荷，三源全是指标
+ *   数据，无「只刷部分」的既判；旧 Index「autoRefresh 只刷 loadMetrics 不全量 load」
+ *   的收窄对象在 v2 不存在）；关→停；再开→恢复（新 interval 从此刻起整周期 5s，无
+ *   立即拉取，旧 Index watch([autoRefresh,…])→setupAutoRefresh 先例）。
+ *   lastRefresh（mon-last-refresh）每次拉取（含挂载首轮）后更新：fmtClock HH:mm:ss，
+ *   禁 toLocaleTimeString（源码断言，旧 Index.last-refresh P0-2 模式继承）。
+ *   FcSwitch inheritAttrs:false 且模板不绑 $attrs → data-testid 会被吞，testid 必须放
+ *   wrapper 元素（mon-autorefresh-switch 包 FcSwitch，Index.vue label 先例），测试以
+ *   wrapper 内 [role="switch"] 按钮定位。
+ * - 【config_changed 定向裁决】2s 去抖归 composable（页面不得覆写 configDebounceMs
+ *   ——options 契约断言钉死零改动复用默认 2000）；页面 onConfigChanged（已去抖的回调）
+ *   → 定向重拉 traffic+timeseries 恰一次各；listRouteStatus【不】随拉（上游可达性是
+ *   运行态探测非配置态，route/plugin/global-plugin 变更不改变探测结果——「定向」的
+ *   可测含义）。
+ * - 【visibilitychange 裁决：只 SSE 层】旧 Index.vue 无页面级暂停（源码 grep 无
+ *   visibilitychange/visibilityState/document.hidden，5s interval 不因 hidden 停）→
+ *   页面自身 interval 不做可见性暂停（先例随迁，源码断言拦截 Monitor.vue 不得出现
+ *   visibilitychange/visibilityState/document.hidden 字样）；hidden 暂停/可见重连由
+ *   useMonitorStream 自带的 visibilitychange 绑定负责（SSE 连接层），其行为已由
+ *   useMonitorStream.test.ts「visibilitychange 暂停 / 恢复」组覆盖，页面级不重复实现。
+ *
+ * ── P4b-3 testid 追加表（mon-* 前缀延续，6 个）───────────────────────────────
+ * mon-stream-badge（实时摘要条，data-state=live|polling，含标题+三徽标+lastRefresh+
+ * autoRefresh 开关）；mon-badge-routes / mon-badge-errors / mon-badge-requests（三徽标
+ * 值槽，label+值）；mon-last-refresh（'最近刷新 {time}'，HH:mm:ss）；mon-autorefresh-switch
+ * （FcSwitch 的 wrapper，内含 role=switch 按钮）。均已核对：不撞既有砍除区 testid 正则
+ * /alert|env|delta/i，全部落在 mon- 前缀断言内。
+ *
+ * ── P4b-3 i18n 追加 key 清单（v2.monitor.* 延续，zh/en 同步，8 个）─────────────
+ * autoRefresh('自动刷新') / lastRefresh('最近刷新 {time}') / streamSummaryTitle('实时摘要') /
+ * streamLive('实时') / streamPolling('轮询兜底') / streamRoutes('路由数') /
+ * streamErrors('错误数') / streamRequests('请求总量')
+ * （均已核对：key 不撞既有砍除区 /alert|env|delta|instance/ 正则，value 不撞
+ * /告警|环境|▲|▼/ 与「实例」——既有砍除区用例不受影响。）
+ *
+ * ── fake timers 隔离（不惊动既有 69 用例）──────────────────────────────────
+ * 本批用例的 fake timers/systemTime 全部收在 P4b-3 各 describe 自己的 beforeEach/
+ * afterEach 内（vi.useFakeTimers + setSystemTime(2026-11-07 08:00:00 本地) + afterEach
+ * useRealTimers）；既有用例仍走真实计时器，一字不动。挂载首轮拉取即定 lastRefresh
+ * 基准 08:00:00，快进 5s → 08:00:05，HH:mm:ss 全程系统时间可控无时区歧义。
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -175,7 +253,16 @@ const mocks = vi.hoisted(() => ({
   listRouteStatus: vi.fn(),
   hasPermission: vi.fn(() => true),
   hasAnyPermission: vi.fn(() => true),
-  canEdit: vi.fn(() => true)
+  canEdit: vi.fn(() => true),
+  // P4b-3 增补：useMonitorStream 整体 mock（vi.mock composable，不 mock 真连接/EventSource）。
+  // stream 是 fake 的驱动把手：opts/last/calls 由下方 async mock 工厂（能 await import('vue')
+  // 拿真 ref）填充；测试经 mocks.stream.last 的 __ 前缀把手驱动回调、经 calls 断言生命周期。
+  useMonitorStream: vi.fn(),
+  stream: {
+    opts: null as Record<string, any> | null,
+    last: null as any,
+    calls: { start: 0, stop: 0, dispose: 0 }
+  }
 }))
 
 vi.mock('@/api/v2', () => ({
@@ -192,6 +279,65 @@ vi.mock('@/composables/usePermission', () => ({
     canEdit: mocks.canEdit
   })
 }))
+// P4b-3：async 工厂——vi.hoisted 内不能 import，ref 必须在工厂里动态取（真 Vue ref，
+// 见头注「mock 策略」段）。只导出 useMonitorStream 一成员，页面越界 import 即 TypeError 自曝。
+vi.mock('@/composables/useMonitorStream', async () => {
+  const { ref } = await import('vue')
+  const st = mocks.stream
+  const mode = ref('idle')
+  const connected = ref(false)
+  const lastMetrics = ref<unknown>(null)
+  const lastConfigChange = ref<unknown>(null)
+  let configTimer: ReturnType<typeof setTimeout> | null = null
+  let configPending: unknown = null
+
+  function clearConfigTimer() {
+    if (configTimer !== null) { clearTimeout(configTimer); configTimer = null }
+    configPending = null
+  }
+
+  mocks.useMonitorStream.mockImplementation((options: Record<string, any> = {}) => {
+    clearConfigTimer()
+    mode.value = 'idle'
+    connected.value = false
+    lastMetrics.value = null
+    lastConfigChange.value = null
+    st.opts = options
+    const handle = {
+      mode, connected, lastMetrics, lastConfigChange,
+      start: () => { st.calls.start++; mode.value = 'connecting' },
+      stop: () => { st.calls.stop++ },
+      dispose: () => { st.calls.dispose++; mode.value = 'idle'; clearConfigTimer() },
+      // ── 测试驱动把手（复刻真实 composable 行为契约，见头注）──
+      __open: () => { mode.value = 'sse'; connected.value = true },
+      __fail: (reason = 'error') => {
+        mode.value = 'polling'
+        connected.value = false
+        options.onFallback?.(reason)
+      },
+      __metrics: (m: unknown) => {
+        lastMetrics.value = m
+        options.onMetrics?.(m as any)
+      },
+      __configChanged: (e: unknown) => {
+        // 逐字复刻 useMonitorStream debouncedFireConfigChanged（去抖窗口=页面传入的
+        // configDebounceMs ?? 2000，末次胜出）
+        lastConfigChange.value = e
+        configPending = e
+        if (configTimer !== null) clearTimeout(configTimer)
+        configTimer = setTimeout(() => {
+          configTimer = null
+          const applied = configPending
+          configPending = null
+          if (applied) options.onConfigChanged?.(applied as any)
+        }, options.configDebounceMs ?? 2000)
+      }
+    }
+    st.last = handle
+    return handle
+  })
+  return { useMonitorStream: mocks.useMonitorStream }
+})
 
 import Monitor from '@/views-v2/monitor/Monitor.vue'
 
@@ -833,5 +979,323 @@ describe('v2 monitor P4b-2b — 降级无混布与 source 徽标（网关级无�
     expect(v2Import, '页面需从 @/api/v2 具名导入 fetchGatewayTimeseries').toContain('fetchGatewayTimeseries')
     expect(source).not.toMatch(/getRouteTimeseries|getRouteMetrics|fetchRouteTimeseries/)
     expect(source).not.toMatch(/\/v1\/monitor\/timeseries|\/v1\/monitor\/routes\/.*\/metrics/)
+  })
+})
+
+// ═══════════════════ P4b-3 实时化（T 步追加，先红为预期）══════════════════
+// 契约权威见文件头注「P4b-3 实时化追加段」（含 SSE 摘要呈现 / 降级终态 / autoRefresh /
+// 定向刷新 / visibilitychange 五裁决）；此处只落用例。mock 面：新增整模块
+// vi.mock('@/composables/useMonitorStream')（async 工厂 + 真 Vue ref，见头注 mock 策略段）。
+
+const KEYS_P4B3 = ['autoRefresh', 'lastRefresh', 'streamSummaryTitle', 'streamLive',
+  'streamPolling', 'streamRoutes', 'streamErrors', 'streamRequests'].map((k) => `v2.monitor.${k}`)
+
+/** SSE metrics 摘要 payload（后端 MonitorStreamService#buildSummary 权威形状，Long→String
+ * 契约下数值可能以字符串到达） */
+function streamMetrics(over: Record<string, unknown> = {}) {
+  return { routes_total: 7, error_count: 2, total_requests: 1234, at: 1797000000000, ...over }
+}
+
+/** 取 fake composable 句柄（页面未接线 useMonitorStream 时给出可读失败，而非 TypeError） */
+function streamHandle(): any {
+  const h = mocks.stream.last
+  expect(h, '页面尚未接线 useMonitorStream（P4b-3 未实现）— 挂载后应拿到 fake 句柄').not.toBeNull()
+  return h
+}
+
+describe('v2 monitor P4b-3 — i18n 追加 key 双语存在（铁律 6，v2.monitor.* 树延续）', () => {
+  it.each(KEYS_P4B3)('%s 在 zh-CN 与 en-US 都存在', (key) => {
+    expect(dig(zhCN, key), `zh-CN 缺少 ${key}`).toBeDefined()
+    expect(dig(enUS, key), `en-US 缺少 ${key}`).toBeDefined()
+  })
+})
+
+describe('v2 monitor P4b-3 — SSE 订阅生命周期与实时摘要条（裁决：摘要不覆盖 KPI 五卡）', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 10, 7, 8, 0, 0))
+    mocks.stream.calls = { start: 0, stop: 0, dispose: 0 }
+    mocks.useMonitorStream.mockClear()
+  })
+  afterEach(() => { vi.useRealTimers() })
+
+  it('挂载 → useMonitorStream 恰调一次、start 恰一次（订阅即起）；onMetrics/onConfigChanged/onFallback 三回调齐备', async () => {
+    const { wrapper } = await factory()
+    expect(mocks.useMonitorStream).toHaveBeenCalledTimes(1)
+    expect(mocks.stream.calls.start, '挂载即应 start 订阅').toBe(1)
+    const o = mocks.stream.opts
+    expect(o, '页面未把 options 传给 useMonitorStream').toBeTruthy()
+    expect(o!.onMetrics).toBeTypeOf('function')
+    expect(o!.onConfigChanged).toBeTypeOf('function')
+    expect(o!.onFallback).toBeTypeOf('function')
+    wrapper.unmount()
+  })
+
+  it('open → data-state=live + streamLive；metrics 摘要到达 → 三徽标值（字符串数值归一 + formatHits）；再次推送覆盖旧值', async () => {
+    const { wrapper } = await factory()
+    const s = streamHandle()
+    s.__open()
+    await flushPromises()
+    const badge = one(wrapper, 'mon-stream-badge')
+    expect(badge.exists(), '缺 mon-stream-badge 实时摘要条').toBe(true)
+    expect(badge.text()).toContain(t('v2.monitor.streamSummaryTitle'))
+    expect(badge.attributes('data-state')).toBe('live')
+    expect(badge.text()).toContain(t('v2.monitor.streamLive'))
+    s.__metrics(streamMetrics({ routes_total: '7', error_count: '2', total_requests: '1234567' }))
+    await flushPromises()
+    expect(one(wrapper, 'mon-badge-routes').text()).toContain(t('v2.monitor.streamRoutes'))
+    expect(one(wrapper, 'mon-badge-routes').text()).toContain('7')
+    expect(one(wrapper, 'mon-badge-errors').text()).toContain(t('v2.monitor.streamErrors'))
+    expect(one(wrapper, 'mon-badge-errors').text()).toContain('2')
+    expect(one(wrapper, 'mon-badge-requests').text()).toContain(t('v2.monitor.streamRequests'))
+    expect(one(wrapper, 'mon-badge-requests').text()).toContain('1.2M')
+    s.__metrics(streamMetrics({ routes_total: 9, error_count: 4 }))
+    await flushPromises()
+    expect(one(wrapper, 'mon-badge-routes').text()).toContain('9')
+    expect(one(wrapper, 'mon-badge-errors').text()).toContain('4')
+    wrapper.unmount()
+  })
+
+  it('SSE 摘要不覆盖 P4b-1 五 KPI 卡（字段不同源不同——头注裁决）：大数值摘要到达后 hits/qps/connections 照旧', async () => {
+    const { wrapper } = await factory()
+    const s = streamHandle()
+    s.__open()
+    s.__metrics(streamMetrics({ routes_total: 3, error_count: 1, total_requests: 99999999 }))
+    await flushPromises()
+    expect(one(wrapper, 'mon-kpi-hits').text()).toContain('1.7M')
+    expect(one(wrapper, 'mon-kpi-qps').text()).toContain('474')
+    expect(one(wrapper, 'mon-kpi-connections').text()).toContain('400')
+    wrapper.unmount()
+  })
+
+  it('未收到摘要（含 sse 已 open）→ 三徽标 —（不造数）', async () => {
+    const { wrapper } = await factory()
+    streamHandle().__open()
+    await flushPromises()
+    for (const tid of ['mon-badge-routes', 'mon-badge-errors', 'mon-badge-requests']) {
+      expect(one(wrapper, tid).text()).toContain('—')
+    }
+    wrapper.unmount()
+  })
+
+  it('卸载 → dispose 被调（页面级断连契约；与真实 composable 的内部 onUnmounted(dispose) 幂等共存）', async () => {
+    const { wrapper } = await factory()
+    streamHandle()
+    expect(mocks.stream.calls.dispose).toBe(0)
+    wrapper.unmount()
+    expect(mocks.stream.calls.dispose).toBeGreaterThanOrEqual(1)
+  })
+})
+
+describe('v2 monitor P4b-3 — 降级兜底（onFallback → 5s 轮询；降级终态无 SSE 恢复路径）', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 10, 7, 8, 0, 0))
+    mocks.stream.calls = { start: 0, stop: 0, dispose: 0 }
+    mocks.useMonitorStream.mockClear()
+  })
+  afterEach(() => { vi.useRealTimers() })
+
+  it('onFallback → data-state=polling + streamPolling + 摘要清空回 —（旧 Index 清陈旧摘要先例）；快进 5s → 三源各重拉一次', async () => {
+    const { wrapper } = await factory()
+    const s = streamHandle()
+    s.__open()
+    s.__metrics(streamMetrics())
+    await flushPromises()
+    const c0 = {
+      traffic: mocks.fetchTrafficSummary.mock.calls.length,
+      status: mocks.listRouteStatus.mock.calls.length,
+      ts: mocks.fetchGatewayTimeseries.mock.calls.length
+    }
+    s.__fail('error')
+    await flushPromises()
+    const badge = one(wrapper, 'mon-stream-badge')
+    expect(badge.attributes('data-state')).toBe('polling')
+    expect(badge.text()).toContain(t('v2.monitor.streamPolling'))
+    expect(one(wrapper, 'mon-badge-routes').text()).toContain('—')
+    vi.advanceTimersByTime(5000)
+    await flushPromises()
+    expect(mocks.fetchTrafficSummary.mock.calls.length).toBe(c0.traffic + 1)
+    expect(mocks.listRouteStatus.mock.calls.length).toBe(c0.status + 1)
+    expect(mocks.fetchGatewayTimeseries.mock.calls.length).toBe(c0.ts + 1)
+    wrapper.unmount()
+  })
+
+  it('降级终态裁决（无 SSE 恢复路径）：持续轮询（再快进 5s 再拉）且 stream.start 不重入（「polling owns the loop」）', async () => {
+    const { wrapper } = await factory()
+    streamHandle().__fail('error')
+    await flushPromises()
+    const c0 = mocks.fetchTrafficSummary.mock.calls.length
+    vi.advanceTimersByTime(5000)
+    await flushPromises()
+    expect(mocks.fetchTrafficSummary.mock.calls.length).toBe(c0 + 1)
+    vi.advanceTimersByTime(5000)
+    await flushPromises()
+    expect(mocks.fetchTrafficSummary.mock.calls.length).toBe(c0 + 2)
+    expect(mocks.stream.calls.start, '降级后 start 不得重入（真实 composable 在 polling 态 no-op）').toBe(1)
+    wrapper.unmount()
+  })
+
+  it('autoRefresh 关时降级 → 不起轮询（快进 5s 不拉；旧 Index onFallback autoRefresh 门控同款）', async () => {
+    const { wrapper } = await factory()
+    const sw = one(wrapper, 'mon-autorefresh-switch').find('[role="switch"]')
+    await sw.trigger('click')
+    await flushPromises()
+    const c0 = mocks.fetchTrafficSummary.mock.calls.length
+    streamHandle().__fail('error')
+    await flushPromises()
+    expect(one(wrapper, 'mon-stream-badge').attributes('data-state')).toBe('polling')
+    vi.advanceTimersByTime(5000)
+    await flushPromises()
+    expect(mocks.fetchTrafficSummary.mock.calls.length).toBe(c0)
+    wrapper.unmount()
+  })
+})
+
+describe('v2 monitor P4b-3 — config_changed 定向刷新（2s 去抖归 composable，页面消费已去抖回调）', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 10, 7, 8, 0, 0))
+    mocks.stream.calls = { start: 0, stop: 0, dispose: 0 }
+    mocks.useMonitorStream.mockClear()
+  })
+  afterEach(() => { vi.useRealTimers() })
+
+  it('到达 → 2s 去抖后定向重拉：traffic+timeseries 恰 +1 各；listRouteStatus 不随拉（定向裁决）；lastRefresh 更新', async () => {
+    const { wrapper } = await factory()
+    const s = streamHandle()
+    s.__open()
+    await flushPromises()
+    const c0 = {
+      traffic: mocks.fetchTrafficSummary.mock.calls.length,
+      status: mocks.listRouteStatus.mock.calls.length,
+      ts: mocks.fetchGatewayTimeseries.mock.calls.length
+    }
+    s.__configChanged({ type: 'route', at: 1797000000000 })
+    vi.advanceTimersByTime(1999)
+    await flushPromises()
+    expect(mocks.fetchTrafficSummary.mock.calls.length).toBe(c0.traffic)
+    expect(mocks.fetchGatewayTimeseries.mock.calls.length).toBe(c0.ts)
+    vi.advanceTimersByTime(1)
+    await flushPromises()
+    expect(mocks.fetchTrafficSummary.mock.calls.length).toBe(c0.traffic + 1)
+    expect(mocks.fetchGatewayTimeseries.mock.calls.length).toBe(c0.ts + 1)
+    expect(mocks.listRouteStatus.mock.calls.length).toBe(c0.status)
+    expect(one(wrapper, 'mon-last-refresh').text()).toContain('08:00:02')
+    wrapper.unmount()
+  })
+
+  it('去抖窗口内多次到达只拉一轮：3 次 config_changed → 2s 后 traffic/timeseries 恰 +1 各（末次胜出由 composable 去抖保证）', async () => {
+    const { wrapper } = await factory()
+    const s = streamHandle()
+    s.__open()
+    await flushPromises()
+    const c0 = {
+      traffic: mocks.fetchTrafficSummary.mock.calls.length,
+      ts: mocks.fetchGatewayTimeseries.mock.calls.length
+    }
+    s.__configChanged({ type: 'route' })
+    s.__configChanged({ type: 'plugin' })
+    s.__configChanged({ type: 'global-plugin' })
+    vi.advanceTimersByTime(2000)
+    await flushPromises()
+    expect(mocks.fetchTrafficSummary.mock.calls.length).toBe(c0.traffic + 1)
+    expect(mocks.fetchGatewayTimeseries.mock.calls.length).toBe(c0.ts + 1)
+    wrapper.unmount()
+  })
+
+  it('options 契约（零改动复用）：页面不得覆写 configDebounceMs（composable 默认 2000 生效）', async () => {
+    const { wrapper } = await factory()
+    expect(mocks.useMonitorStream, '页面需先接线 useMonitorStream 再谈 options 契约').toHaveBeenCalledTimes(1)
+    const o = mocks.stream.opts
+    expect(o, '页面未把 options 传给 useMonitorStream').toBeTruthy()
+    expect(o!.configDebounceMs, '覆写 configDebounceMs 破坏零改动复用（默认 2s 去抖）').toBeUndefined()
+    wrapper.unmount()
+  })
+})
+
+describe('v2 monitor P4b-3 — autoRefresh FcSwitch + lastRefresh（HH:mm:ss，禁 toLocaleTimeString）', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 10, 7, 8, 0, 0))
+    mocks.stream.calls = { start: 0, stop: 0, dispose: 0 }
+    mocks.useMonitorStream.mockClear()
+  })
+  afterEach(() => { vi.useRealTimers() })
+
+  it('默认开：挂载首轮拉取即有 lastRefresh 08:00:00（HH:mm:ss）；快进 5s → 三源各重拉一次且 lastRefresh 更新 08:00:05', async () => {
+    const { wrapper } = await factory()
+    const lr = one(wrapper, 'mon-last-refresh')
+    expect(lr.exists(), '缺 mon-last-refresh').toBe(true)
+    expect(lr.text()).toContain(t('v2.monitor.lastRefresh').replace('{time}', '').trim())
+    expect(lr.text(), '挂载首轮拉取后即应有时钟').toContain('08:00:00')
+    expect(lr.text()).toMatch(/\d{2}:\d{2}:\d{2}/)
+    const c0 = {
+      traffic: mocks.fetchTrafficSummary.mock.calls.length,
+      status: mocks.listRouteStatus.mock.calls.length,
+      ts: mocks.fetchGatewayTimeseries.mock.calls.length
+    }
+    vi.advanceTimersByTime(5000)
+    await flushPromises()
+    expect(mocks.fetchTrafficSummary.mock.calls.length).toBe(c0.traffic + 1)
+    expect(mocks.listRouteStatus.mock.calls.length).toBe(c0.status + 1)
+    expect(mocks.fetchGatewayTimeseries.mock.calls.length).toBe(c0.ts + 1)
+    expect(one(wrapper, 'mon-last-refresh').text()).toContain('08:00:05')
+    wrapper.unmount()
+  })
+
+  it('关 → 快进 5s 不拉、aria-checked=false；再开 → 恢复（新 interval 整周期 5s，无立即拉取，旧 Index 先例）+ autoRefresh 文案', async () => {
+    const { wrapper } = await factory()
+    expect(one(wrapper, 'mon-stream-badge').text()).toContain(t('v2.monitor.autoRefresh'))
+    const sw = () => one(wrapper, 'mon-autorefresh-switch').find('[role="switch"]')
+    expect(sw().exists(), 'mon-autorefresh-switch wrapper 内应有 FcSwitch（role=switch）').toBe(true)
+    expect(sw().attributes('aria-checked')).toBe('true')
+    await sw().trigger('click')
+    await flushPromises()
+    expect(sw().attributes('aria-checked')).toBe('false')
+    const c0 = mocks.fetchTrafficSummary.mock.calls.length
+    vi.advanceTimersByTime(5000)
+    await flushPromises()
+    expect(mocks.fetchTrafficSummary.mock.calls.length).toBe(c0)
+    await sw().trigger('click')
+    await flushPromises()
+    expect(sw().attributes('aria-checked')).toBe('true')
+    vi.advanceTimersByTime(5000)
+    await flushPromises()
+    expect(mocks.fetchTrafficSummary.mock.calls.length).toBe(c0 + 1)
+    wrapper.unmount()
+  })
+
+  it('源码断言：lastRefresh 经 fmtClock 更新、禁 toLocaleTimeString（旧 Index.last-refresh P0-2 模式继承）', () => {
+    const source = readSource()
+    expect(source).not.toMatch(/toLocaleTimeString/)
+    expect(source, '页面应定义 fmtClock（24h HH:mm:ss 手写 pad，同旧 Index 先例）').toMatch(/fmtClock/)
+    expect(source).toMatch(/lastRefresh\.value\s*=\s*fmtClock\(/)
+  })
+})
+
+describe('v2 monitor P4b-3 — visibilitychange（裁决：只 SSE 层，页面级 interval 不做可见性暂停）', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 10, 7, 8, 0, 0))
+    mocks.stream.calls = { start: 0, stop: 0, dispose: 0 }
+    mocks.useMonitorStream.mockClear()
+  })
+  afterEach(() => { vi.useRealTimers() })
+
+  it('源码断言：Monitor.vue 无 visibilitychange/visibilityState/document.hidden——SSE 层暂停/恢复归 useMonitorStream（其自身测试组已覆盖），页面不重复实现', () => {
+    expect(readSource()).not.toMatch(/visibilitychange|visibilityState|document\.hidden/)
+  })
+
+  it('页面 interval 不因 hidden 停（旧 Index 无页面级暂停先例随迁）：hidden 派发后快进 5s 照常重拉', async () => {
+    const { wrapper } = await factory()
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+    document.dispatchEvent(new Event('visibilitychange'))
+    await flushPromises()
+    const c0 = mocks.fetchTrafficSummary.mock.calls.length
+    vi.advanceTimersByTime(5000)
+    await flushPromises()
+    expect(mocks.fetchTrafficSummary.mock.calls.length).toBe(c0 + 1)
+    wrapper.unmount()
   })
 })
