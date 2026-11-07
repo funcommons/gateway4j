@@ -162,6 +162,46 @@
  * - 拉取成功 → 徽标文本 = 路由总数（listRoutes 行数，fixture 3 条 → '3'）；切回全局 scope
  *   徽标保留（routesLoaded 不回退）；
  * - listRoutes 失败（routes=[] 且 routesLoaded 仍 false）→ 徽标不渲染（数量未知不造数）。
+ *
+ * ══════════ P4a-1-T 追加段（v2 编辑器深链反转 + 配置/删除）══════════
+ * 契约：docs/ui-v2/实施契约.md §4 P4 表 P4a 行裁决①②③（2026-11-07）。先红是预期。
+ * 本段【按 T 裁决权修改了 3 处既有断言】（深链反转是本步目的，旧页跳转语义作废）：
+ *   1. H9 管理钮：/plugins/groovy-split/edit → /v2/plugins/editor/groovy-split
+ *   2. S12-C1 上传 JAR：/plugins/new → /v2/plugins/editor/new?type=JAR
+ *   3. S12-C1 编写 Groovy：/plugins/new → /v2/plugins/editor/new?type=GROOVY
+ * 基础设施随改（非断言）：vi.mock('@/api/plugins') 解禁 updatePlugin/deletePlugin/
+ *   validateConfig/getBuiltinSchema（上方 S10a「禁用名单」自 P4a-1 起缩窄为
+ *   getPlugin / validateGroovy / listGlobalPlugins）；factory 路由表加
+ *   /v2/plugins/editor/:id? stub；beforeEach 补四个 mock 复位。既有用例断言除此之外一字未动。
+ *
+ * ── 裁决要点（C 按此实现）────────────────────────────────────────────────
+ * ④ 管理钮深链修正：Chain.vue managePlugin 现传 plugin_id ≠ 行主键（旧深链本就是坏的）→
+ *    router.push(`/v2/plugins/editor/${p.id}`) 用【gw_plugin 行主键】；错位 fixture 见 P4A-K。
+ * ⑤ 已装内置卡「配置」：chn-mkt-config-<plugin_id>（canEdit 控制，与安装钮同排）→
+ *    FcDialog（title=configTitle）+ PluginDynamicForm（纯 Fc 零改动，:plugin-id=类型
+ *    plugin_id，v-model=已装行 config JSON.parse 结果，parse 失败兜底 {}）→ 保存 =
+ *    validateConfig(plugin_id, JSON.stringify(config)) 先行，is_valid=false → chn-cfg-error
+ *    （error_message 优先，兜底 configInvalid）且不落库；通过 → updatePlugin(【行主键】,
+ *    { config })（旧 Builtin.vue:221-242 语义随迁）→ 弹窗内容退场
+ *    （chn-cfg-dialog 与 PluginDynamicForm 均卸载 —— 内容根 v-if 绑选中行；toast 可选，
+ *    本文件不断言）。
+ * ⑥ 自定义卡「删除」：chn-mkt-delete-<plugin_id>（canEdit 控制）→
+ *    confirm({ variant:'danger', title:deleteConfirmTitle }) → deletePlugin(行主键) →
+ *    reload；拒绝/失败（chn-action-error，e.message 优先）不落库。
+ * ⑦ 深链反转：chn-mkt-manage-* → /v2/plugins/editor/{行主键}；chn-market-upload-jar /
+ *    chn-market-new-groovy → /v2/plugins/editor/new?type=JAR|GROOVY（type 预选 query，
+ *    编辑器页语义见 Editor.test.ts 头注裁决③）。
+ *
+ * ── 新增 testid（chn- 前缀延续）──────────────────────────────────────────
+ * chn-mkt-config-<plugin_id>（已装内置卡配置钮；未装卡/只读不渲染）
+ * chn-mkt-delete-<plugin_id>（自定义卡删除钮；只读不渲染）
+ * chn-cfg-dialog（配置弹窗内容根，仅弹窗打开且选中行存在时渲染）
+ * chn-cfg-save / chn-cfg-cancel（弹窗 footer 保存/取消）
+ * chn-cfg-error（弹窗内保存错误条：校验不过/落库失败文案；无错不渲染）
+ *
+ * ── 新增 i18n key（v2.chain.* 树，zh/en 同步；common.save/common.cancel 沿用共享树）──
+ * marketConfig（配置）/ marketDelete（删除）/ configTitle（配置插件）/
+ * configInvalid（校验不过兜底文案）/ deleteConfirmTitle / deleteConfirmText
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
@@ -186,6 +226,11 @@ const mocks = vi.hoisted(() => ({
   listRoutes: vi.fn(),
   listBindings: vi.fn(),
   sortRoutePlugins: vi.fn(),
+  // P4a-1-T 追加：配置/删除桥接面（原 S10a 禁用名单成员，P4a-1 起对 Chain 解禁 —— 见头注 P4a-1 段）
+  updatePlugin: vi.fn(),
+  deletePlugin: vi.fn(),
+  validateConfig: vi.fn(),
+  getBuiltinSchema: vi.fn(),
   fcConfirm: vi.fn(() => Promise.resolve(true)),
   hasPermission: vi.fn(() => true),
   hasAnyPermission: vi.fn(() => true),
@@ -199,7 +244,12 @@ vi.mock('@/api/plugins', () => ({
   disablePlugin: mocks.disablePlugin,
   sortGlobalPlugins: mocks.sortGlobalPlugins,
   createPlugin: mocks.createPlugin,
-  getRuntimeStatus: mocks.getRuntimeStatus
+  getRuntimeStatus: mocks.getRuntimeStatus,
+  // P4a-1-T：配置（FcDialog+PluginDynamicForm）/删除桥接 + PluginDynamicForm 自身 import 的 getBuiltinSchema
+  updatePlugin: mocks.updatePlugin,
+  deletePlugin: mocks.deletePlugin,
+  validateConfig: mocks.validateConfig,
+  getBuiltinSchema: mocks.getBuiltinSchema
 }))
 // S10b-T：路由级 binding 面（只导出页面允许 import 的 3 个成员；bindPlugin/updateBinding/
 // unbindPlugin/getPluginChain 等属禁用名单 —— 页面 import 即红，见头注 S10b 段）
@@ -333,7 +383,9 @@ async function factory(): Promise<{ wrapper: VueWrapper<any>; router: Router }> 
       { path: '/plugins/:id/edit', component: stub },
       // S12-T：C-1 直达钮跳转目标（旧 UI 建插件唯一入口，静态段优先于 :id 动态段）
       { path: '/plugins/new', component: stub },
-      { path: '/plugins', component: stub }
+      { path: '/plugins', component: stub },
+      // P4a-1-T：深链反转后的跳转目标（编辑器 v2 路由 stub；旧 /plugins/* 行保留供对照）
+      { path: '/v2/plugins/editor/:id?', component: stub }
     ]
   })
   await router.push('/v2/plugins/chain')
@@ -374,6 +426,11 @@ beforeEach(() => {
       ? Promise.resolve(pageOf(defaultGlobalRows().map((r) => ({ ...r }))))
       : Promise.resolve(pageOf(routeBoundRows().map((r) => ({ ...r }))))
   )
+  // P4a-1-T：配置/删除桥接面默认行为
+  mocks.updatePlugin.mockReset().mockResolvedValue({})
+  mocks.deletePlugin.mockReset().mockResolvedValue({})
+  mocks.validateConfig.mockReset().mockResolvedValue({ is_valid: true })
+  mocks.getBuiltinSchema.mockReset().mockResolvedValue({})
 })
 
 const KEYS = ['subtitle', 'scopeGlobal', 'scopeRoute', 'routeScopeWip',
@@ -544,7 +601,7 @@ describe('H8 — 市场·内置（listBuiltinTypes 按 category 分组）', () =
 
 // ── H9 ────────────────────────────────────────────────────────────────────
 describe('H9 — 市场·自定义（listPlugins 的 JAR/GROOVY/GROUP 行）', () => {
-  it('三行自定义卡带 plugin_type 原文徽标 + 「管理」跳旧路由 /plugins/:id/edit', async () => {
+  it('三行自定义卡带 plugin_type 原文徽标 + 「管理」跳 v2 编辑器深链 /v2/plugins/editor/{行主键}（P4a-1 深链反转，T 裁决修改）', async () => {
     const { wrapper, router } = await factory()
     for (const [id, type] of [['groovy-split', 'GROOVY'], ['member-group', 'GROUP'], ['jar-retry', 'JAR']] as const) {
       const card = one(wrapper, `chn-mkt-${id}`)
@@ -555,7 +612,10 @@ describe('H9 — 市场·自定义（listPlugins 的 JAR/GROOVY/GROUP 行）', (
     expect(one(wrapper, 'chn-market').text()).toContain(t('v2.chain.marketCustom'))
     await one(wrapper, 'chn-mkt-manage-groovy-split').trigger('click')
     await flushPromises()
-    expect(router.currentRoute.value.path).toBe('/plugins/groovy-split/edit')
+    // P4a-1 裁决②：管理钮 → /v2/plugins/editor/{行主键 id}（原断言 /plugins/groovy-split/edit 已按
+    // T 裁决权修改 —— 深链反转是本步目的，旧页跳转语义作废；本 fixture id=plugin_id，行主键深链
+    // 的错位防错参断言在文末 P4A-K）
+    expect(router.currentRoute.value.path).toBe('/v2/plugins/editor/groovy-split')
   })
 })
 
@@ -1035,7 +1095,7 @@ describe('S12 — i18n 新增 key 双语存在（铁律 6，v2.chain.* 树）', 
 })
 
 // ── S12-C1 ────────────────────────────────────────────────────────────────
-describe('S12-C1 — 市场头「上传 JAR / 编写 Groovy」直达旧 UI /plugins/new', () => {
+describe('S12-C1 — 市场头「上传 JAR / 编写 Groovy」直达 v2 编辑器（P4a-1 深链反转后目标，见头注 P4a-1 段）', () => {
   it('两钮落市场区头（marketTitle 同排）+ 文案 i18n（marketUploadJar / marketNewGroovy）', async () => {
     const { wrapper } = await factory()
     const market = one(wrapper, 'chn-market')
@@ -1050,18 +1110,20 @@ describe('S12-C1 — 市场头「上传 JAR / 编写 Groovy」直达旧 UI /plug
     expect(market.find('[data-testid="chn-market-new-groovy"]').exists()).toBe(true)
   })
 
-  it('点击 chn-market-upload-jar → /plugins/new（旧 UI 建插件唯一入口，独立路由非 dialog）', async () => {
+  it('点击 chn-market-upload-jar → /v2/plugins/editor/new?type=JAR（P4a-1 深链反转，T 裁决修改）', async () => {
     const { wrapper, router } = await factory()
     await one(wrapper, 'chn-market-upload-jar').trigger('click')
     await flushPromises()
-    expect(router.currentRoute.value.path).toBe('/plugins/new')
+    expect(router.currentRoute.value.path).toBe('/v2/plugins/editor/new')
+    expect(router.currentRoute.value.query.type).toBe('JAR')
   })
 
-  it('点击 chn-market-new-groovy → /plugins/new（同一路由，类型由旧 Editor 页内选择）', async () => {
+  it('点击 chn-market-new-groovy → /v2/plugins/editor/new?type=GROOVY（P4a-1 深链反转，T 裁决修改）', async () => {
     const { wrapper, router } = await factory()
     await one(wrapper, 'chn-market-new-groovy').trigger('click')
     await flushPromises()
-    expect(router.currentRoute.value.path).toBe('/plugins/new')
+    expect(router.currentRoute.value.path).toBe('/v2/plugins/editor/new')
+    expect(router.currentRoute.value.query.type).toBe('GROOVY')
   })
 
   it('只读（canEdit=false）恒渲染（只读导航，同 chn-mkt-manage-* 先例）', async () => {
@@ -1101,5 +1163,211 @@ describe('S12-C5 — 路由级 tab 计数徽标诚实化（chn-scope-route-count
     await enterRouteScope(wrapper)
     expect(one(wrapper, 'chn-scope-route-count').exists()).toBe(false)
     expect(one(wrapper, 'chn-scope-route').text()).not.toMatch(/\d/)
+  })
+})
+
+
+// ═══════════════ P4a-1-T：v2 编辑器深链反转 + 市场区配置/删除 ═══════════════
+// 契约与裁决见文件头注 P4a-1 追加段。既有用例除头注列明的 3 处深链断言外一字未动。
+import PluginDynamicForm from '@/components/PluginDynamicForm.vue'
+
+/** P4a-1 深链 fixture：行主键（id）≠ plugin_id（S10b 90x/8x 错位先例）——
+ *  sign 已装（行主键 7001，config 待配置）、groovy-x / jar-y 自定义卡（7002/7003）。
+ *  深链/落库参数一旦错传 plugin_id（'sign'/'groovy-x'）而非行主键立刻红。 */
+function p4aGlobalRows() {
+  return [
+    { ...makePlugin({ plugin_id: 'sign', plugin_name: '签名校验', plugin_phase: 'PRE', sort_order: 1 }), id: '7001', config: '{"mode":"strict"}' },
+    { ...makePlugin({ plugin_id: 'groovy-x', plugin_name: 'channel-split.groovy', plugin_phase: 'POST', plugin_type: 'GROOVY', sort_order: 2 }), id: '7002' },
+    { ...makePlugin({ plugin_id: 'jar-y', plugin_name: 'upstream-retry.jar', plugin_phase: 'POST', plugin_type: 'JAR', sort_order: 3 }), id: '7003' }
+  ]
+}
+
+/** P4a-1 取数分支：全局页换错位 fixture，路由级 join 分支沿用既有 routeBoundRows */
+function mockP4aListPlugins() {
+  mocks.listPlugins.mockImplementation((params?: { scope?: string }) =>
+    params?.scope === 'GLOBAL'
+      ? Promise.resolve(pageOf(p4aGlobalRows().map((r) => ({ ...r }))))
+      : Promise.resolve(pageOf(routeBoundRows().map((r) => ({ ...r }))))
+  )
+}
+
+/** 打开 sign 的配置弹窗（先钉配置钮存在再点，RED 时错误信息可读） */
+async function openCfgDialog(w: VueWrapper<any>) {
+  expect(one(w, 'chn-mkt-config-sign').exists(), '已装内置卡需有配置钮 chn-mkt-config-sign').toBe(true)
+  await one(w, 'chn-mkt-config-sign').trigger('click')
+  await flushPromises()
+  expect(one(w, 'chn-cfg-dialog').exists(), '点击配置后需渲染 chn-cfg-dialog').toBe(true)
+}
+
+const P4A_KEYS = ['marketConfig', 'marketDelete', 'configTitle', 'configInvalid', 'deleteConfirmTitle', 'deleteConfirmText']
+  .map((k) => `v2.chain.${k}`)
+
+// ── P4A i18n ──────────────────────────────────────────────────────────────
+describe('P4a-1 — i18n 新增 key 双语存在（铁律 6，v2.chain.* 树）', () => {
+  it.each(P4A_KEYS)('%s 在 zh-CN 与 en-US 都存在', (key) => {
+    expect(dig(zhCN, key), `zh-CN 缺少 ${key}`).toBeDefined()
+    expect(dig(enUS, key), `en-US 缺少 ${key}`).toBeDefined()
+  })
+})
+
+// ── P4A-B/C/D/E/F/G：已装内置卡「配置」（FcDialog + PluginDynamicForm + validateConfig + updatePlugin）
+describe('P4a-1-B — 已装内置卡配置钮（渲染边界）', () => {
+  it('已装内置卡（sign）渲染 chn-mkt-config-sign；未装卡（jwt）不渲染；只读（canEdit=false）不渲染', async () => {
+    mockP4aListPlugins()
+    const { wrapper } = await factory()
+    expect(one(wrapper, 'chn-mkt-config-sign').exists()).toBe(true)
+    expect(one(wrapper, 'chn-mkt-config-sign').text()).toContain(t('v2.chain.marketConfig'))
+    expect(one(wrapper, 'chn-mkt-config-jwt').exists()).toBe(false)
+    mocks.canEdit.mockReturnValue(false)
+    const { wrapper: w2 } = await factory()
+    expect(one(w2, 'chn-mkt-config-sign').exists()).toBe(false)
+  })
+})
+
+describe('P4a-1-C — 配置弹窗（FcDialog + PluginDynamicForm 纯 Fc）', () => {
+  it('点击配置 → chn-cfg-dialog 渲染 + PluginDynamicForm(:plugin-id=类型 plugin_id, v-model=行 config 解析对象) + 标题 configTitle', async () => {
+    mockP4aListPlugins()
+    const { wrapper } = await factory()
+    expect(one(wrapper, 'chn-cfg-dialog').exists()).toBe(false)
+    expect(one(wrapper, 'chn-mkt-config-sign').exists(), '已装内置卡需有配置钮 chn-mkt-config-sign').toBe(true)
+    await one(wrapper, 'chn-mkt-config-sign').trigger('click')
+    await flushPromises()
+    const dlg = one(wrapper, 'chn-cfg-dialog')
+    expect(dlg.exists()).toBe(true)
+    const form = wrapper.findComponent(PluginDynamicForm)
+    expect(form.exists()).toBe(true)
+    expect(form.props('pluginId')).toBe('sign')
+    expect(form.props('modelValue')).toEqual({ mode: 'strict' })
+    expect(wrapper.find('.fc-dialog__title').text()).toContain(t('v2.chain.configTitle'))
+  })
+})
+
+describe('P4a-1-D — 配置保存（validateConfig 先行 → updatePlugin 行主键）', () => {
+  it('保存 → validateConfig(\'sign\', JSON 串) 先于 updatePlugin(\'7001\', { config })，成功后弹窗内容退场', async () => {
+    mockP4aListPlugins()
+    const { wrapper } = await factory()
+    await openCfgDialog(wrapper)
+    expect(one(wrapper, 'chn-cfg-save').exists(), '配置弹窗需有保存钮 chn-cfg-save').toBe(true)
+    await one(wrapper, 'chn-cfg-save').trigger('click')
+    await flushPromises()
+    expect(mocks.validateConfig).toHaveBeenCalledTimes(1)
+    expect(mocks.validateConfig).toHaveBeenCalledWith('sign', '{"mode":"strict"}')
+    // 校验先行于落库（旧 Builtin.saveConfig 语义）
+    expect(mocks.validateConfig.mock.invocationCallOrder[0]).toBeLessThan(mocks.updatePlugin.mock.invocationCallOrder[0])
+    expect(mocks.updatePlugin).toHaveBeenCalledTimes(1)
+    expect(mocks.updatePlugin).toHaveBeenCalledWith('7001', { config: '{"mode":"strict"}' })
+    // 成功 → 弹窗内容退场（内容根 v-if 绑选中行）
+    expect(one(wrapper, 'chn-cfg-dialog').exists()).toBe(false)
+    expect(wrapper.findComponent(PluginDynamicForm).exists()).toBe(false)
+  })
+
+  it('validateConfig is_valid=false → chn-cfg-error（error_message 优先）+ 不落库 + 弹窗保持', async () => {
+    mockP4aListPlugins()
+    mocks.validateConfig.mockResolvedValue({ is_valid: false, error_message: 'limit 必须 > 0' })
+    const { wrapper } = await factory()
+    await openCfgDialog(wrapper)
+    await one(wrapper, 'chn-cfg-save').trigger('click')
+    await flushPromises()
+    expect(one(wrapper, 'chn-cfg-error').exists()).toBe(true)
+    expect(one(wrapper, 'chn-cfg-error').text()).toContain('limit 必须 > 0')
+    expect(mocks.updatePlugin).not.toHaveBeenCalled()
+    expect(one(wrapper, 'chn-cfg-dialog').exists()).toBe(true)
+  })
+
+  it('validateConfig is_valid=false 且无 error_message → 兜底 configInvalid 文案', async () => {
+    mockP4aListPlugins()
+    mocks.validateConfig.mockResolvedValue({ is_valid: false })
+    const { wrapper } = await factory()
+    await openCfgDialog(wrapper)
+    await one(wrapper, 'chn-cfg-save').trigger('click')
+    await flushPromises()
+    expect(one(wrapper, 'chn-cfg-error').text()).toContain(t('v2.chain.configInvalid'))
+    expect(mocks.updatePlugin).not.toHaveBeenCalled()
+  })
+
+  it('validateConfig reject → chn-cfg-error（e.message）+ 不落库', async () => {
+    mockP4aListPlugins()
+    mocks.validateConfig.mockRejectedValue(new Error('validator down'))
+    const { wrapper } = await factory()
+    await openCfgDialog(wrapper)
+    await one(wrapper, 'chn-cfg-save').trigger('click')
+    await flushPromises()
+    expect(one(wrapper, 'chn-cfg-error').text()).toContain('validator down')
+    expect(mocks.updatePlugin).not.toHaveBeenCalled()
+  })
+
+  it('取消（chn-cfg-cancel）→ 不发 validateConfig / updatePlugin', async () => {
+    mockP4aListPlugins()
+    const { wrapper } = await factory()
+    await openCfgDialog(wrapper)
+    expect(one(wrapper, 'chn-cfg-cancel').exists(), '配置弹窗需有取消钮 chn-cfg-cancel').toBe(true)
+    await one(wrapper, 'chn-cfg-cancel').trigger('click')
+    await flushPromises()
+    expect(mocks.validateConfig).not.toHaveBeenCalled()
+    expect(mocks.updatePlugin).not.toHaveBeenCalled()
+  })
+})
+
+// ── P4A-H/I/J：自定义卡「删除」（confirm + deletePlugin 行主键 + reload）
+describe('P4a-1-H — 自定义卡删除（confirm(danger) → deletePlugin 行主键 → reload）', () => {
+  it('删除钮渲染 + 点击 → confirm({ variant:danger, title:deleteConfirmTitle }) → deletePlugin(\'7002\') → listPlugins 重拉', async () => {
+    mockP4aListPlugins()
+    const { wrapper } = await factory()
+    const del = one(wrapper, 'chn-mkt-delete-groovy-x')
+    expect(del.exists()).toBe(true)
+    expect(del.text()).toContain(t('v2.chain.marketDelete'))
+    await del.trigger('click')
+    await flushPromises()
+    expect(mocks.fcConfirm).toHaveBeenCalledTimes(1)
+    expect(mocks.fcConfirm).toHaveBeenCalledWith(expect.objectContaining({
+      variant: 'danger',
+      title: expect.stringContaining(t('v2.chain.deleteConfirmTitle'))
+    }))
+    expect(mocks.deletePlugin).toHaveBeenCalledTimes(1)
+    expect(mocks.deletePlugin).toHaveBeenCalledWith('7002')
+    // reload（全局泳道重拉；初始 1 次 + 删除成功 1 次）
+    expect(mocks.listPlugins).toHaveBeenCalledTimes(2)
+  })
+
+  it('confirm 拒绝 → deletePlugin 不调', async () => {
+    mockP4aListPlugins()
+    mocks.fcConfirm.mockResolvedValue(false)
+    const { wrapper } = await factory()
+    expect(one(wrapper, 'chn-mkt-delete-groovy-x').exists(), '自定义卡需有删除钮 chn-mkt-delete-groovy-x').toBe(true)
+    await one(wrapper, 'chn-mkt-delete-groovy-x').trigger('click')
+    await flushPromises()
+    expect(mocks.fcConfirm).toHaveBeenCalledTimes(1)
+    expect(mocks.deletePlugin).not.toHaveBeenCalled()
+  })
+
+  it('删除失败 → chn-action-error（e.message）+ 回滚重拉', async () => {
+    mockP4aListPlugins()
+    mocks.deletePlugin.mockRejectedValueOnce(new Error('plugin in use'))
+    const { wrapper } = await factory()
+    expect(one(wrapper, 'chn-mkt-delete-groovy-x').exists(), '自定义卡需有删除钮 chn-mkt-delete-groovy-x').toBe(true)
+    await one(wrapper, 'chn-mkt-delete-groovy-x').trigger('click')
+    await flushPromises()
+    expect(one(wrapper, 'chn-action-error').exists()).toBe(true)
+    expect(one(wrapper, 'chn-action-error').text()).toContain('plugin in use')
+    expect(mocks.deletePlugin).toHaveBeenCalledTimes(1)
+    expect(mocks.listPlugins).toHaveBeenCalledTimes(2)
+  })
+
+  it('只读（canEdit=false）删除钮不渲染', async () => {
+    mockP4aListPlugins()
+    mocks.canEdit.mockReturnValue(false)
+    const { wrapper } = await factory()
+    expect(one(wrapper, 'chn-mkt-delete-groovy-x').exists()).toBe(false)
+  })
+})
+
+// ── P4A-K：管理钮深链（行主键错位防错参；S12-C1/H9 的路径断言用 id=plugin_id 的既有 fixture）
+describe('P4a-1-K — 管理钮深链修正（/v2/plugins/editor/{行主键}，行主键≠plugin_id）', () => {
+  it('点击 chn-mkt-manage-groovy-x → /v2/plugins/editor/7002（行主键；传 plugin_id \'groovy-x\' 即红）', async () => {
+    mockP4aListPlugins()
+    const { wrapper, router } = await factory()
+    await one(wrapper, 'chn-mkt-manage-groovy-x').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/v2/plugins/editor/7002')
   })
 })

@@ -137,6 +137,11 @@ interface V2NavItem {
   path: string
   labelKey: string
   icon: string
+  /**
+   * 可见性兜底权限码（P4a-1）：正常情况从路由 meta.permission 推导（canAccess 与守卫同源）；
+   * 仅当路由记录缺 meta（测试桩路由）时回退到该字段，取值与真实路由 meta 一致。
+   */
+  permission?: string
 }
 
 interface V2NavGroup {
@@ -170,7 +175,10 @@ const NAV_GROUPS: V2NavGroup[] = [
     key: 'plugins',
     labelKey: 'v2.nav.group.plugins',
     items: [
-      { name: 'V2PluginChain', path: '/v2/plugins/chain', labelKey: 'v2.nav.pluginChain', icon: 'ri-stack-line' }
+      { name: 'V2PluginChain', path: '/v2/plugins/chain', labelKey: 'v2.nav.pluginChain', icon: 'ri-stack-line' },
+      // P4a-1：插件组第二叶子。permission 字段 = 路由 meta.permission 的同值兜底（测试桩路由
+      // 不带 meta，canAccess 优先读 meta、缺省回退到这里；真实路由表两者一致，判据仍与守卫同源）
+      { name: 'V2PluginEditor', path: '/v2/plugins/editor', labelKey: 'v2.nav.pluginEditor', icon: 'ri-edit-box-line', permission: 'plugin:edit' }
     ]
   },
   {
@@ -191,16 +199,17 @@ const NAV_GROUPS: V2NavGroup[] = [
 /**
  * 侧栏可见性判据与守卫同源 (同 MainLayout 的 canAccessRoute):
  * 从路由自身 meta.permission 推导, 不另写一套权限字符串.
+ * meta 缺失时回退到导航条目自带的 permission 字段 (P4a-1, 取值与真实路由 meta 一致).
  */
-function canAccess(name: string): boolean {
+function canAccess(name: string, fallbackPerm?: string): boolean {
   const record = router.getRoutes().find((r) => String(r.name) === name)
-  const perm = record?.meta?.permission as string | undefined
+  const perm = (record?.meta?.permission as string | undefined) ?? fallbackPerm
   if (!perm) return true
   return hasPermission(perm)
 }
 
 const navGroups = computed(() =>
-  NAV_GROUPS.map((group) => ({ ...group, items: group.items.filter((item) => canAccess(item.name)) })),
+  NAV_GROUPS.map((group) => ({ ...group, items: group.items.filter((item) => canAccess(item.name, item.permission)) })),
 )
 
 /** 参数页高亮归属: 详情/决策树/发布 → 路由列表 (与旧版 SIDEBAR_ROUTE_MAP 同思路). */

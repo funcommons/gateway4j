@@ -169,14 +169,14 @@
     <section class="market" data-testid="chn-market">
       <header class="market-h">
         <b>{{ t('v2.chain.marketTitle') }}</b>
-        <!-- S12-C1: shortcuts to the legacy single creation entry (/plugins/new; the plugin
-             type is chosen inside the legacy editor) — read-only navigation, always rendered -->
+        <!-- P4a-1 deep-link reversal (T ruling): both shortcuts open the v2 editor in create mode
+             with the plugin type preselected via query — read-only navigation, always rendered -->
         <span class="market-actions">
-          <FcButton variant="secondary" size="sm" data-testid="chn-market-upload-jar" @click="newPluginEntry">
+          <FcButton variant="secondary" size="sm" data-testid="chn-market-upload-jar" @click="newPluginEntry('JAR')">
             <FcIcon name="ri-upload-2-line" :size="13" />
             <span>{{ t('v2.chain.marketUploadJar') }}</span>
           </FcButton>
-          <FcButton variant="secondary" size="sm" data-testid="chn-market-new-groovy" @click="newPluginEntry">
+          <FcButton variant="secondary" size="sm" data-testid="chn-market-new-groovy" @click="newPluginEntry('GROOVY')">
             <FcIcon name="ri-code-s-slash-line" :size="13" />
             <span>{{ t('v2.chain.marketNewGroovy') }}</span>
           </FcButton>
@@ -192,6 +192,14 @@
             </div>
             <p v-if="item.description" class="mkt-desc">{{ item.description }}</p>
             <div v-if="canWrite" class="mkt-act">
+              <!-- P4a-1: configure an installed builtin row (schema-driven form + validateConfig) -->
+              <FcButton
+                v-if="isInstalled(item.plugin_id)"
+                variant="secondary"
+                size="sm"
+                :data-testid="`chn-mkt-config-${item.plugin_id}`"
+                @click="openBuiltinConfig(item)"
+              >{{ t('v2.chain.marketConfig') }}</FcButton>
               <FcButton
                 variant="secondary"
                 size="sm"
@@ -212,7 +220,8 @@
               <FcTag color="brand" size="sm">{{ p.plugin_type }}</FcTag>
             </div>
             <p v-if="p.remark" class="mkt-desc">{{ p.remark }}</p>
-            <!-- Read-only navigation to the legacy editor: kept regardless of canEdit -->
+            <!-- Manage = read-only navigation to the v2 editor (kept regardless of canEdit);
+                 Delete (P4a-1) is a write action, gated by canWrite -->
             <div class="mkt-act">
               <FcButton
                 variant="secondary"
@@ -220,12 +229,32 @@
                 :data-testid="`chn-mkt-manage-${p.plugin_id}`"
                 @click="managePlugin(p)"
               >{{ t('v2.chain.marketManage') }}</FcButton>
+              <FcButton
+                v-if="canWrite"
+                variant="danger"
+                size="sm"
+                :data-testid="`chn-mkt-delete-${p.plugin_id}`"
+                @click="removeCustom(p)"
+              >{{ t('v2.chain.marketDelete') }}</FcButton>
             </div>
           </div>
         </div>
       </div>
       <p v-else class="market-empty">{{ t('v2.routes.placeholder') }}</p>
     </section>
+
+    <!-- P4a-1: installed-builtin config dialog. Content root is bound to the selected row, so a
+         successful save (or cancel) unmounts both the dialog body and PluginDynamicForm -->
+    <FcDialog v-model:open="cfgOpen" :title="t('v2.chain.configTitle')" width="640px">
+      <div v-if="cfgOpen && cfgRow" class="cfg-body" data-testid="chn-cfg-dialog">
+        <PluginDynamicForm :plugin-id="cfgRow.plugin_id" v-model="cfgModel" />
+        <p v-if="cfgError" class="hint-banner is-error cfg-error" data-testid="chn-cfg-error" role="alert">{{ cfgError }}</p>
+      </div>
+      <template #footer>
+        <FcButton variant="secondary" data-testid="chn-cfg-cancel" @click="closeCfg">{{ t('common.cancel') }}</FcButton>
+        <FcButton variant="primary" :loading="cfgSaving" data-testid="chn-cfg-save" @click="saveCfg">{{ t('common.save') }}</FcButton>
+      </template>
+    </FcDialog>
   </div>
 </template>
 
@@ -235,10 +264,11 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useFcConfirm } from '@/composables/useFcConfirm'
 import { usePermission } from '@/composables/usePermission'
-import { FcButton, FcIcon, FcInput, FcSection, FcSkeleton, FcSwitch, FcTag } from '@/components'
+import { FcButton, FcDialog, FcIcon, FcInput, FcSection, FcSkeleton, FcSwitch, FcTag } from '@/components'
+import PluginDynamicForm from '@/components/PluginDynamicForm.vue'
 import {
   listPlugins, listBuiltinTypes, enablePlugin, disablePlugin, sortGlobalPlugins, createPlugin, getRuntimeStatus,
-  type PluginItem, type BuiltinTypeMeta
+  updatePlugin, deletePlugin, validateConfig, type PluginItem, type BuiltinTypeMeta
 } from '@/api/plugins'
 import { listRoutes, listBindings, sortRoutePlugins, type RouteNode } from '@/api/routes'
 import { getBuiltinCategory, BUILTIN_CATEGORIES, type BuiltinCategoryKey } from '@/views/plugins/builtinCategories'
@@ -258,7 +288,10 @@ import { getBuiltinCategory, BUILTIN_CATEGORIES, type BuiltinCategoryKey } from 
  * - 市场区 = listBuiltinTypes()（按 builtinCategories 分组，server category 优先、
  *   getBuiltinCategory 兜底）∪ listPlugins 的 JAR/GROOVY/GROUP 行；已装判定 = gw_plugin
  *   行 plugin_id 比对 → 安装钮 disabled；安装 = createPlugin({ plugin_id, scope:'GLOBAL' })
- *   成功后 reload；管理 = 跳旧路由 /plugins/:id/edit（只读导航，不受 canEdit 限制）。
+ *   成功后 reload；管理 = 跳 v2 编辑器 /v2/plugins/editor/{行主键}（P4a-1 深链反转，
+ *   只读导航，不受 canEdit 限制）；已装内置卡「配置」= FcDialog + PluginDynamicForm +
+ *   validateConfig 先行 + updatePlugin(行主键)（P4a-1）；自定义卡「删除」= confirm(danger)
+ *   + deletePlugin(行主键) + reload（P4a-1）。
  * - runtime 徽标 = getRuntimeStatus()（items 按 plugin_id 接线；available=false 或接口异常
  *   静默降级无徽标不崩）；仅 BUILTIN 卡渲染（JAR/GROOVY/GROUP 与数据面接线无关）。
  *
@@ -681,14 +714,86 @@ function onDragEnd() {
   dragLane = ''
 }
 
-/** 管理 = 只读跳旧路由 /plugins/:id/edit（导航不改动） */
+/** 管理 = 只读跳 v2 编辑器（P4a-1 深链反转：用【gw_plugin 行主键】p.id，非 plugin_id ——
+ *  旧深链 /plugins/<plugin_id>/edit 本就传错参，作废） */
 function managePlugin(p: PluginItem) {
-  void router.push(`/plugins/${p.plugin_id}/edit`)
+  void router.push(`/v2/plugins/editor/${p.id}`)
 }
 
-/** S12-C1：市场头直达钮 = 旧 UI 建插件唯一入口 /plugins/new（JAR/GROOVY 由旧 Editor 页内选择） */
-function newPluginEntry() {
-  void router.push('/plugins/new')
+/** P4a-1 深链反转：市场头直达钮 → v2 编辑器 create 模式（'new' 保留字）+ query.type 预选 */
+function newPluginEntry(type: 'JAR' | 'GROOVY') {
+  void router.push({ path: '/v2/plugins/editor/new', query: { type } })
+}
+
+// ── P4a-1：已装内置卡「配置」（FcDialog + PluginDynamicForm + validateConfig 先行）──
+const cfgOpen = ref(false)
+const cfgRow = ref<PluginItem | null>(null)
+const cfgModel = ref<Record<string, any>>({})
+const cfgSaving = ref(false)
+const cfgError = ref('')
+
+/** 打开配置弹窗：按内置类型的 plugin_id 找已装行（行主键落库用），config 解析失败兜底 {} */
+function openBuiltinConfig(item: BuiltinTypeMeta) {
+  if (!canEdit('plugin')) return
+  const row = rows.value.find((r) => r.plugin_id === item.plugin_id)
+  if (!row) return
+  cfgRow.value = row
+  try {
+    cfgModel.value = typeof row.config === 'string' ? JSON.parse(row.config) : (row.config ?? {})
+  } catch {
+    cfgModel.value = {}
+  }
+  cfgError.value = ''
+  cfgOpen.value = true
+}
+
+function closeCfg() {
+  cfgOpen.value = false
+  cfgRow.value = null
+  cfgError.value = ''
+}
+
+/**
+ * 保存（旧 Builtin.saveConfig 语义随迁）：validateConfig(plugin_id, JSON 串) 先行，
+ * 不过 → cfg-error（error_message 优先，兜底 configInvalid）且不落库；通过 →
+ * updatePlugin(【行主键】, { config }) → 弹窗内容退场（cfgRow 清空卸载表单）+ reload。
+ */
+async function saveCfg() {
+  if (!canEdit('plugin') || !cfgRow.value || cfgSaving.value) return
+  cfgSaving.value = true
+  cfgError.value = ''
+  try {
+    const configStr = JSON.stringify(cfgModel.value)
+    const validation = await validateConfig(cfgRow.value.plugin_id, configStr)
+    if (!validation?.is_valid) {
+      cfgError.value = validation?.error_message || t('v2.chain.configInvalid')
+      return
+    }
+    await updatePlugin(cfgRow.value.id, { config: configStr })
+    cfgOpen.value = false
+    cfgRow.value = null
+    await reload()
+  } catch (e: any) {
+    cfgError.value = e?.message || t('v2.chain.actionFailed')
+  } finally {
+    cfgSaving.value = false
+  }
+}
+
+/** P4a-1：自定义卡「删除」= confirm(danger) → deletePlugin(【行主键】) → reload；拒绝/失败不落库 */
+async function removeCustom(p: PluginItem) {
+  if (!canEdit('plugin')) return
+  actionError.value = ''
+  const ok = await confirm({ variant: 'danger', title: t('v2.chain.deleteConfirmTitle'), content: t('v2.chain.deleteConfirmText') })
+  if (!ok) return
+  try {
+    await deletePlugin(p.id)
+    await reload()
+  } catch (e: any) {
+    const msg = e?.message || t('v2.chain.actionFailed')
+    await reload()
+    actionError.value = msg
+  }
 }
 </script>
 
@@ -1167,7 +1272,19 @@ function newPluginEntry() {
 
 .mkt-act {
   display: flex;
+  gap: 8px;
   margin-top: 2px;
+}
+
+/* P4a-1: installed-builtin config dialog body */
+.cfg-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cfg-error {
+  margin: 0;
 }
 
 .market-empty {

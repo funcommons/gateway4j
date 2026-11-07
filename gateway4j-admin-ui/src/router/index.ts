@@ -60,6 +60,9 @@ const v2Routes: RouteRecordRaw[] = [
       // 注册即修复 v2 List.vue act-canvas 死链（契约 §1 第 10 行）
       { path: 'routes/canvas/:id', name: 'V2Canvas', component: () => import('@/views-v2/canvas/Canvas.vue'), meta: { title: 'v2.page.canvas', permission: 'route:edit' } },
       { path: 'plugins/chain', name: 'V2PluginChain', component: () => import('@/views-v2/plugins/Chain.vue'), meta: { title: 'v2.page.chain', permission: 'plugin:read' } },
+      // P4a-1：v2 插件编辑器（:id? 可选 —— 缺省/'new' = create，其余 = edit 行主键；
+      // 静态段 'editor' 与无冲突动态段共存，行序无关）
+      { path: 'plugins/editor/:id?', name: 'V2PluginEditor', component: () => import('@/views-v2/plugins/Editor.vue'), meta: { title: 'v2.page.pluginEditor', permission: 'plugin:edit' } },
       { path: 'publish/:id', name: 'V2Publish', component: () => import('@/views-v2/publish/Publish.vue'), meta: { title: 'v2.page.publish', permission: 'route:edit' } },
       { path: 'monitor', name: 'V2Monitor', component: () => import('@/views-v2/monitor/Monitor.vue'), meta: { title: 'v2.page.monitor', permission: 'monitor:read' } },
       { path: 'debug', name: 'V2Debug', component: () => import('@/views-v2/debug/Debug.vue'), meta: { title: 'v2.page.debug', permission: 'route:edit' } }
