@@ -112,3 +112,43 @@ describe('plugins api — builtin + validation', () => {
     })
   })
 })
+
+// ═══ P4a-1-T 追加：六桥接函数契约补全（getPlugin + create/update 的 FormData 形态）═══
+// 契约：docs/ui-v2/实施契约.md §4 P4 表 P4a 行裁决③ —— v2 编辑器页/市场区依赖的桥接面。
+// getPlugin / validateConfig / validateGroovy / getBuiltinSchema / updatePlugin(JSON) /
+// deletePlugin 端点既有用例已覆盖；本段补：getPlugin 端点 + JSON 之外的 FormData 分支
+// （JAR 上传走 multipart：create=POST、update=PATCH，Content-Type 显式 multipart/form-data）。
+describe('plugins api — P4a-1 桥接补全（getPlugin + FormData 形态）', () => {
+  it('getPlugin -> GET /v1/plugins/:id（行主键）', async () => {
+    await api.getPlugin('7001')
+    expect(mocks.get).toHaveBeenCalledWith('/v1/plugins/7001')
+  })
+
+  it('createPlugin(FormData) -> POST /v1/plugins with multipart/form-data header', async () => {
+    const fd = new FormData()
+    fd.append('plugin_id', 'my-plugin')
+    fd.append('jar_file', new File([new Uint8Array(4)], 'a.jar'))
+    await api.createPlugin(fd)
+    expect(mocks.post).toHaveBeenCalledTimes(1)
+    expect(mocks.post).toHaveBeenCalledWith('/v1/plugins', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  })
+
+  it('updatePlugin(id, FormData) -> PATCH /v1/plugins/:id with multipart/form-data header', async () => {
+    const fd = new FormData()
+    fd.append('jar_file', new File([new Uint8Array(4)], 'b.jar'))
+    await api.updatePlugin('7001', fd)
+    expect(mocks.patch).toHaveBeenCalledTimes(1)
+    expect(mocks.patch).toHaveBeenCalledWith('/v1/plugins/7001', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  })
+
+  it('updatePlugin(id, payload) -> PATCH /v1/plugins/:id 无 multipart 头（JSON 分支不受 FormData 分支影响）', async () => {
+    await api.updatePlugin('7001', { config: '{}' })
+    expect(mocks.patch).toHaveBeenCalledWith('/v1/plugins/7001', { config: '{}' })
+    const call = mocks.patch.mock.calls[0]
+    expect(call[2]).toBeUndefined()
+  })
+})
