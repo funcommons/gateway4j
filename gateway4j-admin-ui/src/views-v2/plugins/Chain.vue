@@ -30,6 +30,9 @@
             @click="enterRouteScope"
           >
             <span>{{ t('v2.chain.scopeRoute') }}</span>
+            <!-- S12-C5: honest count — renders only after the lazy listRoutes pull succeeded
+                 (routesLoaded never rolls back on scope switch; unknown count renders nothing) -->
+            <span v-if="routesLoaded" class="scope-n" data-testid="chn-scope-route-count">{{ routes.length }}</span>
           </button>
         </div>
       </div>
@@ -164,7 +167,21 @@
 
     <!-- Market: builtin types grouped by category (server category first, id-map fallback) + custom gw_plugin rows -->
     <section class="market" data-testid="chn-market">
-      <header class="market-h"><b>{{ t('v2.chain.marketTitle') }}</b></header>
+      <header class="market-h">
+        <b>{{ t('v2.chain.marketTitle') }}</b>
+        <!-- S12-C1: shortcuts to the legacy single creation entry (/plugins/new; the plugin
+             type is chosen inside the legacy editor) — read-only navigation, always rendered -->
+        <span class="market-actions">
+          <FcButton variant="secondary" size="sm" data-testid="chn-market-upload-jar" @click="newPluginEntry">
+            <FcIcon name="ri-upload-2-line" :size="13" />
+            <span>{{ t('v2.chain.marketUploadJar') }}</span>
+          </FcButton>
+          <FcButton variant="secondary" size="sm" data-testid="chn-market-new-groovy" @click="newPluginEntry">
+            <FcIcon name="ri-code-s-slash-line" :size="13" />
+            <span>{{ t('v2.chain.marketNewGroovy') }}</span>
+          </FcButton>
+        </span>
+      </header>
       <div v-if="marketGroups.length || customRows.length" class="market-grid">
         <div v-for="g in marketGroups" :key="g.key" class="market-cat" :data-testid="`chn-market-cat-${g.key}`">
           <h4 class="market-cat-h">{{ t(CAT_LABEL_KEYS[g.key]) }}</h4>
@@ -668,6 +685,11 @@ function onDragEnd() {
 function managePlugin(p: PluginItem) {
   void router.push(`/plugins/${p.plugin_id}/edit`)
 }
+
+/** S12-C1：市场头直达钮 = 旧 UI 建插件唯一入口 /plugins/new（JAR/GROOVY 由旧 Editor 页内选择） */
+function newPluginEntry() {
+  void router.push('/plugins/new')
+}
 </script>
 
 <style scoped lang="scss">
@@ -1077,6 +1099,14 @@ function managePlugin(p: PluginItem) {
     font-size: 13px;
     color: var(--app-text);
   }
+}
+
+/* S12-C1：市场头直达钮（右对齐，b 的 margin 由 flex 自然分列） */
+.market-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
 }
 
 .market-grid {

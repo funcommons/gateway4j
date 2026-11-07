@@ -889,7 +889,12 @@ export default {
       applyDeleteTip: '勾选确认后才会在应用时删除（默认不删）',
       applyDescLabel: '变更说明（选填）',
       applyDescPlaceholder: '选填，留痕于变更记录',
-      applySuccess: '画布已应用到路由树'
+      applySuccess: '画布已应用到路由树',
+      // S12②③：边条件标签 + 工具栏三钮（与 en-US 严格同步）
+      autolayout: '自动布局',
+      fitView: '适应画布',
+      searchPlaceholder: '检索节点（id / 名称）',
+      edgeWeightLabel: '权重 {n}%'
     },
     // S10a：插件链编排（v2.chain.* 34 key，与 en-US 严格同步；泳道=执行顺序，缺口不造数）
     chain: {
@@ -931,7 +936,10 @@ export default {
       catObservability: '可观测',
       catTrafficControl: '流量控制',
       catResponse: '响应处理',
-      catOther: '其他'
+      catOther: '其他',
+      // S12①：市场头直达旧 UI 建插件单入口（/plugins/new，类型由旧 Editor 页内选择）
+      marketUploadJar: '上传 JAR',
+      marketNewGroovy: '编写 Groovy'
     },
     // S11b：调试台（v2.debug.* 45 key，与 en-US 严格同步；不引用 v2.canvas/v2.chain/route.* 旧树）
     debug: {
@@ -979,7 +987,13 @@ export default {
       errRouteNotPublished: '路由不存在或未发布（仅 PUBLISHED 路由可调试）',
       errGatewayUnreachable: '网关不可达或回放超时（连接 1s / 读取 3s），请检查网关地址与上游',
       errGeneric: '调试请求失败',
-      retry: '重试'
+      retry: '重试',
+      // S12④：curl 复制 + 清空会话（与 en-US 严格同步；curlCopyFailed 为降级路径备位文案）
+      copyCurl: '复制为 curl',
+      curlCopied: 'curl 已复制到剪贴板',
+      curlCopyFailed: '复制失败，请手动复制',
+      clearHistory: '清空历史',
+      clearHistoryConfirm: '确认清空调试历史？'
     }
   }
 }

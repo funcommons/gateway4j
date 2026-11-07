@@ -138,6 +138,30 @@
  * routePickerLabel / routeSearchPlaceholder / routeSelectEmpty / routeJoinHint / badgeRoute
  * （routeScopeWip 保留在 locale —— 既有 KEYS it.each 依赖；S10b 起页面不再渲染该占位，
  *   S10b-B1 断言其退场。）
+ *
+ * ══════════ S12-T 追加段（C-1 市场直达钮 + C-5 路由 tab 计数诚实化）══════════
+ * 契约：docs/ui-v2/实施契约.md §4 S12 行 ①⑤（2026-11-07 用户裁决五项之 Chain 两项）。
+ * 先红是预期；本步不动业务文件，既有用例一字未动。
+ *
+ * ── C-1 跳转目标裁决（T 侦察结论）────────────────────────────────────────
+ * 旧 UI 的 JAR 上传与 Groovy 编写【没有】独立 per-type 路由、也没有 dialog：唯一入口 =
+ * /plugins/new（router name PluginNew → src/views/plugins/Editor.vue），JAR/GROOVY 由
+ * Editor 页内 FcSegmented plugin_type 选择（缺省 GROOVY，JAR 选中后出 FcDropZone 上传页签），
+ * Editor 只读 route.params.id、不读 query —— 无法（也不应，旧 UI 零改动铁律）按类型深链。
+ * 故两钮均 router.push('/plugins/new')，形态 = 独立路由（非 dialog）。
+ * - testid：chn-market-upload-jar / chn-market-new-groovy，落市场区头（chn-market 头部
+ *   marketTitle 同排）；恒渲染（只读导航，同 chn-mkt-manage-* 先例，权限由旧路由 meta
+ *   plugin:edit 的全局守卫把守）。
+ * - i18n：v2.chain.marketUploadJar（上传 JAR）/ v2.chain.marketNewGroovy（编写 Groovy），
+ *   zh/en 同步。
+ *
+ * ── C-5 路由级 tab 计数诚实化（现有 DOM 裁决）────────────────────────────
+ * chn-scope-route 内加计数徽标 testid=chn-scope-route-count（class 沿全局 tab 的 scope-n）：
+ * - listRoutes 未惰性拉取（routesLoaded=false）→ 徽标不渲染（tab 文本无数字，现状保持，
+ *   不为此新增前置请求）；
+ * - 拉取成功 → 徽标文本 = 路由总数（listRoutes 行数，fixture 3 条 → '3'）；切回全局 scope
+ *   徽标保留（routesLoaded 不回退）；
+ * - listRoutes 失败（routes=[] 且 routesLoaded 仍 false）→ 徽标不渲染（数量未知不造数）。
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
@@ -307,6 +331,8 @@ async function factory(): Promise<{ wrapper: VueWrapper<any>; router: Router }> 
     routes: [
       { path: '/v2/plugins/chain', component: Chain as any },
       { path: '/plugins/:id/edit', component: stub },
+      // S12-T：C-1 直达钮跳转目标（旧 UI 建插件唯一入口，静态段优先于 :id 动态段）
+      { path: '/plugins/new', component: stub },
       { path: '/plugins', component: stub }
     ]
   })
@@ -992,5 +1018,88 @@ describe('S10b-B7 — 未选路由空态', () => {
     expect(one(wrapper, 'chn-lane-pre-route').findAll('[data-testid^="chn-card-"]').length).toBe(0)
     expect(one(wrapper, 'chn-lane-post-route').findAll('[data-testid^="chn-card-"]').length).toBe(0)
     expect(mocks.listBindings).not.toHaveBeenCalled()
+  })
+})
+
+// ═══════════════ S12-T：C-1 市场直达钮 + C-5 路由 tab 计数诚实化 ═══════════════
+// 契约：§4 S12 行 ①⑤；裁决要点见文件头注 S12 追加段。既有用例一字未动，先红是预期。
+
+const S12_KEYS = ['marketUploadJar', 'marketNewGroovy'].map((k) => `v2.chain.${k}`)
+
+// ── S12 i18n ──────────────────────────────────────────────────────────────
+describe('S12 — i18n 新增 key 双语存在（铁律 6，v2.chain.* 树）', () => {
+  it.each(S12_KEYS)('%s 在 zh-CN 与 en-US 都存在', (key) => {
+    expect(dig(zhCN, key), `zh-CN 缺少 ${key}`).toBeDefined()
+    expect(dig(enUS, key), `en-US 缺少 ${key}`).toBeDefined()
+  })
+})
+
+// ── S12-C1 ────────────────────────────────────────────────────────────────
+describe('S12-C1 — 市场头「上传 JAR / 编写 Groovy」直达旧 UI /plugins/new', () => {
+  it('两钮落市场区头（marketTitle 同排）+ 文案 i18n（marketUploadJar / marketNewGroovy）', async () => {
+    const { wrapper } = await factory()
+    const market = one(wrapper, 'chn-market')
+    const jar = one(wrapper, 'chn-market-upload-jar')
+    const groovy = one(wrapper, 'chn-market-new-groovy')
+    expect(jar.exists()).toBe(true)
+    expect(groovy.exists()).toBe(true)
+    expect(jar.text()).toContain(t('v2.chain.marketUploadJar'))
+    expect(groovy.text()).toContain(t('v2.chain.marketNewGroovy'))
+    // 落市场区头（不在泳道/市场卡内）
+    expect(market.find('[data-testid="chn-market-upload-jar"]').exists()).toBe(true)
+    expect(market.find('[data-testid="chn-market-new-groovy"]').exists()).toBe(true)
+  })
+
+  it('点击 chn-market-upload-jar → /plugins/new（旧 UI 建插件唯一入口，独立路由非 dialog）', async () => {
+    const { wrapper, router } = await factory()
+    await one(wrapper, 'chn-market-upload-jar').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/plugins/new')
+  })
+
+  it('点击 chn-market-new-groovy → /plugins/new（同一路由，类型由旧 Editor 页内选择）', async () => {
+    const { wrapper, router } = await factory()
+    await one(wrapper, 'chn-market-new-groovy').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/plugins/new')
+  })
+
+  it('只读（canEdit=false）恒渲染（只读导航，同 chn-mkt-manage-* 先例）', async () => {
+    mocks.canEdit.mockReturnValue(false)
+    const { wrapper } = await factory()
+    expect(one(wrapper, 'chn-market-upload-jar').exists()).toBe(true)
+    expect(one(wrapper, 'chn-market-new-groovy').exists()).toBe(true)
+  })
+})
+
+// ── S12-C5 ────────────────────────────────────────────────────────────────
+describe('S12-C5 — 路由级 tab 计数徽标诚实化（chn-scope-route-count）', () => {
+  it('未拉取（全局 scope）→ 徽标不渲染且路由级 tab 文本无数字（现状保持，不新增前置请求）', async () => {
+    const { wrapper } = await factory()
+    expect(one(wrapper, 'chn-scope-route-count').exists()).toBe(false)
+    expect(one(wrapper, 'chn-scope-route').text()).not.toMatch(/\d/)
+    expect(mocks.listRoutes).not.toHaveBeenCalled()
+  })
+
+  it('惰性拉取成功（3 条路由）→ 徽标 = 路由总数 3；切回全局徽标保留（routesLoaded 不回退）', async () => {
+    const { wrapper } = await factory()
+    await enterRouteScope(wrapper)
+    const count = one(wrapper, 'chn-scope-route-count')
+    expect(count.exists()).toBe(true)
+    expect(count.text()).toBe('3')
+    await one(wrapper, 'chn-scope-global').trigger('click')
+    await flushPromises()
+    expect(one(wrapper, 'chn-scope-route-count').exists()).toBe(true)
+    expect(one(wrapper, 'chn-scope-route-count').text()).toBe('3')
+    // 诚实化不新增前置请求：整个往返只发这一次惰性拉取
+    expect(mocks.listRoutes).toHaveBeenCalledTimes(1)
+  })
+
+  it('listRoutes 失败 → 徽标不渲染（数量未知不造数，routesLoaded 仍 false）', async () => {
+    mocks.listRoutes.mockRejectedValue(new Error('routes down'))
+    const { wrapper } = await factory()
+    await enterRouteScope(wrapper)
+    expect(one(wrapper, 'chn-scope-route-count').exists()).toBe(false)
+    expect(one(wrapper, 'chn-scope-route').text()).not.toMatch(/\d/)
   })
 })

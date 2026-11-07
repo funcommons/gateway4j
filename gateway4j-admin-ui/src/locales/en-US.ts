@@ -892,7 +892,12 @@ export default {
       applyDeleteTip: 'Only rows you check are deleted on apply (nothing is deleted by default)',
       applyDescLabel: 'Change description (optional)',
       applyDescPlaceholder: 'Optional — kept in the change history',
-      applySuccess: 'Canvas applied to the route tree'
+      applySuccess: 'Canvas applied to the route tree',
+      // S12②③: edge condition labels + toolbar trio (kept strictly in sync with zh-CN)
+      autolayout: 'Auto layout',
+      fitView: 'Fit view',
+      searchPlaceholder: 'Search nodes (id / name)',
+      edgeWeightLabel: 'Weight {n}%'
     },
     // S10a: plugin chain (v2.chain.* 34 keys kept strictly in sync with zh-CN; lanes = execution order, no invented metrics)
     chain: {
@@ -934,7 +939,10 @@ export default {
       catObservability: 'Observability',
       catTrafficControl: 'Traffic control',
       catResponse: 'Response',
-      catOther: 'Other'
+      catOther: 'Other',
+      // S12①: market header shortcuts to the legacy plugin-creation entry (/plugins/new; type is picked in the legacy editor)
+      marketUploadJar: 'Upload JAR',
+      marketNewGroovy: 'Write Groovy'
     },
     // S11b: debug console (v2.debug.* 45 keys kept strictly in sync with zh-CN; no references to v2.canvas/v2.chain/route.* trees)
     debug: {
@@ -982,7 +990,13 @@ export default {
       errRouteNotPublished: 'Route not found or not published (only PUBLISHED routes can be debugged)',
       errGatewayUnreachable: 'Gateway unreachable or replay timed out (connect 1s / read 3s); check the gateway address and upstream',
       errGeneric: 'Debug request failed',
-      retry: 'Retry'
+      retry: 'Retry',
+      // S12④: copy-as-curl + clear history (kept strictly in sync with zh-CN; curlCopyFailed is the reserved degraded-path message)
+      copyCurl: 'Copy as curl',
+      curlCopied: 'curl copied to the clipboard',
+      curlCopyFailed: 'Copy failed; please copy manually',
+      clearHistory: 'Clear history',
+      clearHistoryConfirm: 'Clear the debug history?'
     }
   }
 }

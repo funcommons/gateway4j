@@ -70,6 +70,35 @@
             {{ t('v2.canvas.delete') }}
           </FcButton>
         </span>
+        <!-- S12③: view/edit helpers — autolayout (graph change, read-only disabled),
+             fit view + node search (pure-view aids, kept in read-only) -->
+        <FcButton
+          variant="secondary"
+          size="sm"
+          data-testid="cnv-autolayout"
+          :disabled="!canEditRoute"
+          :title="t('v2.canvas.autolayout')"
+          @click="onAutolayout"
+        >
+          {{ t('v2.canvas.autolayout') }}
+        </FcButton>
+        <FcButton
+          variant="secondary"
+          size="sm"
+          data-testid="cnv-fitview"
+          :title="t('v2.canvas.fitView')"
+          @click="onFitView"
+        >
+          {{ t('v2.canvas.fitView') }}
+        </FcButton>
+        <FcInput
+          v-model="nodeSearch"
+          class="cnv-search"
+          data-testid="cnv-node-search"
+          size="small"
+          :placeholder="t('v2.canvas.searchPlaceholder')"
+          clearable
+        />
         <!-- S9b: apply-to-route-tree entry; guards (orphan / depth) run before the dialog opens -->
         <FcButton
           v-if="canEditRoute"
@@ -182,10 +211,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { VueFlow } from '@vue-flow/core'
+import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { MiniMap } from '@vue-flow/minimap'
@@ -194,7 +223,7 @@ import '@vue-flow/core/dist/theme-default.css'
 import '@vue-flow/controls/dist/style.css'
 import '@vue-flow/minimap/dist/style.css'
 
-import { FcButton, FcIcon, FcSection, toast } from '@/components'
+import { FcButton, FcIcon, FcInput, FcSection, toast } from '@/components'
 import { usePermission } from '@/composables/usePermission'
 import { getCanvas, getRoute } from '@/api/routes'
 import { useCanvasGraph } from './composables/useCanvasGraph'
@@ -240,13 +269,42 @@ const {
   loading, loadError, nodes, edges, selectedNode, selectedEdge,
   connectionError, limitHit, canUndo, canRedo,
   load, addNodeType, deleteSelected, deleteEdge, onConnect, onNodeClick, onPaneClick, onEdgeClick,
-  undo, redo, setEdgeWeight
+  undo, redo, setEdgeWeight, autolayout
 } = useCanvasGraph(routeId, {
   loadCanvas: getCanvas,
   loadRoute: getRoute,
   onMutate: touch,
   onLoaded: onGraphLoaded
 })
+
+// —— S12③：适应画布 / 自动布局（fitView 走 useVueFlow 实例通道，只读保留）——
+const { fitView } = useVueFlow()
+
+function onFitView() {
+  void fitView()
+}
+
+function onAutolayout() {
+  if (!canEditRoute.value) return
+  autolayout()
+}
+
+// —— S12③：检索节点（纯前端：id + data.label 大小写不敏感子串；node.class 通道）——
+const NODE_HIT_CLS = 'cnv-node-hit'
+const NODE_DIM_CLS = 'cnv-node-dim'
+const nodeSearch = ref('')
+
+function applyNodeSearch() {
+  const q = nodeSearch.value.trim().toLowerCase()
+  for (const n of nodes.value) {
+    const hit = q !== ''
+      && (String(n.id ?? '').toLowerCase().includes(q) || String(n.data?.label ?? '').toLowerCase().includes(q))
+    n.class = q === '' ? '' : (hit ? NODE_HIT_CLS : NODE_DIM_CLS)
+  }
+}
+
+// 图替换（load/undo/redo/增删/布局）后按当前检索词重算，避免残留旧标记
+watch([nodeSearch, nodes], applyNodeSearch)
 
 /** live 取数器：自动保存与应用弹窗共用（保存语义 saveCanvas(routeId, { nodes, edges })） */
 function getSnapshot() {
@@ -402,6 +460,10 @@ const palette = computed(() => [
 .cnv-delete-host {
   display: inline-flex;
 }
+/* S12③：检索输入（工具栏内定宽，不随 flex 拉伸） */
+.cnv-search {
+  width: 180px;
+}
 .cnv-chip {
   display: inline-flex;
   align-items: center;
@@ -507,6 +569,25 @@ const palette = computed(() => [
   fill: var(--app-text-secondary);
 }
 .cnv-canvas :deep(.vue-flow__controls-button:hover) { background: var(--app-bg-muted); }
+
+/* —— S12②③：边条件标签 + 检索命中/置灰（真实件渲染面，jsdom 走 stub 出口）——
+   边标签走 Vue Flow 内置 EdgeLabelRenderer：字号/内边距对齐本页 chip 族（11.5px + token 配色）；
+   检索命中/置灰走 node.class（与 .vue-flow__node 同元素，outline 描边不挤布局），不改选中态。 */
+.cnv-canvas :deep(.vue-flow__edge-text) {
+  font-size: 11.5px;
+  font-weight: 500;
+  fill: var(--app-text-secondary);
+}
+.cnv-canvas :deep(.vue-flow__edge-textbg) {
+  fill: var(--app-bg-card);
+}
+.cnv-canvas :deep(.vue-flow__node.cnv-node-hit) {
+  outline: 2px solid color-mix(in srgb, var(--app-primary) 55%, transparent);
+  outline-offset: 1px;
+}
+.cnv-canvas :deep(.vue-flow__node.cnv-node-dim) {
+  opacity: 0.35;
+}
 
 /* —— 空态（nodes 空且非 loading 且无 loadError 才出现）—— */
 .cnv-empty {

@@ -93,6 +93,36 @@
  *   useCanvasAutosave.test.ts 头注）。
  * - 新 i18n key（v2.canvas.*，尾部 it.each 锁双语）：saveDirty / saveSaving / saveSaved /
  *   saveFailed / applyTitle。
+ *
+ * ── S12-T 追记（本步追加；既有用例一字未动，先红是预期）─────────────────────
+ * 契约：docs/ui-v2/实施契约.md §4 S12 行 ②③（2026-11-07 用户裁决五项之画布两项）。
+ *
+ * S12② 边条件标签（数据源裁决 = 既有 parseCanvasData 的边 data.condition_*，不新增后端）：
+ * - WEIGHT 且 parseWeight(condition_key) 合法 → t('v2.canvas.edgeWeightLabel') 插值
+ *   （zh「权重 {n}%」/ en「Weight {n}%」），condition_key='30' → 「权重 30%」；
+ * - 其余 condition_type 且 condition_value 非空 → 「{TYPE} {condition_value}」，TYPE 用
+ *   既有枚举原文（HEADER/PATH/QUERY/BODY/GROOVY，语言中立），契约示例形态
+ *   「HEADER X-Channel=vip」（值 = condition_value 原文，HEADER 的 k=v 由用户在
+ *   条件值里整串维护，PropertyPanel 单值输入先例）；
+ * - 默认/无条件边（condition_value 空）→ 不显标签（label 为空）。
+ * - 断言出口 = VueFlow stub 的 edge-label 渲染出口：cnv-edge-label-{edge.id}，文本 =
+ *   e.label（真实件走 EdgeLabelRenderer，jsdom 不渲染真边 —— stub 即出口）。stub 同时补
+ *   EdgeLabelRenderer 导出面与 useVueFlow 出口（C 步 import 任何一条路 mock 面不炸）。
+ *
+ * S12③ 工具栏三钮：
+ * - cnv-autolayout 自动布局：BFS 分层 —— DISPATCH（及无分发祖先的孤节点）为第 0 层、
+ *   子代依次下一层（y 随层深递增）；同层确定性排序 = 入边 priority 升序、再 node id
+ *   字典序；写后 pushHistory → undo 坐标复原；只读（canEdit=false）disabled
+ *   （图变更类入口与 undo/delete 同规）。
+ * - cnv-fitview 适应画布：调 Vue Flow 实例 fitView()（stub expose 出口，汇入
+ *   mocks.vueFlowFitView 同一 spy；useVueFlow 路同样汇入）；查看辅助，只读保留。
+ * - cnv-node-search 检索节点：id + data.label 大小写不敏感子串匹配；命中节点 class 含
+ *   cnv-node-hit、未命中含 cnv-node-dim（Vue Flow node.class 通道）；清空恢复两类皆无；
+ *   断言出口 = stub 的 node 渲染出口 cnv-stub-node-{node.id}（:class="n.class"）；
+ *   placeholder = searchPlaceholder；纯前端，只读保留。
+ *
+ * S12 新增 i18n key（v2.canvas.*，zh/en 同步，铁律 6）：autolayout / fitView /
+ * searchPlaceholder / edgeWeightLabel
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { nextTick } from 'vue'
@@ -112,6 +142,8 @@ const mocks = vi.hoisted(() => ({
   getRoute: vi.fn(),
   saveCanvas: vi.fn(),
   applyCanvas: vi.fn(),
+  // S12-T：fitView stub 出口（VueFlow 实例 expose 与 useVueFlow 两条路都汇到同一 spy）
+  vueFlowFitView: vi.fn(),
   hasPermission: vi.fn(() => true),
   hasAnyPermission: vi.fn(() => true),
   canEdit: vi.fn(() => true)
@@ -133,13 +165,38 @@ vi.mock('@/composables/usePermission', () => ({
   })
 }))
 
-// jsdom 不可真实渲染 Vue Flow：四件套 stub（旧 Canvas.test.ts L28-42 先例 + props 声明增强）
+// jsdom 不可真实渲染 Vue Flow：四件套 stub（旧 Canvas.test.ts L28-42 先例 + props 声明增强）。
+// S12-T 扩出口（铁律允许只扩 stub 不动业务）：
+// - edge-label 渲染出口：cnv-edge-label-{edge.id}，文本 = e.label（真实件走 EdgeLabelRenderer）；
+// - node 渲染出口：cnv-stub-node-{node.id}，:class="n.class"（检索命中/置灰经 node.class 通道）；
+// - fitView 出口：组件实例 expose { fitView }（真实 VueFlow 实例方法先例），同时提供
+//   useVueFlow() 同 spy 出口 + EdgeLabelRenderer 导出面，C 步 import 哪条路 mock 面都不炸。
 vi.mock('@vue-flow/core', () => ({
   VueFlow: {
     name: 'VueFlow',
     props: ['nodes', 'edges', 'fitViewOnInit', 'nodesDraggable', 'nodesConnectable', 'elementsSelectable'],
-    template: '<div class="vueflow-stub"><slot /></div>'
-  }
+    setup(_: unknown, { expose }: { expose: (api: Record<string, unknown>) => void }) {
+      expose({ fitView: mocks.vueFlowFitView })
+    },
+    template: `<div class="vueflow-stub">
+      <span
+        v-for="e in edges"
+        :key="e.id"
+        class="vueflow-stub__edge-label"
+        :data-testid="'cnv-edge-label-' + e.id"
+      >{{ e.label }}</span>
+      <span
+        v-for="n in nodes"
+        :key="n.id"
+        class="vueflow-stub__node"
+        :data-testid="'cnv-stub-node-' + n.id"
+        :class="n.class"
+      />
+      <slot />
+    </div>`
+  },
+  EdgeLabelRenderer: { name: 'EdgeLabelRenderer', template: '<div class="edgelabel-stub"><slot /></div>' },
+  useVueFlow: () => ({ fitView: mocks.vueFlowFitView })
 }))
 vi.mock('@vue-flow/background', () => ({
   Background: { name: 'Background', template: '<div class="bg-stub" />' }
@@ -796,5 +853,182 @@ describe('v2 canvas/Canvas — S9b 接线（属性面板 + 保存状态 + 自动
     expect(mocks.saveCanvas).not.toHaveBeenCalled()
     await vi.advanceTimersByTimeAsync(1000)
     expect(mocks.saveCanvas).toHaveBeenCalledTimes(1)
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════
+// S12-T 追加（本步新增，S12-C 落地后自绿；先红预期）：边条件标签 + 工具栏三钮。
+// 既有用例一字未动；VueFlow stub 已扩 edge-label / node / fitView 出口（见文件头部）。
+// ═════════════════════════════════════════════════════════════════════════════
+
+// S12 新 i18n key（v2.canvas.*，zh/en 双语存在，铁律 6）
+const S12_KEYS = ['autolayout', 'fitView', 'searchPlaceholder', 'edgeWeightLabel']
+  .map((k) => `v2.canvas.${k}`)
+
+/** 分层布局 fixture：d1 →(priority 2) b2、d1 →(priority 1) b1 —— 同层序按入边 priority 钉死 */
+function layerGraph() {
+  return makeCanvasData({
+    nodes: [makeNode('d1', 'DISPATCH'), makeNode('b1'), makeNode('b2')],
+    edges: [
+      makeEdge('d1', 'b2', { data: { condition_type: 'PATH', condition_value: '', priority: 2 } }),
+      makeEdge('d1', 'b1', { data: { condition_type: 'PATH', condition_value: '', priority: 1 } })
+    ]
+  })
+}
+
+/** 节点坐标快照（id → position 的确定性序列化，undo / 确定性断言共用） */
+function positionSnapshot(vm: any): string {
+  return JSON.stringify(vm.nodes.map((n: any) => [n.id, n.position]))
+}
+
+function nodePos(vm: any, id: string): { x: number; y: number } {
+  return vm.nodes.find((n: any) => n.id === id).position
+}
+
+describe('v2 canvas/Canvas — S12 i18n key 双语存在（铁律 6）', () => {
+  it.each(S12_KEYS)('%s 在 zh-CN 与 en-US 都存在', (key) => {
+    expect(dig(zhCN, key), `zh-CN 缺少 ${key}`).toBeDefined()
+    expect(dig(enUS, key), `en-US 缺少 ${key}`).toBeDefined()
+  })
+})
+
+// ── S12② 边条件标签 ──────────────────────────────────────────────────────
+describe('v2 canvas/Canvas — S12② 边条件标签（stub cnv-edge-label-* 出口）', () => {
+  /** 按 source/target 取该边的 stub 渲染出口 */
+  function labelExit(w: VueWrapper<any>, source: string, target: string) {
+    const vm = w.vm as any
+    const e = vm.edges.find((x: any) => x.source === source && x.target === target)
+    expect(e, `边 ${source}->${target} 存在`).toBeTruthy()
+    return byTestid(w, `cnv-edge-label-${e.id}`)
+  }
+
+  it('WEIGHT 边 → 「权重 30%」（edgeWeightLabel 插值；真实件 EdgeLabelRenderer，jsdom 走 stub 出口）', async () => {
+    mocks.getCanvas.mockResolvedValue(weightGraph())
+    const { wrapper } = await factory()
+    const exit = labelExit(wrapper, 'd1', 'b1')
+    expect(exit.exists()).toBe(true)
+    expect(exit.text()).toBe(String(t('v2.canvas.edgeWeightLabel')).replace('{n}', '30'))
+  })
+
+  it('条件边（HEADER，值 X-Channel=vip）→ 「HEADER X-Channel=vip」（类型枚举原文 + condition_value）', async () => {
+    mocks.getCanvas.mockResolvedValue(makeCanvasData({
+      nodes: [makeNode('d1', 'DISPATCH'), makeNode('b1')],
+      edges: [makeEdge('d1', 'b1', { data: { condition_type: 'HEADER', condition_key: '', condition_value: 'X-Channel=vip', priority: 1 } })]
+    }))
+    const { wrapper } = await factory()
+    expect(labelExit(wrapper, 'd1', 'b1').text()).toBe('HEADER X-Channel=vip')
+  })
+
+  it('默认/无条件边（PATH 且值空）→ 不显标签（出口文本为空）', async () => {
+    const { wrapper } = await factory() // normalGraph：两条 PATH 空值边
+    const vm = wrapper.vm as any
+    expect(vm.edges.length).toBe(2)
+    for (const e of vm.edges) {
+      expect(byTestid(wrapper, `cnv-edge-label-${e.id}`).text()).toBe('')
+    }
+  })
+})
+
+// ── S12③ 自动布局 ────────────────────────────────────────────────────────
+describe('v2 canvas/Canvas — S12③ 自动布局 cnv-autolayout（BFS 分层 + 可撤销）', () => {
+  it('DISPATCH 顶层、子代下一层同 y；同层按入边 priority 升序排 x（b1 先于 b2）', async () => {
+    mocks.getCanvas.mockResolvedValue(layerGraph())
+    const { wrapper } = await factory()
+    const vm = wrapper.vm as any
+    const btn = byTestid(wrapper, 'cnv-autolayout')
+    expect(btn.exists()).toBe(true)
+    await btn.trigger('click')
+    await nextTick()
+    const d1 = nodePos(vm, 'd1')
+    const b1 = nodePos(vm, 'b1')
+    const b2 = nodePos(vm, 'b2')
+    expect(d1.y).toBeLessThan(b1.y)
+    expect(b1.y).toBe(b2.y)
+    expect(b1.x).toBeLessThan(b2.x)
+  })
+
+  it('嵌套分发按深度分层：d1→d2→b1 的 y 严格递增（子代下一层）', async () => {
+    mocks.getCanvas.mockResolvedValue(deepGraph(2))
+    const { wrapper } = await factory()
+    const vm = wrapper.vm as any
+    await byTestid(wrapper, 'cnv-autolayout').trigger('click')
+    await nextTick()
+    expect(nodePos(vm, 'd1').y).toBeLessThan(nodePos(vm, 'd2').y)
+    expect(nodePos(vm, 'd2').y).toBeLessThan(nodePos(vm, 'b1').y)
+  })
+
+  it('确定性：重复点击坐标稳定（同层 priority/id 序不漂移）', async () => {
+    mocks.getCanvas.mockResolvedValue(layerGraph())
+    const { wrapper } = await factory()
+    const vm = wrapper.vm as any
+    await byTestid(wrapper, 'cnv-autolayout').trigger('click')
+    await nextTick()
+    const snap1 = positionSnapshot(vm)
+    await byTestid(wrapper, 'cnv-autolayout').trigger('click')
+    await nextTick()
+    expect(positionSnapshot(vm)).toBe(snap1)
+  })
+
+  it('pushHistory 可撤销：undo 后坐标复原', async () => {
+    const { wrapper } = await factory() // normalGraph：所有节点初始 {0,0}
+    const vm = wrapper.vm as any
+    const before = positionSnapshot(vm)
+    await byTestid(wrapper, 'cnv-autolayout').trigger('click')
+    await nextTick()
+    expect(positionSnapshot(vm)).not.toBe(before)
+    vm.undo()
+    expect(positionSnapshot(vm)).toBe(before)
+  })
+
+  it('只读（canEdit=false）→ disabled（图变更类入口与 undo/delete 同规）', async () => {
+    mocks.canEdit.mockReturnValue(false)
+    const { wrapper } = await factory()
+    expect(byTestid(wrapper, 'cnv-autolayout').exists()).toBe(true)
+    expect(byTestid(wrapper, 'cnv-autolayout').attributes('disabled')).toBeDefined()
+  })
+})
+
+// ── S12③ 适应画布 ────────────────────────────────────────────────────────
+describe('v2 canvas/Canvas — S12③ 适应画布 cnv-fitview（Vue Flow 实例 fitView）', () => {
+  it('点击 → 调实例 fitView 恰一次（stub expose 出口；useVueFlow 路汇同一 spy）', async () => {
+    const { wrapper } = await factory()
+    expect(mocks.vueFlowFitView).not.toHaveBeenCalled()
+    await byTestid(wrapper, 'cnv-fitview').trigger('click')
+    await nextTick()
+    expect(mocks.vueFlowFitView).toHaveBeenCalledTimes(1)
+  })
+})
+
+// ── S12③ 检索节点 ────────────────────────────────────────────────────────
+describe('v2 canvas/Canvas — S12③ 检索节点 cnv-node-search（stub cnv-stub-node-* 出口）', () => {
+  const cls = (w: VueWrapper<any>, id: string) => byTestid(w, `cnv-stub-node-${id}`).classes()
+
+  it('大小写不敏感子串命中 → 命中 class cnv-node-hit、未命中 cnv-node-dim；清空恢复', async () => {
+    const { wrapper } = await factory() // d1(D1) / b1(B1) / b2(B2)
+    const search = byTestid(wrapper, 'cnv-node-search')
+    expect(search.exists()).toBe(true)
+    expect(search.attributes('placeholder')).toContain(t('v2.canvas.searchPlaceholder'))
+    // 初始：两类标记皆无
+    for (const id of ['d1', 'b1', 'b2']) {
+      expect(cls(wrapper, id)).not.toContain('cnv-node-hit')
+      expect(cls(wrapper, id)).not.toContain('cnv-node-dim')
+    }
+    await search.setValue('B') // 命中 B1/B2（label 大写），D1 置灰
+    expect(cls(wrapper, 'b1')).toContain('cnv-node-hit')
+    expect(cls(wrapper, 'b2')).toContain('cnv-node-hit')
+    expect(cls(wrapper, 'd1')).toContain('cnv-node-dim')
+    await search.setValue('')
+    for (const id of ['d1', 'b1', 'b2']) {
+      expect(cls(wrapper, id)).not.toContain('cnv-node-hit')
+      expect(cls(wrapper, id)).not.toContain('cnv-node-dim')
+    }
+  })
+
+  it('小写子串命中 id（d1）→ 只 d1 命中，其余置灰', async () => {
+    const { wrapper } = await factory()
+    await byTestid(wrapper, 'cnv-node-search').setValue('d1')
+    expect(cls(wrapper, 'd1')).toContain('cnv-node-hit')
+    expect(cls(wrapper, 'b1')).toContain('cnv-node-dim')
+    expect(cls(wrapper, 'b2')).toContain('cnv-node-dim')
   })
 })

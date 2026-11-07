@@ -111,8 +111,37 @@
  * historyTitle / historyEmpty / historyHint / errRouteNotPublished / errGatewayUnreachable /
  * errGeneric / retry
  * 铁律：不引用 v2.canvas.* / v2.chain.* / route.* 既有树（裁决⑧）—— F3 源码 grep 钉死。
+ *
+ * ══════════ S12-T 追加段（C-4 curl 复制 + 清空会话）══════════════════════════
+ * 契约：docs/ui-v2/实施契约.md §4 S12 行 ④（2026-11-07 用户裁决五项之调试台一项）。
+ * 先红是预期；本步不动业务文件，既有用例一字未动。
+ *
+ * ── curl 生成格式裁决（「GET 无 -X / 有 -X」两种形态裁决其一，钉死恒带 -X）──────
+ * 单行串（空格连接），各含空格实参一律单引号包裹：
+ *   curl -X {method} '{url}' -H '{k}: {v}'… --data '{body}'
+ * - url = http://localhost:9300（CLAUDE.md 网关默认端口 9300 的本地地址，不发明新配置）
+ *   + dbg-path 原文 +（query 非空时）'?' + 各项 encodeURIComponent(key)=encodeURIComponent(value)
+ *   按 '&' 连接、行序即键序（同 collectKv 键序）；query 空 → 无 '?' 无查询段；
+ * - -H 每头一行：headers 键 trim 非空行按行序逐条 -H 'k: v'（与发送 payload 同源同序）；
+ * - --data 仅 body 非空（payload.body != null，即 trim 后非空）时追加，原文单引号包裹；
+ * - method/path 取表单现值；GET 也恒带 -X（无分支，格式可预测）。
+ * - 出口 = navigator.clipboard.writeText（mock）实参断言；成功 toast.success(curlCopied)；
+ *   降级（clipboard API 缺失 / writeText reject）→ 不抛（无未处理拒绝）、无成功 toast。
+ * - testid：dbg-copy-curl（dbg-actions 内、dbg-send 旁）。
+ *
+ * ── 清空会话钮裁决 ──────────────────────────────────────────────────────
+ * dbg-clear-history 落 dbg-history 头（historyTitle 同排）；点击 → useFcConfirm().confirm
+ * （title = clearHistoryConfirm，内存历史低风险不上 danger 变体）→ true 全清（dbg-history-empty
+ * 回归、历史行退场）／false 原样保留。
+ * mock 面增量：@/composables/useFcConfirm（Chain.test.ts 同款；既有用例不受影响 —— 页面
+ * S12-C 前不 import 该模块）+ '@/components' 部分 mock 只换 toast（Wizard.test.ts
+ * importOriginal 同款，FcButton/FcIcon/FcInput/FcSection 保真）。
+ *
+ * ── S12 新增 i18n key（v2.debug.*，zh/en 同步，铁律 6）─────────────────────
+ * copyCurl（复制 curl）/ curlCopied（已复制）/ curlCopyFailed（复制失败，降级路径文案备位）/
+ * clearHistory（清空历史）/ clearHistoryConfirm（确认清空）
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
@@ -127,6 +156,11 @@ import { BusinessError } from '@/api/http'
 const mocks = vi.hoisted(() => ({
   debugReplay: vi.fn(),
   listRoutes: vi.fn(),
+  // S12-T：curl 复制出口（clipboard spy + toast spy）与清空会话 confirm
+  clipboardWrite: vi.fn(),
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+  fcConfirm: vi.fn(),
   hasPermission: vi.fn(() => true),
   hasAnyPermission: vi.fn(() => true),
   canEdit: vi.fn(() => true)
@@ -147,6 +181,15 @@ vi.mock('@/composables/usePermission', () => ({
     canEdit: mocks.canEdit
   })
 }))
+// S12-T：清空会话 confirm（Chain.test.ts 同款；页面 S12-C 前不 import，既有用例不受影响）
+vi.mock('@/composables/useFcConfirm', () => ({
+  useFcConfirm: () => ({ confirm: mocks.fcConfirm })
+}))
+// S12-T：toast 部分替换（Wizard.test.ts importOriginal 同款；FC 组件保真，仅换 toast）
+vi.mock('@/components', async (importOriginal) => {
+  const actual: Record<string, unknown> = await importOriginal()
+  return { ...actual, toast: { success: mocks.toastSuccess, error: mocks.toastError } }
+})
 
 import Debug from '@/views-v2/debug/Debug.vue'
 
@@ -800,5 +843,135 @@ describe('错误态与重试 — 10601 路由未发布 / 10607 网关不可达',
       expect.objectContaining({ path: '/api/u/1', method: 'POST' }))
     expect(one(wrapper, 'dbg-error').exists()).toBe(false)
     expect(one(wrapper, 'dbg-result').exists()).toBe(true)
+  })
+})
+
+// ═══════════════ S12-T：curl 复制 + 清空会话 ═══════════════
+// 契约：§4 S12 行 ④；裁决要点见文件头注 S12 追加段。既有用例一字未动，先红是预期。
+
+const S12_KEYS = ['copyCurl', 'curlCopied', 'curlCopyFailed', 'clearHistory', 'clearHistoryConfirm']
+  .map((k) => `v2.debug.${k}`)
+
+/** jsdom 无 navigator.clipboard：装 API 替身（writeText → mocks.clipboardWrite） */
+function installClipboard() {
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: mocks.clipboardWrite } })
+}
+
+describe('S12 — i18n 新增 key 双语存在（铁律 6，v2.debug.* 树）', () => {
+  it.each(S12_KEYS)('%s 在 zh-CN 与 en-US 都存在', (key) => {
+    expect(dig(zhCN, key), `zh-CN 缺少 ${key}`).toBeDefined()
+    expect(dig(enUS, key), `en-US 缺少 ${key}`).toBeDefined()
+  })
+})
+
+describe('S12-C4 — curl 复制（dbg-copy-curl，格式裁决见头注：恒带 -X）', () => {
+  beforeEach(() => {
+    mocks.clipboardWrite.mockReset().mockResolvedValue(undefined)
+    mocks.toastSuccess.mockReset()
+    mocks.toastError.mockReset()
+  })
+  afterEach(() => {
+    delete (navigator as any).clipboard
+  })
+
+  it('POST + 双头 + query + body → writeText 恰一次、串形钉死 + 成功 toast（curlCopied）', async () => {
+    installClipboard()
+    const { wrapper } = await factory()
+    await one(wrapper, 'dbg-path').setValue('/api/u/1')
+    await one(wrapper, 'dbg-method').setValue('POST')
+    await fillKV(wrapper, 'header', 0, 'X-Debug', '1')
+    await fillKV(wrapper, 'header', 1, 'X-Req-Id', 'abc')
+    await fillKV(wrapper, 'query', 0, 'uid', '9')
+    await one(wrapper, 'dbg-body').setValue('{"k":1}')
+    await one(wrapper, 'dbg-copy-curl').trigger('click')
+    await flushPromises()
+    expect(mocks.clipboardWrite).toHaveBeenCalledTimes(1)
+    expect(mocks.clipboardWrite).toHaveBeenCalledWith(
+      "curl -X POST 'http://localhost:9300/api/u/1?uid=9' -H 'X-Debug: 1' -H 'X-Req-Id: abc' --data '{\"k\":1}'"
+    )
+    expect(mocks.toastSuccess).toHaveBeenCalledTimes(1)
+    expect(mocks.toastSuccess).toHaveBeenCalledWith(t('v2.debug.curlCopied'))
+  })
+
+  it("GET 无头无 query 无 body → curl -X GET 'http://localhost:9300/api/u/1'（无 ? 段 / 无 -H / 无 --data）", async () => {
+    installClipboard()
+    const { wrapper } = await factory()
+    await one(wrapper, 'dbg-path').setValue('/api/u/1')
+    await one(wrapper, 'dbg-copy-curl').trigger('click')
+    await flushPromises()
+    expect(mocks.clipboardWrite).toHaveBeenCalledWith("curl -X GET 'http://localhost:9300/api/u/1'")
+  })
+
+  it('URL query 编码：值含空格与 & → encodeURIComponent（URL 段无裸空格/裸 &）', async () => {
+    installClipboard()
+    const { wrapper } = await factory()
+    await one(wrapper, 'dbg-path').setValue('/api/x')
+    await fillKV(wrapper, 'query', 0, 'q', 'a b&c')
+    await one(wrapper, 'dbg-copy-curl').trigger('click')
+    await flushPromises()
+    expect(mocks.clipboardWrite).toHaveBeenCalledWith("curl -X GET 'http://localhost:9300/api/x?q=a%20b%26c'")
+  })
+
+  it('空键 KV 行不进 curl（与发送 payload 的 collectKv 同源）', async () => {
+    installClipboard()
+    const { wrapper } = await factory()
+    await one(wrapper, 'dbg-path').setValue('/api/u')
+    await fillKV(wrapper, 'header', 0, '  ', 'ignored')
+    await one(wrapper, 'dbg-copy-curl').trigger('click')
+    await flushPromises()
+    expect(mocks.clipboardWrite).toHaveBeenCalledWith("curl -X GET 'http://localhost:9300/api/u'")
+  })
+
+  it('降级：clipboard API 缺失 → 点击不抛、无成功 toast、页面不崩（表单仍在）', async () => {
+    const { wrapper } = await factory() // 不装 clipboard 替身（jsdom 现状即缺失）
+    await one(wrapper, 'dbg-path').setValue('/api/u/1')
+    await one(wrapper, 'dbg-copy-curl').trigger('click')
+    await flushPromises()
+    expect(mocks.toastSuccess).not.toHaveBeenCalled()
+    expect(one(wrapper, 'dbg-form').exists()).toBe(true)
+  })
+
+  it('降级：writeText reject → 不抛（无未处理拒绝）、无成功 toast', async () => {
+    installClipboard()
+    mocks.clipboardWrite.mockRejectedValue(new Error('denied'))
+    const { wrapper } = await factory()
+    await one(wrapper, 'dbg-path').setValue('/api/u/1')
+    await one(wrapper, 'dbg-copy-curl').trigger('click')
+    await flushPromises()
+    expect(mocks.toastSuccess).not.toHaveBeenCalled()
+    expect(one(wrapper, 'dbg-form').exists()).toBe(true)
+  })
+})
+
+describe('S12-C4 — 清空会话（dbg-clear-history，confirm 后清历史）', () => {
+  beforeEach(() => {
+    mocks.fcConfirm.mockReset().mockResolvedValue(true)
+  })
+
+  it('发送 2 次后点击 → confirm（title=clearHistoryConfirm）通过 → 历史全清（empty 态回归）', async () => {
+    const { wrapper } = await factory()
+    await one(wrapper, 'dbg-path').setValue('/api/first')
+    await send(wrapper)
+    await one(wrapper, 'dbg-path').setValue('/api/second')
+    await send(wrapper)
+    expect(wrapper.findAll('[data-testid^="dbg-history-item-"]').length).toBe(2)
+    await one(wrapper, 'dbg-clear-history').trigger('click')
+    await flushPromises()
+    expect(mocks.fcConfirm).toHaveBeenCalledTimes(1)
+    expect(mocks.fcConfirm).toHaveBeenCalledWith(expect.objectContaining({ title: t('v2.debug.clearHistoryConfirm') }))
+    expect(wrapper.findAll('[data-testid^="dbg-history-item-"]').length).toBe(0)
+    expect(one(wrapper, 'dbg-history-empty').text()).toContain(t('v2.debug.historyEmpty'))
+  })
+
+  it('confirm 取消 → 历史原样保留（不清空）', async () => {
+    mocks.fcConfirm.mockResolvedValue(false)
+    const { wrapper } = await factory()
+    await one(wrapper, 'dbg-path').setValue('/api/first')
+    await send(wrapper)
+    await one(wrapper, 'dbg-clear-history').trigger('click')
+    await flushPromises()
+    expect(mocks.fcConfirm).toHaveBeenCalledTimes(1)
+    expect(one(wrapper, 'dbg-history-item-1').exists()).toBe(true)
+    expect(one(wrapper, 'dbg-history-empty').exists()).toBe(false)
   })
 })

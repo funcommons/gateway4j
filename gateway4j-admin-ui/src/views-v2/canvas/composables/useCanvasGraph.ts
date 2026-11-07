@@ -16,10 +16,14 @@
  * - 权重写（旧 updateEdgeWeight L277-287 → setEdgeWeight(edge, v)）：undefined/null/NaN →
  *   condition_key=''；否则 String(clamp(round(v), 1, 100))；condition_value 恒 ''；写后 pushHistory。
  * - 边 label（读侧）：WEIGHT 且 parseWeight(condition_key) 合法 → `${n}%`；其余 → condition_value
- *   （utils/weight 随迁勿改值，拆步裁决⑦）。
+ *   （utils/weight 随迁勿改值，拆步裁决⑦）。S12② 起升级为局部化标签：WEIGHT → 「权重 N%」、
+ *   其余类型值非空 → 「{TYPE} {value}」、值空 → 无标签（见 edgeLabelOf）。
  * - 键盘（旧 L730-752）：window 级 keydown Ctrl/Cmd+Z undo / Ctrl/Cmd+Y redo，onUnmounted 配对卸载。
+ * - S12③ 追加：autolayout —— BFS 自无分发祖先的 DISPATCH 分层（嵌套分发随 DISPATCH→DISPATCH
+ *   边下钻），同层按入边 priority 升序再 node id，pushHistory 可撤销，图变更走 onMutate。
  */
 import { computed, onMounted, onUnmounted, ref, watch, type Ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { getCanvas, getRoute } from '@/api/routes'
 import { WEIGHT_MAX, WEIGHT_MIN, parseWeight } from '@/utils/weight'
 import { validateConnection } from './useCanvasValidation'
@@ -45,6 +49,7 @@ export interface CanvasLoaders {
 }
 
 export function useCanvasGraph(routeId: Ref<string>, loaders: CanvasLoaders = { loadCanvas: getCanvas, loadRoute: getRoute }) {
+  const { t } = useI18n()
   const loading = ref(true)
   const loadError = ref<CanvasLoadError>('')
   const nodes = ref<any[]>([])
@@ -75,11 +80,21 @@ export function useCanvasGraph(routeId: Ref<string>, loaders: CanvasLoaders = { 
     }
   }
 
-  /** 边 label 读侧：WEIGHT 且 condition_key 合法 → `${n}%`；其余 → condition_value */
+  /**
+   * 边 label 读侧（S12② 局部化，原 `${n}%` / condition_value 升级）：
+   * - WEIGHT 且 parseWeight(condition_key) 合法 → t('v2.canvas.edgeWeightLabel')「权重 N%」；
+   * - 其余类型且 condition_value 非空 → 「{TYPE} {value}」（HEADER X-Channel=vip 形态，枚举原文语言中立）；
+   * - 默认/无条件边（值空）→ 空串（不显标签）。
+   */
   function edgeLabelOf(e: any): string {
-    const w = parseWeight(e?.data?.condition_key)
-    if (e?.data?.condition_type === 'WEIGHT' && w !== null) return `${w}%`
-    return String(e?.data?.condition_value ?? '')
+    const d = e?.data
+    if (d?.condition_type === 'WEIGHT') {
+      const w = parseWeight(d.condition_key)
+      return w !== null ? t('v2.canvas.edgeWeightLabel', { n: w }) : ''
+    }
+    const value = String(d?.condition_value ?? '')
+    if (value === '' || d?.condition_type == null || d.condition_type === '') return value
+    return `${d.condition_type} ${value}`
   }
 
   /** 边数组 label 同步（label 挂在边对象上，Vue Flow 直接读） */
@@ -274,6 +289,70 @@ export function useCanvasGraph(routeId: Ref<string>, loaders: CanvasLoaders = { 
     loaders.onMutate?.()
   }
 
+  // ── 自动布局（S12③：BFS 自 DISPATCH 分层，确定性排序，pushHistory 可撤销）──
+  /** 层距 / 列距（px，仅视觉节奏，无业务含义） */
+  const LAYER_HEIGHT = 120
+  const COLUMN_GAP = 240
+
+  function autolayout() {
+    if (nodes.value.length === 0) return
+    // 深度：无分发祖先的 DISPATCH = 第 0 层（嵌套分发随 DISPATCH→DISPATCH 边下钻一层）；
+    // BFS 传播（子代 = 父层 +1）；不可达节点（无分发祖先的孤节点）= 第 0 层
+    const depth = new Map<string, number>()
+    const queue: string[] = []
+    const dispatchIds = new Set(nodes.value.filter((n) => n.type === 'DISPATCH').map((n) => n.id))
+    for (const n of nodes.value) {
+      if (n.type === 'DISPATCH' && !edges.value.some((e) => e.target === n.id && dispatchIds.has(e.source))) {
+        depth.set(n.id, 0)
+        queue.push(n.id)
+      }
+    }
+    const bySource = new Map<string, any[]>()
+    for (const e of edges.value) {
+      const list = bySource.get(e.source)
+      if (list) list.push(e)
+      else bySource.set(e.source, [e])
+    }
+    for (let i = 0; i < queue.length; i++) {
+      const cur = depth.get(queue[i]) ?? 0
+      for (const e of bySource.get(queue[i]) ?? []) {
+        if (!depth.has(e.target)) {
+          depth.set(e.target, cur + 1)
+          queue.push(e.target)
+        }
+      }
+    }
+    // 同层确定性排序：入边 priority 最小值升序（无入边 → Infinity 沉尾），再 node id 字典序
+    const minInPriority = (id: string): number => {
+      let min = Number.POSITIVE_INFINITY
+      for (const e of edges.value) {
+        if (e.target !== id) continue
+        const p = Number(e.data?.priority)
+        if (Number.isFinite(p) && p < min) min = p
+      }
+      return min
+    }
+    const layers = new Map<number, any[]>()
+    for (const n of nodes.value) {
+      const d = depth.get(n.id) ?? 0
+      const list = layers.get(d)
+      if (list) list.push(n)
+      else layers.set(d, [n])
+    }
+    const layout = new Map<string, { x: number; y: number }>()
+    for (const [d, list] of layers) {
+      list.sort((a, b) => {
+        const pa = minInPriority(a.id)
+        const pb = minInPriority(b.id)
+        return pa !== pb ? pa - pb : String(a.id).localeCompare(String(b.id))
+      })
+      list.forEach((n, i) => layout.set(n.id, { x: i * COLUMN_GAP, y: d * LAYER_HEIGHT }))
+    }
+    nodes.value = nodes.value.map((n) => (layout.has(n.id) ? { ...n, position: layout.get(n.id) } : n))
+    pushHistory()
+    loaders.onMutate?.()
+  }
+
   // ── 键盘（旧 L730-752 随迁，配对卸载）────────────────────────────────────
   function onKeydown(e: KeyboardEvent) {
     if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
@@ -303,6 +382,6 @@ export function useCanvasGraph(routeId: Ref<string>, loaders: CanvasLoaders = { 
     loading, loadError, nodes, edges, selectedNode, selectedEdge,
     connectionError, limitHit, canUndo, canRedo,
     load, addNodeType, deleteSelected, deleteEdge, onConnect, onNodeClick, onPaneClick, onEdgeClick,
-    undo, redo, setEdgeWeight
+    undo, redo, setEdgeWeight, autolayout
   }
 }

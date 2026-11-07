@@ -106,6 +106,11 @@
               <FcIcon name="ri-send-plane-line" :size="14" />
               <span>{{ sending ? t('v2.debug.sending') : t('v2.debug.send') }}</span>
             </FcButton>
+            <!-- S12-C4: copy-as-curl, built from the same form state as the send payload -->
+            <FcButton variant="secondary" size="sm" data-testid="dbg-copy-curl" @click="copyCurl">
+              <FcIcon name="ri-file-copy-line" :size="14" />
+              <span>{{ t('v2.debug.copyCurl') }}</span>
+            </FcButton>
           </div>
         </div>
       </FcSection>
@@ -195,6 +200,11 @@
           <div class="dbg-kv-head">
             <h2 class="dbg-card-title">{{ t('v2.debug.historyTitle') }}</h2>
             <p class="dbg-history-hint">{{ t('v2.debug.historyHint') }}</p>
+            <!-- S12-C4: in-memory session is low risk — default confirm variant -->
+            <FcButton variant="text" size="sm" data-testid="dbg-clear-history" @click="clearHistory">
+              <FcIcon name="ri-delete-bin-line" :size="13" />
+              <span>{{ t('v2.debug.clearHistory') }}</span>
+            </FcButton>
           </div>
           <p v-if="history.length === 0" class="dbg-history-empty" data-testid="dbg-history-empty" role="status">
             {{ t('v2.debug.historyEmpty') }}
@@ -223,14 +233,16 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { FcButton, FcIcon, FcInput, FcSection } from '@/components'
+import { FcButton, FcIcon, FcInput, FcSection, toast } from '@/components'
 import { debugReplay, type DebugReplayPayload, type DebugReplayResult, type DebugSimulate } from '@/api/debug'
 import { listRoutes, type RouteNode } from '@/api/routes'
 import { BusinessError } from '@/api/http'
 import { usePermission } from '@/composables/usePermission'
+import { useFcConfirm } from '@/composables/useFcConfirm'
 
 const { t } = useI18n()
 const { canEdit } = usePermission()
+const { confirm } = useFcConfirm()
 const canWrite = computed(() => canEdit('route'))
 
 const METHODS = ['GET', 'POST', 'PUT', 'DELETE'] as const
@@ -374,6 +386,32 @@ async function retryLast() {
   await execute(lastRequest.routeId, lastRequest.payload)
 }
 
+// ── S12-C4：复制为 curl（恒带 -X；query encodeURIComponent '&' 连接；-H 每头一行；
+//    --data 仅 body 非空。头/query 与发送 payload 同源同序 = collectKv）──────────
+function buildCurl(): string {
+  const parts: string[] = [`curl -X ${method.value}`]
+  const query = Object.entries(collectKv(queryRows.value))
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .join('&')
+  parts.push(`'http://localhost:9300${path.value}${query === '' ? '' : `?${query}`}'`)
+  for (const [k, v] of Object.entries(collectKv(headerRows.value))) {
+    parts.push(`-H '${k}: ${v}'`)
+  }
+  if (body.value.trim() !== '') parts.push(`--data '${body.value}'`)
+  return parts.join(' ')
+}
+
+/** 写剪贴板 + 成功 toast；降级（API 缺失 / writeText 拒绝）→ 静默不抛、无成功 toast */
+async function copyCurl() {
+  try {
+    if (!navigator.clipboard?.writeText) return
+    await navigator.clipboard.writeText(buildCurl())
+    toast.success(t('v2.debug.curlCopied'))
+  } catch {
+    // 降级路径：不抛、不 toast（curlCopyFailed 文案备位）
+  }
+}
+
 // ── 响应查看器 ───────────────────────────────────────────────────────────
 const respHeaderRows = computed(() =>
   Object.entries(result.value?.headers ?? {}).map(([name, value]) => ({ name, value: String(value ?? '') }))
@@ -425,6 +463,12 @@ function restoreHistory(entry: HistoryEntry) {
   headerRows.value = rowsFromMap(entry.payload.headers)
   queryRows.value = rowsFromMap(entry.payload.query)
   pathError.value = ''
+}
+
+/** S12-C4：清空调试历史（仅内存低风险，confirm 默认变体；取消则原样保留） */
+async function clearHistory() {
+  const ok = await confirm({ title: t('v2.debug.clearHistoryConfirm') })
+  if (ok) history.value = []
 }
 </script>
 
@@ -557,7 +601,11 @@ function restoreHistory(entry: HistoryEntry) {
 .dbg-phase-ms { font-size: 12.5px; font-weight: 600; color: var(--app-text); font-variant-numeric: tabular-nums; }
 
 /* —— 历史 —— */
-.dbg-history-hint { margin: 0; font-size: 12px; color: var(--app-text-tertiary); }
+.dbg-history-hint {
+  margin: 0; flex: 1; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+  font-size: 12px; color: var(--app-text-tertiary);
+}
 .dbg-history-empty { margin: 4px 0 0; font-size: 12px; color: var(--app-text-tertiary); }
 .dbg-history-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .dbg-history-item {
