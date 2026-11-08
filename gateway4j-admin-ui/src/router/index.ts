@@ -64,6 +64,8 @@ const v2Routes: RouteRecordRaw[] = [
       { path: 'overview', name: 'V2Overview', component: () => import('@/views-v2/overview/Overview.vue'), meta: { title: 'v2.page.overview', permission: 'monitor:read' } },
       { path: 'routes', name: 'V2Routes', component: () => import('@/views-v2/routes/List.vue'), meta: { title: 'v2.page.routes', permission: 'route:read' } },
       { path: 'routes/wizard', name: 'V2RouteWizard', component: () => import('@/views-v2/routes/Wizard.vue'), meta: { title: 'v2.page.wizard', permission: 'route:edit' } },
+      // P4c-1：导入导出（路由组第三叶子）；静态段不吞兄弟路径（同 P4a-2 静态路径先例）
+      { path: 'import-export', name: 'V2ImportExport', component: () => import('@/views-v2/routes/ImportExport.vue'), meta: { title: 'v2.page.importExport', permission: 'route:edit' } },
       { path: 'routes/:id/detail', name: 'V2RouteDetail', component: () => import('@/views-v2/routes/Detail.vue'), meta: { title: 'v2.page.detail', permission: 'route:read' } },
       { path: 'routes/tree/:id', name: 'V2DecisionTree', component: () => import('@/views-v2/routes/DecisionTree.vue'), meta: { title: 'v2.page.tree', permission: 'route:read' } },
       // S9a：静态段 'canvas' 优先于 V2RouteDetail 的 ':id' 动态段（vue-router 路由排序，行序无关）；

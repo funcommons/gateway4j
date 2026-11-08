@@ -168,7 +168,9 @@ const NAV_GROUPS: V2NavGroup[] = [
     labelKey: 'v2.nav.group.routes',
     items: [
       { name: 'V2Routes', path: '/v2/routes', labelKey: 'v2.nav.routes', icon: 'ri-git-branch-line' },
-      { name: 'V2RouteWizard', path: '/v2/routes/wizard', labelKey: 'v2.nav.wizard', icon: 'ri-magic-line' }
+      { name: 'V2RouteWizard', path: '/v2/routes/wizard', labelKey: 'v2.nav.wizard', icon: 'ri-magic-line' },
+      // P4c-1：导入导出叶子（路由组第三叶子，向导之后）。permission 字段 = 路由 meta 的同值兜底
+      { name: 'V2ImportExport', path: '/v2/import-export', labelKey: 'v2.nav.importExport', icon: 'ri-exchange-line', permission: 'route:edit' }
     ]
   },
   {

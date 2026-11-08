@@ -27,6 +27,13 @@
  *   与 /v2/plugins/editor/*（vue-router 静态段优先，追加段有断言）。LayoutV2 插件组
  *   「插件管理」叶子断言见文末 P4a-2 追加段：插在「插件链」之后、「插件编辑器」之前
  *   （插件组中间叶子，T 裁决 —— 链页保持 S1 首位，编辑器深页殿后）。
+ * - 【P4c-1-T 追加（2026-11-07，契约 §4 P4 表 P4c-1 段）】注册第 13 行 V2ImportExport
+ *   （views-v2/routes/ImportExport.vue，path /v2/import-export，permission route:edit，
+ *   meta.title=v2.page.importExport）—— V2_TABLE 加行 +「恰好」计数标题随改（P4a 惯例：
+ *   既有行改动 = 裁决直接后果）。/v2/import-export 为静态精确路径，不吞子路径（追加段有断言）。
+ *   LayoutV2 路由组「导入导出」叶子断言见文末 P4c-1 追加段：插在「新建路由向导」之后
+ *   （路由组第三叶子，T 裁决）。component 接线沿 P4a-2 手法走 fs 源码断言
+ *   （动态 import 字面量会在 ImportExport.vue 缺位时让整文件收集失败）。
  */
 import { describe, it, expect, vi } from 'vitest'
 import { router } from '@/router'
@@ -45,6 +52,7 @@ const V2_TABLE: Array<{ name: string; path: string; permission: string }> = [
   { name: 'V2Overview', path: '/v2/overview', permission: 'monitor:read' },
   { name: 'V2Routes', path: '/v2/routes', permission: 'route:read' },
   { name: 'V2RouteWizard', path: '/v2/routes/wizard', permission: 'route:edit' },
+  { name: 'V2ImportExport', path: '/v2/import-export', permission: 'route:edit' },
   { name: 'V2RouteDetail', path: '/v2/routes/:id/detail', permission: 'route:read' },
   { name: 'V2DecisionTree', path: '/v2/routes/tree/:id', permission: 'route:read' },
   { name: 'V2Canvas', path: '/v2/routes/canvas/:id', permission: 'route:edit' },
@@ -116,7 +124,7 @@ describe('/v2 路由表 — 契约 §1', () => {
     expect((record!.meta as Record<string, unknown>).permission).toBe(permission)
   })
 
-  it('v2 路由 name 全部以 V2 前缀且恰好 12 条（S9a 注册 V2Canvas；P4a-1 注册 V2PluginEditor；P4a-2 注册 V2PluginList，契约 §1 + P4a 行）', () => {
+  it('v2 路由 name 全部以 V2 前缀且恰好 13 条（S9a 注册 V2Canvas；P4a-1 注册 V2PluginEditor；P4a-2 注册 V2PluginList；P4c-1 注册 V2ImportExport，契约 §1 + P4a/P4c 行）', () => {
     const v2Names = router.getRoutes()
       .map((r) => String(r.name))
       .filter((n) => n.startsWith('V2'))
@@ -398,6 +406,116 @@ describe('P4a-2 追加 — LayoutV2 插件组「插件管理」叶子', () => {
       expect(leaf, '无 plugin:read 权限时插件管理叶子不应渲染').toBeUndefined()
     } finally {
       navAuth.permissions.push('plugin:read')
+    }
+  })
+})
+
+// ═══════════ P4c-1-T 追加：/v2/import-export 行 + LayoutV2 路由组「导入导出」叶子 ═══════════
+// 契约：docs/ui-v2/实施契约.md §4 P4 表 P4c-1 段（2026-11-07）。V2ImportExport 行已在上方
+// V2_TABLE（path+permission，it.each 自动覆盖）；本段追加 meta.title / 组件接线 / 静态路径
+// 边界 / nav 叶子（挂载模式沿 P4a-2 追加段，auth mock 复用 navAuth）。先红是预期：
+// V2ImportExport 路由、v2.page.importExport / v2.nav.importExport key、
+// src/views-v2/routes/ImportExport.vue 均未落。component 接线沿 P4a-2 手法走 fs 源码断言
+// （动态 import 字面量会在 ImportExport.vue 缺位时被 vite import-analysis 静态解析，
+// 整个本文件套件收集失败、既有用例全部停跑；fs 断言让既有用例全程可观测）。
+// 【与 P4a-2 的一处正则差异】注册行用「定位 name + 窗口切片」而非 \{[^{}]*\} 单对象捕获：
+// /v2 children 既有行存在 withMeta({ ... }) 与 { path, meta: { ... } } 两种形状，后者含嵌套
+// 大括号会把捕获截断在 meta 内层；窗口切片对两种落行姿势都稳健（C 二选一均可过）。
+describe('P4c-1 追加 — V2ImportExport meta 与组件接线', () => {
+  it('V2ImportExport meta.title=v2.page.importExport（面包屑数据源）且 permission=route:edit 不变', () => {
+    const record = recordByName('V2ImportExport')
+    expect(record, 'v2 路由 V2ImportExport 未注册').toBeDefined()
+    expect((record!.meta as Record<string, unknown>).title).toBe('v2.page.importExport')
+    expect((record!.meta as Record<string, unknown>).permission).toBe('route:edit')
+  })
+
+  it('v2.page.importExport 在 zh-CN 与 en-US 都存在（铁律 6）', () => {
+    expect(digNav(zhCN, 'v2.page.importExport'), 'zh-CN 缺少 v2.page.importExport').toBeDefined()
+    expect(digNav(enUS, 'v2.page.importExport'), 'en-US 缺少 v2.page.importExport').toBeDefined()
+  })
+
+  it('V2ImportExport 注册行源码契约：path import-export + component 指向 @/views-v2/routes/ImportExport.vue + meta 三件（P4c-1-C 落行）', () => {
+    const source = fs.readFileSync(path.resolve(__dirname, './index.ts'), 'utf-8')
+    const at = source.indexOf("name: 'V2ImportExport'")
+    expect(at, "未在 src/router/index.ts /v2 children 找到 name: 'V2ImportExport' 注册行").toBeGreaterThan(-1)
+    const row = source.slice(Math.max(0, at - 240), at + 420)
+    expect(row).toContain("path: 'import-export'")
+    expect(row).toMatch(/import\((['"])@\/views-v2\/routes\/ImportExport\.vue\1\)/)
+    expect(row).toContain("v2.page.importExport")
+    expect(row).toContain("permission: 'route:edit'")
+  })
+
+  it('/v2/import-export 静态精确匹配：精确路径命中且不吞子路径（P4a-2 静态路径先例）', () => {
+    expect(router.resolve('/v2/import-export').name).toBe('V2ImportExport')
+    expect(router.resolve('/v2/import-export/extra').name, '子路径不得命中（静态段无通配）').not.toBe('V2ImportExport')
+  })
+})
+
+// ── LayoutV2 路由组「导入导出」叶子（挂载模式沿 P4a-2 追加段；auth mock 复用 navAuth）──
+const P4C1_NAV_KEY = 'v2.nav.importExport'
+
+function makeNavRouterP4c1(): ReturnType<typeof createRouter> {
+  return createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/v2', component: LayoutV2, children: [
+        { path: 'overview', name: 'V2Overview', component: NAV_STUB },
+        { path: 'routes', name: 'V2Routes', component: NAV_STUB },
+        { path: 'routes/wizard', name: 'V2RouteWizard', component: NAV_STUB },
+        { path: 'import-export', name: 'V2ImportExport', component: NAV_STUB }
+      ] },
+      { path: '/routes', name: 'Routes', component: NAV_STUB }
+    ]
+  })
+}
+
+async function mountNavP4c1() {
+  const navRouter = makeNavRouterP4c1()
+  await navRouter.push('/v2/overview')
+  await navRouter.isReady()
+  const navI18n = createI18n({ legacy: false, locale: 'zh-CN', fallbackLocale: 'en-US', messages: { 'zh-CN': zhCN, 'en-US': enUS } })
+  const wrapper = mount(LayoutV2, { global: { plugins: [ElementPlus, navI18n, navRouter] } })
+  await flushPromises()
+  return { wrapper, navRouter }
+}
+
+describe('P4c-1 追加 — LayoutV2 路由组「导入导出」叶子', () => {
+  it('v2.nav.importExport 在 zh-CN 与 en-US 都存在（铁律 6）', () => {
+    expect(digNav(zhCN, P4C1_NAV_KEY), 'zh-CN 缺少 v2.nav.importExport').toBeDefined()
+    expect(digNav(enUS, P4C1_NAV_KEY), 'en-US 缺少 v2.nav.importExport').toBeDefined()
+  })
+
+  it('「导入导出」叶子归路由分组、排「新建路由向导」之后（路由组第三叶子，T 裁决），点击跳 /v2/import-export 且 name=V2ImportExport', async () => {
+    const { wrapper, navRouter } = await mountNavP4c1()
+    const label = String(digNav(zhCN, P4C1_NAV_KEY))
+    const side = wrapper.find('#v2-side')
+    expect(side.exists()).toBe(true)
+    const groups = side.findAll('.v2-nav-group')
+    const routesGroup = groups.find((g) => g.text().includes(String(digNav(zhCN, 'v2.nav.group.routes'))))
+    expect(routesGroup, '未找到路由分组').toBeDefined()
+    const listAt = routesGroup!.text().indexOf(String(digNav(zhCN, 'v2.nav.routes')))
+    const wizardAt = routesGroup!.text().indexOf(String(digNav(zhCN, 'v2.nav.wizard')))
+    const impExpAt = routesGroup!.text().indexOf(label)
+    expect(impExpAt, '导入导出叶子未渲染').toBeGreaterThan(-1)
+    expect(impExpAt, '导入导出应排路由列表之后').toBeGreaterThan(listAt)
+    expect(impExpAt, '导入导出应排新建路由向导之后（路由组第三叶子）').toBeGreaterThan(wizardAt)
+    const leaf = wrapper.findAll('.el-menu-item, [role="menuitem"], a').find((n) => n.text().includes(label))
+    expect(leaf, `找不到文案为「${label}」(${P4C1_NAV_KEY}) 的导航项`).toBeDefined()
+    await leaf!.trigger('click')
+    await flushPromises()
+    expect(navRouter.currentRoute.value.path).toBe('/v2/import-export')
+    expect(navRouter.currentRoute.value.name).toBe('V2ImportExport')
+  })
+
+  it('无 route:edit 权限 → 叶子被侧栏可见性判据隐藏（canAccess 与守卫同源）', async () => {
+    navAuth.permissions = navAuth.permissions.filter((c: string) => c !== 'route:edit')
+    try {
+      const { wrapper } = await mountNavP4c1()
+      const label = String(digNav(zhCN, P4C1_NAV_KEY))
+      const leaf = wrapper.findAll('.el-menu-item, [role="menuitem"], a').find((n) => n.text().includes(label))
+      expect(leaf, '无 route:edit 权限时导入导出叶子不应渲染').toBeUndefined()
+    } finally {
+      navAuth.permissions.push('route:edit')
     }
   })
 })
