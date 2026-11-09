@@ -619,6 +619,7 @@ export default {
       pluginEditor: '插件编辑器',
       monitor: '监控大盘',
       debug: '调试台',
+      users: '用户管理',
       systemEmpty: '该分组将在后续步骤开放',
       subtitle: '可视化网关 · v2'
     },
@@ -638,7 +639,8 @@ export default {
       publish: '发布与版本',
       monitor: '监控大盘',
       debug: '调试台',
-      canvas: '流程编排'
+      canvas: '流程编排',
+      users: '用户管理'
     },
     topbar: {
       tryV2: '新版体验',
@@ -1197,6 +1199,50 @@ export default {
       diffColField: '字段',
       diffColFrom: 'A 值',
       diffColTo: 'B 值'
+    },
+    // P4d-1：用户管理页（v2.users 新树，41 key；不引用 user.* / common.* 旧树）
+    users: {
+      searchPlaceholder: '搜索用户名…',
+      statusAll: '全部',
+      statusEnabled: '启用',
+      statusDisabled: '停用',
+      colUsername: '用户名',
+      colRealName: '姓名',
+      colPhone: '手机号',
+      colRoles: '角色',
+      colStatus: '状态',
+      colActions: '操作',
+      create: '新建用户',
+      edit: '编辑',
+      resetPassword: '重置密码',
+      delete: '删除',
+      createTitle: '新建用户',
+      editTitle: '编辑用户',
+      resetTitle: '重置密码',
+      fUsername: '用户名',
+      fPassword: '密码',
+      fNewPassword: '新密码',
+      fRealName: '姓名',
+      fPhone: '手机号',
+      fRoles: '角色',
+      submit: '提交',
+      cancel: '取消',
+      ruleUsernameRequired: '请输入用户名',
+      ruleUsernamePattern: '用户名需为 2-30 位字母、数字或下划线',
+      rulePasswordRequired: '请输入密码',
+      rulePhonePattern: '手机号格式不正确',
+      ruleNewPwdRequired: '请输入新密码',
+      confirmDisable: '确认停用该用户？',
+      confirmDeleteTitle: '删除用户',
+      confirmDelete: '删除后不可恢复，确认删除该用户？',
+      saveSuccess: '保存成功',
+      statusUpdateSuccess: '状态已更新',
+      deleteSuccess: '删除成功',
+      resetSuccess: '密码已重置',
+      loadFailed: '用户列表加载失败',
+      actionFailed: '操作失败',
+      empty: '暂无用户',
+      readonlyHint: '无编辑权限，仅可查看'
     }
   }
 }

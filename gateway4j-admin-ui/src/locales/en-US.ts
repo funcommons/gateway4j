@@ -622,6 +622,7 @@ export default {
       pluginEditor: 'Plugin Editor',
       monitor: 'Monitoring',
       debug: 'Debug Console',
+      users: 'Users',
       systemEmpty: 'This group opens in a later step',
       subtitle: 'Visual gateway · v2'
     },
@@ -641,7 +642,8 @@ export default {
       publish: 'Publish & Versions',
       monitor: 'Monitoring',
       debug: 'Debug Console',
-      canvas: 'Flow Canvas'
+      canvas: 'Flow Canvas',
+      users: 'Users'
     },
     topbar: {
       tryV2: 'New experience',
@@ -1200,6 +1202,50 @@ export default {
       diffColField: 'Field',
       diffColFrom: 'A value',
       diffColTo: 'B value'
+    },
+    // P4d-1: Users page (v2.users tree, 41 keys; no references into legacy user.* / common.* trees)
+    users: {
+      searchPlaceholder: 'Search users…',
+      statusAll: 'All',
+      statusEnabled: 'Enabled',
+      statusDisabled: 'Disabled',
+      colUsername: 'Username',
+      colRealName: 'Real Name',
+      colPhone: 'Phone',
+      colRoles: 'Roles',
+      colStatus: 'Status',
+      colActions: 'Actions',
+      create: 'Create User',
+      edit: 'Edit',
+      resetPassword: 'Reset Password',
+      delete: 'Delete',
+      createTitle: 'Create User',
+      editTitle: 'Edit User',
+      resetTitle: 'Reset Password',
+      fUsername: 'Username',
+      fPassword: 'Password',
+      fNewPassword: 'New Password',
+      fRealName: 'Real Name',
+      fPhone: 'Phone',
+      fRoles: 'Roles',
+      submit: 'Submit',
+      cancel: 'Cancel',
+      ruleUsernameRequired: 'Username is required',
+      ruleUsernamePattern: 'Username must be 2-30 letters, digits or underscores',
+      rulePasswordRequired: 'Password is required',
+      rulePhonePattern: 'Invalid phone number format',
+      ruleNewPwdRequired: 'New password is required',
+      confirmDisable: 'Disable this user?',
+      confirmDeleteTitle: 'Delete User',
+      confirmDelete: 'This cannot be undone. Delete this user?',
+      saveSuccess: 'Saved',
+      statusUpdateSuccess: 'Status updated',
+      deleteSuccess: 'Deleted',
+      resetSuccess: 'Password reset',
+      loadFailed: 'Failed to load users',
+      actionFailed: 'Action failed',
+      empty: 'No users yet',
+      readonlyHint: 'Read-only: you do not have permission to edit'
     }
   }
 }

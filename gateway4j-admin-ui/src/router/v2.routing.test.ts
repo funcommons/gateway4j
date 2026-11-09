@@ -61,7 +61,8 @@ const V2_TABLE: Array<{ name: string; path: string; permission: string }> = [
   { name: 'V2PluginEditor', path: '/v2/plugins/editor/:id?', permission: 'plugin:edit' },
   { name: 'V2Publish', path: '/v2/publish/:id', permission: 'route:edit' },
   { name: 'V2Monitor', path: '/v2/monitor', permission: 'monitor:read' },
-  { name: 'V2Debug', path: '/v2/debug', permission: 'route:edit' }
+  { name: 'V2Debug', path: '/v2/debug', permission: 'route:edit' },
+  { name: 'V2Users', path: '/v2/users', permission: 'system:user' }
 ]
 
 /** 旧路由快照（来自 S1 前的 src/router/index.ts）：name/path/permission 一个都不能动 */
@@ -124,7 +125,7 @@ describe('/v2 路由表 — 契约 §1', () => {
     expect((record!.meta as Record<string, unknown>).permission).toBe(permission)
   })
 
-  it('v2 路由 name 全部以 V2 前缀且恰好 13 条（S9a 注册 V2Canvas；P4a-1 注册 V2PluginEditor；P4a-2 注册 V2PluginList；P4c-1 注册 V2ImportExport，契约 §1 + P4a/P4c 行）', () => {
+  it('v2 路由 name 全部以 V2 前缀且恰好 14 条（S9a 注册 V2Canvas；P4a-1 注册 V2PluginEditor；P4a-2 注册 V2PluginList；P4c-1 注册 V2ImportExport；P4d-1 注册 V2Users，契约 §1 + P4a/P4c/P4d 行）', () => {
     const v2Names = router.getRoutes()
       .map((r) => String(r.name))
       .filter((n) => n.startsWith('V2'))
@@ -517,5 +518,44 @@ describe('P4c-1 追加 — LayoutV2 路由组「导入导出」叶子', () => {
     } finally {
       navAuth.permissions.push('route:edit')
     }
+  })
+})
+
+// ═══════════ P4d-1-T 追加：/v2/users 用户管理行（契约 §4.5 P4d，L78）═══════════
+// 契约：docs/ui-v2/实施契约.md §4.5 P4d（2026-11-09）。V2Users 行已在上方 V2_TABLE
+// （path+permission，it.each 自动覆盖）；本段追加 meta.title / component 接线 / 静态路径
+// 边界。先红是预期：V2Users 路由、v2.page.users key、src/views-v2/system/Users.vue 均未落。
+// 【component 接线走 fs 源码断言而非动态 import 身份比对，沿 P4a-2 手法】：动态 import
+// 字面量会被 vite import-analysis 在 transform 期静态解析，Users.vue 缺位时整个本文件
+// 套件收集失败（50+ 条既有用例在 C 落地前全部停跑）；fs 断言让既有用例全程可观测。
+// 页面本体契约见 src/views-v2/system/__tests__/Users.test.ts；侧栏 system 组首叶子断言见
+// src/layouts/__tests__/LayoutV2.test.ts P4d-1 追加段（systemEmpty 占位随本步退场）。
+describe('P4d-1 追加 — V2Users meta 与组件接线', () => {
+  it('V2Users meta.title=v2.page.users（面包屑数据源）且 permission=system:user 不变', () => {
+    const record = recordByName('V2Users')
+    expect(record, 'v2 路由 V2Users 未注册').toBeDefined()
+    expect((record!.meta as Record<string, unknown>).title).toBe('v2.page.users')
+    expect((record!.meta as Record<string, unknown>).permission).toBe('system:user')
+  })
+
+  it('v2.page.users 在 zh-CN 与 en-US 都存在（铁律 6）', () => {
+    expect(digNav(zhCN, 'v2.page.users'), 'zh-CN 缺少 v2.page.users').toBeDefined()
+    expect(digNav(enUS, 'v2.page.users'), 'en-US 缺少 v2.page.users').toBeDefined()
+  })
+
+  it('V2Users 注册行源码契约：path users + component 指向 @/views-v2/system/Users.vue + meta 三件（P4d-1-C 落行）', () => {
+    const source = fs.readFileSync(path.resolve(__dirname, './index.ts'), 'utf-8')
+    const at = source.indexOf("name: 'V2Users'")
+    expect(at, "未在 src/router/index.ts /v2 children 找到 name: 'V2Users' 注册行").toBeGreaterThan(-1)
+    const row = source.slice(Math.max(0, at - 240), at + 420)
+    expect(row).toContain("path: 'users'")
+    expect(row).toMatch(/import\((['"])@\/views-v2\/system\/Users\.vue\1\)/)
+    expect(row).toContain('v2.page.users')
+    expect(row).toContain("permission: 'system:user'")
+  })
+
+  it('/v2/users 静态精确匹配：精确路径命中且不吞子路径（P4a-2 静态路径先例）', () => {
+    expect(router.resolve('/v2/users').name).toBe('V2Users')
+    expect(router.resolve('/v2/users/extra').name, '子路径不得命中（静态段无通配）').not.toBe('V2Users')
   })
 })

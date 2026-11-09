@@ -20,11 +20,15 @@ import zhCN from '@/locales/zh-CN'
 import enUS from '@/locales/en-US'
 import LayoutV2 from '@/layouts/LayoutV2.vue'
 
-// LayoutV2 可能按 MainLayout 同款做法用 meta.permission 过滤侧栏可见性 —— 给满权限账号
+// LayoutV2 可能按 MainLayout 同款做法用 meta.permission 过滤侧栏可见性 —— 给满权限账号。
+// P4d-1：权限集改可变（navAuth 先例 = router/v2.routing.test.ts P4a-1 追加段），system:user
+// 按用例动态注入/还原 —— system 组「零可见条目 ↔ systemEmpty 占位」互斥断言需要。
+const navAuth = vi.hoisted(() => ({
+  permissions: ['monitor:read', 'route:read', 'route:edit', 'plugin:read', 'user:read', 'system:read'] as string[]
+}))
 vi.mock('@/store/auth', () => ({
   useAuthStore: () => ({
-    permissions: ['monitor:read', 'route:read', 'route:edit', 'plugin:read', 'user:read', 'system:read']
-      .map((c) => ({ permission_code: c }))
+    permissions: navAuth.permissions.map((c: string) => ({ permission_code: c }))
   })
 }))
 
@@ -180,5 +184,86 @@ describe('S11b 追加 — 调试台入口归组与占位文案边界', () => {
     const obs = groups.find((g) => g.text().includes(String(dig(zhCN, 'v2.nav.debug'))))
     expect(obs, '未找到含调试台条目的分组').toBeDefined()
     expect(obs!.text()).not.toContain(emptyText)
+  })
+})
+
+// ═══════════ P4d-1-T 追加：系统组「用户管理」首叶子（契约 §4.5 P4d，L78）═══════════
+// 契约：docs/ui-v2/实施契约.md §4.5 P4d（2026-11-09）。LayoutV2 system 组挂第一叶子
+// = 本步交付（NAV_GROUPS system items [] → 1 项）。先红是预期：v2.nav.users key 与
+// NAV_GROUPS system 组条目均未落（C 步实现）；无权限边界用例落成即绿、C 后仍绿（钉边界）。
+// 交互写法沿上方 S11b 段与 router/v2.routing.test.ts P4a-2 追加段；auth mock 复用上方
+// 可变 navAuth（system:user 动态注入，finally 还原）。页面本体契约见
+// src/views-v2/system/__tests__/Users.test.ts。
+function makeNavRouterP4d1(): Router {
+  return createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/v2', component: LayoutV2, children: [
+        { path: 'overview', name: 'V2Overview', component: stub },
+        { path: 'users', name: 'V2Users', component: stub }
+      ] },
+      { path: '/routes', name: 'Routes', component: stub }
+    ]
+  })
+}
+
+async function mountNavP4d1() {
+  const navRouter = makeNavRouterP4d1()
+  await navRouter.push('/v2/overview')
+  await navRouter.isReady()
+  const wrapper = mount(LayoutV2, { global: { plugins: [ElementPlus, i18n, navRouter] } })
+  await flushPromises()
+  return { wrapper, navRouter }
+}
+
+describe('P4d-1 追加 — 系统组「用户管理」首叶子（systemEmpty 占位退场）', () => {
+  it('v2.nav.users 在 zh-CN 与 en-US 都存在（铁律 6）', () => {
+    expect(dig(zhCN, 'v2.nav.users'), 'zh-CN 缺少 v2.nav.users').toBeDefined()
+    expect(dig(enUS, 'v2.nav.users'), 'en-US 缺少 v2.nav.users').toBeDefined()
+  })
+
+  it('NAV_GROUPS system 组 items 源码契约：首叶子 V2Users / /v2/users / v2.nav.users / 兜底 system:user（P4d-1-C 落行）', () => {
+    const source = fs.readFileSync(path.resolve(__dirname, '../LayoutV2.vue'), 'utf-8')
+    const at = source.indexOf("key: 'system'")
+    expect(at, '未找到 NAV_GROUPS system 组').toBeGreaterThan(-1)
+    const block = source.slice(at, at + 480)
+    expect(block).toContain("name: 'V2Users'")
+    expect(block).toContain("path: '/v2/users'")
+    expect(block).toContain("labelKey: 'v2.nav.users'")
+    expect(block).toContain("permission: 'system:user'")
+  })
+
+  it('有 system:user 权限 → system 组可见且渲染用户管理叶子（点击跳 /v2/users，name=V2Users），侧栏不再渲染 systemEmpty 占位（S11b 占位随首叶子退场）', async () => {
+    navAuth.permissions.push('system:user')
+    try {
+      const { wrapper, navRouter } = await mountNavP4d1()
+      const label = String(dig(zhCN, 'v2.nav.users'))
+      const side = wrapper.find('#v2-side')
+      expect(side.exists()).toBe(true)
+      const groups = side.findAll('.v2-nav-group')
+      const sys = groups.find((g) => g.text().includes(String(dig(zhCN, 'v2.nav.group.system'))))
+      expect(sys, '未找到系统分组').toBeDefined()
+      expect(sys!.text()).toContain(label)
+      expect(side.text(), 'system 组有可见条目后 systemEmpty 占位必须退场')
+        .not.toContain(String(dig(zhCN, 'v2.nav.systemEmpty')))
+      const leaf = wrapper.findAll('.el-menu-item, [role="menuitem"], a').find((n) => n.text().includes(label))
+      expect(leaf, `找不到文案为「${label}」(v2.nav.users) 的导航项`).toBeDefined()
+      await leaf!.trigger('click')
+      await flushPromises()
+      expect(navRouter.currentRoute.value.path).toBe('/v2/users')
+      expect(navRouter.currentRoute.value.name).toBe('V2Users')
+    } finally {
+      navAuth.permissions = navAuth.permissions.filter((c: string) => c !== 'system:user')
+    }
+  })
+
+  it('无 system:user 权限 → 叶子被 canAccess 隐藏且 systemEmpty 占位仍在（零可见条目边界钉住，沿 S11b 写法）', async () => {
+    expect(navAuth.permissions.some((c: string) => c === 'system:user'), '前置：默认权限集不含 system:user').toBe(false)
+    const { wrapper } = await mountNavP4d1()
+    const label = String(dig(zhCN, 'v2.nav.users'))
+    const side = wrapper.find('#v2-side')
+    const leaf = wrapper.findAll('.el-menu-item, [role="menuitem"], a').find((n) => n.text().includes(label))
+    expect(leaf, '无 system:user 权限时用户管理叶子不应渲染').toBeUndefined()
+    expect(side.text()).toContain(String(dig(zhCN, 'v2.nav.systemEmpty')))
   })
 })
