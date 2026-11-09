@@ -71,7 +71,7 @@ public class RouteController {
     }
 
     @GetMapping
-    public List<Map<String, Object>> listRoutes(@RequestParam(required = false) String routeType,
+    public List<Map<String, Object>> listRoutes(@RequestParam(name = "route_type", required = false) String routeType,
                                                 @RequestParam(required = false) String status,
                                                 @RequestParam(required = false) String keyword,
                                                 @RequestParam(required = false) String tag,
@@ -421,7 +421,7 @@ public class RouteController {
     }
 
     @GetMapping("/export")
-    public RoutePackage exportRoutes(@RequestParam(required = false) List<Long> routeIds,
+    public RoutePackage exportRoutes(@RequestParam(name = "route_ids", required = false) List<Long> routeIds,
                                      @RequestParam(required = false) String status,
                                      @RequestParam(required = false) String environment) {
         return routeTransferService.exportRoutes(routeIds, status, environment);

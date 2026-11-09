@@ -24,7 +24,7 @@ public class UserController {
     /** 与插件列表（D8）一致：分页响应走统一 ApiResponse 信封（data.records / data.total）。 */
     @GetMapping
     public ApiResponse<Page<User>> listUsers(@RequestParam(defaultValue = "1") int page,
-                                             @RequestParam(defaultValue = "20") int pageSize,
+                                             @RequestParam(name = "page_size", defaultValue = "20") int pageSize,
                                              @RequestParam(required = false) String status,
                                              @RequestParam(required = false) String keyword) {
         if (pageSize > 100) pageSize = 100;

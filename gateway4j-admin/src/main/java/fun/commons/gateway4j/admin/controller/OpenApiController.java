@@ -27,7 +27,7 @@ public class OpenApiController {
     }
 
     @GetMapping("/routes/export")
-    public RoutePackage exportRoutes(@RequestParam(required = false) List<Long> routeIds,
+    public RoutePackage exportRoutes(@RequestParam(name = "route_ids", required = false) List<Long> routeIds,
                                      @RequestParam(required = false) String status) {
         return routeTransferService.exportRoutes(routeIds, status);
     }

@@ -41,7 +41,7 @@ public class MonitorController {
     }
 
     @GetMapping("/routes/status")
-    public List<Map<String, Object>> listRouteStatus(@RequestParam(required = false) String routeId) {
+    public List<Map<String, Object>> listRouteStatus(@RequestParam(name = "route_id", required = false) String routeId) {
         List<Route> routes;
         if (routeId != null) {
             Route route = routeService.getById(Long.valueOf(routeId));
@@ -92,7 +92,7 @@ public class MonitorController {
      */
     @GetMapping("/routes/{id}/metrics")
     public Map<String, Object> routeMetrics(@PathVariable Long id,
-                                            @RequestParam(defaultValue = "1h") String timeRange,
+                                            @RequestParam(name = "time_range", defaultValue = "1h") String timeRange,
                                             @RequestParam(defaultValue = "1m") String granularity) {
         Route route = routeService.getById(id);
         String path = route != null ? route.getPath() : null;

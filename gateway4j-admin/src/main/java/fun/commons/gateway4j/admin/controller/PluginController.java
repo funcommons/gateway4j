@@ -35,9 +35,9 @@ public class PluginController {
     /** 修复 D8：统一 ApiResponse 信封（data.records / data.total）；修复 D6：keyword 过滤生效。 */
     @GetMapping
     public ApiResponse<Page<Plugin>> listPlugins(@RequestParam(defaultValue = "1") int page,
-                                                 @RequestParam(defaultValue = "20") int pageSize,
-                                                 @RequestParam(required = false) String pluginType,
-                                                 @RequestParam(required = false) String pluginPhase,
+                                                 @RequestParam(name = "page_size", defaultValue = "20") int pageSize,
+                                                 @RequestParam(name = "plugin_type", required = false) String pluginType,
+                                                 @RequestParam(name = "plugin_phase", required = false) String pluginPhase,
                                                  @RequestParam(required = false) String scope,
                                                  @RequestParam(required = false) String status,
                                                  @RequestParam(required = false) String keyword) {
@@ -101,7 +101,7 @@ public class PluginController {
     }
 
     @GetMapping("/global")
-    public List<Plugin> listGlobalPlugins(@RequestParam(required = false) String pluginPhase) {
+    public List<Plugin> listGlobalPlugins(@RequestParam(name = "plugin_phase", required = false) String pluginPhase) {
         return pluginService.listGlobalPlugins(pluginPhase);
     }
 
