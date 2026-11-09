@@ -64,15 +64,22 @@
               <FcIcon name="ri-upload-2-line" :size="13" />
               {{ t('v2.routes.actPublish') }}
             </FcButton>
-            <FcButton v-if="canEdit('route')" variant="secondary" size="sm" data-testid="dtl-action-edit" @click="goCanvas">
+            <FcButton v-if="canEdit('route') && !editOpen" variant="secondary" size="sm" data-testid="dtl-action-edit" @click="openEdit">
               <FcIcon name="ri-edit-line" :size="13" />
-              {{ t('v2.routes.actCanvas') }}
+              {{ t('common.edit') }}
             </FcButton>
             <FcButton variant="text" size="sm" data-testid="dtl-refresh" @click="refresh">
               <FcIcon name="ri-refresh-line" :size="13" />
               {{ t('v2.detail.refresh') }}
             </FcButton>
           </div>
+        </div>
+
+        <!-- P4c-2: in-page edit state. Mount point dtl-edit-panel hosts RouteEditForm;
+             hidden while closed, re-openable; the edit button hides while editing so the
+             form is never remounted (draft loss). saved = reload header data. -->
+        <div v-if="editOpen" class="dtl-edit-panel" data-testid="dtl-edit-panel">
+          <RouteEditForm :route-id="routeId" @saved="onEditSaved" @close="editOpen = false" />
         </div>
 
         <!-- request chain (static preview, node order = evaluation order) -->
@@ -124,8 +131,8 @@
               <div class="dtl-card-h">
                 <b>{{ t('v2.detail.latencyTitle') }}</b>
                 <span class="dtl-legend">
-                  <span v-if="hasP50" class="dtl-legend-item"><i class="dtl-legend-dot is-p50" aria-hidden="true"></i>P50</span>
-                  <span v-if="hasP95" class="dtl-legend-item"><i class="dtl-legend-dot is-p95" aria-hidden="true"></i>P95</span>
+                  <span v-if="hasP50" class="dtl-legend-item"><i class="dtl-legend-dot is-p50" aria-hidden="true"></i>{{ LEGEND_P50 }}</span>
+                  <span v-if="hasP95" class="dtl-legend-item"><i class="dtl-legend-dot is-p95" aria-hidden="true"></i>{{ LEGEND_P95 }}</span>
                 </span>
               </div>
               <svg v-if="hasP50 || hasP95" class="dtl-chart" viewBox="0 0 260 88" role="img" :aria-label="t('v2.detail.latencyTitle')">
@@ -268,6 +275,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { FcButton, FcEmpty, FcIcon, FcSection, FcSkeleton, FcTag } from '@/components'
 import { listRoutes, getRouteVersions, getRouteVersionDiff } from '@/api/routes'
 import type { RouteNode, RouteVersionDto, RouteVersionDiffRow } from '@/api/routes'
+import RouteEditForm from './RouteEditForm.vue'
 import { fetchTrafficSummary, fetchRouteTimeseries, type RouteTrafficSummaryItem } from '@/api/v2'
 import { listAuditLogs, type AuditLogItem, type TimeseriesResponse } from '@/api/misc'
 import { BusinessError } from '@/api/http'
@@ -288,6 +296,9 @@ const AUDIT_PAGE_SIZE = 5
 const CHART_W = 260
 const CHART_H = 88
 const CHART_PAD = 8
+/** 延迟图例分位标记（指标记法非文案，随 P4c-2 lint 清零从模板裸字改为常量插值） */
+const LEGEND_P50 = 'P50'
+const LEGEND_P95 = 'P95'
 /** 状态码环几何（viewBox 74×74，r=30） */
 const RING_R = 30
 const RING_C = 2 * Math.PI * RING_R
@@ -403,9 +414,16 @@ function goPublish() {
   void router.push(`/v2/publish/${routeId.value}`)
 }
 
-/** 旧画布入口：仅导航不改旧 UI（契约 ⑦）；旧路由表注册路径为 /routes/:id/canvas */
-function goCanvas() {
-  void router.push(`/routes/${routeId.value}/canvas`)
+// ── P4c-2 页内编辑态（dtl-action-edit 改开 RouteEditForm，画布保持结构编辑定位）──
+const editOpen = ref(false)
+
+function openEdit() {
+  editOpen.value = true
+}
+
+/** 编辑组件保存成功：页头与只读分区重拉（listRoutes 第二次调用） */
+function onEditSaved() {
+  void loadAll()
 }
 
 // ── 页头派生 ─────────────────────────────────────────────────────────────
@@ -678,6 +696,13 @@ function formatTime(v: string | number | null | undefined): string {
   overflow-x: auto;
 }
 .dtl-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+/* P4c-2 页内编辑态面板（内嵌 RouteEditForm，与只读分区同列宽） */
+.dtl-edit-panel {
+  min-width: 0; padding: 12px 16px;
+  background: var(--app-bg-card); border: 1px solid var(--app-border-extra-light);
+  border-radius: var(--app-radius-lg); box-shadow: var(--app-shadow-sm);
+}
 
 /* 卡片基底 */
 .dtl-card {

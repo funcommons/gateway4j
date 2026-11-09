@@ -72,6 +72,15 @@
  * - 取数并行、分区独立 try/catch：fetchRouteTimeseries reject 只拖垮四联图（dtl-charts-error），
  *   页头 / 历史 / 操作记录照常渲染（V14）。
  * - SDK-only（铁律 2）：源码禁 <el- 直用；template 块禁 CJK（文案一律 t()）；禁 echarts import。
+ *
+ * ── P4c-2 增补（2026-11-09，契约 §4.5 P4c 行裁决：编辑入口方案 a）────────────
+ * dtl-action-edit 不再跳旧画布 /routes/:id/canvas（V17 源码断言 /canvas 全退场，画布保持
+ * 结构编辑定位）→ 改开页内编辑态：dtl-edit-panel 内嵌 RouteEditForm（./RouteEditForm.vue；
+ * 组件契约见 __tests__/RouteEditForm.test.ts 头注：props routeId / emits saved·close·
+ * dirty-change / testid 前缀 ref-* / i18n v2.edit.* 独立树）。编辑态打开时 dtl-action-edit
+ * 隐藏（防重挂载丢脏数据）；组件 emit saved → 页头重拉（listRoutes 二次调用）；emit close →
+ * 面板收起、可再重开。本文件对 RouteEditForm 走 vi.mock factory stub（不依赖组件文件存在），
+ * V16（行为）/V17（源码）由 P4c-2-C 实现时转绿，先红是预期；既有 V2-V15 零改动零误伤。
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
@@ -115,6 +124,11 @@ vi.mock('@/composables/usePermission', () => ({
     hasAnyPermission: mocks.hasAnyPermission,
     canEdit: mocks.canEdit
   })
+}))
+// P4c-2：RouteEditForm stub（vi.mock factory 不依赖组件文件存在；组件契约见
+// RouteEditForm.test.ts 头注）。本文件只测 Detail 的编辑态挂载/收起/事件转发。
+vi.mock('@/views-v2/routes/RouteEditForm.vue', () => ({
+  default: { name: 'RouteEditFormStub', template: '<div data-testid="ref-form" />' }
 }))
 
 import Detail from '@/views-v2/routes/Detail.vue'
@@ -619,5 +633,68 @@ describe('V14 — 并行取数不互相拖垮（分区独立 try/catch）', () =
     expect(byTestid(wrapper, 'dtl-hits').text()).toMatch(/84\s*k/)
     expect(byTestid(wrapper, 'dtl-version-row-v3').exists()).toBe(true)
     expect(byTestid(wrapper, 'dtl-audit-row-1001').exists()).toBe(true)
+  })
+})
+
+// ── V16 P4c-2 编辑态（dtl-action-edit 改开页内 RouteEditForm，不再跳旧画布）────
+
+describe('V16 — dtl-action-edit 开编辑态（P4c-2 契约：嵌入 RouteEditForm）', () => {
+  it('点击 → dtl-edit-panel 渲染（内含 RouteEditForm）+ currentRoute 保持详情页（不再 /routes/:id/canvas）', async () => {
+    const { wrapper, router } = await factory()
+    expect(router.currentRoute.value.path).toBe('/v2/routes/r1/detail')
+    await byTestid(wrapper, 'dtl-action-edit').trigger('click')
+    await flushPromises()
+    const panel = byTestid(wrapper, 'dtl-edit-panel')
+    expect(panel.exists(), '编辑态面板缺失（Detail 未挂 dtl-edit-panel）').toBe(true)
+    expect(panel.find('[data-testid="ref-form"]').exists(), '面板内缺 RouteEditForm（ref-form）').toBe(true)
+    expect(router.currentRoute.value.path).toBe('/v2/routes/r1/detail')
+  })
+
+  it('编辑态打开时 dtl-action-edit 隐藏（防重挂载丢脏数据）+ 只读分区不被遮挡', async () => {
+    const { wrapper } = await factory()
+    await byTestid(wrapper, 'dtl-action-edit').trigger('click')
+    await flushPromises()
+    expect(byTestid(wrapper, 'dtl-action-edit').exists()).toBe(false)
+    expect(byTestid(wrapper, 'dtl-chain').exists()).toBe(true)
+    expect(byTestid(wrapper, 'dtl-history').exists()).toBe(true)
+    expect(byTestid(wrapper, 'dtl-charts').exists()).toBe(true)
+  })
+
+  it('组件 emit close → 面板收起；再点 dtl-action-edit 可重开（编辑态生命周期）', async () => {
+    const { wrapper } = await factory()
+    await byTestid(wrapper, 'dtl-action-edit').trigger('click')
+    await flushPromises()
+    const stub = wrapper.findComponent({ name: 'RouteEditFormStub' })
+    expect(stub.exists(), '编辑面板内缺 RouteEditFormStub').toBe(true)
+    stub.vm.$emit('close')
+    await flushPromises()
+    expect(byTestid(wrapper, 'dtl-edit-panel').exists()).toBe(false)
+    await byTestid(wrapper, 'dtl-action-edit').trigger('click')
+    await flushPromises()
+    expect(byTestid(wrapper, 'dtl-edit-panel').exists()).toBe(true)
+  })
+
+  it('组件 emit saved → 详情页头重拉（listRoutes 第二次调用）', async () => {
+    const { wrapper } = await factory()
+    expect(mocks.listRoutes).toHaveBeenCalledTimes(1)
+    await byTestid(wrapper, 'dtl-action-edit').trigger('click')
+    await flushPromises()
+    wrapper.findComponent({ name: 'RouteEditFormStub' }).vm.$emit('saved')
+    await flushPromises()
+    expect(mocks.listRoutes).toHaveBeenCalledTimes(2)
+  })
+})
+
+// ── V17 P4c-2 源码契约（旧画布入口退场 + RouteEditForm 嵌入）────────────────
+
+describe('V17 — P4c-2 源码契约：编辑钮不再跳旧画布 + 嵌入 RouteEditForm', () => {
+  it('源码全文不再含 /canvas 导航语义（旧画布入口退场，画布保持结构编辑定位）', () => {
+    expect(readSource()).not.toMatch(/\/canvas/)
+  })
+
+  it('源码 import RouteEditForm（./ 或 @ 别名均可）+ dtl-edit-panel 挂载点在源码', () => {
+    const src = readSource()
+    expect(src).toMatch(/import\s+RouteEditForm\s+from\s+'(\.\/|@\/views-v2\/routes\/)RouteEditForm\.vue'/)
+    expect(src).toContain('dtl-edit-panel')
   })
 })
