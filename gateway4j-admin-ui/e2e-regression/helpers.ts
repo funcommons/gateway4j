@@ -237,3 +237,92 @@ function ensureDir(line: LineKey) {
   fs.mkdirSync(dir, { recursive: true })
   return dir
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// v2 专属助手（P4e 迁移步 1 新增）—— 只增不改：上方旧助手原样保留，
+// 供未迁移 spec（01/02/03/04/05/06/10/visual）共存期继续使用。
+// REPORT_ROOT 本步不动（P4e 收官步统一换新目录，避免中间态报告目录混乱）。
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * v2 登录：机制同 login()（UI 登录 admin/admin123 + 登录接口 10 次/分钟/IP 限流的
+ * 25s×3 重试），但带 ?redirect= 参数 —— Login.vue:70 读 query.redirect 登录后跳转，
+ * v2 默认落 /v2/overview。token 仍写 localStorage['gw4j_token']（v2 共享 auth store），
+ * apiCall() 在 v2 页面上原样可用。
+ */
+export async function loginV2(page: Page, redirect = '/v2/overview') {
+  await page.goto(`/login?redirect=${redirect}`)
+  await expect(page.getByRole('button', { name: '登录' })).toBeVisible({ timeout: 20_000 })
+  await page.locator('input').first().fill(CREDENTIALS.username)
+  await page.locator('input[type="password"]').first().fill(CREDENTIALS.password)
+  // 锚定到主机后的路径（https?://host/redirect$）：goto 的 /login?redirect=/v2/... 本身
+  // 就含 redirect 子串，若用裸子串正则会立即误匹配、429 重试期间提前放行（2026-11-09 实锤）
+  const urlRe = new RegExp(`https?://[^/]+${redirect.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`)
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await Promise.all([
+        page.waitForURL(urlRe, { timeout: 30_000 }),
+        page.getByRole('button', { name: '登录' }).click(),
+      ])
+      break
+    } catch (e) {
+      if (attempt >= 3) throw e
+      await page.waitForTimeout(25_000)
+    }
+  }
+  // 不要用 networkidle：v2 同样持有 SSE 长连接（同 login() 注释）
+  await page.waitForTimeout(800)
+}
+
+/**
+ * v2 语义表格行定位。v2 行级 DOM 契约：行 testid 落在 <tr>，形如
+ * usr-row-42 / rol-row-3。传纯数字按行 id 精确匹配；传其他文本按行内内容过滤
+ * （如用户名 'admin'）。
+ */
+export function v2Row(page: Page, testidPrefix: string, idOrText: string | number) {
+  const p = String(idOrText)
+  return /^\d+$/.test(p)
+    ? page.locator(`[data-testid="${testidPrefix}-row-${p}"]`)
+    : page.locator(`[data-testid^="${testidPrefix}-row-"]`).filter({ hasText: p })
+}
+
+/**
+ * v2 行内动作按钮：testid 形如 usr-action-edit-7 / rol-action-perm-2（动作名带 -{id} 后缀）。
+ * prefix 传行前缀（如 'usr'），name 传动作名（如 'edit'）；id 传行 id 可精确定位单行按钮。
+ */
+export function v2RowAction(page: Page, testidPrefix: string, name: string, id?: string | number) {
+  return id === undefined
+    ? page.locator(`[data-testid^="${testidPrefix}-action-${name}-"]`)
+    : page.locator(`[data-testid="${testidPrefix}-action-${name}-${id}"]`)
+}
+
+/**
+ * v2 页内 toast 反馈定位（a11y live region 镜像，页面常驻渲染于页脚）：
+ * testid 形如 usr-toast-success / rol-toast-error / set-toast-success。
+ * prefix 传业务页前缀含连字符（'usr-' / 'rol-' / 'set-'），kind 为 'success' | 'error'。
+ */
+export function v2Toast(page: Page, kind: 'success' | 'error', prefix = '') {
+  return page.locator(`[data-testid="${prefix}toast-${kind}"]`)
+}
+
+/** v2 确认弹窗（useFcConfirm → FcConfirm → FcDialog.fc-confirm-dialog）的「确认」按钮 */
+export function v2Confirm(page: Page) {
+  return page.locator('.fc-dialog.fc-confirm-dialog:visible').getByRole('button', { name: '确认' })
+}
+
+/** v2 确认弹窗的「取消」按钮 */
+export function v2Cancel(page: Page) {
+  return page.locator('.fc-dialog.fc-confirm-dialog:visible').getByRole('button', { name: '取消' })
+}
+
+/**
+ * v2 发布流：发布不再是弹窗，而是独立页 /v2/publish/:id —— 填变更说明
+ * pub-desc-input（必填 1~200 字，为空则 pub-publish-btn disabled）后点 pub-publish-btn。
+ * 供步 3（03-routes / 04-canvas）迁移发布类用例使用。
+ */
+export async function confirmPublishV2(page: Page, text = 'e2e 自动化发布验证') {
+  const input = page.locator('[data-testid="pub-desc-input"]')
+  await input.waitFor({ state: 'visible', timeout: 15_000 })
+  await input.fill(text)
+  await page.locator('[data-testid="pub-publish-btn"]').click()
+}
