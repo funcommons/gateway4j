@@ -655,7 +655,9 @@ export default {
       searchPlaceholder: 'Search routes, plugins, users…',
       notifications: 'Notifications',
       user: 'User',
-      menu: 'Menu'
+      menu: 'Menu',
+      logout: 'Sign out',
+      lang: 'Language'
     },
     placeholder: {
       hint: 'This module will be implemented in a later step',

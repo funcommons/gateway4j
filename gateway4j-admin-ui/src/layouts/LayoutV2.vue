@@ -66,6 +66,14 @@
           <FcButton variant="text" size="sm" :aria-label="t('v2.topbar.notifications')" data-testid="v2-topbar-notice">
             <FcIcon name="ri-notification-line" :size="15" />
           </FcButton>
+          <!-- P4e-0 顶栏三入口：主题（FcThemeSwitcher，inject Provider）/ 语言 / 登出 -->
+          <span class="v2-top-theme" data-testid="v2-theme-switch"><FcThemeSwitcher /></span>
+          <FcButton variant="text" size="sm" :aria-label="t('v2.topbar.lang')" data-testid="v2-lang-switch" @click="toggleLocale">
+            <FcIcon name="ri-translate-2" :size="15" />
+          </FcButton>
+          <FcButton variant="text" size="sm" data-testid="v2-logout" @click="onLogout">
+            {{ t('v2.topbar.logout') }}
+          </FcButton>
           <span class="v2-top-avatar" role="img" :aria-label="t('v2.topbar.user')">
             <FcIcon name="ri-user-line" :size="14" />
           </span>
@@ -79,13 +87,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, inject, onBeforeUnmount, onMounted, provide, ref, type Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { FcButton, FcIcon } from '@/components'
+import { FcButton, FcIcon, FcThemeSwitcher, isValidBrand, type ThemeMode } from '@/components'
 import { usePermission } from '@/composables/usePermission'
+import { useAuthStore } from '@/store/auth'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { hasPermission } = usePermission()
@@ -249,6 +258,81 @@ const crumbTitle = computed(() => {
 
 async function go(path: string) {
   await router.push(path)
+}
+
+/** P4e-0 顶栏·语言：zh-CN↔en-US 双向 toggle，gw4j_lang 持久化（src/i18n.ts 启动恢复同款）。 */
+function toggleLocale() {
+  const next = locale.value === 'zh-CN' ? 'en-US' : 'zh-CN'
+  locale.value = next
+  localStorage.setItem('gw4j_lang', next)
+}
+
+/** P4e-0 顶栏·登出：纯本地登出（旧树 MainLayout onLogout 同款，无后端 API）——
+ *  store.logout() 复位状态并清 gw4j_token/gw4j_refresh，随后跳 /login。 */
+async function onLogout() {
+  useAuthStore().logout()
+  await router.push('/login')
+}
+
+// —— P4e-0 顶栏·主题兜底上下文 ——
+// FcThemeSwitcher 的色板点击依赖 inject('fc-theme')（App.vue 全局 FcThemeProvider 提供）。
+// 无 Provider 祖先的挂载形态（单测直挂 LayoutV2 等）inject 落空时，切换器只剩 emit 无处
+// 去顶。这里由 LayoutV2 在 inject 落空时自 provide 一个行为对齐 Provider 的兜底上下文：
+// DOM 写入同 FcThemeProvider.applyToRoot，持久化同 key/结构（STORAGE_VERSION=1）。
+// 有 Provider 时保持沉默（不遮蔽上游上下文），两种挂载形态下顶栏主题切换都可用。
+interface FcThemeContext {
+  brand: Ref<string>
+  theme: Ref<ThemeMode>
+  setBrand: (b: string) => void
+  setTheme: (t: ThemeMode) => void
+}
+
+const THEME_PERSIST_KEY = 'fc-theme-provider'
+
+function readThemePersisted(): { brand?: string; theme?: ThemeMode } {
+  try {
+    const raw = localStorage.getItem(THEME_PERSIST_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as { v?: number; brand?: string; theme?: ThemeMode }
+    if (parsed.v !== 1) return {}
+    return parsed
+  } catch {
+    return {}
+  }
+}
+
+function applyThemeToRoot(brand: string, theme: ThemeMode) {
+  const html = document.documentElement
+  html.setAttribute('data-brand', brand)
+  html.setAttribute('data-theme', theme)
+  html.classList.toggle('dark', theme !== 'light')
+}
+
+if (inject<FcThemeContext | null>('fc-theme', null) == null) {
+  const stored = readThemePersisted()
+  const storedBrand = stored.brand
+  const brand = ref<string>(storedBrand != null && isValidBrand(storedBrand) ? storedBrand : 'ldx2')
+  const theme = ref<ThemeMode>(stored.theme === 'dark' ? 'dark' : 'light')
+  const saveTheme = () => {
+    try {
+      localStorage.setItem(THEME_PERSIST_KEY, JSON.stringify({ v: 1, brand: brand.value, theme: theme.value }))
+    } catch { /* 隐私模式 / 配额 —— 静默 */ }
+  }
+  provide('fc-theme', {
+    brand,
+    theme,
+    setBrand(b: string) {
+      if (!isValidBrand(b)) return
+      brand.value = b
+      applyThemeToRoot(brand.value, theme.value)
+      saveTheme()
+    },
+    setTheme(mode: ThemeMode) {
+      theme.value = mode
+      applyThemeToRoot(brand.value, theme.value)
+      saveTheme()
+    },
+  } satisfies FcThemeContext)
 }
 </script>
 

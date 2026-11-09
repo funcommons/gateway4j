@@ -652,7 +652,9 @@ export default {
       searchPlaceholder: '搜索路由、插件、用户…',
       notifications: '通知',
       user: '用户',
-      menu: '菜单'
+      menu: '菜单',
+      logout: '退出登录',
+      lang: '语言'
     },
     placeholder: {
       hint: '该模块在后续步骤实现',

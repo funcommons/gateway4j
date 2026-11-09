@@ -10,6 +10,7 @@
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
+import { h } from 'vue'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
@@ -19,16 +20,34 @@ import path from 'path'
 import zhCN from '@/locales/zh-CN'
 import enUS from '@/locales/en-US'
 import LayoutV2 from '@/layouts/LayoutV2.vue'
+import { FcThemeProvider } from '@/components'
 
 // LayoutV2 可能按 MainLayout 同款做法用 meta.permission 过滤侧栏可见性 —— 给满权限账号。
 // P4d-1：权限集改可变（navAuth 先例 = router/v2.routing.test.ts P4a-1 追加段），system:user
 // 按用例动态注入/还原 —— system 组「零可见条目 ↔ systemEmpty 占位」互斥断言需要。
-const navAuth = vi.hoisted(() => ({
-  permissions: ['monitor:read', 'route:read', 'route:edit', 'plugin:read', 'user:read', 'system:read'] as string[]
-}))
+const navAuth = vi.hoisted(() => {
+  const logoutCalls: number[] = []
+  return {
+    permissions: ['monitor:read', 'route:read', 'route:edit', 'plugin:read', 'user:read', 'system:read'] as string[],
+    /**
+     * P4e-0：登出调用记录。mock 的 logout 复刻真 store（src/store/auth.ts logout()）
+     * 的可观测副作用 —— setToken(null)=清 gw4j_token、removeRefreshToken()=清 gw4j_refresh；
+     * 状态复位（token/user/permissions）对 Layout 断言不可见，mock 不复刻。
+     */
+    logoutCalls,
+    logout() {
+      logoutCalls.push(logoutCalls.length)
+      try {
+        localStorage.removeItem('gw4j_token')
+        localStorage.removeItem('gw4j_refresh')
+      } catch { /* 非浏览器环境静默 */ }
+    }
+  }
+})
 vi.mock('@/store/auth', () => ({
   useAuthStore: () => ({
-    permissions: navAuth.permissions.map((c: string) => ({ permission_code: c }))
+    permissions: navAuth.permissions.map((c: string) => ({ permission_code: c })),
+    logout: navAuth.logout
   })
 }))
 
@@ -446,6 +465,219 @@ describe('P4d-3 追加 — 系统组「系统设置」第三叶子', () => {
       expect(leaf, '无 system:read 权限时系统设置叶子不应渲染').toBeUndefined()
     } finally {
       navAuth.permissions = ['monitor:read', 'route:read', 'route:edit', 'plugin:read', 'user:read', 'system:read']
+    }
+  })
+})
+
+// ═══════════ P4e-0-T 追加：顶栏三入口（登出/主题/语言）（契约 §4.5 P4e 行）═══════════
+// 契约：docs/ui-v2/实施契约.md §4.5 P4e（2026-11-09）。产品级缺口：LayoutV2 顶栏只有
+// 通知铃/头像占位，真实用户在 v2 无法登出、切主题、切语言 —— 本步补三入口。
+// 侦察结论（语义随迁旧树 src/layouts/MainLayout.vue，不改旧树）：
+// ① 登出 = auth store logout()（清 gw4j_token/gw4j_refresh + 复位状态；旧树无后端登出 API）
+//    + router.push('/login')（MainLayout onLogout: auth.logout(); await router.push('/login')）。
+//    mock 侧 navAuth.logout 复刻清 token 副作用（见文件顶部 hoisted 注释）。
+// ② 主题 = FcThemeSwitcher（SDK，popover 变体）挂在 App.vue 的 FcThemeProvider 之下：
+//    点触发钮开面板 → 点色板 → inject('fc-theme').setTheme → documentElement classList
+//    'dark' 翻转 + localStorage['fc-theme-provider'] 持久化（FcThemeProvider applyToRoot）。
+//    主题用例用 FcThemeProvider 包裹 LayoutV2 复刻 App.vue 结构；popover 弹层懒渲染进
+//    body（已实测可达），色板断言走 document.body 查询。
+// ③ 语言 = vue-i18n locale 翻转 + localStorage['gw4j_lang'] 持久化（src/i18n.ts 启动读 +
+//    旧树 Settings.vue 先例；旧树无顶栏语言切换组件，v2 顶栏自建轻量切换钮）。
+// testid 裁决：v2-logout / v2-theme-switch / v2-lang-switch。
+// i18n key 裁决：v2.topbar.logout / v2.topbar.lang（主题切换器用 FcThemeSwitcher 内置
+// 双语文案，无需 v2 key —— 精简不冗余）。
+// 先红是预期：三 testid、两 key、登出/语言接线均未落（C 步实现）。语言用例改共享 i18n
+// 实例 locale，finally 必须还原 zh-CN，否则污染同文件按 zh 文案断言的既有用例。
+function makeNavRouterP4e0(): Router {
+  return createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/v2', component: LayoutV2, children: [
+        { path: 'overview', name: 'V2Overview', component: stub }
+      ] },
+      { path: '/routes', name: 'Routes', component: stub },
+      { path: '/login', name: 'Login', component: stub }
+    ]
+  })
+}
+
+/** P4e-0 存储清底：三入口各自读写的 key 清零，防跨用例串态 */
+function cleanP4e0Storage() {
+  for (const k of ['gw4j_token', 'gw4j_refresh', 'gw4j_lang', 'fc-theme-provider']) {
+    localStorage.removeItem(k)
+  }
+}
+
+/** 主题用例收尾：FcThemeProvider 把品牌/主题写到 html 上，逐项清防外泄到其他用例 */
+function cleanThemeDom() {
+  document.documentElement.classList.remove('dark')
+  document.documentElement.removeAttribute('data-brand')
+  document.documentElement.removeAttribute('data-theme')
+}
+
+/** insideThemeProvider：主题用例复刻 App.vue 的 <FcThemeProvider><router-view/></…> 结构 */
+async function mountP4e0(opts: { insideThemeProvider?: boolean } = {}) {
+  const navRouter = makeNavRouterP4e0()
+  await navRouter.push('/v2/overview')
+  await navRouter.isReady()
+  const global = { plugins: [ElementPlus, i18n, navRouter] }
+  const wrapper = opts.insideThemeProvider
+    ? mount(FcThemeProvider, { attachTo: document.body, global, slots: { default: () => h(LayoutV2) } })
+    : mount(LayoutV2, { global })
+  await flushPromises()
+  return { wrapper: wrapper as VueWrapper<any>, navRouter }
+}
+
+describe('P4e-0 追加 — 顶栏三入口（登出/主题/语言）', () => {
+  it.each(['v2.topbar.logout', 'v2.topbar.lang'])('%s 在 zh-CN 与 en-US 都存在（铁律 6）', (key) => {
+    expect(dig(zhCN, key), `zh-CN 缺少 ${key}`).toBeDefined()
+    expect(dig(enUS, key), `en-US 缺少 ${key}`).toBeDefined()
+  })
+
+  it('三入口渲染于顶栏（system:user 登录态 mount）：登出钮文案走 v2.topbar.logout，主题/语言切换器各有 testid', async () => {
+    navAuth.permissions.push('system:user')
+    try {
+      cleanP4e0Storage()
+      const { wrapper } = await mountP4e0()
+      const top = wrapper.find('.v2-top')
+      expect(top.exists(), '顶栏 .v2-top 未渲染').toBe(true)
+      const logoutBtn = top.find('[data-testid="v2-logout"]')
+      expect(logoutBtn.exists(), '顶栏缺登出钮 v2-logout').toBe(true)
+      expect(logoutBtn.text(), '登出钮文案应来自 v2.topbar.logout').toContain(String(dig(zhCN, 'v2.topbar.logout')))
+      expect(top.find('[data-testid="v2-theme-switch"]').exists(), '顶栏缺主题切换器 v2-theme-switch').toBe(true)
+      expect(top.find('[data-testid="v2-lang-switch"]').exists(), '顶栏缺语言切换器 v2-lang-switch').toBe(true)
+    } finally {
+      navAuth.permissions = navAuth.permissions.filter((c: string) => c !== 'system:user')
+      cleanP4e0Storage()
+    }
+  })
+
+  it('源码契约（fs 窗口，P4d-2 at+N 惯例）：三 testid 落在 .v2-top-actions 顶栏动作区', () => {
+    const source = fs.readFileSync(path.resolve(__dirname, '../LayoutV2.vue'), 'utf-8')
+    const at = source.indexOf('class="v2-top-actions"')
+    expect(at, '未找到顶栏动作区 .v2-top-actions').toBeGreaterThan(-1)
+    const block = source.slice(at, at + 900)
+    expect(block).toContain('data-testid="v2-logout"')
+    expect(block).toContain('data-testid="v2-theme-switch"')
+    expect(block).toContain('data-testid="v2-lang-switch"')
+  })
+
+  it('源码契约（fs 接线）：登出走 store.logout + push(/login)，主题挂 FcThemeSwitcher，语言持久化 gw4j_lang', () => {
+    const source = fs.readFileSync(path.resolve(__dirname, '../LayoutV2.vue'), 'utf-8')
+    expect(source, '主题切换器应挂 SDK FcThemeSwitcher（语义随迁旧树）').toContain('<FcThemeSwitcher')
+    expect(source, '登出应调 auth store 的 logout()').toMatch(/\.logout\(\)/)
+    expect(source, '登出后应跳 /login（旧树 onLogout 同款）').toMatch(/push\('\/login'\)/)
+    expect(source, '语言切换应持久化到 gw4j_lang').toMatch(/setItem\('gw4j_lang'/)
+  })
+  it('点击登出 → store.logout 调用、gw4j_token/gw4j_refresh 清除、路由跳 /login（旧树 onLogout 语义随迁）', async () => {
+    cleanP4e0Storage()
+    localStorage.setItem('gw4j_token', 'p4e0-token')
+    localStorage.setItem('gw4j_refresh', 'p4e0-refresh')
+    try {
+      const { wrapper, navRouter } = await mountP4e0()
+      const callsBefore = navAuth.logoutCalls.length
+      const btn = wrapper.find('[data-testid="v2-logout"]')
+      expect(btn.exists(), 'RED 预期：顶栏缺登出钮 v2-logout').toBe(true)
+      await btn.trigger('click')
+      await flushPromises()
+      expect(navAuth.logoutCalls.length, '登出钮点击未调 store.logout').toBe(callsBefore + 1)
+      expect(localStorage.getItem('gw4j_token'), '登出后 gw4j_token 未清除').toBeNull()
+      expect(localStorage.getItem('gw4j_refresh'), '登出后 gw4j_refresh 未清除').toBeNull()
+      expect(navRouter.currentRoute.value.path, '登出后未跳 /login').toBe('/login')
+    } finally {
+      cleanP4e0Storage()
+    }
+  })
+
+  it('主题切换：点触发钮开面板（面板含色板项）→ 点「深色」→ html.dark 翻转 + fc-theme-provider 持久化', async () => {
+    cleanP4e0Storage()
+    cleanThemeDom()
+    let wrapper: VueWrapper<any> | null = null
+    try {
+      const mounted = await mountP4e0({ insideThemeProvider: true })
+      wrapper = mounted.wrapper
+      const host = wrapper.find('[data-testid="v2-theme-switch"]')
+      expect(host.exists(), 'RED 预期：顶栏缺主题切换器 v2-theme-switch').toBe(true)
+      const trigger = host.find('.fc-theme-switcher--trigger button')
+      expect(trigger.exists(), 'v2-theme-switch 内缺 FcThemeSwitcher 触发钮').toBe(true)
+      await trigger.trigger('click')
+      await flushPromises()
+      const swatches = Array.from(document.body.querySelectorAll('.fc-ts-swatch'))
+      expect(swatches.length, '主题面板未弹出（弹层懒渲染进 body，色板须在 document.body 可见）').toBeGreaterThanOrEqual(2)
+      const dark = swatches.find((s) => /深色|Dark/.test(s.textContent ?? ''))
+      expect(dark, '主题面板缺「深色」色板').toBeDefined()
+      ;(dark as HTMLElement).click()
+      await flushPromises()
+      expect(document.documentElement.classList.contains('dark'), '点深色后 html.dark 未翻转').toBe(true)
+      const persisted = JSON.parse(localStorage.getItem('fc-theme-provider') ?? '{}') as { theme?: string }
+      expect(persisted.theme, 'fc-theme-provider 未持久化 dark').toBe('dark')
+    } finally {
+      wrapper?.unmount()
+      cleanP4e0Storage()
+      cleanThemeDom()
+    }
+  })
+
+  it('主题切换（反向）：持久化 dark 起步 → 点「浅色」→ html.dark 退场 + 持久化回 light', async () => {
+    localStorage.setItem('fc-theme-provider', JSON.stringify({ v: 1, brand: 'ldx2', theme: 'dark' }))
+    cleanThemeDom()
+    let wrapper: VueWrapper<any> | null = null
+    try {
+      const mounted = await mountP4e0({ insideThemeProvider: true })
+      wrapper = mounted.wrapper
+      expect(document.documentElement.classList.contains('dark'), '前置：持久化 dark 时 Provider 启动即挂 html.dark').toBe(true)
+      const trigger = wrapper.find('[data-testid="v2-theme-switch"] .fc-theme-switcher--trigger button')
+      expect(trigger.exists(), 'RED 预期：顶栏缺主题切换器触发钮').toBe(true)
+      await trigger.trigger('click')
+      await flushPromises()
+      const light = Array.from(document.body.querySelectorAll('.fc-ts-swatch')).find((s) => /浅色|Light/.test(s.textContent ?? ''))
+      expect(light, '主题面板缺「浅色」色板').toBeDefined()
+      ;(light as HTMLElement).click()
+      await flushPromises()
+      expect(document.documentElement.classList.contains('dark'), '点浅色后 html.dark 应退场').toBe(false)
+      const persisted = JSON.parse(localStorage.getItem('fc-theme-provider') ?? '{}') as { theme?: string }
+      expect(persisted.theme, 'fc-theme-provider 未持久化 light').toBe('light')
+    } finally {
+      wrapper?.unmount()
+      cleanP4e0Storage()
+      cleanThemeDom()
+    }
+  })
+
+  it('语言切换：点击 → locale 翻到 en-US + gw4j_lang 持久化（旧树 Settings.vue 机制随迁）', async () => {
+    cleanP4e0Storage()
+    try {
+      const { wrapper } = await mountP4e0()
+      expect(String(i18n.global.locale.value), '前置：初始 locale 为 zh-CN').toBe('zh-CN')
+      const btn = wrapper.find('[data-testid="v2-lang-switch"]')
+      expect(btn.exists(), 'RED 预期：顶栏缺语言切换器 v2-lang-switch').toBe(true)
+      await btn.trigger('click')
+      await flushPromises()
+      expect(String(i18n.global.locale.value), '点击后 locale 未翻到 en-US').toBe('en-US')
+      expect(localStorage.getItem('gw4j_lang'), 'gw4j_lang 未持久化 en-US').toBe('en-US')
+    } finally {
+      i18n.global.locale.value = 'zh-CN'
+      document.documentElement.lang = ''
+      cleanP4e0Storage()
+    }
+  })
+
+  it('语言切换（反向）：en-US 起步再点一次切回 zh-CN，gw4j_lang 跟随（双向 toggle）', async () => {
+    cleanP4e0Storage()
+    localStorage.setItem('gw4j_lang', 'en-US')
+    i18n.global.locale.value = 'en-US'
+    try {
+      const { wrapper } = await mountP4e0()
+      const btn = wrapper.find('[data-testid="v2-lang-switch"]')
+      expect(btn.exists(), 'RED 预期：顶栏缺语言切换器 v2-lang-switch').toBe(true)
+      await btn.trigger('click')
+      await flushPromises()
+      expect(String(i18n.global.locale.value), '再次点击后 locale 未切回 zh-CN').toBe('zh-CN')
+      expect(localStorage.getItem('gw4j_lang'), 'gw4j_lang 未持久化 zh-CN').toBe('zh-CN')
+    } finally {
+      i18n.global.locale.value = 'zh-CN'
+      document.documentElement.lang = ''
+      cleanP4e0Storage()
     }
   })
 })
