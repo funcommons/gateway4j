@@ -620,6 +620,7 @@ export default {
       monitor: '监控大盘',
       debug: '调试台',
       users: '用户管理',
+      roles: '角色权限',
       systemEmpty: '该分组将在后续步骤开放',
       subtitle: '可视化网关 · v2'
     },
@@ -640,7 +641,8 @@ export default {
       monitor: '监控大盘',
       debug: '调试台',
       canvas: '流程编排',
-      users: '用户管理'
+      users: '用户管理',
+      roles: '角色权限'
     },
     topbar: {
       tryV2: '新版体验',
@@ -1243,6 +1245,55 @@ export default {
       actionFailed: '操作失败',
       empty: '暂无用户',
       readonlyHint: '无编辑权限，仅可查看'
+    },
+    // P4d-2：角色权限页（v2.roles 新树，46 key；不引用 role.* / common.* 旧树）
+    roles: {
+      colCode: '角色码',
+      colName: '角色名',
+      colRemark: '备注',
+      colActions: '操作',
+      create: '新建角色',
+      edit: '编辑',
+      delete: '删除',
+      perm: '权限',
+      members: '成员',
+      createTitle: '新建角色',
+      editTitle: '编辑角色',
+      permTitle: '权限配置',
+      membersTitle: '成员管理',
+      fCode: '角色码',
+      fName: '角色名',
+      fRemark: '备注',
+      submit: '提交',
+      cancel: '取消',
+      ruleCodeRequired: '请输入角色码',
+      ruleCodePattern: '角色码需为 ROLE_ 前缀 + 2-40 位大写字母、数字或下划线',
+      ruleNameRequired: '请输入角色名',
+      ruleNameTooLong: '角色名不可超过 50 字',
+      confirmDeleteTitle: '删除角色',
+      confirmDelete: '删除后不可恢复，确认删除该角色？',
+      adminDeleteHint: '内置管理员角色不可删除',
+      saveSuccess: '保存成功',
+      deleteSuccess: '删除成功',
+      permSaveSuccess: '权限已保存',
+      memberSaveSuccess: '成员已保存',
+      loadFailed: '角色列表加载失败',
+      actionFailed: '操作失败',
+      empty: '暂无角色',
+      readonlyHint: '无编辑权限，仅可查看',
+      typeAll: '全部',
+      typeMenu: '菜单',
+      typeButton: '按钮',
+      typeApi: '接口',
+      colPermission: '权限码',
+      colPermName: '权限名',
+      colResourceType: '类型',
+      selectedCount: '已选 {selected}/{total}',
+      selectAll: '全选',
+      clear: '清空',
+      permEmpty: '该类型下暂无权限',
+      membersEmpty: '暂无用户',
+      membersLoadFailed: '成员加载失败'
     }
   }
 }

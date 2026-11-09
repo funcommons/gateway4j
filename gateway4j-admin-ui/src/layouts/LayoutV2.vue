@@ -200,7 +200,9 @@ const NAV_GROUPS: V2NavGroup[] = [
     items: [
       // P4d-1：用户管理叶子（系统组首叶子 —— 首个可见条目落地后 systemEmpty 占位退场）。
       // permission 字段 = 路由 meta.permission 的同值兜底（测试桩路由不带 meta）
-      { name: 'V2Users', path: '/v2/users', labelKey: 'v2.nav.users', icon: 'ri-user-settings-line', permission: 'system:user' }
+      { name: 'V2Users', path: '/v2/users', labelKey: 'v2.nav.users', icon: 'ri-user-settings-line', permission: 'system:user' },
+      // P4d-2：角色权限叶子（系统组第二叶子；permission 与路由 meta 同值兜底）
+      { name: 'V2Roles', path: '/v2/roles', labelKey: 'v2.nav.roles', icon: 'ri-shield-user-line', permission: 'user:read' }
     ]
   }
 ]

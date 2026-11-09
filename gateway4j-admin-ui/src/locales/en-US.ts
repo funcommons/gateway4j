@@ -623,6 +623,7 @@ export default {
       monitor: 'Monitoring',
       debug: 'Debug Console',
       users: 'Users',
+      roles: 'Roles',
       systemEmpty: 'This group opens in a later step',
       subtitle: 'Visual gateway · v2'
     },
@@ -643,7 +644,8 @@ export default {
       monitor: 'Monitoring',
       debug: 'Debug Console',
       canvas: 'Flow Canvas',
-      users: 'Users'
+      users: 'Users',
+      roles: 'Roles'
     },
     topbar: {
       tryV2: 'New experience',
@@ -1246,6 +1248,55 @@ export default {
       actionFailed: 'Action failed',
       empty: 'No users yet',
       readonlyHint: 'Read-only: you do not have permission to edit'
+    },
+    // P4d-2: Roles page (v2.roles tree, 46 keys; no references into legacy role.* / common.* trees)
+    roles: {
+      colCode: 'Role Code',
+      colName: 'Role Name',
+      colRemark: 'Remark',
+      colActions: 'Actions',
+      create: 'Create Role',
+      edit: 'Edit',
+      delete: 'Delete',
+      perm: 'Permissions',
+      members: 'Members',
+      createTitle: 'Create Role',
+      editTitle: 'Edit Role',
+      permTitle: 'Permission Matrix',
+      membersTitle: 'Manage Members',
+      fCode: 'Role Code',
+      fName: 'Role Name',
+      fRemark: 'Remark',
+      submit: 'Submit',
+      cancel: 'Cancel',
+      ruleCodeRequired: 'Role code is required',
+      ruleCodePattern: 'Role code must be ROLE_ plus 2-40 uppercase letters, digits or underscores',
+      ruleNameRequired: 'Role name is required',
+      ruleNameTooLong: 'Role name must be at most 50 characters',
+      confirmDeleteTitle: 'Delete Role',
+      confirmDelete: 'This cannot be undone. Delete this role?',
+      adminDeleteHint: 'The built-in admin role cannot be deleted',
+      saveSuccess: 'Saved',
+      deleteSuccess: 'Deleted',
+      permSaveSuccess: 'Permissions saved',
+      memberSaveSuccess: 'Members saved',
+      loadFailed: 'Failed to load roles',
+      actionFailed: 'Action failed',
+      empty: 'No roles yet',
+      readonlyHint: 'Read-only: you do not have permission to edit',
+      typeAll: 'All',
+      typeMenu: 'Menu',
+      typeButton: 'Button',
+      typeApi: 'API',
+      colPermission: 'Permission Code',
+      colPermName: 'Permission Name',
+      colResourceType: 'Type',
+      selectedCount: '{selected}/{total} selected',
+      selectAll: 'Select All',
+      clear: 'Clear',
+      permEmpty: 'No permissions of this type',
+      membersEmpty: 'No users yet',
+      membersLoadFailed: 'Failed to load members'
     }
   }
 }

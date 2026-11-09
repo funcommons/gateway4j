@@ -62,7 +62,8 @@ const V2_TABLE: Array<{ name: string; path: string; permission: string }> = [
   { name: 'V2Publish', path: '/v2/publish/:id', permission: 'route:edit' },
   { name: 'V2Monitor', path: '/v2/monitor', permission: 'monitor:read' },
   { name: 'V2Debug', path: '/v2/debug', permission: 'route:edit' },
-  { name: 'V2Users', path: '/v2/users', permission: 'system:user' }
+  { name: 'V2Users', path: '/v2/users', permission: 'system:user' },
+  { name: 'V2Roles', path: '/v2/roles', permission: 'user:read' }
 ]
 
 /** 旧路由快照（来自 S1 前的 src/router/index.ts）：name/path/permission 一个都不能动 */
@@ -125,7 +126,7 @@ describe('/v2 路由表 — 契约 §1', () => {
     expect((record!.meta as Record<string, unknown>).permission).toBe(permission)
   })
 
-  it('v2 路由 name 全部以 V2 前缀且恰好 14 条（S9a 注册 V2Canvas；P4a-1 注册 V2PluginEditor；P4a-2 注册 V2PluginList；P4c-1 注册 V2ImportExport；P4d-1 注册 V2Users，契约 §1 + P4a/P4c/P4d 行）', () => {
+  it('v2 路由 name 全部以 V2 前缀且恰好 15 条（S9a 注册 V2Canvas；P4a-1 注册 V2PluginEditor；P4a-2 注册 V2PluginList；P4c-1 注册 V2ImportExport；P4d-1 注册 V2Users；P4d-2 注册 V2Roles，契约 §1 + P4a/P4c/P4d 行）', () => {
     const v2Names = router.getRoutes()
       .map((r) => String(r.name))
       .filter((n) => n.startsWith('V2'))
@@ -557,5 +558,44 @@ describe('P4d-1 追加 — V2Users meta 与组件接线', () => {
   it('/v2/users 静态精确匹配：精确路径命中且不吞子路径（P4a-2 静态路径先例）', () => {
     expect(router.resolve('/v2/users').name).toBe('V2Users')
     expect(router.resolve('/v2/users/extra').name, '子路径不得命中（静态段无通配）').not.toBe('V2Users')
+  })
+})
+
+// ═══════════ P4d-2-T 追加：/v2/roles 角色权限行（契约 §4.5 P4d 行，~L78）═══════════
+// 契约：docs/ui-v2/实施契约.md §4.5 P4d（2026-11-09）。V2Roles 行已在上方 V2_TABLE
+// （path+permission，it.each 自动覆盖）；本段追加 meta.title / component 接线 / 静态路径
+// 边界。先红是预期：V2Roles 路由、v2.page.roles key、src/views-v2/system/Roles.vue 均未落。
+// 【component 接线走 fs 源码断言而非动态 import 身份比对，沿 P4d-1/P4a-2 手法】：动态
+// import 字面量会在 transform 期静态解析，Roles.vue 缺位时整个本文件套件收集失败；
+// fs 断言让既有用例全程可观测。permission=user:read 与旧 Roles 行（LEGACY_TABLE）一致。
+// 页面本体契约见 src/views-v2/system/__tests__/Roles.test.ts；侧栏 system 组第二叶子断言见
+// src/layouts/__tests__/LayoutV2.test.ts P4d-2 追加段。
+describe('P4d-2 追加 — V2Roles meta 与组件接线', () => {
+  it('V2Roles meta.title=v2.page.roles（面包屑数据源）且 permission=user:read 不变', () => {
+    const record = recordByName('V2Roles')
+    expect(record, 'v2 路由 V2Roles 未注册').toBeDefined()
+    expect((record!.meta as Record<string, unknown>).title).toBe('v2.page.roles')
+    expect((record!.meta as Record<string, unknown>).permission).toBe('user:read')
+  })
+
+  it('v2.page.roles 在 zh-CN 与 en-US 都存在（铁律 6）', () => {
+    expect(digNav(zhCN, 'v2.page.roles'), 'zh-CN 缺少 v2.page.roles').toBeDefined()
+    expect(digNav(enUS, 'v2.page.roles'), 'en-US 缺少 v2.page.roles').toBeDefined()
+  })
+
+  it('V2Roles 注册行源码契约：path roles + component 指向 @/views-v2/system/Roles.vue + meta 三件（P4d-2-C 落行）', () => {
+    const source = fs.readFileSync(path.resolve(__dirname, './index.ts'), 'utf-8')
+    const at = source.indexOf("name: 'V2Roles'")
+    expect(at, "未在 src/router/index.ts /v2 children 找到 name: 'V2Roles' 注册行").toBeGreaterThan(-1)
+    const row = source.slice(Math.max(0, at - 240), at + 420)
+    expect(row).toContain("path: 'roles'")
+    expect(row).toMatch(/import\((['"])@\/views-v2\/system\/Roles\.vue\1\)/)
+    expect(row).toContain('v2.page.roles')
+    expect(row).toContain("permission: 'user:read'")
+  })
+
+  it('/v2/roles 静态精确匹配：精确路径命中且不吞子路径（P4d-1 静态路径先例）', () => {
+    expect(router.resolve('/v2/roles').name).toBe('V2Roles')
+    expect(router.resolve('/v2/roles/extra').name, '子路径不得命中（静态段无通配）').not.toBe('V2Roles')
   })
 })
