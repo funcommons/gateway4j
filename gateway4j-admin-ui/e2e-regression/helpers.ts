@@ -3,7 +3,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 
 /** 报告根目录（与 playwright.regression.config.ts 中的 results.json 输出目录一致） */
-export const REPORT_ROOT = path.resolve(process.cwd(), '../test-report/2026-11-02-01')
+export const REPORT_ROOT = path.resolve(process.cwd(), '../test-report/p4e-v2-01')
 export const SHOT_ROOT = path.join(REPORT_ROOT, 'screenshots')
 
 export const CREDENTIALS = { username: 'admin', password: 'admin123' }
@@ -239,9 +239,9 @@ function ensureDir(line: LineKey) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// v2 专属助手（P4e 迁移步 1 新增）—— 只增不改：上方旧助手原样保留，
-// 供未迁移 spec（01/02/03/04/05/06/10/visual）共存期继续使用。
-// REPORT_ROOT 本步不动（P4e 收官步统一换新目录，避免中间态报告目录混乱）。
+// v2 专属助手（P4e 迁移步 1 新增）—— 只增不改：上方旧助手原样保留。
+// REPORT_ROOT 已在 P4e 收官步（步 5）换新目录 test-report/p4e-v2-01（与
+// playwright.regression.config.ts results.json 输出同步），全量 11 spec 已打 v2。
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**

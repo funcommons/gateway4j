@@ -5,7 +5,7 @@
 | 文件 | 作用 |
 |---|---|
 | `.github/workflows/ci.yml` | PR / main 推送门槛：前端（type-check + Vitest 1681 例）、后端（`gateway4j-admin -am` 单测 96 例）、护栏（权限码 + 接口契约）三个独立 job |
-| `.github/workflows/nightly-regression.yml` | 每日全量回归：UTC 18:35（北京时间次日 02:35）定时 + 手动触发，pg17/redis7 service 容器 + 后端 jar + vite dev + Playwright 回归矩阵 106 条 |
+| `.github/workflows/nightly-regression.yml` | 每日全量回归：UTC 18:35（北京时间次日 02:35）定时 + 手动触发，pg17/redis7 service 容器 + 后端 jar + vite dev + Playwright 回归矩阵 108 条（`--list` 收集 116：默认跑 108，视觉基线 8 条 `GW_VISUAL=1` 门控默认跳过；v2 迁移 c 类裁减 6 条仅注释留痕不收集，2026-11-09 P4e 实测） |
 | `scripts/check-permissions.mjs` | 权限码差集护栏（防 D5 复发） |
 | `scripts/check-api-contract.mjs` | 接口契约护栏（防 D3/D4/D19 复发） |
 

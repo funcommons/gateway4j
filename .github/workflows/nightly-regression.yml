@@ -1,4 +1,4 @@
-# Nightly —— 每日全量回归（106 条 Playwright 用例）
+# Nightly —— 每日全量回归（默认 108 条 Playwright 用例；--list 收集 116 含 8 条 GW_VISUAL 门控）
 #
 # 环境：postgres:17 + redis:7 service 容器（账号/库名与 application.yml 一致），
 # 每次运行都是全新容器 → 回归用例写库后天然隔离，无需清库脚本。
@@ -124,7 +124,7 @@ jobs:
 
       # 注意不要传 --reporter=list：CLI 参数会整体覆盖 config 的 reporters，
       # 导致 config 里的 json 结果文件（results.json）不再输出
-      - name: Run regression matrix (106 cases)
+      - name: Run regression matrix (108 cases)
         working-directory: gateway4j-admin-ui
         run: npx playwright test --config=playwright.regression.config.ts
 
