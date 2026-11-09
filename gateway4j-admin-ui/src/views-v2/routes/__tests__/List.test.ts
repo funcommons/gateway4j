@@ -24,14 +24,20 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
+import fs from 'node:fs'
+import path from 'node:path'
 import zhCN from '@/locales/zh-CN'
 import enUS from '@/locales/en-US'
 
 const mocks = vi.hoisted(() => ({
   listRoutes: vi.fn(),
   duplicateRoute: vi.fn(),
+  offlineRoute: vi.fn(),
+  deleteRoute: vi.fn(),
   fetchTrafficSummary: vi.fn(),
   fetchRouteTimeseries: vi.fn(),
+  toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
+  fcConfirm: vi.fn(() => Promise.resolve(true)),
   hasPermission: vi.fn(() => true),
   hasAnyPermission: vi.fn(() => true),
   canEdit: vi.fn(() => true)
@@ -39,7 +45,17 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/api/routes', () => ({
   listRoutes: mocks.listRoutes,
-  duplicateRoute: mocks.duplicateRoute
+  duplicateRoute: mocks.duplicateRoute,
+  offlineRoute: mocks.offlineRoute,
+  deleteRoute: mocks.deleteRoute
+}))
+// P4f 前置票①：只替换 toast，Fc* 组件保留真实实现（plugins/List.test.ts、Editor.test.ts 先例）
+vi.mock('@/components', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components')>()
+  return { ...actual, toast: mocks.toast }
+})
+vi.mock('@/composables/useFcConfirm', () => ({
+  useFcConfirm: () => ({ confirm: mocks.fcConfirm })
 }))
 vi.mock('@/api/v2', () => ({
   fetchTrafficSummary: mocks.fetchTrafficSummary,
@@ -299,5 +315,187 @@ describe('v2 routes/List — 空态与加载失败态', () => {
     expect(wrapper.find('[data-testid="traffic-error"]').text()).toContain(t('v2.routes.trafficLoadFailed'))
     expect(row(wrapper, 'r1').exists()).toBe(true)
     expect(cell(wrapper, 'r1', 'route-hits').text()).toContain('—')
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// P4f 前置票① — 路由「下线」「删除」v2 UI 入口（RED：实现未写，本段用例应先红）
+// 契约 §4.5 P4e 行收官段缺口票。语义照旧树 src/views/routes/List.vue：
+//   下线（L363-374）：canEdit('route') → confirm({ title: confirmOffline, variant: danger })
+//     → offlineRoute(id) → toast.success(offlineSuccess) → reload()
+//   删除（L375-385 + L490-495）：canEdit('route') → confirm({ title, content })
+//     → deleteRoute(id) → toast.success(deleteSuccess) → reload()；删除确认升 danger
+//     （plugins v2 List.test.ts T 裁决先例）
+//   状态门禁（旧页 L452-460 + 后端 RouteService L318/L372）：
+//     act-offline 仅 PUBLISHED（后端仅 PUBLISHED 可下线，CHANGING 放弃变更后端必拒，不迁）
+//     act-delete 仅 DRAFT | OFFLINE（后端 PUBLISHED 拒删「请先下线」）
+//   落点：仅 v2 List 展开区 card-actions（旧树无 routes Detail.vue → Detail 不加，保持等价）
+// ═══════════════════════════════════════════════════════════════════════════
+
+const OFFLINE_DELETE_KEYS = ['actOffline', 'actDelete', 'confirmOffline', 'confirmDeleteTitle', 'confirmDelete',
+  'offlineSuccess', 'deleteSuccess', 'offlineFailed', 'deleteFailed'].map((k) => `v2.routes.${k}`)
+
+// 只增不改：第二个文件级 beforeEach 仅重置本票新增 mock，既有用例不感知
+beforeEach(() => {
+  mocks.offlineRoute.mockReset().mockResolvedValue({ status: 'OFFLINE' })
+  mocks.deleteRoute.mockReset().mockResolvedValue(undefined)
+  mocks.fcConfirm.mockReset().mockResolvedValue(true)
+  mocks.toast.success.mockReset()
+  mocks.toast.error.mockReset()
+  mocks.toast.warning.mockReset()
+  mocks.toast.info.mockReset()
+})
+
+describe('P4f① 下线/删除 — i18n key 双语存在（铁律 6）', () => {
+  it.each(OFFLINE_DELETE_KEYS)('%s 在 zh-CN 与 en-US 都存在', (key) => {
+    expect(dig(zhCN, key), `zh-CN 缺少 ${key}`).toBeDefined()
+    expect(dig(enUS, key), `en-US 缺少 ${key}`).toBeDefined()
+  })
+})
+
+describe('P4f① 下线/删除 — 渲染与状态门禁', () => {
+  it('门禁矩阵：PUBLISHED 显下线隐删除；DRAFT/OFFLINE 显删除隐下线；CHANGING 两钮均无', async () => {
+    mocks.listRoutes.mockResolvedValue([
+      makeNode('p1', { route_name: 'pub_svc', status: 'PUBLISHED' }),
+      makeNode('d1', { route_name: 'draft_svc', status: 'DRAFT' }),
+      makeNode('o1', { route_name: 'off_svc', status: 'OFFLINE' }),
+      makeNode('c1', { route_name: 'chg_svc', status: 'CHANGING' })
+    ])
+    const { wrapper } = await factory()
+    for (const id of ['p1', 'd1', 'o1', 'c1']) {
+      await wrapper.find(`[data-testid="route-expand-${id}"]`).trigger('click')
+      await flushPromises()
+    }
+    expect(cell(wrapper, 'p1', 'act-offline').exists(), 'PUBLISHED 应显下线').toBe(true)
+    expect(cell(wrapper, 'p1', 'act-delete').exists(), 'PUBLISHED 应隐删除（后端拒删）').toBe(false)
+    expect(cell(wrapper, 'd1', 'act-delete').exists(), 'DRAFT 应显删除').toBe(true)
+    expect(cell(wrapper, 'd1', 'act-offline').exists(), 'DRAFT 应隐下线').toBe(false)
+    expect(cell(wrapper, 'o1', 'act-delete').exists(), 'OFFLINE 应显删除').toBe(true)
+    expect(cell(wrapper, 'o1', 'act-offline').exists(), 'OFFLINE 应隐下线').toBe(false)
+    expect(cell(wrapper, 'c1', 'act-offline').exists(), 'CHANGING 不迁放弃变更（后端仅 PUBLISHED 可下线）').toBe(false)
+    expect(cell(wrapper, 'c1', 'act-delete').exists(), 'CHANGING 应隐删除').toBe(false)
+  })
+
+  it('canEdit(route)=false → 下线/删除两钮均不渲染（写操作门禁照旧页）', async () => {
+    mocks.canEdit.mockReturnValue(false)
+    mocks.listRoutes.mockResolvedValue([
+      makeNode('p1', { route_name: 'pub_svc', status: 'PUBLISHED' }),
+      makeNode('d1', { route_name: 'draft_svc', status: 'DRAFT' })
+    ])
+    const { wrapper } = await factory()
+    await wrapper.find('[data-testid="route-expand-p1"]').trigger('click')
+    await flushPromises()
+    await wrapper.find('[data-testid="route-expand-d1"]').trigger('click')
+    await flushPromises()
+    // 展开区健康校验：只读钮仍在（证明展开与断言通道有效），写钮被 canEdit 隐藏
+    expect(cell(wrapper, 'p1', 'act-detail').exists()).toBe(true)
+    expect(cell(wrapper, 'd1', 'act-detail').exists()).toBe(true)
+    expect(cell(wrapper, 'p1', 'act-offline').exists()).toBe(false)
+    expect(cell(wrapper, 'd1', 'act-delete').exists()).toBe(false)
+  })
+})
+
+describe('P4f① 下线 — confirm(danger) → offlineRoute → toast + 重拉', () => {
+  it('成功链：confirm({ variant:danger, title:confirmOffline }) → offlineRoute(id) → toast.success(offlineSuccess) → reload', async () => {
+    const { wrapper } = await factory()
+    const before = mocks.listRoutes.mock.calls.length
+    await wrapper.find('[data-testid="route-expand-r1"]').trigger('click')
+    await flushPromises()
+    await cell(wrapper, 'r1', 'act-offline').trigger('click')
+    await flushPromises()
+    expect(mocks.fcConfirm).toHaveBeenCalledWith(expect.objectContaining({
+      variant: 'danger',
+      title: expect.stringContaining(t('v2.routes.confirmOffline'))
+    }))
+    expect(mocks.offlineRoute).toHaveBeenCalledTimes(1)
+    expect(mocks.offlineRoute).toHaveBeenCalledWith('r1')
+    expect(mocks.toast.success).toHaveBeenCalledWith(t('v2.routes.offlineSuccess'))
+    expect(mocks.listRoutes.mock.calls.length, '成功后应重拉列表').toBeGreaterThan(before)
+  })
+
+  it('confirm=false → 不发 offlineRoute 不重拉', async () => {
+    mocks.fcConfirm.mockResolvedValue(false)
+    const { wrapper } = await factory()
+    await wrapper.find('[data-testid="route-expand-r1"]').trigger('click')
+    await flushPromises()
+    const before = mocks.listRoutes.mock.calls.length
+    await cell(wrapper, 'r1', 'act-offline').trigger('click')
+    await flushPromises()
+    expect(mocks.offlineRoute).not.toHaveBeenCalled()
+    expect(mocks.listRoutes.mock.calls.length).toBe(before)
+  })
+
+  it('offlineRoute 失败 → toast.error(报错文案) + 不重拉（状态不翻转）', async () => {
+    mocks.offlineRoute.mockRejectedValue(new Error('仅 PUBLISHED 状态可下线'))
+    const { wrapper } = await factory()
+    await wrapper.find('[data-testid="route-expand-r1"]').trigger('click')
+    await flushPromises()
+    const before = mocks.listRoutes.mock.calls.length
+    await cell(wrapper, 'r1', 'act-offline').trigger('click')
+    await flushPromises()
+    expect(mocks.toast.error).toHaveBeenCalledWith(expect.stringContaining('仅 PUBLISHED'))
+    expect(mocks.toast.success).not.toHaveBeenCalled()
+    expect(mocks.listRoutes.mock.calls.length).toBe(before)
+  })
+})
+
+describe('P4f① 删除 — confirm → deleteRoute → 行消失 + toast + 重拉', () => {
+  it('成功链：confirm({ variant:danger, title:confirmDeleteTitle, content:confirmDelete }) → deleteRoute(id) → 行消失 + toast.success(deleteSuccess) → reload', async () => {
+    const { wrapper } = await factory()
+    await wrapper.find('[data-testid="route-expand-r4"]').trigger('click')
+    await flushPromises()
+    const before = mocks.listRoutes.mock.calls.length
+    mocks.listRoutes.mockResolvedValue(defaultNodes().filter((n) => n.id !== 'r4'))
+    await cell(wrapper, 'r4', 'act-delete').trigger('click')
+    await flushPromises()
+    expect(mocks.fcConfirm).toHaveBeenCalledWith(expect.objectContaining({
+      variant: 'danger',
+      title: expect.stringContaining(t('v2.routes.confirmDeleteTitle')),
+      content: expect.stringContaining(t('v2.routes.confirmDelete'))
+    }))
+    expect(mocks.deleteRoute).toHaveBeenCalledTimes(1)
+    expect(mocks.deleteRoute).toHaveBeenCalledWith('r4')
+    expect(mocks.toast.success).toHaveBeenCalledWith(t('v2.routes.deleteSuccess'))
+    expect(mocks.listRoutes.mock.calls.length).toBeGreaterThan(before)
+    expect(row(wrapper, 'r4').exists(), '删除后行应消失').toBe(false)
+  })
+
+  it('confirm=false → 不发 deleteRoute 不重拉', async () => {
+    mocks.fcConfirm.mockResolvedValue(false)
+    const { wrapper } = await factory()
+    await wrapper.find('[data-testid="route-expand-r4"]').trigger('click')
+    await flushPromises()
+    const before = mocks.listRoutes.mock.calls.length
+    await cell(wrapper, 'r4', 'act-delete').trigger('click')
+    await flushPromises()
+    expect(mocks.deleteRoute).not.toHaveBeenCalled()
+    expect(mocks.listRoutes.mock.calls.length).toBe(before)
+  })
+
+  it('deleteRoute 失败 → toast.error + 行仍在 + 不重拉', async () => {
+    mocks.deleteRoute.mockRejectedValue(new Error('已发布路由不可删除，请先下线'))
+    const { wrapper } = await factory()
+    await wrapper.find('[data-testid="route-expand-r4"]').trigger('click')
+    await flushPromises()
+    const before = mocks.listRoutes.mock.calls.length
+    await cell(wrapper, 'r4', 'act-delete').trigger('click')
+    await flushPromises()
+    expect(mocks.toast.error).toHaveBeenCalledWith(expect.stringContaining('请先下线'))
+    expect(mocks.listRoutes.mock.calls.length).toBe(before)
+    expect(row(wrapper, 'r4').exists()).toBe(true)
+  })
+})
+
+describe('P4f① 源码契约 — List.vue fs 抽查（testid + 门禁字面量，Detail.test.ts 先例）', () => {
+  const source = () => fs.readFileSync(path.resolve(__dirname, '../List.vue'), 'utf-8')
+
+  it('card-actions 含 act-offline / act-delete 两钮，门禁字面量照旧页口径', () => {
+    const src = source()
+    expect(src).toContain('data-testid="act-offline"')
+    expect(src).toContain('data-testid="act-delete"')
+    expect(src).toContain("'PUBLISHED'")
+    expect(src).toMatch(/DRAFT[\s\S]{0,40}OFFLINE|OFFLINE[\s\S]{0,40}DRAFT/)
+    expect(src).toContain('offlineRoute')
+    expect(src).toContain('deleteRoute')
   })
 })

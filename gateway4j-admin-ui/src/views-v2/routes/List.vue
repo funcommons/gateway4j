@@ -43,9 +43,10 @@
               <th scope="col">{{ t('v2.routes.colHealth') }}</th>
             </tr>
           </thead>
-          <tbody>
-            <template v-for="row in filteredRows" :key="row.id">
-              <tr class="rt-row" :class="{ 'is-open': isOpen(row.id) }" :data-testid="`route-row-${row.id}`" @click="onRowClick(row, $event)">
+          <!-- 每行一个 tbody（合法 HTML）：route-row-<id> 锚点同时覆盖主行与展开行（含 card-actions），
+               供行内作用域定位（单测 cell() / e2e filter({ hasText })）。点击处理仍在主行 tr，行为不变 -->
+          <tbody v-for="row in filteredRows" :key="row.id" :data-testid="`route-row-${row.id}`">
+              <tr class="rt-row" :class="{ 'is-open': isOpen(row.id) }" @click="onRowClick(row, $event)">
                 <td class="col-name">
                   <FcButton class="rt-toggle" :class="{ 'is-open': isOpen(row.id) }" variant="text" size="sm" circle :aria-expanded="isOpen(row.id)" :aria-label="row.route_name" :data-testid="`route-expand-${row.id}`" @click.stop="toggleRow(row.id)">
                     <FcIcon name="ri-arrow-down-s-line" :size="14" />
@@ -125,13 +126,23 @@
                             <FcIcon name="ri-clipboard-line" :size="13" />
                             {{ t('v2.routes.actCopy') }}
                           </FcButton>
+                          <!-- P4f 前置票①：下线/删除写操作（门禁照旧页 src/views/routes/List.vue L452-460 +
+                               后端 RouteService：offline 仅 PUBLISHED；delete 仅 DRAFT|OFFLINE，PUBLISHED 拒删；
+                               CHANGING 两钮都不显——「放弃变更」走 offline 命令后端必拒，不迁死钮） -->
+                          <FcButton v-if="canEdit('route') && row.status === 'PUBLISHED'" variant="secondary" size="sm" data-testid="act-offline" @click="onOffline(row)">
+                            <FcIcon name="ri-arrow-go-back-line" :size="13" />
+                            {{ t('v2.routes.actOffline') }}
+                          </FcButton>
+                          <FcButton v-if="canEdit('route') && (row.status === 'DRAFT' || row.status === 'OFFLINE')" variant="secondary" size="sm" data-testid="act-delete" @click="onDelete(row)">
+                            <FcIcon name="ri-delete-bin-line" :size="13" />
+                            {{ t('v2.routes.actDelete') }}
+                          </FcButton>
                         </div>
                       </FcSectionCard>
                     </div>
                   </div>
                 </td>
               </tr>
-            </template>
           </tbody>
         </table>
       </div>
@@ -160,9 +171,10 @@ import {
   FcTag,
   toast
 } from '@/components'
-import { duplicateRoute, listRoutes, type RouteNode } from '@/api/routes'
+import { deleteRoute, duplicateRoute, listRoutes, offlineRoute, type RouteNode } from '@/api/routes'
 import { fetchRouteTimeseries, fetchTrafficSummary, type RouteTrafficSummaryItem } from '@/api/v2'
 import { usePermission } from '@/composables/usePermission'
+import { useFcConfirm } from '@/composables/useFcConfirm'
 
 type DisplayRow = RouteNode & { depth: number }
 /** 展开行时序状态：loading/ok 即缓存（收起再展开不重复请求），error 允许重试 */
@@ -175,6 +187,7 @@ type BadgeTone = 'success' | 'processing' | 'error' | 'pending' | 'neutral'
 const { t } = useI18n()
 const router = useRouter()
 const { canEdit } = usePermission()
+const { confirm: fcConfirm } = useFcConfirm()
 
 const loading = ref(true)
 const rows = ref<DisplayRow[]>([])
@@ -407,6 +420,36 @@ async function onCopy(row: DisplayRow) {
     toast.success(t('v2.routes.copySuccess'))
   } catch (e) {
     toast.error(e instanceof Error && e.message ? e.message : t('v2.routes.copyFailed'))
+  }
+}
+
+/** 下线（语义照旧树 src/views/routes/List.vue L363-374）：confirm(danger) → offlineRoute → toast + 重拉；失败不重拉 */
+async function onOffline(row: DisplayRow) {
+  const ok = await fcConfirm({ title: t('v2.routes.confirmOffline'), variant: 'danger' })
+  if (!ok) return
+  try {
+    await offlineRoute(row.id)
+    toast.success(t('v2.routes.offlineSuccess'))
+    await reload()
+  } catch (e) {
+    toast.error(e instanceof Error && e.message ? e.message : t('v2.routes.offlineFailed'))
+  }
+}
+
+/** 删除（照旧页 L375-385 + L490-495，删除确认升 danger）：confirm → deleteRoute → 行消失 + toast + 重拉；失败不重拉 */
+async function onDelete(row: DisplayRow) {
+  const ok = await fcConfirm({
+    title: t('v2.routes.confirmDeleteTitle'),
+    content: t('v2.routes.confirmDelete'),
+    variant: 'danger'
+  })
+  if (!ok) return
+  try {
+    await deleteRoute(row.id)
+    toast.success(t('v2.routes.deleteSuccess'))
+    await reload()
+  } catch (e) {
+    toast.error(e instanceof Error && e.message ? e.message : t('v2.routes.deleteFailed'))
   }
 }
 </script>
