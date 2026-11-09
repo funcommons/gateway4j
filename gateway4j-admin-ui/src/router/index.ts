@@ -85,6 +85,8 @@ const v2Routes: RouteRecordRaw[] = [
       { path: 'users', name: 'V2Users', component: () => import('@/views-v2/system/Users.vue'), meta: { title: 'v2.page.users', permission: 'system:user' } },
       // P4d-2：角色权限（系统组第二叶子）；/v2/roles 静态精确路径（P4d-1 静态路径先例）
       { path: 'roles', name: 'V2Roles', component: () => import('@/views-v2/system/Roles.vue'), meta: { title: 'v2.page.roles', permission: 'user:read' } },
+      // P4d-3：系统设置（系统组第三叶子）；/v2/settings 静态精确路径（P4d-2 静态路径先例）
+      { path: 'settings', name: 'V2Settings', component: () => import('@/views-v2/system/Settings.vue'), meta: { title: 'v2.page.settings', permission: 'system:read' } },
       { path: 'monitor', name: 'V2Monitor', component: () => import('@/views-v2/monitor/Monitor.vue'), meta: { title: 'v2.page.monitor', permission: 'monitor:read' } },
       { path: 'debug', name: 'V2Debug', component: () => import('@/views-v2/debug/Debug.vue'), meta: { title: 'v2.page.debug', permission: 'route:edit' } }
     ]

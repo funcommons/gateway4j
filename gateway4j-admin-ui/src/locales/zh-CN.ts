@@ -621,6 +621,7 @@ export default {
       debug: '调试台',
       users: '用户管理',
       roles: '角色权限',
+      settings: '系统设置',
       systemEmpty: '该分组将在后续步骤开放',
       subtitle: '可视化网关 · v2'
     },
@@ -642,7 +643,8 @@ export default {
       debug: '调试台',
       canvas: '流程编排',
       users: '用户管理',
-      roles: '角色权限'
+      roles: '角色权限',
+      settings: '系统设置'
     },
     topbar: {
       tryV2: '新版体验',
@@ -1294,6 +1296,51 @@ export default {
       permEmpty: '该类型下暂无权限',
       membersEmpty: '暂无用户',
       membersLoadFailed: '成员加载失败'
+    },
+    // P4d-3：系统设置页（v2.settings 新树，42 key；不引用 settings.* / route.* / common.* 旧树）
+    settings: {
+      tabGeneral: '站点配置',
+      tabDict: '字典查询',
+      tabChanges: '变更记录',
+      tabAudit: '审计日志',
+      fSiteName: '站点名称',
+      fLanguage: '界面语言',
+      fTokenExpiry: '访问令牌有效期（小时）',
+      fRefreshExpiry: '刷新令牌有效期（天）',
+      save: '保存',
+      saveSuccess: '保存成功',
+      saveFailed: '保存失败',
+      loadFailed: '加载失败',
+      ruleTokenExpiryRange: '访问令牌有效期须在 1-720 小时之间',
+      ruleRefreshExpiryRange: '刷新令牌有效期须在 1-365 天之间',
+      dirtyBanner: '有未保存的更改',
+      unsavedChanges: '更改尚未保存，确定离开吗？',
+      dictPlaceholder: '字典代码',
+      dictQuery: '查询',
+      dictValue: '字典值',
+      dictLabel: '字典标签',
+      changeTime: '时间',
+      changeType: '类型',
+      changeName: '名称',
+      changeVersion: '版本',
+      changeTypePlugin: '插件',
+      changeTypeRoute: '路由',
+      statusDraft: '草稿',
+      statusPublished: '已发布',
+      statusChanging: '变更中',
+      statusOffline: '已下线',
+      colTime: '时间',
+      colAction: '操作',
+      colActor: '操作者',
+      colTarget: '目标',
+      colResult: '结果',
+      auditActionAll: '全部操作',
+      auditActor: '操作者',
+      auditRange: '时间范围',
+      auditEmpty: '暂无审计日志',
+      changesEmpty: '暂无变更记录',
+      changesUnavailable: '变更记录不可用',
+      readonlyHint: '无编辑权限，仅可查看'
     }
   }
 }

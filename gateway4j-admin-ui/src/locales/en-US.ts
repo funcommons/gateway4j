@@ -624,6 +624,7 @@ export default {
       debug: 'Debug Console',
       users: 'Users',
       roles: 'Roles',
+      settings: 'Settings',
       systemEmpty: 'This group opens in a later step',
       subtitle: 'Visual gateway · v2'
     },
@@ -645,7 +646,8 @@ export default {
       debug: 'Debug Console',
       canvas: 'Flow Canvas',
       users: 'Users',
-      roles: 'Roles'
+      roles: 'Roles',
+      settings: 'Settings'
     },
     topbar: {
       tryV2: 'New experience',
@@ -1297,6 +1299,51 @@ export default {
       permEmpty: 'No permissions of this type',
       membersEmpty: 'No users yet',
       membersLoadFailed: 'Failed to load members'
+    },
+    // P4d-3：系统设置页（v2.settings 新树，42 key；不引用 settings.* / route.* / common.* 旧树）
+    settings: {
+      tabGeneral: 'Site Settings',
+      tabDict: 'Dictionary',
+      tabChanges: 'Changes',
+      tabAudit: 'Audit Log',
+      fSiteName: 'Site Name',
+      fLanguage: 'Language',
+      fTokenExpiry: 'Access Token Expiry (hours)',
+      fRefreshExpiry: 'Refresh Token Expiry (days)',
+      save: 'Save',
+      saveSuccess: 'Saved successfully',
+      saveFailed: 'Failed to save',
+      loadFailed: 'Failed to load',
+      ruleTokenExpiryRange: 'Access token expiry must be between 1 and 720 hours',
+      ruleRefreshExpiryRange: 'Refresh token expiry must be between 1 and 365 days',
+      dirtyBanner: 'You have unsaved changes',
+      unsavedChanges: 'Unsaved changes — leave anyway?',
+      dictPlaceholder: 'Dict code',
+      dictQuery: 'Query',
+      dictValue: 'Value',
+      dictLabel: 'Label',
+      changeTime: 'Time',
+      changeType: 'Type',
+      changeName: 'Name',
+      changeVersion: 'Version',
+      changeTypePlugin: 'Plugin',
+      changeTypeRoute: 'Route',
+      statusDraft: 'Draft',
+      statusPublished: 'Published',
+      statusChanging: 'Changing',
+      statusOffline: 'Offline',
+      colTime: 'Time',
+      colAction: 'Action',
+      colActor: 'Actor',
+      colTarget: 'Target',
+      colResult: 'Result',
+      auditActionAll: 'All actions',
+      auditActor: 'Actor',
+      auditRange: 'Time range',
+      auditEmpty: 'No audit logs yet',
+      changesEmpty: 'No changes yet',
+      changesUnavailable: 'Change log unavailable',
+      readonlyHint: 'No edit permission, read-only'
     }
   }
 }

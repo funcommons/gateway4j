@@ -1,6 +1,7 @@
 import { vi } from 'vitest'
 import { config } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
+import { installMemoryStorage } from './memory-storage'
 
 /**
  * gateway4j 自有用例的测试基座（vitest workspace 的 'app' project）。
@@ -42,4 +43,10 @@ if (!window.ResizeObserver) {
     unobserve() {}
     disconnect() {}
   } as unknown as typeof ResizeObserver
+}
+
+// jsdom 未暴露 localStorage（H7b 已知约束，见 memory-storage.ts）——P4d-3 设置页
+// lang-switch 用例直接读写裸 localStorage，基座层面兜底安装（幂等、缺省才装）。
+if (typeof (globalThis as { localStorage?: Storage }).localStorage === 'undefined') {
+  installMemoryStorage()
 }

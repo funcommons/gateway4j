@@ -63,7 +63,8 @@ const V2_TABLE: Array<{ name: string; path: string; permission: string }> = [
   { name: 'V2Monitor', path: '/v2/monitor', permission: 'monitor:read' },
   { name: 'V2Debug', path: '/v2/debug', permission: 'route:edit' },
   { name: 'V2Users', path: '/v2/users', permission: 'system:user' },
-  { name: 'V2Roles', path: '/v2/roles', permission: 'user:read' }
+  { name: 'V2Roles', path: '/v2/roles', permission: 'user:read' },
+  { name: 'V2Settings', path: '/v2/settings', permission: 'system:read' }
 ]
 
 /** 旧路由快照（来自 S1 前的 src/router/index.ts）：name/path/permission 一个都不能动 */
@@ -126,7 +127,7 @@ describe('/v2 路由表 — 契约 §1', () => {
     expect((record!.meta as Record<string, unknown>).permission).toBe(permission)
   })
 
-  it('v2 路由 name 全部以 V2 前缀且恰好 15 条（S9a 注册 V2Canvas；P4a-1 注册 V2PluginEditor；P4a-2 注册 V2PluginList；P4c-1 注册 V2ImportExport；P4d-1 注册 V2Users；P4d-2 注册 V2Roles，契约 §1 + P4a/P4c/P4d 行）', () => {
+  it('v2 路由 name 全部以 V2 前缀且恰好 16 条（S9a 注册 V2Canvas；P4a-1 注册 V2PluginEditor；P4a-2 注册 V2PluginList；P4c-1 注册 V2ImportExport；P4d-1 注册 V2Users；P4d-2 注册 V2Roles；P4d-3 注册 V2Settings，契约 §1 + P4a/P4c/P4d 行）', () => {
     const v2Names = router.getRoutes()
       .map((r) => String(r.name))
       .filter((n) => n.startsWith('V2'))
@@ -597,5 +598,45 @@ describe('P4d-2 追加 — V2Roles meta 与组件接线', () => {
   it('/v2/roles 静态精确匹配：精确路径命中且不吞子路径（P4d-1 静态路径先例）', () => {
     expect(router.resolve('/v2/roles').name).toBe('V2Roles')
     expect(router.resolve('/v2/roles/extra').name, '子路径不得命中（静态段无通配）').not.toBe('V2Roles')
+  })
+})
+
+// ═══════════ P4d-3-T 追加：/v2/settings 设置页行（契约 §4.5 P4d 行 P4d-3 段）═══════════
+// 契约：docs/ui-v2/实施契约.md §4.5 P4d（2026-11-09）。V2Settings 行已在上方 V2_TABLE
+// （path+permission，it.each 自动覆盖）；本段追加 meta.title / component 接线 / 静态路径
+// 边界。先红是预期：V2Settings 路由、v2.page.settings key、src/views-v2/system/Settings.vue
+// 均未落。【component 接线走 fs 源码断言而非动态 import 身份比对，沿 P4d-1/P4d-2 手法】：
+// 动态 import 字面量会在 transform 期静态解析，Settings.vue 缺位时整个本文件套件收集失败；
+// fs 断言让既有用例全程可观测。permission=system:read 与旧 Settings 行（LEGACY_TABLE）一致；
+// 页面编辑门禁另走 canEdit('system')（见 Settings.test.ts）。页面本体契约见
+// src/views-v2/system/__tests__/Settings.test.ts；侧栏 system 组第三叶子断言见
+// src/layouts/__tests__/LayoutV2.test.ts P4d-3 追加段。
+describe('P4d-3 追加 — V2Settings meta 与组件接线', () => {
+  it('V2Settings meta.title=v2.page.settings（面包屑数据源）且 permission=system:read 不变', () => {
+    const record = recordByName('V2Settings')
+    expect(record, 'v2 路由 V2Settings 未注册').toBeDefined()
+    expect((record!.meta as Record<string, unknown>).title).toBe('v2.page.settings')
+    expect((record!.meta as Record<string, unknown>).permission).toBe('system:read')
+  })
+
+  it('v2.page.settings 在 zh-CN 与 en-US 都存在（铁律 6）', () => {
+    expect(digNav(zhCN, 'v2.page.settings'), 'zh-CN 缺少 v2.page.settings').toBeDefined()
+    expect(digNav(enUS, 'v2.page.settings'), 'en-US 缺少 v2.page.settings').toBeDefined()
+  })
+
+  it('V2Settings 注册行源码契约：path settings + component 指向 @/views-v2/system/Settings.vue + meta 三件（P4d-3-C 落行）', () => {
+    const source = fs.readFileSync(path.resolve(__dirname, './index.ts'), 'utf-8')
+    const at = source.indexOf("name: 'V2Settings'")
+    expect(at, "未在 src/router/index.ts /v2 children 找到 name: 'V2Settings' 注册行").toBeGreaterThan(-1)
+    const row = source.slice(Math.max(0, at - 240), at + 420)
+    expect(row).toContain("path: 'settings'")
+    expect(row).toMatch(/import\((['"])@\/views-v2\/system\/Settings\.vue\1\)/)
+    expect(row).toContain('v2.page.settings')
+    expect(row).toContain("permission: 'system:read'")
+  })
+
+  it('/v2/settings 静态精确匹配：精确路径命中且不吞子路径（P4d-2 静态路径先例）', () => {
+    expect(router.resolve('/v2/settings').name).toBe('V2Settings')
+    expect(router.resolve('/v2/settings/extra').name, '子路径不得命中（静态段无通配）').not.toBe('V2Settings')
   })
 })

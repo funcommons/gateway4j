@@ -202,7 +202,9 @@ const NAV_GROUPS: V2NavGroup[] = [
       // permission 字段 = 路由 meta.permission 的同值兜底（测试桩路由不带 meta）
       { name: 'V2Users', path: '/v2/users', labelKey: 'v2.nav.users', icon: 'ri-user-settings-line', permission: 'system:user' },
       // P4d-2：角色权限叶子（系统组第二叶子；permission 与路由 meta 同值兜底）
-      { name: 'V2Roles', path: '/v2/roles', labelKey: 'v2.nav.roles', icon: 'ri-shield-user-line', permission: 'user:read' }
+      { name: 'V2Roles', path: '/v2/roles', labelKey: 'v2.nav.roles', icon: 'ri-shield-user-line', permission: 'user:read' },
+      // P4d-3：系统设置叶子（系统组第三叶子；permission 与路由 meta 同值兜底）
+      { name: 'V2Settings', path: '/v2/settings', labelKey: 'v2.nav.settings', icon: 'ri-settings-3-line', permission: 'system:read' }
     ]
   }
 ]

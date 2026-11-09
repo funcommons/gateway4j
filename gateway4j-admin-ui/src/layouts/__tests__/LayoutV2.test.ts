@@ -174,9 +174,9 @@ describe('S11b 追加 — 调试台入口归组与占位文案边界', () => {
   })
 
   it('v2.nav.systemEmpty 占位只属于零可见条目的分组：含调试台的 observability 组不渲染该文案', async () => {
-    // P4d-2 更新前提：system 组已挂 V2Roles 第二叶子（user:read 在种子集）——动态摘除
-    // system:user + user:read 使 system 组归零可见（占位边界语义不变，沿可变 navAuth 写法）
-    navAuth.permissions = navAuth.permissions.filter((c: string) => c !== 'user:read')
+    // P4d-2/P4d-3 更新前提：system 组已挂 V2Roles（user:read）与 V2Settings（system:read）
+    // 叶子且两权限码都在种子集——动态摘除使 system 组归零可见（占位边界语义不变）
+    navAuth.permissions = navAuth.permissions.filter((c: string) => c !== 'user:read' && c !== 'system:read')
     try {
       const { wrapper } = await factory()
       const emptyText = String(dig(zhCN, 'v2.nav.systemEmpty'))
@@ -264,10 +264,11 @@ describe('P4d-1 追加 — 系统组「用户管理」首叶子（systemEmpty �
     }
   })
 
-  it('无 system:user / user:read 权限 → 两叶子均被 canAccess 隐藏且 systemEmpty 占位仍在（零可见条目边界钉住，沿 S11b 写法）', async () => {
+  it('无 system:user / user:read / system:read 权限 → 三叶子均被 canAccess 隐藏且 systemEmpty 占位仍在（零可见条目边界钉住，沿 S11b 写法）', async () => {
     expect(navAuth.permissions.some((c: string) => c === 'system:user'), '前置：默认权限集不含 system:user').toBe(false)
     // P4d-2 更新前提：system 组还挂 V2Roles（user:read 在种子集）——归零可见需一并摘除
-    navAuth.permissions = navAuth.permissions.filter((c: string) => c !== 'user:read')
+    // P4d-3 更新前提：system 组再挂 V2Settings（system:read 在种子集）——归零可见需一并摘除
+    navAuth.permissions = navAuth.permissions.filter((c: string) => c !== 'user:read' && c !== 'system:read')
     try {
       const { wrapper } = await mountNavP4d1()
       const label = String(dig(zhCN, 'v2.nav.users'))
@@ -278,6 +279,10 @@ describe('P4d-1 追加 — 系统组「用户管理」首叶子（systemEmpty �
         .findAll('.el-menu-item, [role="menuitem"], a')
         .find((n) => n.text().includes(String(dig(zhCN, 'v2.nav.roles'))))
       expect(rolesLeaf, '无 user:read 权限时角色权限叶子不应渲染').toBeUndefined()
+      const settingsLeaf = wrapper
+        .findAll('.el-menu-item, [role="menuitem"], a')
+        .find((n) => n.text().includes(String(dig(zhCN, 'v2.nav.settings'))))
+      expect(settingsLeaf, '无 system:read 权限时系统设置叶子不应渲染').toBeUndefined()
       expect(side.text()).toContain(String(dig(zhCN, 'v2.nav.systemEmpty')))
     } finally {
       navAuth.permissions = ['monitor:read', 'route:read', 'route:edit', 'plugin:read', 'user:read', 'system:read']
@@ -358,6 +363,87 @@ describe('P4d-2 追加 — 系统组「角色权限」第二叶子', () => {
       const label = String(dig(zhCN, 'v2.nav.roles'))
       const leaf = wrapper.findAll('.el-menu-item, [role="menuitem"], a').find((n) => n.text().includes(label))
       expect(leaf, '无 user:read 权限时角色权限叶子不应渲染').toBeUndefined()
+    } finally {
+      navAuth.permissions = ['monitor:read', 'route:read', 'route:edit', 'plugin:read', 'user:read', 'system:read']
+    }
+  })
+})
+
+// ═══════════ P4d-3-T 追加：系统组「系统设置」第三叶子（契约 §4.5 P4d 行 P4d-3 段）═══════════
+// 契约：docs/ui-v2/实施契约.md §4.5 P4d（2026-11-09）。LayoutV2 system 组挂第三叶子
+// = 本步交付（system items 2 项 → 3 项，系统组自此三叶齐——P4d 三步收官）。
+// 先红是预期：v2.nav.settings key 与 NAV_GROUPS system 组 V2Settings 条目均未落（C 步实现）。
+// permission=system:read 在默认权限集内（见上方 navAuth 种子），正/负向用例均走
+// 动态改集 + finally 还原（P4d-1/P4d-2 先例）。fs 断言窗口取 at+1100 容纳三叶子
+// （P4d-2 段 at+900 只看到第二叶子，互不误伤）。页面本体契约见
+// src/views-v2/system/__tests__/Settings.test.ts；路由行断言见
+// src/router/v2.routing.test.ts P4d-3 追加段。
+function makeNavRouterP4d3(): Router {
+  return createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/v2', component: LayoutV2, children: [
+        { path: 'overview', name: 'V2Overview', component: stub },
+        { path: 'users', name: 'V2Users', component: stub },
+        { path: 'roles', name: 'V2Roles', component: stub },
+        { path: 'settings', name: 'V2Settings', component: stub }
+      ] },
+      { path: '/routes', name: 'Routes', component: stub }
+    ]
+  })
+}
+
+async function mountNavP4d3() {
+  const navRouter = makeNavRouterP4d3()
+  await navRouter.push('/v2/overview')
+  await navRouter.isReady()
+  const wrapper = mount(LayoutV2, { global: { plugins: [ElementPlus, i18n, navRouter] } })
+  await flushPromises()
+  return { wrapper, navRouter }
+}
+
+describe('P4d-3 追加 — 系统组「系统设置」第三叶子', () => {
+  it('v2.nav.settings 在 zh-CN 与 en-US 都存在（铁律 6）', () => {
+    expect(dig(zhCN, 'v2.nav.settings'), 'zh-CN 缺少 v2.nav.settings').toBeDefined()
+    expect(dig(enUS, 'v2.nav.settings'), 'en-US 缺少 v2.nav.settings').toBeDefined()
+  })
+
+  it('NAV_GROUPS system 组 items 源码契约：第三叶子 V2Settings / /v2/settings / v2.nav.settings / system:read（P4d-3-C 落行）', () => {
+    const source = fs.readFileSync(path.resolve(__dirname, '../LayoutV2.vue'), 'utf-8')
+    const at = source.indexOf("key: 'system'")
+    expect(at, '未找到 NAV_GROUPS system 组').toBeGreaterThan(-1)
+    const block = source.slice(at, at + 1100)
+    expect(block).toContain("name: 'V2Settings'")
+    expect(block).toContain("path: '/v2/settings'")
+    expect(block).toContain("labelKey: 'v2.nav.settings'")
+    expect(block).toContain("permission: 'system:read'")
+  })
+
+  it('默认权限集含 system:read → system 组渲染系统设置叶子（点击跳 /v2/settings，name=V2Settings）', async () => {
+    expect(navAuth.permissions.some((c: string) => c === 'system:read'), '前置：默认权限集含 system:read').toBe(true)
+    const { wrapper, navRouter } = await mountNavP4d3()
+    const label = String(dig(zhCN, 'v2.nav.settings'))
+    const side = wrapper.find('#v2-side')
+    expect(side.exists()).toBe(true)
+    const groups = side.findAll('.v2-nav-group')
+    const sys = groups.find((g) => g.text().includes(String(dig(zhCN, 'v2.nav.group.system'))))
+    expect(sys, '未找到系统分组').toBeDefined()
+    expect(sys!.text()).toContain(label)
+    const leaf = wrapper.findAll('.el-menu-item, [role="menuitem"], a').find((n) => n.text().includes(label))
+    expect(leaf, `找不到文案为「${label}」(v2.nav.settings) 的导航项`).toBeDefined()
+    await leaf!.trigger('click')
+    await flushPromises()
+    expect(navRouter.currentRoute.value.path).toBe('/v2/settings')
+    expect(navRouter.currentRoute.value.name).toBe('V2Settings')
+  })
+
+  it('无 system:read 权限 → 系统设置叶子被 canAccess 隐藏（动态摘除 + finally 还原，P4d-2 先例反向）', async () => {
+    navAuth.permissions = navAuth.permissions.filter((c: string) => c !== 'system:read')
+    try {
+      const { wrapper } = await mountNavP4d3()
+      const label = String(dig(zhCN, 'v2.nav.settings'))
+      const leaf = wrapper.findAll('.el-menu-item, [role="menuitem"], a').find((n) => n.text().includes(label))
+      expect(leaf, '无 system:read 权限时系统设置叶子不应渲染').toBeUndefined()
     } finally {
       navAuth.permissions = ['monitor:read', 'route:read', 'route:edit', 'plugin:read', 'user:read', 'system:read']
     }
