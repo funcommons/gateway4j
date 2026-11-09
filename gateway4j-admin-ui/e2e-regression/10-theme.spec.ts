@@ -1,4 +1,4 @@
-import { test, expect, login } from './helpers'
+import { test, expect, loginV2 } from './helpers'
 import type { Page } from '@playwright/test'
 
 /**
@@ -33,9 +33,19 @@ import type { Page } from '@playwright/test'
  *
  * 断言方式：**读 token 与计算样式，不比对像素**。
  *   - token 层：`--app-bg-page` / `--app-text-primary` 等在 dark 下的取值
- *   - 渲染层：`.auth-page` / `.fc-shell` / `.fc-section` / `.fc-sidebar` 的
+ *   - 渲染层：`.auth-page` / `.v2-shell` / `.v2-side` / `.fc-section` 的
  *     计算后 background-color，以及文字与背景的对比度
  * 逐像素比对由 visual.spec.ts（opt-in）负责；这条线负责「深色到底有没有生效」。
+ *
+ * —————— 2026-11-09 P4e 步 4：迁移打 /v2 + 解冻顶栏 3 条 ——————
+ *
+ *  - 登录页 4 条（10-01/02/03/07）：/login 为新旧共享页，原语义原样保留；
+ *  - 顶栏 3 条（10-04/05/06）解冻：v2 壳（LayoutV2）顶栏三入口已由 P4e-0 落地
+ *    （testid v2-theme-switch 包裹 FcThemeSwitcher popover），切换路径 =
+ *    v2-theme-switch 触发钮「外观」→ 弹层色板按文案（浅色/深色）点击；
+ *    壳底色断言换 .v2-shell（--app-bg-page）/ .v2-side（--app-sidebar-bg），
+ *    表格/卡片断言换 v2 语义表 .rt-table + FcSectionCard（.fc-section）；
+ *  - 每条深色用例结束态恢复浅色（restoreLight），防壳层残留污染后续取证截图。
  */
 
 /** FcThemeProvider 的 localStorage 持久化 key（见 src/components/theme/FcThemeProvider.vue） */
@@ -264,9 +274,14 @@ const THEME_LABEL: Record<'light' | 'dark', RegExp> = {
   dark: /^\s*(深色|Dark)\s*$/,
 }
 
-/** 打开顶栏的外观切换器并切到指定主题 */
+/** v2 顶栏外观切换器（P4e-0：v2-theme-switch 包裹 FcThemeSwitcher popover）的触发钮 */
+function themeTrigger(page: Page) {
+  return page.getByTestId('v2-theme-switch').locator('.fc-theme-switcher--trigger button').first()
+}
+
+/** 打开 v2 顶栏的外观切换器并切到指定主题 */
 async function switchTheme(page: Page, theme: 'light' | 'dark') {
-  await page.locator('.fc-theme-switcher--trigger button').first().click()
+  await themeTrigger(page).click()
   const swatches = page.locator('.fc-theme-switcher--popover .fc-ts-swatch')
   await expect(swatches.first(), '外观切换器应弹出主题色板').toBeVisible({ timeout: 10_000 })
   // 按文案选色板（浅色 / 深色），不按下标
@@ -280,6 +295,23 @@ async function switchTheme(page: Page, theme: 'light' | 'dark') {
   // 等 Provider 的 watch -> applyToRoot 落地；
   // 这一条同时兜住「选错色板」—— 点错的话 data-theme 不会等于目标主题。
   await expect(page.locator('html')).toHaveAttribute('data-theme', theme, { timeout: 10_000 })
+}
+
+/**
+ * 用例收尾恢复浅色（防深色残留污染后续截图/取证）。
+ * 色板点击后弹层可能仍开（EP popover 内容点击不自动收起）——先探可见性再决定要不要点触发钮，
+ * 避免把已开的弹层点关。
+ */
+async function restoreLight(page: Page) {
+  const swatches = page.locator('.fc-theme-switcher--popover .fc-ts-swatch')
+  if (!(await swatches.first().isVisible().catch(() => false))) {
+    await themeTrigger(page).click()
+  }
+  const light = swatches.filter({
+    has: page.locator('.fc-ts-swatch__label', { hasText: THEME_LABEL.light }),
+  })
+  await light.first().click()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light', { timeout: 10_000 })
 }
 
 test.describe('BL-10 主题回归', () => {
@@ -357,101 +389,113 @@ test.describe('BL-10 主题回归', () => {
     expect(luminance(card!.bg), '深色主题下 FcSectionCard 底色应为暗色').toBeLessThan(0.3)
   })
 
-  test('10-04 顶栏切换器能把深色切出来（真实用户路径）', async ({ page }) => {
-    // 切换器在主布局顶栏，登录页（blank layout）没有 —— 必须先登录
-    await login(page, '/routes')
-    await expect(page.locator('.fc-shell')).toBeVisible({ timeout: 20_000 })
+  test('10-04 顶栏切换器能把深色切出来（真实用户路径，v2 壳）', async ({ page }) => {
+    // 切换器在 LayoutV2 顶栏（v2-theme-switch），登录页（blank layout）没有 —— 必须先登录
+    await loginV2(page, '/v2/overview')
+    await expect(page.locator('.v2-shell')).toBeVisible({ timeout: 20_000 })
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
 
     await switchTheme(page, 'dark')
 
     await expect(page.locator('html')).toHaveClass(/\bdark\b/)
 
-    // 切主题后外壳有 `transition: background .25s ease` ——
+    // 切主题后壳层可能有 background 过渡 ——
     // 必须等计算样式稳定（连续两次读数相同）再断言，否则可能读到过渡中间值。
+    // v2 壳底色锚点：.v2-shell（--app-bg-page）+ .v2-side（--app-sidebar-bg）
     await expect
       .poll(
         async () => {
-          const raw = await stableStyleOf(page, '.fc-shell', 'background-color')
+          const raw = await stableStyleOf(page, '.v2-shell', 'background-color')
           const c = parseRgb(raw)
           return c ? luminance(c) : Number.NaN
         },
-        { timeout: 15_000, message: '切换后 .fc-shell 底色应稳定为暗色' },
+        { timeout: 15_000, message: '切换后 .v2-shell 底色应稳定为暗色' },
       )
       .toBeLessThan(0.25)
 
     await expect
       .poll(
         async () => {
-          const raw = await stableStyleOf(page, '.fc-main', 'background-color')
+          const raw = await stableStyleOf(page, '.v2-side', 'background-color')
           const c = parseRgb(raw)
           return c ? luminance(c) : Number.NaN
         },
-        { timeout: 15_000, message: '切换后 .fc-main 底色应稳定为暗色' },
+        { timeout: 15_000, message: '切换后 .v2-side 底色应稳定为暗色' },
       )
       .toBeLessThan(0.25)
+
+    // 结束态恢复浅色（防残留）
+    await restoreLight(page)
   })
 
-  test('10-05 深色主题：刷新后保持（持久化）', async ({ page }) => {
-    await login(page, '/routes')
-    await expect(page.locator('.fc-shell')).toBeVisible({ timeout: 20_000 })
+  test('10-05 深色主题：刷新后保持（持久化，v2 壳）', async ({ page }) => {
+    await loginV2(page, '/v2/overview')
+    await expect(page.locator('.v2-shell')).toBeVisible({ timeout: 20_000 })
     await switchTheme(page, 'dark')
 
     await page.reload()
-    await expect(page.locator('.fc-shell')).toBeVisible({ timeout: 20_000 })
+    await expect(page.locator('.v2-shell')).toBeVisible({ timeout: 20_000 })
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
     await expect(page.locator('html')).toHaveClass(/\bdark\b/)
 
     await expect
       .poll(
         async () => {
-          const raw = await stableStyleOf(page, '.fc-shell', 'background-color')
+          const raw = await stableStyleOf(page, '.v2-shell', 'background-color')
           const c = parseRgb(raw)
           return c ? luminance(c) : Number.NaN
         },
-        { timeout: 15_000, message: '刷新后 .fc-shell 底色应稳定为暗色' },
+        { timeout: 15_000, message: '刷新后 .v2-shell 底色应稳定为暗色' },
       )
       .toBeLessThan(0.25)
+
+    // 结束态恢复浅色（reload 后弹层已收起，restoreLight 会先点触发钮再选色板）
+    await restoreLight(page)
   })
 
-  test('10-06 深色主题：登录后的外壳/侧栏/表格全部翻暗', async ({ page }) => {
+  test('10-06 深色主题：登录后的外壳/侧栏/表格全部翻暗（v2 壳）', async ({ page }) => {
     await presetTheme(page, 'dark')
-    await login(page, '/routes')
-    await expect(page.locator('.fc-shell')).toBeVisible({ timeout: 20_000 })
+    await loginV2(page, '/v2/routes')
+    await expect(page.locator('.v2-shell')).toBeVisible({ timeout: 20_000 })
     await page.waitForTimeout(800)
 
-    const shell = await paintOf(page, '.fc-shell')
-    const sidebar = await paintOf(page, '.fc-sidebar')
-    expect(shell, '.fc-shell 应能读出背景色').not.toBeNull()
-    expect(sidebar, '.fc-sidebar 应能读出背景色').not.toBeNull()
+    const shell = await paintOf(page, '.v2-shell')
+    const sidebar = await paintOf(page, '.v2-side')
+    expect(shell, '.v2-shell 应能读出背景色').not.toBeNull()
+    expect(sidebar, '.v2-side 应能读出背景色').not.toBeNull()
     expect(luminance(shell!.bg), '深色主题下外壳底色应为暗色').toBeLessThan(0.25)
     expect(luminance(sidebar!.bg), '深色主题下侧栏底色应为暗色').toBeLessThan(0.25)
 
-    // EP 表格：白底表格配深色页面 = 上一轮的经典退化形态。
-    // 表格必须在场 —— 上一版这里写的是 `if (table.isVisible())`，
-    // 表格不出现就整条跳过（= 绿），等于没有护栏。
-    const table = page.locator('.el-table').first()
-    await expect(table, '路由列表应有 EP 表格（表格缺失会让本条护栏空过）').toBeVisible({
+    // v2 语义表（.rt-table，原生 table 非 EP 表格）：白底表格配深色页面 = 上一轮的经典退化形态。
+    // 表格必须在场 —— `if (table.isVisible())` 式的护栏会空过（= 绿），等于没有护栏。
+    const table = page.locator('.rt-table').first()
+    await expect(table, 'v2 路由列表应有语义表（表格缺失会让本条护栏空过）').toBeVisible({
       timeout: 20_000,
     })
-    const tableBg = await paintOf(page, '.el-table')
-    expect(tableBg, '.el-table 应能读出背景色').not.toBeNull()
-    expect(luminance(tableBg!.bg), '深色主题下 EP 表格底色不应是白盒子').toBeLessThan(0.4)
+    const tableBg = await paintOf(page, '.rt-table')
+    expect(tableBg, '.rt-table 应能读出背景色').not.toBeNull()
+    expect(luminance(tableBg!.bg), '深色主题下 v2 表格底色不应是白盒子').toBeLessThan(0.4)
 
-    // 表头也是 EP 的独立底色，一并守住
-    const thead = await paintOf(page, '.el-table thead th')
-    expect(thead, '.el-table 表头应能读出背景色').not.toBeNull()
-    expect(luminance(thead!.bg), '深色主题下 EP 表格表头不应是白盒子').toBeLessThan(0.4)
+    // 表头也是独立底色，一并守住
+    const thead = await paintOf(page, '.rt-table thead th')
+    expect(thead, '.rt-table 表头应能读出背景色').not.toBeNull()
+    expect(luminance(thead!.bg), '深色主题下 v2 表格表头不应是白盒子').toBeLessThan(0.4)
 
     // 卡片底不能等于页面底（否则内容糊成一片，也说明卡片没接主题层）。
-    // 逐分量比较，不比字符串；两个值都必须先断言非空。
-    const card = await paintOf(page, '.fc-section')
-    expect(card, '.fc-section 卡片应能读出背景色').not.toBeNull()
+    // v2 路由列表的卡片在行展开区（FcSectionCard → .fc-section），先展开首行再取色。
+    await page.locator('[data-testid^="route-expand-"]').first().click()
+    const cardEl = page.locator('[data-testid="card-upstream"]')
+    await expect(cardEl, '展开行应渲染上游卡片（FcSectionCard）').toBeVisible({ timeout: 15_000 })
+    const card = await paintOf(page, '[data-testid="card-upstream"]')
+    expect(card, '展开卡片应能读出背景色').not.toBeNull()
     expect(luminance(card!.bg), '深色主题下卡片底应为暗色').toBeLessThan(0.3)
     expect(
       sameColor(card!.bg, shell!.bg),
       '深色主题下卡片底不应与页面底完全相同',
     ).toBe(false)
+
+    // 结束态恢复浅色
+    await restoreLight(page)
   })
 
   test('10-07 深色主题：输入框描边可见（对比度 >= 3:1）', async ({ page }) => {

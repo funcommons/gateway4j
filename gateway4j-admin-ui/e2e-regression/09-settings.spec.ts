@@ -8,9 +8,9 @@ import { test, expect, loginV2, shot, writeEvidence, apiCall } from './helpers'
  * 且旧版 D4/D5 缺陷已修：后端 /v1/config/{type} 端点已存在，gw_permission 已含
  * system:edit → set-submit 可见。
  *
- * c 类用例注释保留（1 条）：
- *   09-09 主题 Tab —— v2 砍除主题分区；主题切换入口已由 P4e-0 落到 v2 顶栏
- *   （testid v2-theme-switch），其行为验证随步 4（01-auth / 10-theme 壳迁移）覆盖。
+ * 09-09（P4e 步 4 解冻）：v2 砍除主题分区，主题切换入口已由 P4e-0 落到 v2 顶栏
+ * （testid v2-theme-switch 包裹 FcThemeSwitcher）——本条改为断言该入口可达；
+ * 切换行为验证归 10-theme（浅色/深色翻转 + fc-theme-provider 持久化）。
  */
 test.describe('BL-09 系统设置', () => {
   test.beforeEach(async ({ page }) => {
@@ -94,9 +94,15 @@ test.describe('BL-09 系统设置', () => {
     expect(errText, '错误提示应是用户友好文案而非后端原始报文').not.toMatch(/系统繁忙|trace_id/)
   })
 
-  // ── c 类注释保留（v2 砍除主题分区；主题切换入口 = P4e-0 顶栏 v2-theme-switch，随步 4 壳迁移验证）──
-  // test('09-09 主题 Tab：指引的主题切换入口应可达', async ({ page, shot, diag }) => {
-  //   await page.locator('.fc-tab', { hasText: '主题' }).first().click()
-  //   ...
-  // })
+  test('09-09 主题切换入口应可达（v2 顶栏 v2-theme-switch，步 4 解冻）', async ({ page, shot, diag }) => {
+    // v2 砍除主题 Tab；主题入口 = P4e-0 顶栏 v2-theme-switch（包裹 FcThemeSwitcher popover）
+    const entry = page.getByTestId('v2-theme-switch')
+    await expect(entry, 'v2 顶栏应渲染主题切换入口 v2-theme-switch').toBeVisible({ timeout: 10_000 })
+    // FcThemeSwitcher 弹层懒渲染，但根元素常驻 fc-theme-switcher 类（D1 修复）——未展开也可断言出口
+    await expect(entry.locator('.fc-theme-switcher'), '主题入口应挂 FcThemeSwitcher').toBeVisible()
+    const trigger = entry.locator('.fc-theme-switcher--trigger button').first()
+    await expect(trigger, '主题切换入口应有可点击触发钮').toBeEnabled()
+    await shot('settings', '09-09-theme-entry-v2')
+    writeEvidence('settings', '09-09-theme-entry-v2', diag)
+  })
 })
