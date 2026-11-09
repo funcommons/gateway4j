@@ -23,19 +23,8 @@ vi.mock('@/store/auth', () => ({
   })
 }))
 
-vi.mock('@/views/auth/Login.vue', () => ({ default: { name: 'Login' } }))
-vi.mock('@/layouts/MainLayout.vue', () => ({ default: { name: 'MainLayout' } }))
-vi.mock('@/views/dashboard/Index.vue', () => ({ default: { name: 'Dashboard' } }))
-vi.mock('@/views/routes/List.vue', () => ({ default: { name: 'RoutesList' } }))
-vi.mock('@/views/routes/Editor.vue', () => ({ default: { name: 'RouteEditor' } }))
-vi.mock('@/views/routes/Canvas.vue', () => ({ default: { name: 'RouteCanvas' } }))
-vi.mock('@/views/routes/ImportExport.vue', () => ({ default: { name: 'ImportExport' } }))
-vi.mock('@/views/plugins/List.vue', () => ({ default: { name: 'PluginsList' } }))
-vi.mock('@/views/plugins/Builtin.vue', () => ({ default: { name: 'BuiltinPlugins' } }))
-vi.mock('@/views/plugins/Editor.vue', () => ({ default: { name: 'PluginEditor' } }))
-vi.mock('@/views/users/List.vue', () => ({ default: { name: 'UsersList' } }))
-vi.mock('@/views/users/Roles.vue', () => ({ default: { name: 'Roles' } }))
-vi.mock('@/views/Settings.vue', () => ({ default: { name: 'Settings' } }))
+// P4f C2：旧树页面 mock（12 页 + MainLayout）随摘树移除 —— vue-router 为 mock 实现，
+// 路由表的懒加载 component 闭包从不解析，无需页面级 mock。
 
 vi.mock('@/i18n', () => ({
   i18n: { global: { t: (key: string) => key } }
@@ -60,13 +49,13 @@ describe('router — auth guard behavior', () => {
 
   it('redirects to Login when requireAuth=true and user is not logged in', async () => {
     ;(globalThis as any).__authIsLogin = false
-    const result = await runGuard({ meta: { requireAuth: true }, fullPath: '/routes' })
-    expect(result).toEqual({ name: 'Login', query: { redirect: '/routes' } })
+    const result = await runGuard({ meta: { requireAuth: true }, fullPath: '/v2/overview' })
+    expect(result).toEqual({ name: 'Login', query: { redirect: '/v2/overview' } })
   })
 
   it('allows navigation when requireAuth=true and user is logged in', async () => {
     ;(globalThis as any).__authIsLogin = true
-    const result = await runGuard({ meta: { requireAuth: true }, fullPath: '/routes' })
+    const result = await runGuard({ meta: { requireAuth: true }, fullPath: '/v2/overview' })
     expect(result).toBeUndefined()
   })
 
@@ -80,17 +69,17 @@ describe('router — auth guard behavior', () => {
     ;(globalThis as any).__authIsLogin = false
     const result = await runGuard({
       meta: { requireAuth: true },
-      fullPath: '/plugins/builtin'
+      fullPath: '/v2/plugins'
     })
-    expect(result).toEqual({ name: 'Login', query: { redirect: '/plugins/builtin' } })
+    expect(result).toEqual({ name: 'Login', query: { redirect: '/v2/plugins' } })
   })
 
   it('preserves query params in fullPath when redirecting', async () => {
     ;(globalThis as any).__authIsLogin = false
     const result = await runGuard({
       meta: { requireAuth: true },
-      fullPath: '/routes/123?tab=basic'
+      fullPath: '/v2/routes/123?tab=basic'
     })
-    expect(result).toEqual({ name: 'Login', query: { redirect: '/routes/123?tab=basic' } })
+    expect(result).toEqual({ name: 'Login', query: { redirect: '/v2/routes/123?tab=basic' } })
   })
 })

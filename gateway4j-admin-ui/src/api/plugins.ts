@@ -37,11 +37,8 @@ export function listPlugins(params: { page: number; pageSize: number; keyword?: 
   }))
 }
 
-export function listGlobalPlugins(pluginPhase?: string) {
-  return envelope<PluginItem[]>(
-    http.get('/v1/plugins/global', { params: pluginPhase ? { plugin_phase: pluginPhase } : {} })
-  )
-}
+// P4f C2：listGlobalPlugins 已随旧树 plugins/Global.vue 拆除（P4a 裁决「随拆旧废弃」）；
+// sortGlobalPlugins 为 v2 插件链（Chain.vue）共享，保留。
 
 export function sortGlobalPlugins(pluginPhase: string, pluginIds: string[]) {
   return http.put('/v1/plugins/global/sort', { plugin_phase: pluginPhase, plugin_ids: pluginIds })

@@ -12,7 +12,7 @@ vi.mock('@/store/auth', () => ({
   useAuthStore: () => ({ doLogin: mocks.doLogin })
 }))
 
-import Login from '@/views/auth/Login.vue'
+import Login from '@/views-v2/auth/Login.vue'
 
 const i18n = createI18n({
   legacy: false,

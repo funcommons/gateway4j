@@ -67,26 +67,6 @@ const V2_TABLE: Array<{ name: string; path: string; permission: string }> = [
   { name: 'V2Settings', path: '/v2/settings', permission: 'system:read' }
 ]
 
-/** 旧路由快照（来自 S1 前的 src/router/index.ts）：name/path/permission 一个都不能动 */
-const LEGACY_TABLE: Array<{ name: string; path: string; permission?: string }> = [
-  { name: 'Login', path: '/login' },
-  { name: 'Dashboard', path: '/dashboard', permission: 'monitor:read' },
-  { name: 'Routes', path: '/routes', permission: 'route:read' },
-  { name: 'RouteNew', path: '/routes/new', permission: 'route:edit' },
-  { name: 'RouteEdit', path: '/routes/:id', permission: 'route:edit' },
-  { name: 'RouteCanvas', path: '/routes/:id/canvas', permission: 'route:edit' },
-  { name: 'Plugins', path: '/plugins', permission: 'plugin:read' },
-  { name: 'GlobalPlugins', path: '/plugins/global', permission: 'plugin:read' },
-  { name: 'BuiltinPlugins', path: '/plugins/builtin', permission: 'plugin:read' },
-  { name: 'PluginNew', path: '/plugins/new', permission: 'plugin:edit' },
-  { name: 'PluginEdit', path: '/plugins/:id/edit', permission: 'plugin:edit' },
-  { name: 'ImportExport', path: '/import-export', permission: 'route:edit' },
-  { name: 'Users', path: '/users', permission: 'system:user' },
-  { name: 'Roles', path: '/roles', permission: 'user:read' },
-  { name: 'Settings', path: '/settings', permission: 'system:read' },
-  { name: 'NotFound', path: '/:pathMatch(.*)*' }
-]
-
 function recordByName(name: string) {
   return router.getRoutes().find((r) => String(r.name) === name)
 }
@@ -159,28 +139,6 @@ describe('S11b 追加 — V2Debug meta 与组件接线', () => {
     const mod = await loader!()
     const expected = await import('@/views-v2/debug/Debug.vue')
     expect(mod.default).toBe(expected.default)
-  })
-})
-
-describe('旧路由零变化 — 契约 §0 铁律 1', () => {
-  it.each(LEGACY_TABLE)('旧路由 $name 仍存在且 path/permission 不变', ({ name, path, permission }) => {
-    const record = recordByName(name)
-    expect(record, `旧路由 ${name} 丢失（v2 改动破坏了旧表）`).toBeDefined()
-    expect(record!.path).toBe(path)
-    expect((record!.meta as Record<string, unknown>).permission ?? null).toBe(permission ?? null)
-  })
-
-  it("旧 '/' 记录下 '' 子路由仍 redirect 到 /routes（默认落地页不变）", () => {
-    const legacyRoot = router.options.routes.find((r) => r.path === '/')
-    const emptyChild = legacyRoot?.children?.[0] as { redirect?: string } | undefined
-    expect(emptyChild?.redirect).toBe('/routes')
-  })
-
-  it("旧 '/' 记录的父级 component 仍是 MainLayout（LayoutV2 只挂在 /v2 下）", async () => {
-    const legacyRoot = router.options.routes.find((r) => r.path === '/') as unknown as Record<string, unknown>
-    const comp = legacyRoot.component ?? (legacyRoot.components as Record<string, unknown> | undefined)?.default
-    const mod = await (comp as () => Promise<{ default: unknown }>)()
-    expect(mod.default).toBe((await import('@/layouts/MainLayout.vue')).default)
   })
 })
 
@@ -568,7 +526,7 @@ describe('P4d-1 追加 — V2Users meta 与组件接线', () => {
 // 边界。先红是预期：V2Roles 路由、v2.page.roles key、src/views-v2/system/Roles.vue 均未落。
 // 【component 接线走 fs 源码断言而非动态 import 身份比对，沿 P4d-1/P4a-2 手法】：动态
 // import 字面量会在 transform 期静态解析，Roles.vue 缺位时整个本文件套件收集失败；
-// fs 断言让既有用例全程可观测。permission=user:read 与旧 Roles 行（LEGACY_TABLE）一致。
+// fs 断言让既有用例全程可观测。permission=user:read 与旧 Roles 行一致。
 // 页面本体契约见 src/views-v2/system/__tests__/Roles.test.ts；侧栏 system 组第二叶子断言见
 // src/layouts/__tests__/LayoutV2.test.ts P4d-2 追加段。
 describe('P4d-2 追加 — V2Roles meta 与组件接线', () => {
@@ -607,7 +565,7 @@ describe('P4d-2 追加 — V2Roles meta 与组件接线', () => {
 // 边界。先红是预期：V2Settings 路由、v2.page.settings key、src/views-v2/system/Settings.vue
 // 均未落。【component 接线走 fs 源码断言而非动态 import 身份比对，沿 P4d-1/P4d-2 手法】：
 // 动态 import 字面量会在 transform 期静态解析，Settings.vue 缺位时整个本文件套件收集失败；
-// fs 断言让既有用例全程可观测。permission=system:read 与旧 Settings 行（LEGACY_TABLE）一致；
+// fs 断言让既有用例全程可观测。permission=system:read 与旧 Settings 行一致；
 // 页面编辑门禁另走 canEdit('system')（见 Settings.test.ts）。页面本体契约见
 // src/views-v2/system/__tests__/Settings.test.ts；侧栏 system 组第三叶子断言见
 // src/layouts/__tests__/LayoutV2.test.ts P4d-3 追加段。

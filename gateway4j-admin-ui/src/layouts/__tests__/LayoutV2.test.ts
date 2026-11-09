@@ -4,7 +4,7 @@
  *   分组（顺序 = 原型 01 侧栏）：v2.nav.group.overview / routes / plugins / observability / system
  *   S1 静态导航叶子：v2.nav.overview→/v2/overview  v2.nav.routes→/v2/routes
  *                    v2.nav.pluginChain→/v2/plugins/chain  v2.nav.monitor→/v2/monitor  v2.nav.debug→/v2/debug
- *   侧栏底部：v2.layout.backToLegacy → /routes（「返回旧版」）
+ *   （P4f C2：侧栏底部「返回旧版」入口已随旧树摘除，v2.layout.backToLegacy 同步删除）
  * 约定：active 态走 route.name（§2），active 类名认 el-menu 的 is-active 或自定义 active；
  * 本文件 mount 时局部注册 ElementPlus（导航是 el-menu 子树，不注册不渲染；不影响其他 app 用例）。
  */
@@ -65,8 +65,7 @@ const LEAVES = [
   { key: 'v2.nav.monitor', path: '/v2/monitor', name: 'V2Monitor' },
   { key: 'v2.nav.debug', path: '/v2/debug', name: 'V2Debug' }
 ]
-const BACK_KEY = 'v2.layout.backToLegacy'
-const ALL_KEYS = [...GROUP_KEYS, ...LEAVES.map((l) => l.key), BACK_KEY]
+const ALL_KEYS = [...GROUP_KEYS, ...LEAVES.map((l) => l.key)]
 
 const i18n = createI18n({
   legacy: false, locale: 'zh-CN', fallbackLocale: 'en-US',
@@ -160,18 +159,6 @@ describe('LayoutV2 — 侧栏 active 态（契约 §2：走 route.name）', () =
     // 用 $route.path 直推会在 /v2/routes/:id/detail 等嵌套页失配；契约要求按 name 归位
     const source = fs.readFileSync(path.resolve(__dirname, '../LayoutV2.vue'), 'utf-8')
     expect(source).toMatch(/route\.name|activePath|SIDEBAR_ROUTE_MAP|currentRoute/)
-  })
-})
-
-describe('LayoutV2 — 返回旧版（契约 §1 侧栏切换入口）', () => {
-  it('「返回旧版」存在且点击后回 /routes', async () => {
-    const { wrapper, router } = await factory()
-    const label = String(dig(zhCN, BACK_KEY))
-    const entry = findNavItem(wrapper, label)
-    expect(entry, `找不到「${label}」(${BACK_KEY}) 入口`).toBeDefined()
-    await entry!.trigger('click')
-    await flushPromises()
-    expect(router.currentRoute.value.path).toBe('/routes')
   })
 })
 

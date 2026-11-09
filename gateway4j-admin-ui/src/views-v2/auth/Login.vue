@@ -67,8 +67,8 @@ async function submit() {
   loading.value = true
   try {
     await auth.doLogin(username, password, remember.value)
-    const redirect = (route.query.redirect as string) || '/routes'
-    await router.push(redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/routes')
+    const redirect = (route.query.redirect as string) || '/v2/overview'
+    await router.push(redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/v2/overview')
   } catch (e: any) {
     error.value = e?.message || t('common.loginFailed')
   } finally {

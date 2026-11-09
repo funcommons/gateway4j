@@ -271,7 +271,7 @@ import {
   updatePlugin, deletePlugin, validateConfig, type PluginItem, type BuiltinTypeMeta
 } from '@/api/plugins'
 import { listRoutes, listBindings, sortRoutePlugins, type RouteNode } from '@/api/routes'
-import { getBuiltinCategory, BUILTIN_CATEGORIES, type BuiltinCategoryKey } from '@/views/plugins/builtinCategories'
+import { getBuiltinCategory, BUILTIN_CATEGORIES, type BuiltinCategoryKey } from '@/views-v2/plugins/builtinCategories'
 
 /**
  * S10a-C：v2 插件链（全局 scope 五泳道 + 启停 + 排序 + 市场区 + runtime 徽标）。

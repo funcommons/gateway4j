@@ -625,9 +625,6 @@ export default {
       systemEmpty: '该分组将在后续步骤开放',
       subtitle: '可视化网关 · v2'
     },
-    layout: {
-      backToLegacy: '返回旧版'
-    },
     page: {
       overview: '拓扑总览',
       routes: '路由列表',
@@ -647,7 +644,6 @@ export default {
       settings: '系统设置'
     },
     topbar: {
-      tryV2: '新版体验',
       kbd: '⌘K',
       searchPlaceholder: '搜索路由、插件、用户…',
       notifications: '通知',

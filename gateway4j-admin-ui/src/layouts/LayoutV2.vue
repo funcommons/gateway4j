@@ -30,16 +30,10 @@
           <p v-else class="v2-nav-empty">{{ t('v2.nav.systemEmpty') }}</p>
         </div>
       </nav>
-      <div class="v2-side-foot">
-        <a class="v2-nav-item" :href="LEGACY_PATH" @click.prevent="onNav(LEGACY_PATH)">
-          <FcIcon name="ri-arrow-left-line" :size="15" />
-          <span class="v2-nav-item-label">{{ t('v2.layout.backToLegacy') }}</span>
-        </a>
-      </div>
     </aside>
     <div class="v2-main">
       <header class="v2-top">
-        <!-- 窄视口抽屉开关（≥769px display:none）；「返回旧版」只保留侧栏底部一处（P3-3） -->
+        <!-- 窄视口抽屉开关（≥769px display:none） -->
         <FcButton
           class="v2-menu-btn"
           variant="text"
@@ -98,8 +92,6 @@ const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { hasPermission } = usePermission()
-
-const LEGACY_PATH = '/routes'
 
 /**
  * 窄视口（≤768px）侧栏抽屉开关（P1-1）。
@@ -447,10 +439,6 @@ if (inject<FcThemeContext | null>('fc-theme', null) == null) {
   padding: 4px 8px;
   font-size: 12px;
   color: var(--app-text-tertiary);
-}
-.v2-side-foot {
-  padding: 8px;
-  border-top: 1px solid var(--app-separator);
 }
 /* —— 顶栏 —— */
 .v2-top {

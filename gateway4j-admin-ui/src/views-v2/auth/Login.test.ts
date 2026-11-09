@@ -18,7 +18,7 @@ vi.mock('@/components/display/FcSectionCard.vue', () => ({
   default: { name: 'FcSectionCard', props: ['width'], template: '<div class="section-card-stub"><slot /></div>' }
 }))
 
-import Login from '@/views/auth/Login.vue'
+import Login from '@/views-v2/auth/Login.vue'
 
 const i18n = createI18n({
   legacy: false,
@@ -43,7 +43,7 @@ function makeRouter() {
     routes: [
       { path: '/', component: { template: '<div />' } },
       { path: '/login', name: 'Login', component: { template: '<div />' } },
-      { path: '/routes', name: 'Routes', component: { template: '<div />' } },
+      { path: '/v2/overview', name: 'V2Overview', component: { template: '<div />' } },
       { path: '/dashboard', name: 'Dashboard', component: { template: '<div />' } }
     ]
   })
@@ -122,7 +122,7 @@ describe('Login.vue', () => {
     expect(mocks.doLogin).toHaveBeenCalledWith('alice', 'pw', true)
   })
 
-  it('submit() redirects to /routes by default', async () => {
+  it('submit() redirects to /v2/overview by default', async () => {
     mocks.doLogin.mockResolvedValue(undefined)
     const wrapper = await factory({ initialRoute: { path: '/login' } })
     const vm = wrapper.vm as any
@@ -130,7 +130,7 @@ describe('Login.vue', () => {
     vm.form.password = 'admin123'
     await vm.submit()
     await flushPromises()
-    expect(wrapper.vm.$route.path).toBe('/routes')
+    expect(wrapper.vm.$route.path).toBe('/v2/overview')
   })
 
   it('submit() honors redirect query param', async () => {

@@ -99,49 +99,6 @@ function lineFromTitle(title: string): LineKey {
 
 export { expect }
 
-/** 登录并等待进入路由列表 */
-export async function login(page: Page, redirect = '/routes') {
-  await page.goto('/login')
-  await expect(page.getByRole('button', { name: '登录' })).toBeVisible({ timeout: 20_000 })
-  await page.locator('input').first().fill(CREDENTIALS.username)
-  await page.locator('input[type="password"]').first().fill(CREDENTIALS.password)
-  // login 接口有 10 次/分钟/IP 自我保护限流（2026-10-28 快赢包），
-  // beforeEach 级逐用例登录在单分钟内可能触顶 429 —— 此时滑动窗口 60s 内恢复，
-  // 表单值保留，间隔重试点击即可；重试 3 次仍失败则照常抛错（不弱化断言）。
-  for (let attempt = 1; ; attempt++) {
-    try {
-      await Promise.all([
-        page.waitForURL(new RegExp(redirect.replace(/\//g, '\\/')), { timeout: 30_000 }),
-        page.getByRole('button', { name: '登录' }).click(),
-      ])
-      break
-    } catch (e) {
-      if (attempt >= 3) throw e
-      await page.waitForTimeout(25_000)
-    }
-  }
-  // 注意：不要用 networkidle —— P2-7 起 dashboard/路由页持有 SSE 长连接，
-  // networkidle 永不触发（每次空等 30s 超时，曾把整套件拖到 59 分钟）。
-  await page.waitForTimeout(800)
-}
-
-/** 确认发布动作：P2-4 起发布走 PublishDescriptionDialog（变更说明必填 1~200 字，
- *  确认按钮 [data-testid=publish-desc-confirm] 填写后才启用）——该弹窗取代了旧
- *  fc-confirm-dialog。填入说明并点击其确认；若 3s 内未见该弹窗（旧交互/非发布），
- *  回退点击旧式 fc-confirm-dialog 确认按钮，两者皆无则抛错。 */
-export async function confirmPublish(page: Page, text = 'e2e 自动化发布验证') {
-  const input = page.locator('[data-testid="publish-desc-input"]')
-  try {
-    await input.waitFor({ state: 'visible', timeout: 3000 })
-    await input.fill(text)
-    await page.locator('[data-testid="publish-desc-confirm"]').click()
-    return
-  } catch {
-    // 未见新弹窗，回退旧式确认
-  }
-  await confirmButton(page).click()
-}
-
 /** 生成不重复的测试用名称 */
 export function uniq(prefix: string) {
   return `${prefix}_${Date.now().toString(36)}${Math.floor(Math.random() * 1000)}`
@@ -154,11 +111,6 @@ export function formField(page: Page, label: string, tag: 'input' | 'textarea' =
     .filter({ has: page.locator('label', { hasText: label }) })
     .locator(tag)
     .first()
-}
-
-/** 确认弹窗（FcDialog.fc-confirm-dialog）里的确认按钮 */
-export function confirmButton(page: Page) {
-  return page.locator('.fc-dialog.fc-confirm-dialog:visible').getByRole('button', { name: '确认' })
 }
 
 /** 在已登录的浏览器上下文里直接调用同源后端 API（用于把"UI 缺陷"与"后端能力缺陷"区分开） */

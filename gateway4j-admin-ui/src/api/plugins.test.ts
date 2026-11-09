@@ -38,16 +38,7 @@ describe('plugins api — list', () => {
     })
   })
 
-  it('listGlobalPlugins (no phase) -> GET /v1/plugins/global with empty params', async () => {
-    await api.listGlobalPlugins()
-    expect(mocks.get).toHaveBeenCalledWith('/v1/plugins/global', { params: {} })
-  })
-
-  it('listGlobalPlugins(phase) -> GET /v1/plugins/global with snake_case plugin_phase', async () => {
-    await api.listGlobalPlugins('PRE')
-    expect(mocks.get).toHaveBeenCalledWith('/v1/plugins/global', { params: { plugin_phase: 'PRE' } })
-  })
-
+  // P4f C2：listGlobalPlugins 用例随 api/plugins.ts 同步拆除（旧树 Global.vue 摘除）
   it('sortGlobalPlugins -> PUT /v1/plugins/global/sort', async () => {
     await api.sortGlobalPlugins('POST', ['a', 'b'])
     expect(mocks.put).toHaveBeenCalledWith('/v1/plugins/global/sort', {

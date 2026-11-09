@@ -628,9 +628,6 @@ export default {
       systemEmpty: 'This group opens in a later step',
       subtitle: 'Visual gateway · v2'
     },
-    layout: {
-      backToLegacy: 'Back to legacy UI'
-    },
     page: {
       overview: 'Topology Overview',
       routes: 'Route List',
@@ -650,7 +647,6 @@ export default {
       settings: 'Settings'
     },
     topbar: {
-      tryV2: 'New experience',
       kbd: '⌘K',
       searchPlaceholder: 'Search routes, plugins, users…',
       notifications: 'Notifications',

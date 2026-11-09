@@ -11,7 +11,7 @@
 </template>
 
 <script setup lang="ts">
-// 与登录页 (views/auth/Login.vue) 同风格: FcSectionCard 居中卡 + FcButton.
+// 与登录页 (views-v2/auth/Login.vue) 同风格: FcSectionCard 居中卡 + FcButton.
 // 文案走 i18n (common.notFound*), 中英双语在 locales 中对齐.
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -24,7 +24,7 @@ defineOptions({ name: 'NotFound' })
 const router = useRouter()
 
 async function goHome() {
-  // '/' 会按路由表 redirect 到 /routes
+  // '/' 会按路由表 redirect 到 /v2/overview（P4f C2 摘旧树后）
   await router.push('/')
 }
 </script>
