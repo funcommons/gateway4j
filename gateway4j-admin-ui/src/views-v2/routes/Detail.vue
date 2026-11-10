@@ -8,7 +8,9 @@
   按返回序 + diff 懒加载 (id, 前一版本, 本版本)，changeType 全枚举映射；⑤ 命中日志是硬缺口 →
   卡如实降级「操作记录」= listAuditLogs({ target, page:1, pageSize:5 })，action/actor 原文直出；
   ⑥ 刷新 = 手动按钮，只重发 traffic + timeseries；⑦ canEdit=false 时发布/编辑动作不渲染。
-  V14：五源 allSettled 并行、分区独立降级。DOM 契约（dtl-*）与 i18n 全表（v2.detail.* 31 key）
+  V14：五源 allSettled 并行、分区独立降级。OPT-6：页头加 per-route 同步角标（dtl-sync-badge，
+  getRouteSyncStatus 挂载/手动刷新各查一次、独立 try/catch 不并入五源、失败/旧版404 → 不渲染）。
+  DOM 契约（dtl-*）与 i18n 全表（v2.detail.* 31 key）
   见 __tests__/Detail.test.ts 头注释。
 -->
 <template>
@@ -35,6 +37,20 @@
               <!-- raw dictionary value on purpose (contract: no i18n mapping for dtl-status) -->
               <span class="dtl-status dtl-mono" data-testid="dtl-status">{{ node?.status }}</span>
               <span v-if="node?.environment" class="dtl-env dtl-mono" data-testid="dtl-environment">{{ node.environment }}</span>
+              <!-- OPT-6 per-route sync badge: rendered only after a successful query
+                   (hidden while querying / on failure / on legacy 404). No dedicated
+                   retry button - re-check goes through the existing dtl-refresh. -->
+              <span
+                v-if="syncState"
+                class="dtl-sync"
+                :class="`is-${syncState}`"
+                :data-state="syncState"
+                data-testid="dtl-sync-badge"
+                role="status"
+              >
+                <FcIcon :name="syncIcon" :size="12" />
+                {{ syncLabel }}
+              </span>
             </div>
             <div class="dtl-meta-row">
               <FcTag class="dtl-mono" data-testid="dtl-path" color="gray" size="sm">{{ node?.path || t('v2.routes.placeholder') }}</FcTag>
@@ -273,8 +289,8 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { FcButton, FcEmpty, FcIcon, FcSection, FcSkeleton, FcTag } from '@/components'
-import { listRoutes, getRouteVersions, getRouteVersionDiff } from '@/api/routes'
-import type { RouteNode, RouteVersionDto, RouteVersionDiffRow } from '@/api/routes'
+import { listRoutes, getRouteVersions, getRouteVersionDiff, getRouteSyncStatus } from '@/api/routes'
+import type { RouteNode, RouteVersionDto, RouteVersionDiffRow, RouteSyncStatus } from '@/api/routes'
 import RouteEditForm from './RouteEditForm.vue'
 import { fetchTrafficSummary, fetchRouteTimeseries, type RouteTrafficSummaryItem } from '@/api/v2'
 import { listAuditLogs, type AuditLogItem, type TimeseriesResponse } from '@/api/misc'
@@ -325,9 +341,34 @@ const versionsFailed = ref(false)
 const auditLogs = ref<AuditLogItem[]>([])
 const auditFailed = ref(false)
 
+// ── OPT-6 per-route 同步角标（一次性快照；查询中/失败/旧版后端404 → null = 隐藏）──
+const syncStatus = ref<RouteSyncStatus | null>(null)
+
 onMounted(() => {
   void loadAll()
+  // 角标查询不并入 loadAll 的五源 allSettled（独立 try/catch，见下方 loadSyncBadge 注释）
+  void loadSyncBadge()
 })
+
+/**
+ * OPT-6：per-route 同步状态（GET /v1/routes/{id}/sync-status）查询一次。
+ *
+ * 【旧测试兼容铁律】必须放在本函数的独立 try/catch 里：
+ * - 绝不并入 loadAll 的五源 allSettled 数组
+ * - 旧 Detail.test.ts 的 @/api/routes mock 只有 listRoutes/getRouteVersions/
+ *   getRouteVersionDiff 三个成员 → 新 import 的 getRouteSyncStatus 在其 mock 下是
+ *   undefined，调用即抛 TypeError。必须被这里的 catch 吞掉：角标置 null（隐藏）、
+ *   promise 正常 resolve（禁止浮动 rejection）。
+ * - 查询失败不轮询、不重试，只等下一次 dtl-refresh 手动刷新。
+ */
+async function loadSyncBadge() {
+  try {
+    const st = await getRouteSyncStatus(routeId.value)
+    syncStatus.value = st ?? null
+  } catch {
+    syncStatus.value = null
+  }
+}
 
 /** 五源 Promise.allSettled 并行；树之外任何一源失败只降级自己的分区 */
 async function loadAll() {
@@ -371,8 +412,9 @@ async function loadAll() {
   loading.value = false
 }
 
-/** 手动刷新（侦察结论 ⑥：不做轮询）：只重发 traffic + timeseries 两源 */
+/** 手动刷新（侦察结论 ⑥：不做轮询）：重发 traffic + timeseries 两源 + 同步角标再查一次 */
 async function refresh() {
+  void loadSyncBadge()
   const [trafficRes, tsRes] = await Promise.allSettled([
     fetchTrafficSummary(),
     fetchRouteTimeseries(routeId.value, '24h', '1h')
@@ -440,6 +482,33 @@ const sortedPlugins = computed(() => {
 const childCount = computed(() => node.value?.children?.length ?? 0)
 
 const hitsText = computed(() => (trafficItem.value ? formatHits(trafficItem.value.hits_24h) : '—'))
+
+// ── OPT-6 同步角标派生（available=false 时诚实呈现「状态未知」，不摆假警报）──
+/** null = 隐藏（未取得 / 查询失败）。data-state ∈ synced | delayed | unknown */
+const syncState = computed<'synced' | 'delayed' | 'unknown' | null>(() => {
+  const s = syncStatus.value
+  if (!s) return null
+  if (s.available === false) return 'unknown'
+  return s.in_sync === true ? 'synced' : 'delayed'
+})
+
+const syncLabel = computed(() => {
+  switch (syncState.value) {
+    case 'synced': return t('v2.routes.syncSynced')
+    case 'delayed': return t('v2.routes.syncDelayed')
+    case 'unknown': return t('v2.routes.syncUnknown')
+    default: return ''
+  }
+})
+
+const syncIcon = computed(() => {
+  switch (syncState.value) {
+    case 'synced': return 'ri-check-line'
+    case 'delayed': return 'ri-time-line'
+    case 'unknown': return 'ri-question-line'
+    default: return ''
+  }
+})
 
 const qpsText = computed(() => {
   if (!trafficItem.value) return '—'
@@ -733,6 +802,28 @@ function formatTime(v: string | number | null | undefined): string {
 .dtl-env {
   padding: 1px 8px; font-size: 11px; color: var(--app-text-secondary);
   border: 1px solid var(--app-separator); border-radius: var(--app-radius-full);
+}
+/* OPT-6 per-route 同步角标（页头 dtl-status 同排；synced=绿 / delayed=黄 / unknown=灰，
+   配方同 hint-banner 与 .dtl-env，token only） */
+.dtl-sync {
+  display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px;
+  font-size: 11px; border-radius: var(--app-radius-full); white-space: nowrap;
+  border: 1px solid transparent;
+  &.is-synced {
+    color: var(--app-color-success-text-on-tint);
+    background: color-mix(in srgb, var(--app-color-success) 12%, transparent);
+    border-color: color-mix(in srgb, var(--app-color-success) 30%, transparent);
+  }
+  &.is-delayed {
+    color: var(--app-color-warning-text-on-tint);
+    background: color-mix(in srgb, var(--app-color-warning) 12%, transparent);
+    border-color: color-mix(in srgb, var(--app-color-warning) 30%, transparent);
+  }
+  &.is-unknown {
+    color: var(--app-text-secondary);
+    background: var(--app-bg-muted);
+    border-color: var(--app-separator);
+  }
 }
 .dtl-meta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 8px; }
 .dtl-plugins { display: inline-flex; flex-wrap: wrap; gap: 4px; }

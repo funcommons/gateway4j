@@ -16,6 +16,29 @@
         <FcSegmented v-model="statusFilter" :options="segOptions" size="sm" />
         <FcFilterBarDivider />
         <FcInput v-model="keyword" :placeholder="t('v2.routes.searchPlaceholder')" :aria-label="t('v2.routes.searchPlaceholder')" clearable style="max-width: 240px" />
+        <!-- OPT-6 全局同步 chip：整页恰一枚（不随行渲染）。挂载即 start()（常态首发即 synced
+             = 等效查一次）；批量发布收尾 okCount>0 时重启一轮。delayed 时出重试钮。 -->
+        <span
+          v-if="syncPhase !== 'idle'"
+          class="lst-sync"
+          :class="`is-${syncPhase}`"
+          :data-phase="syncPhase"
+          data-testid="lst-sync-chip"
+          role="status"
+        >
+          <FcIcon :name="syncIcon" :size="12" />
+          <span>{{ syncLabel }}</span>
+          <FcButton
+            v-if="syncPhase === 'delayed'"
+            class="lst-sync-retry"
+            variant="text"
+            size="sm"
+            data-testid="lst-sync-retry"
+            @click="sync.retry()"
+          >
+            {{ t('v2.routes.syncRetry') }}
+          </FcButton>
+        </span>
         <template #actions>
           <FcButton v-if="canEdit('route')" variant="primary" data-testid="route-create" :icon="Plus" @click="goCreate">
             {{ t('v2.routes.create') }}
@@ -249,6 +272,7 @@ import { envelope } from '@/api/http'
 import { fetchRouteTimeseries, fetchTrafficSummary, type RouteTrafficSummaryItem } from '@/api/v2'
 import { usePermission } from '@/composables/usePermission'
 import { useFcConfirm } from '@/composables/useFcConfirm'
+import { usePublishSync } from '@/composables/usePublishSync'
 
 type DisplayRow = RouteNode & { depth: number }
 /** OPT-3 批量动作种类（后端无批量端点，执行 = 客户端逐条循环单条端点） */
@@ -270,6 +294,9 @@ const { t } = useI18n()
 const router = useRouter()
 const { canEdit } = usePermission()
 const { confirm: fcConfirm } = useFcConfirm()
+// OPT-6 全局同步轮询：整页一个实例（usePublishSync 注释铁律「一个页面实例一个轮询，不要每行一个」）。
+// 挂载即 start()（常态首发查询即 synced 终止 = 等效查一次）；批量发布收尾 okCount>0 时重启一轮。
+const sync = usePublishSync()
 
 const loading = ref(true)
 const rows = ref<DisplayRow[]>([])
@@ -352,6 +379,28 @@ const batIneligiblePublish = batIneligibleDelete // 同一门禁（DRAFT|OFFLINE
 
 onMounted(() => {
   void reload()
+  // reload 与同步轮询并行（reload 内不 start——批量下线/删除后的 reload 不得重启轮询）
+  sync.start()
+})
+
+// —— OPT-6 同步 chip 派生（phase 语义同 usePublishSync 终态原样）——
+const syncPhase = computed(() => sync.phase.value)
+
+const syncLabel = computed(() => {
+  switch (syncPhase.value) {
+    case 'polling': return t('v2.routes.syncSyncing')
+    case 'synced': return t('v2.routes.syncSynced')
+    case 'delayed': return t('v2.routes.syncDelayed')
+    default: return ''
+  }
+})
+
+const syncIcon = computed(() => {
+  switch (syncPhase.value) {
+    case 'synced': return 'ri-check-line'
+    case 'delayed': return 'ri-error-warning-line'
+    default: return 'ri-time-line'
+  }
 })
 
 /** 路由树与流量聚合并行加载；任一失败互不拖垮（降级：空态 / 错误条 + 流量列 —） */
@@ -697,17 +746,19 @@ async function runBatchAction(action: BatchAction) {
     batchFails.value = fails.map((f) => ({ ...f, name: nameById.get(f.id) ?? f.id }))
   }
   if (!fails.length) {
-    // 全部成功 → success + 重拉一次 + 清空选择
+    // 全部成功 → success + 同步轮询重启（仅发布；配置真变了）+ 重拉一次 + 清空选择
     toast.success(t(`v2.routes.${BATCH_T[action].success}`, { n: okCount }))
+    if (action === 'publish') sync.start()
     await reload()
     selectedIds.clear()
   } else if (okCount > 0) {
-    // 部分失败 → warning({ok} 成 {fail} 败) + 明细 + 重拉一次 + 清空选择
+    // 部分失败 → warning({ok} 成 {fail} 败) + 明细 + 同步轮询重启（仅发布）+ 重拉一次 + 清空选择
     toast.warning(t('v2.routes.batPartial', { ok: okCount, fail: fails.length }))
+    if (action === 'publish') sync.start()
     await reload()
     selectedIds.clear()
   } else {
-    // 全部失败 → error + 明细 + 不重拉 + 保留选择（便于修正后重试）
+    // 全部失败 → error + 明细 + 不重拉 + 不重启同步轮询 + 保留选择（便于修正后重试）
     toast.error(t(`v2.routes.${BATCH_T[action].failed}`))
   }
 }
@@ -830,6 +881,42 @@ td.col-check {
 .bat-progress {
   color: var(--app-text-secondary);
   font-variant-numeric: tabular-nums;
+}
+
+/* —— OPT-6 全局同步 chip（工具条区，route-create 同区；整页恰一枚不随行渲染。
+   三态染色 token only，配方同 .hint-banner；flex-wrap 防止 375 溢出）—— */
+.lst-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  font-size: 12px;
+  border-radius: var(--app-radius-full);
+  border: 1px solid transparent;
+  white-space: nowrap;
+
+  &.is-polling {
+    color: var(--app-accent-text-on-tint);
+    background: color-mix(in srgb, var(--app-primary) 12%, transparent);
+    border-color: color-mix(in srgb, var(--app-primary) 30%, transparent);
+  }
+
+  &.is-synced {
+    color: var(--app-color-success-text-on-tint);
+    background: color-mix(in srgb, var(--app-color-success) 12%, transparent);
+    border-color: color-mix(in srgb, var(--app-color-success) 30%, transparent);
+  }
+
+  &.is-delayed {
+    color: var(--app-color-warning-text-on-tint);
+    background: color-mix(in srgb, var(--app-color-warning) 12%, transparent);
+    border-color: color-mix(in srgb, var(--app-color-warning) 30%, transparent);
+  }
+}
+
+.lst-sync-retry {
+  height: 20px;
+  padding: 0 6px;
 }
 
 /* —— OPT-3 批量失败明细（页根级告警条；复用 .hint-banner is-error 底版）—— */

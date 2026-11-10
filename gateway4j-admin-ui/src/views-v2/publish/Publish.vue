@@ -90,6 +90,29 @@
               <FcIcon name="ri-error-warning-line" :size="14" />
               <span>{{ t('v2.publish.publishFailed') }}</span>
             </div>
+            <!-- OPT-6 同步角标：发布成功后 usePublishSync.start()、synced/delayed 即停。
+                 未发布 / 发布失败时 phase=idle 所以不渲染；仅 delayed 时出现重试按钮。 -->
+            <div
+              v-if="syncPhase !== 'idle'"
+              class="pub-sync"
+              :class="`is-${syncPhase}`"
+              :data-phase="syncPhase"
+              data-testid="pub-sync-badge"
+              role="status"
+            >
+              <FcIcon :name="syncIcon" :size="13" />
+              <span>{{ syncLabel }}</span>
+              <FcButton
+                v-if="syncPhase === 'delayed'"
+                class="pub-sync-retry"
+                variant="text"
+                size="sm"
+                data-testid="pub-sync-retry"
+                @click="sync.retry()"
+              >
+                {{ t('v2.routes.syncRetry') }}
+              </FcButton>
+            </div>
           </FcSectionCard>
 
           <div class="pub-main-grid">
@@ -172,10 +195,13 @@ import { listRoutes, publishRoute, getRouteVersions, getRouteVersionDiff } from 
 import type { RouteNode, RouteVersionDto, RouteVersionDiffRow } from '@/api/routes'
 import { fetchTrafficSummary } from '@/api/v2'
 import { usePermission } from '@/composables/usePermission'
+import { usePublishSync } from '@/composables/usePublishSync'
 
 const { t } = useI18n()
 const route = useRoute()
 const { canEdit } = usePermission()
+// OPT-6：发布成功确认轮询（本页是全站唯一的单条发布成功回调所在地；默认 1s/15s）
+const sync = usePublishSync()
 
 const routeId = computed(() => String(route.params.id ?? ''))
 
@@ -291,6 +317,9 @@ async function onPublish() {
   try {
     await publishRoute(routeId.value, desc.value.trim())
     ElMessage.success(t('v2.publish.published'))
+    // OPT-6：发布成功回调 → 同步轮询一轮（synced 即停；15s 超时 → delayed + 重试）。
+    // 失败分支不加（角标不渲染、零同步查询）。
+    sync.start()
     desc.value = ''
     await loadVersions()
   } catch {
@@ -305,6 +334,26 @@ function changeTypeLabel(v: RouteVersionDto): string {
   if (v.change_type === 'PUBLISH') return t('v2.publish.changePublish')
   return String(v.change_type ?? '')
 }
+
+// —— OPT-6 同步角标派生（phase 语义同 usePublishSync 终态原样）——
+const syncPhase = computed(() => sync.phase.value)
+
+const syncLabel = computed(() => {
+  switch (syncPhase.value) {
+    case 'polling': return t('v2.routes.syncSyncing')
+    case 'synced': return t('v2.routes.syncSynced')
+    case 'delayed': return t('v2.routes.syncDelayed')
+    default: return ''
+  }
+})
+
+const syncIcon = computed(() => {
+  switch (syncPhase.value) {
+    case 'synced': return 'ri-check-line'
+    case 'delayed': return 'ri-error-warning-line'
+    default: return 'ri-time-line'
+  }
+})
 
 // —— 展示格式化（数字/时间缩写，语义同 List.vue；占位一律走 i18n，不造裸 '—'）——
 function toNum(v: unknown): number {
@@ -496,6 +545,44 @@ $mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 /* 发布表单 */
 .pub-form-row { display: flex; align-items: flex-start; gap: 10px; }
 .pub-desc { flex: 1; min-width: 0; }
+
+/* OPT-6 同步角标（发布成功后出现；三态染色 token-only，配方同 hint-banner / badge-current） */
+.pub-sync {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 5px 12px;
+  font-size: 12px;
+  border-radius: var(--app-radius-md);
+  border: 1px solid transparent;
+
+  &.is-polling {
+    color: var(--app-accent-text-on-tint);
+    background: color-mix(in srgb, var(--app-primary) 12%, transparent);
+    border-color: color-mix(in srgb, var(--app-primary) 30%, transparent);
+  }
+
+  &.is-synced {
+    color: var(--app-color-success-text-on-tint);
+    background: color-mix(in srgb, var(--app-color-success) 12%, transparent);
+    border-color: color-mix(in srgb, var(--app-color-success) 30%, transparent);
+  }
+
+  &.is-delayed {
+    color: var(--app-color-warning-text-on-tint);
+    background: color-mix(in srgb, var(--app-color-warning) 12%, transparent);
+    border-color: color-mix(in srgb, var(--app-color-warning) 30%, transparent);
+  }
+}
+
+/* 重试钮在角标内压缩尺寸（text 变体的默认留白偏大） */
+.pub-sync-retry {
+  height: 22px;
+  padding: 0 6px;
+  margin-left: auto;
+}
 
 /* diff 卡 */
 .pub-diff-range {

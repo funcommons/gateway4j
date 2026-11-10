@@ -6,6 +6,7 @@ import fun.commons.framework4j.accesstoken.context.TokenContext;
 import fun.commons.framework4j.audit.annotation.Auditable;
 import fun.commons.framework4j.ratelimit.annotation.RateLimit;
 import fun.commons.framework4j.web.ApiResponse;
+import fun.commons.gateway4j.admin.service.ConfigSyncStatusService;
 import fun.commons.gateway4j.admin.service.ImportSnapshotService;
 import fun.commons.gateway4j.admin.service.RouteBindingService;
 import fun.commons.gateway4j.admin.service.RouteEnvironmentDiffService;
@@ -31,6 +32,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
@@ -52,14 +54,17 @@ public class RouteController {
     private final ImportSnapshotService importSnapshotService;
     private final RouteEnvironmentDiffService routeEnvironmentDiffService;
     private final RouteVersionService routeVersionService;
+    private final ConfigSyncStatusService configSyncStatusService;
 
+    @Autowired
     public RouteController(RouteService routeService, RouteCanvasService routeCanvasService,
                            RouteCanvasApplyService routeCanvasApplyService,
                            RouteBindingService routeBindingService,
                            RouteTransferService routeTransferService,
                            ImportSnapshotService importSnapshotService,
                            RouteEnvironmentDiffService routeEnvironmentDiffService,
-                           RouteVersionService routeVersionService) {
+                           RouteVersionService routeVersionService,
+                           ConfigSyncStatusService configSyncStatusService) {
         this.routeService = routeService;
         this.routeCanvasService = routeCanvasService;
         this.routeCanvasApplyService = routeCanvasApplyService;
@@ -68,6 +73,20 @@ public class RouteController {
         this.importSnapshotService = importSnapshotService;
         this.routeEnvironmentDiffService = routeEnvironmentDiffService;
         this.routeVersionService = routeVersionService;
+        this.configSyncStatusService = configSyncStatusService;
+    }
+
+    /** 旧 8 参构造（存量调用方兼容，同 ImportRequest/BulkIdsRequest 旧参构造风格）：同步状态服务缺省 null。 */
+    public RouteController(RouteService routeService, RouteCanvasService routeCanvasService,
+                           RouteCanvasApplyService routeCanvasApplyService,
+                           RouteBindingService routeBindingService,
+                           RouteTransferService routeTransferService,
+                           ImportSnapshotService importSnapshotService,
+                           RouteEnvironmentDiffService routeEnvironmentDiffService,
+                           RouteVersionService routeVersionService) {
+        this(routeService, routeCanvasService, routeCanvasApplyService, routeBindingService,
+                routeTransferService, importSnapshotService, routeEnvironmentDiffService,
+                routeVersionService, null);
     }
 
     @GetMapping
@@ -87,6 +106,27 @@ public class RouteController {
             throw new BusinessException(ErrorCode.ROUTE_NOT_FOUND);
         }
         return route;
+    }
+
+    /**
+     * OPT-6：per-route 同步状态 = 全局网关水位（{@link ConfigSyncStatusService#readSyncStatus()}）
+     * + 该路由行 config_version 现值。in_sync 沿用全局口径不做 per-route 版本比较
+     * （route_config_version 是「该行上次发布时的版本」，与全局水位天然不等，
+     * 任一路由发布即抬全局版本——OPT-6 裁决）。
+     */
+    @GetMapping("/{id}/sync-status")
+    public ApiResponse<Map<String, Object>> routeSyncStatus(@PathVariable Long id) {
+        Route route = routeService.getById(id);
+        if (route == null) {
+            throw new BusinessException(ErrorCode.ROUTE_NOT_FOUND);
+        }
+        Map<String, Object> status = configSyncStatusService.readSyncStatus();
+        // gateway 可为 null（available=false 降级）→ LinkedHashMap 拼装（Map.of 拒 null value）
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("route_id", id);
+        data.put("route_config_version", route.getConfigVersion());
+        data.putAll(status);
+        return ApiResponse.success(data);
     }
 
     @PostMapping

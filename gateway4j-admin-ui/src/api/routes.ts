@@ -1,4 +1,5 @@
 import { http, envelope } from './http'
+import type { GatewaySyncInfo } from './misc'
 
 export interface RouteNode {
   id: string
@@ -338,4 +339,32 @@ export function getRouteVersionDiff(id: string, from: string, to: string) {
   return envelope<RouteVersionDiffRow[]>(
     http.get(`/v1/routes/${id}/versions/diff`, { params: { from, to } })
   )
+}
+
+// ===== OPT-6: per-route 同步状态（详情页角标的数据源）=====
+
+/**
+ * GET /v1/routes/{id}/sync-status 的响应。in_sync 是【全局口径】
+ * （网关已加载到与 DB 一致的版本）。available=false（引擎未上报 / TTL 过期）时
+ * gateway 为 null（契约：形状同 @/api/misc SyncStatusResponse）。
+ */
+export interface RouteSyncStatus {
+  route_id: string
+  /** 字符串数字（Long→String 契约） */
+  route_config_version: string
+  /** false = 引擎状态未知（未上报 / Redis 失败 / TTL 过期），此时 gateway 为 null */
+  available: boolean
+  /** 形状同 @/api/misc GatewaySyncInfo；available=false 时为 null */
+  gateway: GatewaySyncInfo | null
+  db_version: number
+  /** true = 网关已加载到与 DB 一致的版本（发布生效） */
+  in_sync: boolean
+}
+
+/**
+ * per-route 同步状态：详情页【挂载时 + dtl-refresh 手动刷新时各查一次】的一次性快照用。
+ * Publish/List 页的轮询（usePublishSync）是另一套；详情页不做轮询。
+ */
+export function getRouteSyncStatus(id: string) {
+  return envelope<RouteSyncStatus>(http.get(`/v1/routes/${id}/sync-status`))
 }
