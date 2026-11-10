@@ -441,25 +441,43 @@ describe('P4f① 下线 — confirm(danger) → offlineRoute → toast + 重拉'
   })
 })
 
-describe('P4f① 删除 — confirm → deleteRoute → 行消失 + toast + 重拉', () => {
-  it('成功链：confirm({ variant:danger, title:confirmDeleteTitle, content:confirmDelete }) → deleteRoute(id) → 行消失 + toast.success(deleteSuccess) → reload', async () => {
-    const { wrapper } = await factory()
-    await wrapper.find('[data-testid="route-expand-r4"]').trigger('click')
-    await flushPromises()
-    const before = mocks.listRoutes.mock.calls.length
-    mocks.listRoutes.mockResolvedValue(defaultNodes().filter((n) => n.id !== 'r4'))
-    await cell(wrapper, 'r4', 'act-delete').trigger('click')
-    await flushPromises()
-    expect(mocks.fcConfirm).toHaveBeenCalledWith(expect.objectContaining({
-      variant: 'danger',
-      title: expect.stringContaining(t('v2.routes.confirmDeleteTitle')),
-      content: expect.stringContaining(t('v2.routes.confirmDelete'))
-    }))
-    expect(mocks.deleteRoute).toHaveBeenCalledTimes(1)
-    expect(mocks.deleteRoute).toHaveBeenCalledWith('r4')
-    expect(mocks.toast.success).toHaveBeenCalledWith(t('v2.routes.deleteSuccess'))
-    expect(mocks.listRoutes.mock.calls.length).toBeGreaterThan(before)
-    expect(row(wrapper, 'r4').exists(), '删除后行应消失').toBe(false)
+// LOW-4 改写（T 步裁决）：单条删除不再即时——confirm 后行乐观消失并进入 5s 撤销窗口，
+// 超时才真调 deleteRoute（成功静默重拉 / 失败回滚）。本文件真实计时器，故两用例局部 useFakeTimers
+// 推进 5s 窗口（finally 归还 real，避免污染同文件其他用例；List.undo.test.ts 为主全量表）。
+describe('P4f① 删除（LOW-4 undo 窗口语义）— confirm → 乐观移除 → 超时真删 / 失败回滚', () => {
+  it('成功链：confirm({ variant:danger, title:confirmDeleteTitle, content:confirmDelete }) → 行乐观消失 + deleteRoute 零调用 + undo 条目出现 → 5s 超时 → deleteRoute 恰一次 → 重拉 + 行消失（静默，不补 toast.success）', async () => {
+    vi.useFakeTimers()
+    try {
+      const { wrapper } = await factory()
+      await wrapper.find('[data-testid="route-expand-r4"]').trigger('click')
+      await flushPromises()
+      const before = mocks.listRoutes.mock.calls.length
+      mocks.listRoutes.mockResolvedValue(defaultNodes().filter((n) => n.id !== 'r4'))
+      await cell(wrapper, 'r4', 'act-delete').trigger('click')
+      await flushPromises()
+      expect(mocks.fcConfirm).toHaveBeenCalledWith(expect.objectContaining({
+        variant: 'danger',
+        title: expect.stringContaining(t('v2.routes.confirmDeleteTitle')),
+        content: expect.stringContaining(t('v2.routes.confirmDelete'))
+      }))
+      // 窗口期：零 API（不真删、不重拉）+ 行乐观消失 + undo 条目出现 + 不提前报成功
+      expect(mocks.deleteRoute, 'undo 窗口内不得真调 deleteRoute').not.toHaveBeenCalled()
+      expect(mocks.listRoutes.mock.calls.length, '乐观移除不得重拉列表').toBe(before)
+      expect(row(wrapper, 'r4').exists(), '确认后行应乐观消失').toBe(false)
+      expect(one(wrapper, 'del-undo-r4').exists(), 'undo 条目应出现').toBe(true)
+      expect(mocks.toast.success, '窗口期不提前报「已删除」').not.toHaveBeenCalled()
+      // 超时：真删恰一次 → 重拉恰一次 → 行消失 + 条目退场（静默收尾，裁决④）
+      await vi.advanceTimersByTimeAsync(5000)
+      await flushPromises()
+      expect(mocks.deleteRoute, '超时后应真删').toHaveBeenCalledTimes(1)
+      expect(mocks.deleteRoute).toHaveBeenCalledWith('r4')
+      expect(mocks.listRoutes.mock.calls.length, '超时完成应重拉恰一次').toBe(before + 1)
+      expect(row(wrapper, 'r4').exists(), '重拉后行应消失').toBe(false)
+      expect(one(wrapper, 'del-undo-r4').exists(), '完成后 undo 条目应退场').toBe(false)
+      expect(mocks.toast.success, '超时完成静默（undo 条目即通知，不重复播报）').not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('confirm=false → 不发 deleteRoute 不重拉', async () => {
@@ -474,17 +492,28 @@ describe('P4f① 删除 — confirm → deleteRoute → 行消失 + toast + 重�
     expect(mocks.listRoutes.mock.calls.length).toBe(before)
   })
 
-  it('deleteRoute 失败 → toast.error + 行仍在 + 不重拉', async () => {
+  it('超时失败 → 回滚：toast.error(后端原因) + 行恢复原位 + 不重拉 + 条目退场', async () => {
     mocks.deleteRoute.mockRejectedValue(new Error('已发布路由不可删除，请先下线'))
-    const { wrapper } = await factory()
-    await wrapper.find('[data-testid="route-expand-r4"]').trigger('click')
-    await flushPromises()
-    const before = mocks.listRoutes.mock.calls.length
-    await cell(wrapper, 'r4', 'act-delete').trigger('click')
-    await flushPromises()
-    expect(mocks.toast.error).toHaveBeenCalledWith(expect.stringContaining('请先下线'))
-    expect(mocks.listRoutes.mock.calls.length).toBe(before)
-    expect(row(wrapper, 'r4').exists()).toBe(true)
+    vi.useFakeTimers()
+    try {
+      const { wrapper } = await factory()
+      await wrapper.find('[data-testid="route-expand-r4"]').trigger('click')
+      await flushPromises()
+      const before = mocks.listRoutes.mock.calls.length
+      await cell(wrapper, 'r4', 'act-delete').trigger('click')
+      await flushPromises()
+      expect(row(wrapper, 'r4').exists(), '确认后行应先乐观消失').toBe(false)
+      await vi.advanceTimersByTimeAsync(5000)
+      await flushPromises()
+      expect(mocks.deleteRoute).toHaveBeenCalledTimes(1)
+      expect(mocks.toast.error).toHaveBeenCalledWith(expect.stringContaining('请先下线'))
+      expect(mocks.toast.success).not.toHaveBeenCalled()
+      expect(row(wrapper, 'r4').exists(), '删除失败必须回滚行（原位）').toBe(true)
+      expect(mocks.listRoutes.mock.calls.length, '失败不重拉').toBe(before)
+      expect(one(wrapper, 'del-undo-r4').exists(), '终态落定后条目应退场').toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 
@@ -979,5 +1008,275 @@ describe('OPT-3 源码契约 — List.vue fs 抽查（testid + 逐条循环接�
     expect(src).toContain('publishRoute')
     expect(src).toContain("'CHANGING'")
     expect(src).toContain('indeterminate')
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LOW-3 — 路由列表树形上下文（父子缩进 + 折叠组；docs/ui-v2/gateway4j-v2优化.md 低优先级 #9，对标 APISIX）
+// RED：行为未实现（List.vue 真实存在、mount 成功，只是没有折叠钮/折叠态），本段应先红。
+//
+// 语义契约（T 步裁决固化，C 按此实现）：
+//   缩进（现状锁定，勿回归）：flattenTree 平铺带 depth，行内 .rt-name 内联 padding-left
+//     = depth * 16px（根 0px / 一级 16px / 二级 32px；固定像素即契约，C 可换成 token/rem，
+//     但每级宽度必须保持 16px 等值且仍在 .rt-name 上可断言）。
+//   折叠（本票新增）：有子代（children.length > 0，任意层级）的行渲染折叠钮
+//     data-testid="tree-toggle-<id>"；无子代行不渲染。默认全部展开（现状不回归）：
+//     collapsedIds 语义 = 空集即全展开。点击切换该行**整组后代**可见性
+//     （嵌套组各自独立：折叠 c1 只隐藏 g1，兄弟分支与祖先不受影响；祖先链任一组折叠即隐藏）。
+//     aria-expanded：展开 true / 折叠 false 翻转；aria-label 随状态翻转
+//     （collapseChildren=「折叠子路由」/ expandChildren=「展开子路由」）。
+//   键盘可达：折叠钮为原生 <button>（平台默认 Tab 聚焦 + Enter/Space 激活，无需显式
+//     @keydown 转发——jsdom 不派发按钮 Enter 合成 click（T 步实测），故契约固化在
+//     元素形态 + aria 语义，不做 keydown 行为断言）。
+//   三态叠加裁决（折叠 × 状态筛选 × 选择，与 OPT-3 语义对齐）：
+//     ① 可见性独立运作：状态筛选 v-show 隐藏与树折叠隐藏互不覆盖（AND 合成）——
+//        折叠不解除筛选、筛选切换不解除折叠；折叠态跨筛选往返存活。
+//     ② 折叠隐藏走 v-show 保挂载（与 OPT-3 状态维度同通道）：子行仍在 DOM，
+//        选中读数不丢；hidden 不等于除名。
+//     ③ 选择集存活：selectedIds 与可见性解耦——折叠时已选子行仍计入 bat-count
+//        （bat-bar 不退场），重新展开后 checkbox 仍 checked。全选读数不在此契约内
+//        （折叠组是否参与 sel-all 由 C 裁决，仅要求与 visibleRows 派生链同一出口）。
+//   与 route-expand（行详情展开）严格互异：两钮并存 testid 不复用；树折叠不触发行详情
+//     （onRowClick 的 button 守卫 + @click.stop），详情开合不改变子组折叠态。
+// DOM 契约（新 testid 全表）：tree-toggle-<id>（唯一新增元素，落在 route-row-<id> 作用域内）
+// i18n（v2.routes.* 树追加，双语铁律 6）：collapseChildren / expandChildren
+// ═══════════════════════════════════════════════════════════════════════════
+
+const TREE_KEYS = ['collapseChildren', 'expandChildren'].map((k) => `v2.routes.${k}`)
+
+describe('LOW-3 树形折叠 — i18n key 双语存在（铁律 6）', () => {
+  it.each(TREE_KEYS)('%s 在 zh-CN 与 en-US 都存在', (key) => {
+    expect(dig(zhCN, key), `zh-CN 缺少 ${key}`).toBeDefined()
+    expect(dig(enUS, key), `en-US 缺少 ${key}`).toBeDefined()
+  })
+})
+
+/** LOW-3 树形夹具：p1(DISPATCH, depth0) → c1(depth1) → g1(depth2) + c2(depth1, OFFLINE)；solo 无子代对照。
+ *  状态混合（g1=DRAFT）专供「折叠 × 状态筛选」叠加断言；upstream_url 留空照 DISPATCH 惯例 */
+function treeNodes() {
+  return [
+    makeNode('p1', {
+      route_name: 'dispatch_root', route_type: 'DISPATCH', upstream_url: '',
+      children: [
+        makeNode('c1', {
+          route_name: 'child_one',
+          children: [makeNode('g1', { route_name: 'grand_child', status: 'DRAFT' })]
+        }),
+        makeNode('c2', { route_name: 'child_two', status: 'OFFLINE' })
+      ]
+    }),
+    makeNode('solo', { route_name: 'solo_leaf' })
+  ]
+}
+
+const treeToggle = (w: VueWrapper<any>, id: string) => w.find(`[data-testid="tree-toggle-${id}"]`)
+/** 行 display 内联读数（v-show 保挂载通道：'' 可见 / 'none' 隐藏；DOMWrapper.element 需显式 HTMLElement 断言，isChecked 同款；jsdom 实测口径见 T 步探针） */
+const rowDisplay = (w: VueWrapper<any>, id: string) => (row(w, id).element as HTMLElement).style.display
+const rowShown = (w: VueWrapper<any>, id: string) => rowDisplay(w, id) !== 'none'
+const treeSource = () => fs.readFileSync(path.resolve(__dirname, '../List.vue'), 'utf-8')
+
+describe('LOW-3 树形折叠 — 缩进与折叠钮渲染契约', () => {
+  beforeEach(() => {
+    mocks.listRoutes.mockResolvedValue(treeNodes())
+  })
+
+  it('子行视觉缩进（现状锁定）：.rt-name 内联 padding-left 根 0px / 一级 16px / 二级 32px', async () => {
+    const { wrapper } = await factory()
+    const namePad = (id: string) => (row(wrapper, id).find('.rt-name').element as HTMLElement).style.paddingLeft
+    expect(namePad('p1'), '根行不缩进').toBe('0px')
+    expect(namePad('c1'), '一级子行缩进 16px').toBe('16px')
+    expect(namePad('c2'), '一级子行缩进 16px').toBe('16px')
+    expect(namePad('g1'), '二级孙行缩进 32px').toBe('32px')
+  })
+
+  it('有子代行渲染折叠钮 tree-toggle-{id}（p1/c1）；无子代行不渲染（c2/g1/solo）', async () => {
+    const { wrapper } = await factory()
+    expect(treeToggle(wrapper, 'p1').exists(), 'p1 有子代应有折叠钮').toBe(true)
+    expect(treeToggle(wrapper, 'c1').exists(), 'c1 有孙代也应有折叠钮').toBe(true)
+    expect(treeToggle(wrapper, 'c2').exists(), 'c2 叶子不应有折叠钮').toBe(false)
+    expect(treeToggle(wrapper, 'g1').exists(), 'g1 叶子不应有折叠钮').toBe(false)
+    expect(treeToggle(wrapper, 'solo').exists(), 'solo 无子代不应有折叠钮').toBe(false)
+  })
+
+  it('折叠钮与行详情展开钮并存且互异：同父行内 tree-toggle 与 route-expand 同时存在', async () => {
+    const { wrapper } = await factory()
+    const p1 = row(wrapper, 'p1')
+    expect(p1.find('[data-testid="tree-toggle-p1"]').exists(), '树折叠钮（本票新增）').toBe(true)
+    expect(p1.find('[data-testid="route-expand-p1"]').exists(), '行详情展开钮（既有）').toBe(true)
+  })
+
+  it('源码契约 fs 抽查：tree-toggle- 动态 testid + collapseChildren/expandChildren 接入（P4f① 先例）', () => {
+    const src = treeSource()
+    expect(src).toContain('tree-toggle-')
+    expect(src).toContain('collapseChildren')
+    expect(src).toContain('expandChildren')
+    expect(src).toContain('collapsedIds')
+  })
+})
+
+describe('LOW-3 树形折叠 — 默认展开与点击切换', () => {
+  beforeEach(() => {
+    mocks.listRoutes.mockResolvedValue(treeNodes())
+  })
+
+  it('默认全部展开（现状不回归）：子行可见 + 折叠钮 aria-expanded=true', async () => {
+    const { wrapper } = await factory()
+    for (const id of ['c1', 'c2', 'g1']) {
+      expect(rowShown(wrapper, id), `子行 ${id} 默认应可见`).toBe(true)
+    }
+    expect(treeToggle(wrapper, 'p1').attributes('aria-expanded')).toBe('true')
+    expect(treeToggle(wrapper, 'c1').attributes('aria-expanded')).toBe('true')
+  })
+
+  it('点击折叠：整组后代 display:none 隐藏但仍挂载（v-show 保挂载），aria-expanded 翻 false', async () => {
+    const { wrapper } = await factory()
+    expect(treeToggle(wrapper, 'p1').exists(), '折叠钮契约未实现').toBe(true)
+    await treeToggle(wrapper, 'p1').trigger('click')
+    for (const id of ['c1', 'c2', 'g1']) {
+      const r = row(wrapper, id)
+      expect(r.exists(), `子行 ${id} 仍应挂载（不卸行）`).toBe(true)
+      expect((r.element as HTMLElement).style.display, `子行 ${id} 应被折叠隐藏`).toBe('none')
+    }
+    expect(rowShown(wrapper, 'p1'), '父行本身不隐藏').toBe(true)
+    expect(treeToggle(wrapper, 'p1').attributes('aria-expanded')).toBe('false')
+  })
+
+  it('再点击展开：子行恢复可见 + aria-expanded 回 true（折叠可逆）', async () => {
+    const { wrapper } = await factory()
+    expect(treeToggle(wrapper, 'p1').exists(), '折叠钮契约未实现').toBe(true)
+    await treeToggle(wrapper, 'p1').trigger('click')
+    await treeToggle(wrapper, 'p1').trigger('click')
+    for (const id of ['c1', 'c2', 'g1']) {
+      expect(rowShown(wrapper, id), `子行 ${id} 应恢复可见`).toBe(true)
+    }
+    expect(treeToggle(wrapper, 'p1').attributes('aria-expanded')).toBe('true')
+  })
+
+  it('折叠只作用本组：折叠 p1 不波及同表无关节 solo', async () => {
+    const { wrapper } = await factory()
+    expect(treeToggle(wrapper, 'p1').exists(), '折叠钮契约未实现').toBe(true)
+    await treeToggle(wrapper, 'p1').trigger('click')
+    expect(rowShown(wrapper, 'solo'), '无关节不应被波及').toBe(true)
+    expect(rowDisplay(wrapper, 'g1')).toBe('none')
+  })
+
+  it('嵌套组独立折叠：折叠 c1 仅隐藏 g1，c2/p1 不受影响；折叠 p1 后重开，c1 折叠态独立存活', async () => {
+    const { wrapper } = await factory()
+    expect(treeToggle(wrapper, 'c1').exists(), '折叠钮契约未实现').toBe(true)
+    await treeToggle(wrapper, 'c1').trigger('click')
+    expect(rowDisplay(wrapper, 'g1'), '孙代应随 c1 折叠').toBe('none')
+    expect(rowShown(wrapper, 'c2'), '兄弟分支不受影响').toBe(true)
+    expect(rowShown(wrapper, 'p1'), '父行本身不隐藏').toBe(true)
+    await treeToggle(wrapper, 'p1').trigger('click')
+    await treeToggle(wrapper, 'p1').trigger('click')
+    expect(rowDisplay(wrapper, 'g1'), 'c1 折叠态不受父级开合影响').toBe('none')
+    expect(rowShown(wrapper, 'c2'), 'p1 重开后 c2 恢复可见').toBe(true)
+  })
+
+  it('折叠钮不触发行详情：点击后 route-detail 不挂载；折叠态下行详情仍可独立展开', async () => {
+    const { wrapper } = await factory()
+    expect(treeToggle(wrapper, 'p1').exists(), '折叠钮契约未实现').toBe(true)
+    expect(wrapper.find('[data-testid="route-detail-p1"]').exists()).toBe(false)
+    await treeToggle(wrapper, 'p1').trigger('click')
+    expect(wrapper.find('[data-testid="route-detail-p1"]').exists(), '树折叠不得触发行详情').toBe(false)
+    expect(rowDisplay(wrapper, 'c2'), '子组应已折叠').toBe('none')
+    await wrapper.find('[data-testid="route-expand-p1"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="route-detail-p1"]').exists(), '折叠态下详情行仍可展开').toBe(true)
+    expect(rowDisplay(wrapper, 'c2'), '详情展开不得反向解锁折叠').toBe('none')
+  })
+
+  it('详情展开态下折叠子组：详情行保留 + 子行隐藏（两套展开互不覆盖）', async () => {
+    const { wrapper } = await factory()
+    expect(treeToggle(wrapper, 'p1').exists(), '折叠钮契约未实现').toBe(true)
+    await wrapper.find('[data-testid="route-expand-p1"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="route-detail-p1"]').exists()).toBe(true)
+    await treeToggle(wrapper, 'p1').trigger('click')
+    expect(wrapper.find('[data-testid="route-detail-p1"]').exists(), '详情不应被子组折叠波及').toBe(true)
+    expect(rowDisplay(wrapper, 'c1'), '子行应被折叠').toBe('none')
+  })
+})
+
+describe('LOW-3 树形折叠 — 折叠 × 选择（selectedIds 跨折叠存活，OPT-3 语义延伸）', () => {
+  beforeEach(() => {
+    mocks.listRoutes.mockResolvedValue(treeNodes())
+  })
+
+  it('折叠时已选子行仍计入 bat-count 且选择框保持挂载（隐藏不除名）', async () => {
+    const { wrapper } = await factory()
+    await rowCbx(wrapper, 'c2').setValue(true)
+    expect(one(wrapper, 'bat-count').text()).toContain(tf('batSelected', { n: 1 }))
+    expect(treeToggle(wrapper, 'p1').exists(), '折叠钮契约未实现').toBe(true)
+    await treeToggle(wrapper, 'p1').trigger('click')
+    expect(rowDisplay(wrapper, 'c2'), '已选子行应被折叠隐藏').toBe('none')
+    expect(rowCbx(wrapper, 'c2').exists(), '隐藏但仍挂载（读数不丢）').toBe(true)
+    expect(one(wrapper, 'bat-count').text(), '折叠不得把已选子行除名').toContain(tf('batSelected', { n: 1 }))
+    expect(one(wrapper, 'bat-bar').exists(), '选择集非空批量条不退场').toBe(true)
+  })
+
+  it('重新展开后已选子行 checkbox 仍 checked（折叠往返不丢选择）', async () => {
+    const { wrapper } = await factory()
+    await rowCbx(wrapper, 'c2').setValue(true)
+    expect(treeToggle(wrapper, 'p1').exists(), '折叠钮契约未实现').toBe(true)
+    await treeToggle(wrapper, 'p1').trigger('click')
+    await treeToggle(wrapper, 'p1').trigger('click')
+    expect(isChecked(wrapper, 'c2'), '折叠往返后选中读数保留').toBe(true)
+  })
+})
+
+describe('LOW-3 树形折叠 — 折叠 × 状态筛选叠加（可见性独立运作）', () => {
+  beforeEach(() => {
+    mocks.listRoutes.mockResolvedValue(treeNodes())
+  })
+
+  it('组合：折叠 p1 后切 DRAFT —— p1/solo 被筛选隐藏，DRAFT 的 g1 仍被折叠隐藏（AND 合成）', async () => {
+    const { wrapper } = await factory()
+    expect(treeToggle(wrapper, 'p1').exists(), '折叠钮契约未实现').toBe(true)
+    await treeToggle(wrapper, 'p1').trigger('click')
+    await pickStatus(wrapper, t('v2.routes.statusDraft'))
+    expect(rowDisplay(wrapper, 'p1'), 'PUBLISHED 父行被状态筛选隐藏').toBe('none')
+    expect(rowDisplay(wrapper, 'solo'), 'PUBLISHED 无关节被状态筛选隐藏').toBe('none')
+    expect(rowDisplay(wrapper, 'g1'), 'DRAFT 命中筛选但仍被折叠隐藏（两维独立）').toBe('none')
+    expect(rowCbx(wrapper, 'g1').exists(), '叠加隐藏仍保挂载').toBe(true)
+  })
+
+  it('筛选切换不丢折叠态：DRAFT → ALL 往返后父行恢复可见而子行仍隐藏', async () => {
+    const { wrapper } = await factory()
+    expect(treeToggle(wrapper, 'p1').exists(), '折叠钮契约未实现').toBe(true)
+    await treeToggle(wrapper, 'p1').trigger('click')
+    await pickStatus(wrapper, t('v2.routes.statusDraft'))
+    await pickStatus(wrapper, t('v2.routes.filterAll'))
+    expect(rowShown(wrapper, 'p1'), '父行不受自身折叠影响应恢复').toBe(true)
+    expect(rowShown(wrapper, 'solo')).toBe(true)
+    for (const id of ['c1', 'c2', 'g1']) {
+      expect(rowDisplay(wrapper, id), `子行 ${id} 折叠态跨筛选存活`).toBe('none')
+    }
+  })
+})
+
+describe('LOW-3 树形折叠 — 键盘可达与无障碍语义', () => {
+  beforeEach(() => {
+    mocks.listRoutes.mockResolvedValue(treeNodes())
+  })
+
+  it('折叠钮为原生 <button>（平台默认 Tab 聚焦 + Enter/Space 激活）且带 aria-expanded', async () => {
+    const { wrapper } = await factory()
+    const tg = treeToggle(wrapper, 'p1')
+    expect(tg.exists(), '折叠钮契约未实现').toBe(true)
+    // jsdom 不派发原生按钮的 Enter 合成 click（T 步实测），键盘可达性契约固化在元素形态：
+    // 原生 button 即承诺用户代理默认键盘行为，无需显式 @keydown 转发（Monitor 行下钻先例仅 div 需要）
+    expect(tg.element.tagName).toBe('BUTTON')
+    expect(tg.attributes('tabindex')).not.toBe('-1')
+    expect(tg.attributes('aria-expanded'), 'aria-expanded 必须存在（真值随状态翻转）').toBeDefined()
+  })
+
+  it('aria-label 随状态翻转：展开态=collapseChildren 文案、折叠态=expandChildren 文案', async () => {
+    const { wrapper } = await factory()
+    const tg = treeToggle(wrapper, 'p1')
+    expect(tg.exists(), '折叠钮契约未实现').toBe(true)
+    expect(tg.attributes('aria-label')).toBe(t('v2.routes.collapseChildren'))
+    await tg.trigger('click')
+    expect(treeToggle(wrapper, 'p1').attributes('aria-label')).toBe(t('v2.routes.expandChildren'))
   })
 })

@@ -84,7 +84,11 @@
         颜色/圆角/阴影全部走 token。
       -->
       <!-- P1-1b: 表格包进固定横滚容器（overflow-x:auto + min-width:0）—— 375 宽下 body 不再被撑开，仅容器内横滚 -->
-      <div v-else-if="filteredRows.length" class="rt-table-scroll">
+      <!-- LOW-3：空态门走 keyword 维度（唯一卸行维度）——树折叠全隐藏时行仍挂载
+           （v-show 保挂载：hidden 不等于除名，全选/读数/勾选框不被空态分支顶掉）。
+           LOW-4：状态维度空判上探到 alive 集（statusAlive）——undo 入窗行不撑起非空表，
+           唯一草稿入窗后 DRAFT 视图呈空态；折叠隐藏不计入空判（折叠行仍保挂载） -->
+      <div v-else-if="keywordRows.length && statusAlive" class="rt-table-scroll">
         <table class="rt-table">
           <thead>
             <tr>
@@ -112,8 +116,9 @@
           </thead>
           <!-- 每行一个 tbody（合法 HTML）：route-row-<id> 锚点同时覆盖主行与展开行（含 card-actions），
                供行内作用域定位（单测 cell() / e2e filter({ hasText })）。点击处理仍在主行 tr，行为不变。
-               OPT-3：v-for 走 keywordRows（keyword 维度唯一卸行）；状态维度行 v-show 隐藏保持挂载，
-               全选 merge 仅作用 filteredRows（可见行），筛选外选择框不被波及 -->
+               OPT-3：v-for 走 keywordRows（keyword 维度唯一卸行）；状态 + LOW-3 树折叠维度经 rowVisible
+               单出口 AND 合成，行 v-show 隐藏保持挂载，全选 merge 仅作用 filteredRows（可见行），
+               筛选外/折叠内选择框不被波及 -->
           <tbody v-for="row in keywordRows" :key="row.id" v-show="rowVisible(row)" :data-testid="`route-row-${row.id}`">
               <tr class="rt-row" :class="{ 'is-open': isOpen(row.id) }" @click="onRowClick(row, $event)">
                 <!-- OPT-3 行选择：原生 checkbox（aria-label=route_name）；CHANGING 行禁选
@@ -133,7 +138,26 @@
                   <FcButton class="rt-toggle" :class="{ 'is-open': isOpen(row.id) }" variant="text" size="sm" circle :aria-expanded="isOpen(row.id)" :aria-label="row.route_name" :data-testid="`route-expand-${row.id}`" @click.stop="toggleRow(row.id)">
                     <FcIcon name="ri-arrow-down-s-line" :size="14" />
                   </FcButton>
-                  <span class="rt-name" :style="{ paddingLeft: `${row.depth * 16}px` }">{{ row.route_name }}</span>
+                  <!-- LOW-3 树形折叠钮：有子代（任意层级）才渲染，叶子行等宽占位保持同层名对齐；
+                       折叠态语义在 collapsedIds（与行详情 expanded 集合完全分离），aria 双态换 key；
+                       @click.stop + onRowClick 的 button 守卫双通道，树折叠不触发行详情 -->
+                  <span class="rt-name" :style="{ paddingLeft: `${row.depth * 16}px` }">
+                    <FcButton
+                      v-if="row.children?.length"
+                      class="rt-tree-toggle"
+                      variant="text"
+                      size="sm"
+                      circle
+                      :aria-expanded="collapsedIds.has(row.id) ? 'false' : 'true'"
+                      :aria-label="collapsedIds.has(row.id) ? t('v2.routes.expandChildren') : t('v2.routes.collapseChildren')"
+                      :data-testid="`tree-toggle-${row.id}`"
+                      @click.stop="toggleTree(row.id)"
+                    >
+                      <FcIcon :name="collapsedIds.has(row.id) ? 'ri-arrow-right-s-line' : 'ri-arrow-down-s-line'" :size="14" />
+                    </FcButton>
+                    <span v-else class="rt-tree-slot" aria-hidden="true" />
+                    {{ row.route_name }}
+                  </span>
                 </td>
                 <td><FcTag data-testid="route-path" color="gray" size="sm" class="rt-path">{{ row.path || '—' }}</FcTag></td>
                 <td>
@@ -244,11 +268,23 @@
         </ul>
       </div>
     </div>
+
+    <!-- LOW-4 单条删除 undo 条：页根级（bat-fail-detail 同位，不随筛选/滚动退场），pending ≥1 渲染；
+         多条并发并存时容器恰一枚（独立窗口各自 timer 互不牵连，裁决②） -->
+    <div v-if="pendingDeletes.size > 0" class="undo-bar" data-testid="del-undo-bar" role="status">
+      <div v-for="p in pendingList" :key="p.row.id" class="undo-item" :data-testid="`del-undo-${p.row.id}`">
+        <span class="undo-text">{{ t('v2.routes.delUndoDeleted', { name: p.row.route_name }) }}</span>
+        <span class="undo-countdown" :data-testid="`del-undo-countdown-${p.row.id}`">{{ t('v2.routes.delUndoCountdown', { n: p.remaining }) }}</span>
+        <FcButton variant="secondary" size="sm" :data-testid="`del-undo-btn-${p.row.id}`" @click="undoPendingDelete(p.row.id)">
+          {{ t('v2.routes.delUndoBtn') }}
+        </FcButton>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { Plus } from '@element-plus/icons-vue'
@@ -274,7 +310,8 @@ import { usePermission } from '@/composables/usePermission'
 import { useFcConfirm } from '@/composables/useFcConfirm'
 import { usePublishSync } from '@/composables/usePublishSync'
 
-type DisplayRow = RouteNode & { depth: number }
+/** LOW-3 祖先链：每行携带从根到直接父级的 id 链（根行为空链），供折叠可见性单出口判定 */
+type DisplayRow = RouteNode & { depth: number; ancestors: string[] }
 /** OPT-3 批量动作种类（后端无批量端点，执行 = 客户端逐条循环单条端点） */
 type BatchAction = 'offline' | 'delete' | 'publish'
 /** 批量失败明细项（bat-fail-<id>：route_name + 后端拒绝原因；门禁跳过项不进明细） */
@@ -313,6 +350,28 @@ const batchDone = ref(0)
 const batchTotal = ref(0)
 const batchFails = ref<BatchFail[]>([])
 
+// ═══════ LOW-4 单条删除 undo 窗口（v2 优化 低优先级 #10：删除不再即时，5s 内可撤销）═════════
+/** undo 窗口宽度：倒计时整数秒 5→1，到期才触发真删（裁决⑧） */
+const UNDO_WINDOW_MS = 5000
+/** undo 窗口 pending 态：row 全保真（撤销零成本回原位）+ 双 timer（到期真删 / 每秒倒计时）+ 剩余整数秒 */
+interface PendingDelete {
+  row: DisplayRow
+  timer: ReturnType<typeof setTimeout>
+  tick: ReturnType<typeof setInterval>
+  remaining: number
+}
+/** Map 保插入序（多条并存条目按删除先后排列）；ref 深响应：set/delete/remaining 步进均触发派生 */
+const pendingDeletes = ref(new Map<string, PendingDelete>())
+/** 模板迭代通道（Map → 数组；remaining 每秒步进经此触发重渲染） */
+const pendingList = computed(() => [...pendingDeletes.value.values()])
+const pendingIds = computed(() => new Set(pendingDeletes.value.keys()))
+/**
+ * 乐观移除唯一出口（裁决⑥）：aliveRows = rows − pending。移除落在派生层过滤、rows 数组
+ * 永不被 mutation——撤销零成本回原位；keywordRows / 门禁矩阵 statusById / pruneSelection /
+ * 批量 qualified 四处下游全部改挂本集（一处派生四处互斥），不因状态筛选复活、不进批量。
+ */
+const aliveRows = computed(() => rows.value.filter((r) => !pendingIds.value.has(r.id)))
+
 const summaryById = computed(() => new Map(summaries.value.map((s) => [s.route_id, s])))
 const showFallbackHint = computed(() =>
   summaries.value.some((s) => s.source === 'snapshot' && s.quantile_fallback)
@@ -325,29 +384,52 @@ const segOptions = computed(() => [
   { value: 'OFFLINE', label: t('v2.routes.statusOffline') }
 ])
 
-/** keyword 维度：唯一把行从 DOM 移除的筛选（行移除后选择框随之卸载，选择集本身在状态里存活） */
+/** keyword 维度：唯一把行从 DOM 移除的筛选（行移除后选择框随之卸载，选择集本身在状态里存活）；
+ *  LOW-4：作用域上探到 aliveRows——undo 入窗行先于 keyword 卸行，不得被 keyword/状态筛选复活 */
 const keywordRows = computed(() => {
   const kw = keyword.value.trim().toLowerCase()
-  if (!kw) return rows.value
-  return rows.value.filter(
+  const source = aliveRows.value
+  if (!kw) return source
+  return source.filter(
     (r) => r.route_name.toLowerCase().includes(kw) || (r.path ?? '').toLowerCase().includes(kw)
   )
 })
-/** 可见行 = keyword ∩ 状态（全选 merge 语义 / 全选读数 / 空态分支的作用域） */
-const filteredRows = computed(
-  () => keywordRows.value.filter((r) => statusFilter.value === 'ALL' || r.status === statusFilter.value)
-)
-/** 状态维度：行保持挂载仅视觉隐藏（v-show）——筛选外已选可继续读数/保留 */
+/** 可见行 = keyword ∩ 状态 ∩ 树折叠（全选 merge 语义 / 全选读数 / 空态分支的作用域） */
+const filteredRows = computed(() => keywordRows.value.filter((r) => rowVisible(r)))
+/**
+ * 可见性单出口（LOW-3 折叠 × 状态筛选 AND 合成，与 OPT-3 同一通道）：
+ * 状态匹配 && 祖先链无任一 id 被折叠。树维度走 v-show 隐藏保挂载——折叠不卸行、
+ * 不除名选择集；keyword 维度照旧唯一卸行，两者互不覆盖。
+ */
 function rowVisible(row: DisplayRow): boolean {
-  return statusFilter.value === 'ALL' || row.status === statusFilter.value
+  if (statusFilter.value !== 'ALL' && row.status !== statusFilter.value) return false
+  return row.ancestors.every((id) => !collapsedIds.has(id))
 }
 
-/** RouteNode 树平铺（children 下沉一行，带层级缩进） */
-function flattenTree(nodes: RouteNode[], depth = 0): DisplayRow[] {
+/**
+ * LOW-4 状态维度空判：按 alive 集判定——undo 入窗行不撑起非空表（唯一 DRAFT 入窗后
+ * DRAFT 视图呈空态，而非「全行 v-show 藏尸」的空表）；折叠隐藏不计入空判
+ * （LOW-3 折叠行仍挂载：hidden 不等于除名，与 v-show 通道互不覆盖）。
+ */
+const statusAlive = computed(
+  () => statusFilter.value === 'ALL' || aliveRows.value.some((r) => r.status === statusFilter.value)
+)
+
+// —— LOW-3 树形折叠（与行详情 expanded 集合完全分离；空集 = 全部展开，默认态不回归）——
+const collapsedIds = reactive(new Set<string>())
+
+/** 切换该行整组后代的可见性（嵌套组各自独立：子组折叠态不受父级开合影响） */
+function toggleTree(id: string) {
+  if (collapsedIds.has(id)) collapsedIds.delete(id)
+  else collapsedIds.add(id)
+}
+
+/** RouteNode 树平铺（children 下沉一行，带层级缩进 + 祖先链） */
+function flattenTree(nodes: RouteNode[], depth = 0, ancestors: string[] = []): DisplayRow[] {
   const out: DisplayRow[] = []
   for (const n of nodes ?? []) {
-    out.push({ ...n, depth })
-    if (n.children?.length) out.push(...flattenTree(n.children, depth + 1))
+    out.push({ ...n, depth, ancestors })
+    if (n.children?.length) out.push(...flattenTree(n.children, depth + 1, [...ancestors, n.id]))
   }
   return out
 }
@@ -362,9 +444,9 @@ const selAllChecked = computed(
 const selAllIndeterminate = computed(
   () => !selAllChecked.value && selectableRows.value.some((r) => selectedIds.has(r.id))
 )
-/** 选中项状态（按全量行集合取——跨筛选/keyword 存活；已消失 id 视为不合格） */
+/** 选中项状态（按 alive 行集合取——跨筛选/keyword 存活；已消失 id 与 LOW-4 undo 入窗 id 均视为不合格） */
 const selectedStatuses = computed(() => {
-  const statusById = new Map(rows.value.map((r) => [r.id, r.status]))
+  const statusById = new Map(aliveRows.value.map((r) => [r.id, r.status]))
   return [...selectedIds].map((id) => statusById.get(id))
 })
 /** 批量门禁矩阵（照单条口径 + 后端 RouteService）：下线=含 ≥1 PUBLISHED；删除/发布=含 ≥1 DRAFT|OFFLINE */
@@ -381,6 +463,15 @@ onMounted(() => {
   void reload()
   // reload 与同步轮询并行（reload 内不 start——批量下线/删除后的 reload 不得重启轮询）
   sync.start()
+})
+
+// LOW-4（裁决⑦）：卸载/离开窗口期=放弃删除（安全侧）——清全部 pending timer，永不后台补刀
+onBeforeUnmount(() => {
+  for (const p of pendingDeletes.value.values()) {
+    clearTimeout(p.timer)
+    clearInterval(p.tick)
+  }
+  pendingDeletes.value.clear()
 })
 
 // —— OPT-6 同步 chip 派生（phase 语义同 usePublishSync 终态原样）——
@@ -618,7 +709,14 @@ async function onOffline(row: DisplayRow) {
   }
 }
 
-/** 删除（照旧页 L375-385 + L490-495，删除确认升 danger）：confirm → deleteRoute → 行消失 + toast + 重拉；失败不重拉 */
+/**
+ * 单条删除（LOW-4 undo 窗口）：confirm(danger) 语义与门禁一字不动 → 行乐观消失
+ * （aliveRows 派生层过滤，零 API 零重拉）→ 入 5s 撤销窗口（页根级 undo 条 + 每秒倒计时）：
+ *   撤销 → 纯本地恢复（清双 timer + 出 Map，零 API 零 reload 零 toast）；
+ *   超时 → 真删：成功=静默收尾（重拉 + prune，undo 条目即通知不重复 toast，裁决④）；
+ *          失败=回滚（出 Map 行自动恢复原位 + toast.error 后端原因 + 不重拉，裁决⑤）。
+ * 勾选态不保真（裁决③）：入窗即剔出选择集，防 bat-count 幽灵计数；撤销后勾选复位。
+ */
 async function onDelete(row: DisplayRow) {
   const ok = await fcConfirm({
     title: t('v2.routes.confirmDeleteTitle'),
@@ -626,14 +724,42 @@ async function onDelete(row: DisplayRow) {
     variant: 'danger'
   })
   if (!ok) return
+  selectedIds.delete(row.id)
+  pendingDeletes.value.set(row.id, {
+    row,
+    timer: setTimeout(() => { void commitPendingDelete(row.id) }, UNDO_WINDOW_MS),
+    tick: setInterval(() => {
+      const cur = pendingDeletes.value.get(row.id)
+      if (cur) cur.remaining -= 1
+    }, 1000),
+    remaining: Math.ceil(UNDO_WINDOW_MS / 1000)
+  })
+}
+
+/** undo 窗口到期：出窗（条目退场）→ 真删 → 成功静默收尾 / 失败回滚（数据安全侧） */
+async function commitPendingDelete(id: string) {
+  const pending = pendingDeletes.value.get(id)
+  if (!pending) return
+  clearTimeout(pending.timer)
+  clearInterval(pending.tick)
   try {
-    await execCommand(deleteRoute(row.id))
-    toast.success(t('v2.routes.deleteSuccess'))
+    await execCommand(deleteRoute(id))
     await reload()
     pruneSelection()
+    pendingDeletes.value.delete(id)
   } catch (e) {
+    pendingDeletes.value.delete(id)
     toast.error(e instanceof Error && e.message ? e.message : t('v2.routes.deleteFailed'))
   }
+}
+
+/** 撤销（纯本地恢复）：清双 timer + 出 Map → aliveRows 重含该行（零 API 零 reload 零 toast） */
+function undoPendingDelete(id: string) {
+  const pending = pendingDeletes.value.get(id)
+  if (!pending) return
+  clearTimeout(pending.timer)
+  clearInterval(pending.tick)
+  pendingDeletes.value.delete(id)
 }
 
 // ═══════════ OPT-3 批量操作（v2 优化建议 #2，对标 APISIX）═══════════
@@ -710,9 +836,9 @@ function clearSelection() {
   selectedIds.clear()
 }
 
-/** 单条写操作成功重拉后，选择集剔除已消失 id（幽灵计数防护） */
+/** 单条写操作成功重拉后，选择集剔除已消失 id（幽灵计数防护；LOW-4：undo 入窗行同视为已消失） */
 function pruneSelection() {
-  const alive = new Set(rows.value.map((r) => r.id))
+  const alive = new Set(aliveRows.value.map((r) => r.id))
   for (const id of [...selectedIds]) {
     if (!alive.has(id)) selectedIds.delete(id)
   }
@@ -721,7 +847,8 @@ function pruneSelection() {
 /** 批量入口：confirm(danger, {n=合格项数}) → 门禁过滤 → runBatch 逐条 → 收尾矩阵 */
 async function runBatchAction(action: BatchAction) {
   if (batchRunning.value) return
-  const qualified = rows.value
+  // LOW-4：qualified 源改挂 aliveRows——undo 入窗行不可被批量执行（入窗已剔出选择集，此处双保险）
+  const qualified = aliveRows.value
     .filter((r) => selectedIds.has(r.id) && batchQualified(action, r.status))
     .map((r) => r.id)
   if (!qualified.length) return
@@ -950,6 +1077,36 @@ td.col-check {
   color: color-mix(in srgb, var(--app-color-danger) 70%, var(--app-text));
 }
 
+/* —— LOW-4 单条删除 undo 条（页根级；配方同 .hint-banner，token only；
+   多条并存纵向堆叠，容器恰一枚不随行渲染）—— */
+.undo-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  border-radius: var(--app-radius-md);
+  background: color-mix(in srgb, var(--app-primary) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--app-primary) 25%, transparent);
+}
+
+.undo-item {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.undo-text {
+  color: var(--app-text);
+}
+
+.undo-countdown {
+  color: var(--app-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
 .col-num {
   text-align: right;
 }
@@ -997,6 +1154,21 @@ th.col-num {
 
 .rt-name {
   font-weight: 600;
+}
+
+/* —— LOW-3 树形折叠钮（嵌在 .rt-name 内，缩进契约仍在 .rt-name 内联 padding）——
+   叶子行等宽占位（el-button small circle = 24px），保证同层行名对齐不受「有无折叠钮」影响 */
+.rt-tree-toggle {
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.rt-tree-slot {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  margin-right: 4px;
+  vertical-align: middle;
 }
 
 .rt-path,
