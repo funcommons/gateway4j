@@ -1,6 +1,7 @@
 package fun.commons.gateway4j.admin.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import fun.commons.gateway4j.admin.mapper.PluginGroupItemMapper;
 import fun.commons.gateway4j.admin.mapper.PluginGroovyMapper;
 import fun.commons.gateway4j.common.mapper.PluginMapper;
@@ -428,5 +429,43 @@ class PluginServiceTest {
         pluginService.deletePlugin(1L);
 
         verify(groovyMapper).delete(any(LambdaQueryWrapper.class));
+    }
+
+    // ==================== P3-j：分页口径统一（尊重请求 pageSize，钳 [1,100]） ====================
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void listPluginsRespectsRequestedPageSize() {
+        // FW-V 实播回归：pageSize=1 必须精确生效（与 UserService/AuditLogService 口径对齐，
+        // 不再吃隐式下限）
+        pluginService.listPlugins(1, 1, null, null, null, null, null);
+
+        ArgumentCaptor<Page<Plugin>> pageCaptor = ArgumentCaptor.forClass(Page.class);
+        verify(pluginMapper).selectPage(pageCaptor.capture(), any(LambdaQueryWrapper.class));
+        assertEquals(1, pageCaptor.getValue().getSize());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void listPluginsClampsPageSizeToLowerBound() {
+        // 防 0/负数：0 与负值钳到 1（避免 MP size=0 跳过分页 / LIMIT 负数 SQL 异常）
+        pluginService.listPlugins(1, 0, null, null, null, null, null);
+        pluginService.listPlugins(1, -5, null, null, null, null, null);
+
+        ArgumentCaptor<Page<Plugin>> pageCaptor = ArgumentCaptor.forClass(Page.class);
+        verify(pluginMapper, times(2)).selectPage(pageCaptor.capture(), any(LambdaQueryWrapper.class));
+        assertEquals(1, pageCaptor.getAllValues().get(0).getSize());
+        assertEquals(1, pageCaptor.getAllValues().get(1).getSize());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void listPluginsClampsPageSizeToUpperBound() {
+        // 上限与 AuditLogService.MAX_PAGE_SIZE（100）对齐：服务层兜底，超限钳到 100
+        pluginService.listPlugins(1, 500, null, null, null, null, null);
+
+        ArgumentCaptor<Page<Plugin>> pageCaptor = ArgumentCaptor.forClass(Page.class);
+        verify(pluginMapper).selectPage(pageCaptor.capture(), any(LambdaQueryWrapper.class));
+        assertEquals(100, pageCaptor.getValue().getSize());
     }
 }

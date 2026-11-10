@@ -48,6 +48,9 @@ public class PluginService extends ServiceImpl<PluginMapper, Plugin> {
 
     public Page<Plugin> listPlugins(int page, int pageSize, String pluginType,
                                      String pluginPhase, String scope, String status, String keyword) {
+        // P3-j 分页口径统一：尊重请求 pageSize，钳 [1,100]（下限防 0/负数，上限与
+        // AuditLogService.MAX_PAGE_SIZE 同源；此前仅 Controller 钳上限，0/负数直达 MP 分页）。
+        pageSize = Math.max(1, Math.min(pageSize, AuditLogService.MAX_PAGE_SIZE));
         LambdaQueryWrapper<Plugin> wrapper = new LambdaQueryWrapper<>();
         if (pluginType != null) {
             wrapper.eq(Plugin::getPluginType, pluginType);
