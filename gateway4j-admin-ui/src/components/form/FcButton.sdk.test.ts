@@ -27,6 +27,15 @@ describe('FcButton', () => {
     expect(disabled.attributes('disabled')).toBeDefined()
   })
 
+  it('P3-k: variant=primary + disabled 命中禁用灰选择器 (.variant-primary.is-disabled) 且透传 disabled (与 danger 对称)', () => {
+    const w = mountFc(FcButton, { props: { variant: 'primary', disabled: true }, slots: { default: '存' } })
+    // 同 danger 契约钉: .variant-primary.is-disabled 同时在位 → primary 禁用灰
+    // (muted/border/tertiary 三通道, FcButton.vue 顶层兄弟规则) 生效路径成立。
+    const disabled = w.find('.fc-button.variant-primary.is-disabled')
+    expect(disabled.exists()).toBe(true)
+    expect(disabled.attributes('disabled')).toBeDefined()
+  })
+
   it('size=sm 输出 size-sm class', () => {
     const w = mountFc(FcButton, { props: { size: 'sm' }, slots: { default: 'x' } })
     expect(w.find('.fc-button.size-sm').exists()).toBe(true)

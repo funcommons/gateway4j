@@ -151,7 +151,9 @@ const listeners = {
 .fc-button.size-md { font-size: 13px; }
 .fc-button.size-lg { font-size: 14px; }
 
-.fc-button.variant-primary:not(.is-text-like):not(.is-plain) {
+/* P3-k 修复: 底色规则自身排除禁用态 (:not(.is-disabled)), 与下方 danger 段完全
+   对称 —— 禁用态只走显式禁用灰通道, 品牌底色永不泄漏进 disabled。 */
+.fc-button.variant-primary:not(.is-text-like):not(.is-plain):not(.is-disabled) {
   background: var(--app-primary-fill);
   border-color: var(--app-primary-fill);
   color: var(--app-on-primary);
@@ -183,6 +185,17 @@ const listeners = {
    :not(.is-disabled).is-disabled 自相矛盾永假)。特异性 (0,5,0) ≥ 底色规则
    (0,4,0) 且底色已自排除, 亦压过 EP 禁用变灰 ((0,2,0) 档)。 */
 .fc-button.variant-danger.is-disabled:not(.is-text-like):not(.is-plain) {
+  background: var(--app-bg-muted);
+  border-color: var(--app-border);
+  color: var(--app-text-tertiary);
+  cursor: not-allowed;
+}
+
+/* P3-k 修复: primary 禁用态中性灰镜像 (与 danger 禁用灰完全对称: 底/边/字三通道
+   + 光标), token 随 light/dark/orange-black 三主题自动翻转。同为顶层兄弟规则
+   (不可嵌回上方排除父选择器 —— &.is-disabled 会编译成 :not(.is-disabled).is-disabled
+   自相矛盾永假); 底色规则已自排除, 两者互斥, 同特异性 (0,5,0) 下无冲突。 */
+.fc-button.variant-primary.is-disabled:not(.is-text-like):not(.is-plain) {
   background: var(--app-bg-muted);
   border-color: var(--app-border);
   color: var(--app-text-tertiary);
