@@ -23,6 +23,37 @@
         </template>
       </FcFilterBar>
 
+      <!-- OPT-3 批量条：选中 ≥1 渲染；门禁矩阵（下线=含 ≥1 PUBLISHED；删除/发布=含 ≥1 DRAFT|OFFLINE）
+           + 混合态不可操作计数提示；执行中三钮 disabled 防重复点击；flex-wrap 保证 375 宽不溢出 -->
+      <div v-if="selectedIds.size > 0" class="bat-bar" data-testid="bat-bar">
+        <span class="bat-count" data-testid="bat-count">{{ t('v2.routes.batSelected', { n: selectedIds.size }) }}</span>
+        <FcButton v-if="canEdit('route')" variant="secondary" size="sm" data-testid="bat-offline" :disabled="batchRunning || !batHasPublished" @click="runBatchAction('offline')">
+          {{ t('v2.routes.batOffline') }}
+        </FcButton>
+        <FcButton v-if="canEdit('route')" variant="danger" size="sm" data-testid="bat-delete" :disabled="batchRunning || !batHasRepub" @click="runBatchAction('delete')">
+          {{ t('v2.routes.batDelete') }}
+        </FcButton>
+        <FcButton v-if="canEdit('route')" variant="secondary" size="sm" data-testid="bat-publish" :disabled="batchRunning || !batHasRepub" @click="runBatchAction('publish')">
+          {{ t('v2.routes.batPublish') }}
+        </FcButton>
+        <FcButton variant="text" size="sm" data-testid="bat-clear" @click="clearSelection">
+          {{ t('v2.routes.batClear') }}
+        </FcButton>
+        <!-- 混合态不可操作计数：仅在按钮可用且存在不合格项时出现（门禁跳过项执行时不进失败明细） -->
+        <span v-if="batHasPublished && batIneligibleOffline > 0" class="bat-hint" data-testid="bat-hint-offline">
+          {{ t('v2.routes.batHintOffline', { n: batIneligibleOffline }) }}
+        </span>
+        <span v-if="batHasRepub && batIneligibleDelete > 0" class="bat-hint" data-testid="bat-hint-delete">
+          {{ t('v2.routes.batHintDelete', { n: batIneligibleDelete }) }}
+        </span>
+        <span v-if="batHasRepub && batIneligiblePublish > 0" class="bat-hint" data-testid="bat-hint-publish">
+          {{ t('v2.routes.batHintPublish', { n: batIneligiblePublish }) }}
+        </span>
+        <span v-if="batchRunning" class="bat-progress" data-testid="bat-progress" role="status">
+          {{ t('v2.routes.batProgress', { done: batchDone, total: batchTotal }) }}
+        </span>
+      </div>
+
       <FcSkeleton v-if="loading" variant="text" :rows="8" />
       <!--
         行级 DOM 契约（S3-T）：data-testid=route-row-<id> 必须包裹该行全部单元格 testid，
@@ -34,6 +65,19 @@
         <table class="rt-table">
           <thead>
             <tr>
+              <!-- OPT-3 全选列：checked=可见可勾选行全选；indeterminate=部分选中；
+                   change 仅作用可见行（merge 语义，筛选外已选保留） -->
+              <th scope="col" class="col-check">
+                <input
+                  type="checkbox"
+                  class="bat-check"
+                  :checked="selAllChecked"
+                  :indeterminate="selAllIndeterminate"
+                  :aria-label="t('v2.routes.selectAll')"
+                  data-testid="sel-all"
+                  @change="onSelAll"
+                />
+              </th>
               <th scope="col" class="col-name">{{ t('v2.routes.colName') }}</th>
               <th scope="col">{{ t('v2.routes.colPath') }}</th>
               <th scope="col">{{ t('v2.routes.colFlow') }}</th>
@@ -44,9 +88,24 @@
             </tr>
           </thead>
           <!-- 每行一个 tbody（合法 HTML）：route-row-<id> 锚点同时覆盖主行与展开行（含 card-actions），
-               供行内作用域定位（单测 cell() / e2e filter({ hasText })）。点击处理仍在主行 tr，行为不变 -->
-          <tbody v-for="row in filteredRows" :key="row.id" :data-testid="`route-row-${row.id}`">
+               供行内作用域定位（单测 cell() / e2e filter({ hasText })）。点击处理仍在主行 tr，行为不变。
+               OPT-3：v-for 走 keywordRows（keyword 维度唯一卸行）；状态维度行 v-show 隐藏保持挂载，
+               全选 merge 仅作用 filteredRows（可见行），筛选外选择框不被波及 -->
+          <tbody v-for="row in keywordRows" :key="row.id" v-show="rowVisible(row)" :data-testid="`route-row-${row.id}`">
               <tr class="rt-row" :class="{ 'is-open': isOpen(row.id) }" @click="onRowClick(row, $event)">
+                <!-- OPT-3 行选择：原生 checkbox（aria-label=route_name）；CHANGING 行禁选
+                     （三动作全不适用，与单条 act-offline/act-delete 两钮均无同一口径） -->
+                <td class="col-check">
+                  <input
+                    type="checkbox"
+                    class="bat-check"
+                    :checked="selectedIds.has(row.id)"
+                    :disabled="row.status === 'CHANGING'"
+                    :aria-label="row.route_name"
+                    :data-testid="`sel-row-${row.id}`"
+                    @change="onRowCheck(row, $event)"
+                  />
+                </td>
                 <td class="col-name">
                   <FcButton class="rt-toggle" :class="{ 'is-open': isOpen(row.id) }" variant="text" size="sm" circle :aria-expanded="isOpen(row.id)" :aria-label="row.route_name" :data-testid="`route-expand-${row.id}`" @click.stop="toggleRow(row.id)">
                     <FcIcon name="ri-arrow-down-s-line" :size="14" />
@@ -69,7 +128,7 @@
               </tr>
               <!-- 展开行：懒加载时序 spark + 三卡片 -->
               <tr v-if="isOpen(row.id)" class="rt-detail-row">
-                <td :colspan="7">
+                <td :colspan="8">
                   <div class="rt-detail" :data-testid="`route-detail-${row.id}`">
                     <div class="rt-spark-wrap">
                       <FcSkeleton v-if="sparkOf(row.id)?.status === 'loading'" variant="text" :rows="1" />
@@ -148,6 +207,20 @@
       </div>
       <FcEmpty v-else data-testid="route-empty" type="empty" :title="t('v2.routes.empty')" />
     </FcSection>
+
+    <!-- OPT-3 批量失败明细：页根级（不随批量条/选择清空退场），只收后端拒绝项，保留到下次批量启动 -->
+    <div v-if="batchFails.length" class="hint-banner is-error bat-fail" data-testid="bat-fail-detail" role="alert">
+      <FcIcon name="ri-error-warning-line" :size="14" />
+      <div class="bat-fail-body">
+        <p class="bat-fail-title">{{ t('v2.routes.batFailTitle') }}</p>
+        <ul class="bat-fail-list">
+          <li v-for="f in batchFails" :key="f.id" :data-testid="`bat-fail-${f.id}`">
+            <span class="rt-name">{{ f.name }}</span>
+            <span class="bat-fail-reason">{{ f.reason }}</span>
+          </li>
+        </ul>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -171,12 +244,21 @@ import {
   FcTag,
   toast
 } from '@/components'
-import { deleteRoute, duplicateRoute, listRoutes, offlineRoute, type RouteNode } from '@/api/routes'
+import { deleteRoute, duplicateRoute, listRoutes, offlineRoute, publishRoute, type RouteNode } from '@/api/routes'
+import { envelope } from '@/api/http'
 import { fetchRouteTimeseries, fetchTrafficSummary, type RouteTrafficSummaryItem } from '@/api/v2'
 import { usePermission } from '@/composables/usePermission'
 import { useFcConfirm } from '@/composables/useFcConfirm'
 
 type DisplayRow = RouteNode & { depth: number }
+/** OPT-3 批量动作种类（后端无批量端点，执行 = 客户端逐条循环单条端点） */
+type BatchAction = 'offline' | 'delete' | 'publish'
+/** 批量失败明细项（bat-fail-<id>：route_name + 后端拒绝原因；门禁跳过项不进明细） */
+interface BatchFail {
+  id: string
+  name: string
+  reason: string
+}
 /** 展开行时序状态：loading/ok 即缓存（收起再展开不重复请求），error 允许重试 */
 type SparkState =
   | { status: 'loading' }
@@ -197,6 +279,12 @@ const statusFilter = ref<string>('ALL')
 const keyword = ref('')
 const expanded = reactive(new Set<string>())
 const sparks = reactive<Record<string, SparkState>>({})
+// OPT-3 批量：选择集（Set 跨筛选/展开/单条重拉存活）+ 执行态 + 失败明细（保留到下次批量启动）
+const selectedIds = reactive(new Set<string>())
+const batchRunning = ref(false)
+const batchDone = ref(0)
+const batchTotal = ref(0)
+const batchFails = ref<BatchFail[]>([])
 
 const summaryById = computed(() => new Map(summaries.value.map((s) => [s.route_id, s])))
 const showFallbackHint = computed(() =>
@@ -210,14 +298,22 @@ const segOptions = computed(() => [
   { value: 'OFFLINE', label: t('v2.routes.statusOffline') }
 ])
 
-const filteredRows = computed(() => {
+/** keyword 维度：唯一把行从 DOM 移除的筛选（行移除后选择框随之卸载，选择集本身在状态里存活） */
+const keywordRows = computed(() => {
   const kw = keyword.value.trim().toLowerCase()
-  return rows.value.filter((r) => {
-    if (statusFilter.value !== 'ALL' && r.status !== statusFilter.value) return false
-    if (!kw) return true
-    return r.route_name.toLowerCase().includes(kw) || (r.path ?? '').toLowerCase().includes(kw)
-  })
+  if (!kw) return rows.value
+  return rows.value.filter(
+    (r) => r.route_name.toLowerCase().includes(kw) || (r.path ?? '').toLowerCase().includes(kw)
+  )
 })
+/** 可见行 = keyword ∩ 状态（全选 merge 语义 / 全选读数 / 空态分支的作用域） */
+const filteredRows = computed(
+  () => keywordRows.value.filter((r) => statusFilter.value === 'ALL' || r.status === statusFilter.value)
+)
+/** 状态维度：行保持挂载仅视觉隐藏（v-show）——筛选外已选可继续读数/保留 */
+function rowVisible(row: DisplayRow): boolean {
+  return statusFilter.value === 'ALL' || row.status === statusFilter.value
+}
 
 /** RouteNode 树平铺（children 下沉一行，带层级缩进） */
 function flattenTree(nodes: RouteNode[], depth = 0): DisplayRow[] {
@@ -228,6 +324,31 @@ function flattenTree(nodes: RouteNode[], depth = 0): DisplayRow[] {
   }
   return out
 }
+
+// ——— OPT-3 选择态 / 门禁矩阵 ———
+/** 可勾选行 = 可见行剔除 CHANGING（三动作均不适用，与单条 act-offline/act-delete 两钮均无同一口径） */
+const selectableRows = computed(() => filteredRows.value.filter((r) => r.status !== 'CHANGING'))
+/** 表头全选读数：checked=可见可勾选行全选；indeterminate=部分选中 */
+const selAllChecked = computed(
+  () => selectableRows.value.length > 0 && selectableRows.value.every((r) => selectedIds.has(r.id))
+)
+const selAllIndeterminate = computed(
+  () => !selAllChecked.value && selectableRows.value.some((r) => selectedIds.has(r.id))
+)
+/** 选中项状态（按全量行集合取——跨筛选/keyword 存活；已消失 id 视为不合格） */
+const selectedStatuses = computed(() => {
+  const statusById = new Map(rows.value.map((r) => [r.id, r.status]))
+  return [...selectedIds].map((id) => statusById.get(id))
+})
+/** 批量门禁矩阵（照单条口径 + 后端 RouteService）：下线=含 ≥1 PUBLISHED；删除/发布=含 ≥1 DRAFT|OFFLINE */
+const batHasPublished = computed(() => selectedStatuses.value.includes('PUBLISHED'))
+const batHasRepub = computed(() => selectedStatuses.value.some((s) => s === 'DRAFT' || s === 'OFFLINE'))
+/** 混合态不可操作计数（按钮可用且 >0 时出「{n} 项不可X」提示） */
+const batIneligibleOffline = computed(() => selectedStatuses.value.filter((s) => s !== 'PUBLISHED').length)
+const batIneligibleDelete = computed(
+  () => selectedStatuses.value.filter((s) => s !== 'DRAFT' && s !== 'OFFLINE').length
+)
+const batIneligiblePublish = batIneligibleDelete // 同一门禁（DRAFT|OFFLINE）
 
 onMounted(() => {
   void reload()
@@ -423,14 +544,26 @@ async function onCopy(row: DisplayRow) {
   }
 }
 
+/**
+ * 单条命令端点信封归一：offline/delete/publish 三个控制器返回裸实体（非 ApiResponse），
+ * 而业务拒绝走 AdminGlobalExceptionHandler → HTTP 200 + 失败信封（code≠0）。
+ * 裸 http 调用会把失败信封当成功 resolve（成功 toast / 批量计成功）——必须过
+ * envelope()：code≠0 抛 BusinessError（进 catch → 错误 toast / 批量失败明细），
+ * 成功裸实体或空体（delete 返回 void）原样透传。
+ */
+function execCommand(p: Promise<unknown>): Promise<unknown> {
+  return envelope(p)
+}
+
 /** 下线（语义照旧树 src/views/routes/List.vue L363-374）：confirm(danger) → offlineRoute → toast + 重拉；失败不重拉 */
 async function onOffline(row: DisplayRow) {
   const ok = await fcConfirm({ title: t('v2.routes.confirmOffline'), variant: 'danger' })
   if (!ok) return
   try {
-    await offlineRoute(row.id)
+    await execCommand(offlineRoute(row.id))
     toast.success(t('v2.routes.offlineSuccess'))
     await reload()
+    pruneSelection()
   } catch (e) {
     toast.error(e instanceof Error && e.message ? e.message : t('v2.routes.offlineFailed'))
   }
@@ -445,11 +578,137 @@ async function onDelete(row: DisplayRow) {
   })
   if (!ok) return
   try {
-    await deleteRoute(row.id)
+    await execCommand(deleteRoute(row.id))
     toast.success(t('v2.routes.deleteSuccess'))
     await reload()
+    pruneSelection()
   } catch (e) {
     toast.error(e instanceof Error && e.message ? e.message : t('v2.routes.deleteFailed'))
+  }
+}
+
+// ═══════════ OPT-3 批量操作（v2 优化建议 #2，对标 APISIX）═══════════
+// 后端零改动：执行 = 客户端逐条顺序 await 单条端点（进度只有逐条才有；bulk* 端点为 P3 未来切换候选）。
+// 门禁矩阵照单条口径（offline 仅 PUBLISHED；delete/publish 仅 DRAFT|OFFLINE）；
+// 收尾矩阵：全成 → success + 重拉一次 + 清空；部分失败 → warning + 明细 + 重拉 + 清空；
+// 全败 → error + 明细 + 不重拉（单条「失败不重拉」口径的批量延伸）。
+
+/**
+ * 批量执行纯函数：逐条顺序 await（非并行——进度可见、后端压力可控），
+ * 单条失败不中断后续（逐条尝试不因单条失败中断）；只收集「后端拒绝项」，
+ * 门禁跳过项由调用方先过滤，不经过本函数、不进明细。
+ */
+async function runBatch(
+  ids: string[],
+  exec: (id: string) => Promise<unknown>,
+  onProgress?: (done: number) => void
+): Promise<{ fails: Array<{ id: string; reason: string }> }> {
+  const fails: Array<{ id: string; reason: string }> = []
+  let done = 0
+  for (const id of ids) {
+    try {
+      await exec(id)
+    } catch (e) {
+      fails.push({ id, reason: e instanceof Error && e.message ? e.message : String(e) })
+    }
+    done += 1
+    onProgress?.(done)
+  }
+  return { fails }
+}
+
+/** 批量 confirm / 成功 / 全败 toast 的 i18n key（v2.routes.* 树） */
+const BATCH_T: Record<BatchAction, { confirm: string; success: string; failed: string }> = {
+  offline: { confirm: 'batOfflineConfirm', success: 'batOfflineSuccess', failed: 'batOfflineFailed' },
+  delete: { confirm: 'batDeleteConfirm', success: 'batDeleteSuccess', failed: 'batDeleteFailed' },
+  publish: { confirm: 'batPublishConfirm', success: 'batPublishSuccess', failed: 'batPublishFailed' }
+}
+
+/** 执行前门禁过滤：仅合格项调用 API，不合格项跳过（不计入失败明细） */
+function batchQualified(action: BatchAction, status: RouteNode['status']): boolean {
+  if (action === 'offline') return status === 'PUBLISHED'
+  return status === 'DRAFT' || status === 'OFFLINE'
+}
+
+/** 单条端点分发（批量发布不传 changeDescription，保持无 body 兼容契约）；信封归一见 execCommand */
+function batchExec(action: BatchAction, id: string): Promise<unknown> {
+  if (action === 'offline') return execCommand(offlineRoute(id))
+  if (action === 'delete') return execCommand(deleteRoute(id))
+  return execCommand(publishRoute(id))
+}
+
+/** 行勾选：CHANGING 行禁选兜底回拨（真浏览器 disabled 拦得住，jsdom 激活仍派发，双保险） */
+function onRowCheck(row: DisplayRow, e: Event) {
+  const input = e.target as HTMLInputElement
+  if (row.status === 'CHANGING') {
+    input.checked = false
+    return
+  }
+  if (input.checked) selectedIds.add(row.id)
+  else selectedIds.delete(row.id)
+}
+
+/** 表头全选（merge 语义照 ImportExport）：仅把可见可勾选行并入/移出，筛选外已选保留 */
+function onSelAll(e: Event) {
+  const checked = (e.target as HTMLInputElement).checked
+  for (const r of selectableRows.value) {
+    if (checked) selectedIds.add(r.id)
+    else selectedIds.delete(r.id)
+  }
+}
+
+function clearSelection() {
+  selectedIds.clear()
+}
+
+/** 单条写操作成功重拉后，选择集剔除已消失 id（幽灵计数防护） */
+function pruneSelection() {
+  const alive = new Set(rows.value.map((r) => r.id))
+  for (const id of [...selectedIds]) {
+    if (!alive.has(id)) selectedIds.delete(id)
+  }
+}
+
+/** 批量入口：confirm(danger, {n=合格项数}) → 门禁过滤 → runBatch 逐条 → 收尾矩阵 */
+async function runBatchAction(action: BatchAction) {
+  if (batchRunning.value) return
+  const qualified = rows.value
+    .filter((r) => selectedIds.has(r.id) && batchQualified(action, r.status))
+    .map((r) => r.id)
+  if (!qualified.length) return
+  const agreed = await fcConfirm({
+    variant: 'danger',
+    title: t(`v2.routes.${BATCH_T[action].confirm}`, { n: qualified.length })
+  })
+  if (!agreed) return
+  batchFails.value = [] // 明细保留到下次批量启动：启动时清上一轮（confirm 取消不算启动）
+  batchRunning.value = true
+  batchDone.value = 0
+  batchTotal.value = qualified.length
+  const nameById = new Map(rows.value.map((r) => [r.id, r.route_name]))
+  const { fails } = await runBatch(
+    qualified,
+    (id) => batchExec(action, id),
+    (done) => { batchDone.value = done }
+  )
+  batchRunning.value = false
+  const okCount = qualified.length - fails.length
+  if (fails.length) {
+    batchFails.value = fails.map((f) => ({ ...f, name: nameById.get(f.id) ?? f.id }))
+  }
+  if (!fails.length) {
+    // 全部成功 → success + 重拉一次 + 清空选择
+    toast.success(t(`v2.routes.${BATCH_T[action].success}`, { n: okCount }))
+    await reload()
+    selectedIds.clear()
+  } else if (okCount > 0) {
+    // 部分失败 → warning({ok} 成 {fail} 败) + 明细 + 重拉一次 + 清空选择
+    toast.warning(t('v2.routes.batPartial', { ok: okCount, fail: fails.length }))
+    await reload()
+    selectedIds.clear()
+  } else {
+    // 全部失败 → error + 明细 + 不重拉 + 保留选择（便于修正后重试）
+    toast.error(t(`v2.routes.${BATCH_T[action].failed}`))
   }
 }
 </script>
@@ -514,6 +773,94 @@ async function onDelete(row: DisplayRow) {
 
 .col-name {
   white-space: nowrap;
+}
+
+/* —— OPT-3 选择列 —— */
+.col-check {
+  width: 36px;
+  white-space: nowrap;
+}
+
+/* 列表头居中需压过 .rt-table th 的左对齐（同 th.col-num 手法：同级特异性，靠源顺序在后生效） */
+th.col-check {
+  text-align: center;
+}
+
+td.col-check {
+  text-align: center;
+}
+
+.bat-check {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  vertical-align: middle;
+  accent-color: var(--app-primary);
+  cursor: pointer;
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+/* —— OPT-3 批量条（跟随页面工具条视觉，token only）——
+   flex-wrap：375 宽下按钮/提示换行，不横向溢出 */
+.bat-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  border-radius: var(--app-radius-md);
+  background: var(--app-bg-muted);
+  border: 1px solid var(--app-separator);
+}
+
+.bat-count {
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.bat-hint {
+  color: var(--app-text-tertiary);
+}
+
+.bat-progress {
+  color: var(--app-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* —— OPT-3 批量失败明细（页根级告警条；复用 .hint-banner is-error 底版）—— */
+.bat-fail {
+  align-items: flex-start;
+}
+
+.bat-fail-body {
+  min-width: 0;
+}
+
+.bat-fail-title {
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+
+.bat-fail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bat-fail-list .rt-name {
+  margin-right: 8px;
+}
+
+.bat-fail-reason {
+  color: color-mix(in srgb, var(--app-color-danger) 70%, var(--app-text));
 }
 
 .col-num {

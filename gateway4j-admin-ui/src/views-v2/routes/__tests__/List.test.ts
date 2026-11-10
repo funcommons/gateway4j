@@ -34,6 +34,7 @@ const mocks = vi.hoisted(() => ({
   duplicateRoute: vi.fn(),
   offlineRoute: vi.fn(),
   deleteRoute: vi.fn(),
+  publishRoute: vi.fn(),
   fetchTrafficSummary: vi.fn(),
   fetchRouteTimeseries: vi.fn(),
   toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
@@ -47,7 +48,8 @@ vi.mock('@/api/routes', () => ({
   listRoutes: mocks.listRoutes,
   duplicateRoute: mocks.duplicateRoute,
   offlineRoute: mocks.offlineRoute,
-  deleteRoute: mocks.deleteRoute
+  deleteRoute: mocks.deleteRoute,
+  publishRoute: mocks.publishRoute
 }))
 // P4f 前置票①：只替换 toast，Fc* 组件保留真实实现（plugins/List.test.ts、Editor.test.ts 先例）
 vi.mock('@/components', async (importOriginal) => {
@@ -497,5 +499,485 @@ describe('P4f① 源码契约 — List.vue fs 抽查（testid + 门禁字面量�
     expect(src).toMatch(/DRAFT[\s\S]{0,40}OFFLINE|OFFLINE[\s\S]{0,40}DRAFT/)
     expect(src).toContain('offlineRoute')
     expect(src).toContain('deleteRoute')
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// OPT-3 — 路由列表批量操作（v2 优化建议 #2，对标 APISIX；docs/ui-v2/gateway4j-v2优化.md §三-2）
+// RED：行为未实现（List.vue 真实存在、mount 成功，只是没有选择列/批量条），本段应先红。
+//
+// 语义契约（后端零改动，批量 = 客户端逐条循环单条端点，C 按此实现）：
+//   选择列（原生 <input type=checkbox>，ImportExport.vue imp-row-check 先例，testid 落原生元素）：
+//     sel-all —— 表头全选。checked=可见行全选；indeterminate=部分选中；
+//       change 勾 → 仅把「可见行」并入选择集（筛选外已选保留，ImportExport onSelectAll merge 语义）；
+//       change 取消勾 → 仅把「可见行」移出选择集。页面无分页，等效「跨页提示」由
+//       「选择集跨筛选/展开/单条重拉存活」承担（本段用例锁定）。
+//     sel-row-<id> —— 行勾选。aria-label=route_name；CHANGING 行禁选（三动作全不适用，
+//       与单条 act-offline/act-delete 两钮均无同一口径）。
+//   批量条 bat-bar（选中 ≥1 渲染）：bat-count（已选 {n} 项）/ bat-offline / bat-delete /
+//     bat-publish / bat-clear。
+//   门禁矩阵（复用单条语义，按钮级 disabled + 不可操作计数提示，呈现裁决=T 步固化）：
+//     批量下线 = 选中集含 ≥1 PUBLISHED；批量删除 / 批量发布 = 含 ≥1 DRAFT|OFFLINE。
+//     混合态按钮可用 + bat-hint-<action> 显示「{n} 项不可…」；执行时按门禁过滤，
+//     不合格项跳过（不计入失败明细——明细只收后端拒绝项）。
+//   执行（逐条 await，顺序非并行）：fcConfirm({ variant:'danger', title:…{n=将执行数} })
+//     → 逐条 deleteRoute/offlineRoute/publishRoute(id)（publish 不传 changeDescription）
+//     → bat-progress「执行中 {done}/{total}」→ 执行中三钮 disabled（防重复点击）
+//     → 完成收尾：重拉一次 + 清空选择 + toast。
+//     全部成功 → toast.success(已 {n} 条)；部分失败 → toast.warning({ok} 成 {fail} 败)
+//     + bat-fail-detail（页根级，不随 bat-bar 清空退场，保留到下次批量启动）
+//     逐项 bat-fail-<id>（route_name + e.message）；全部失败 → toast.error(bat*Failed)
+//     + 不重拉（单条「失败不重拉」口径的批量延伸）。
+//     confirm 取消 → 零调用、不重拉、选择保留。
+//   单条同步：既有 act-delete/act-offline 成功重拉后，选择集剔除已消失 id（幽灵计数防护）。
+// DOM 契约（新 testid 全表）：sel-all / sel-row-<id> / bat-bar / bat-count / bat-offline /
+//   bat-delete / bat-publish / bat-clear / bat-progress / bat-hint-offline / bat-hint-delete /
+//   bat-hint-publish / bat-fail-detail / bat-fail-<id>
+// i18n（v2.routes.* 树追加，双语铁律 6）：selectAll batSelected batOffline batDelete batPublish
+//   batClear batProgress batHintOffline batHintDelete batHintPublish batOfflineConfirm
+//   batDeleteConfirm batPublishConfirm batOfflineSuccess batDeleteSuccess batPublishSuccess
+//   batPartial batFailTitle batOfflineFailed batDeleteFailed batPublishFailed
+// ═══════════════════════════════════════════════════════════════════════════
+
+const BATCH_KEYS = ['selectAll', 'batSelected', 'batOffline', 'batDelete', 'batPublish', 'batClear',
+  'batProgress', 'batHintOffline', 'batHintDelete', 'batHintPublish', 'batOfflineConfirm',
+  'batDeleteConfirm', 'batPublishConfirm', 'batOfflineSuccess', 'batDeleteSuccess',
+  'batPublishSuccess', 'batPartial', 'batFailTitle', 'batOfflineFailed', 'batDeleteFailed',
+  'batPublishFailed'].map((k) => `v2.routes.${k}`)
+
+// 只增不改：第三个文件级 beforeEach 仅重置本票新增面，既有用例不感知（P4f① 先例）
+beforeEach(() => {
+  mocks.publishRoute.mockReset().mockResolvedValue({ id: 'ok' })
+  mocks.fcConfirm.mockReset().mockResolvedValue(true)
+  mocks.toast.success.mockReset()
+  mocks.toast.error.mockReset()
+  mocks.toast.warning.mockReset()
+  mocks.toast.info.mockReset()
+})
+
+/** 参数化 i18n 取值（{n}/{done}/{total}/{ok}/{fail} 占位替换；仅本段测试用） */
+function tf(key: string, params: Record<string, string | number>): string {
+  let s = String(dig(zhCN, `v2.routes.${key}`))
+  for (const [k, v] of Object.entries(params)) s = s.split(`{${k}}`).join(String(v))
+  return s
+}
+
+/** 批量门禁矩阵夹具：两 PUBLISHED + 两 DRAFT + 一 OFFLINE + 一 CHANGING */
+function batchNodes() {
+  return [
+    makeNode('p1', { route_name: 'pub_one', status: 'PUBLISHED' }),
+    makeNode('p2', { route_name: 'pub_two', status: 'PUBLISHED' }),
+    makeNode('d1', { route_name: 'draft_one', status: 'DRAFT' }),
+    makeNode('d2', { route_name: 'draft_two', status: 'DRAFT' }),
+    makeNode('o1', { route_name: 'off_one', status: 'OFFLINE' }),
+    makeNode('c1', { route_name: 'chg_one', status: 'CHANGING' })
+  ]
+}
+
+const one = (w: VueWrapper<any>, tid: string) => w.find(`[data-testid="${tid}"]`)
+const rowCbx = (w: VueWrapper<any>, id: string) => one(w, `sel-row-${id}`)
+/** 原生 checkbox 选中读数（ImportExport checkOf 先例：testid 落原生元素，element 直读 checked） */
+const isChecked = (w: VueWrapper<any>, id: string) => (rowCbx(w, id).element as HTMLInputElement).checked
+/** 手写 deferred：卡住批量循环，断言进度/防重/顺序性，resolve 后走完 */
+function deferred(): { promise: Promise<void>; resolve: () => void } {
+  let resolve!: () => void
+  const promise = new Promise<void>((r) => { resolve = r })
+  return { promise, resolve }
+}
+/** statusFilter 分段钮（页面无 testid，按文案定位——Users.test.ts needSeg 同款） */
+async function pickStatus(w: VueWrapper<any>, label: string) {
+  const btn = w.findAll('.fc-segmented__item').find((b) => b.text().includes(label))
+  expect(btn, `状态分段缺少选项「${label}」`).toBeDefined()
+  await btn!.trigger('click')
+}
+const batchSource = () => fs.readFileSync(path.resolve(__dirname, '../List.vue'), 'utf-8')
+
+describe('OPT-3 批量操作 — i18n key 双语存在（铁律 6）', () => {
+  it.each(BATCH_KEYS)('%s 在 zh-CN 与 en-US 都存在', (key) => {
+    expect(dig(zhCN, key), `zh-CN 缺少 ${key}`).toBeDefined()
+    expect(dig(enUS, key), `en-US 缺少 ${key}`).toBeDefined()
+  })
+})
+
+describe('OPT-3 选择态 — 选择列与全选', () => {
+  it('初始：sel-all 未勾选、六行 checkbox 全渲染（含禁选的 c1）、bat-bar 不渲染', async () => {
+    mocks.listRoutes.mockResolvedValue(batchNodes())
+    const { wrapper } = await factory()
+    expect(one(wrapper, 'sel-all').exists()).toBe(true)
+    expect((one(wrapper, 'sel-all').element as HTMLInputElement).checked).toBe(false)
+    for (const id of ['p1', 'p2', 'd1', 'd2', 'o1', 'c1']) {
+      expect(rowCbx(wrapper, id).exists(), `行 ${id} 应有选择框`).toBe(true)
+    }
+    expect(one(wrapper, 'bat-bar').exists()).toBe(false)
+  })
+
+  it('勾一行 → bat-bar 出现 + bat-count 计数 + sel-all 半选（indeterminate）', async () => {
+    mocks.listRoutes.mockResolvedValue(batchNodes())
+    const { wrapper } = await factory()
+    await rowCbx(wrapper, 'd1').setValue(true)
+    expect(one(wrapper, 'bat-bar').exists()).toBe(true)
+    expect(one(wrapper, 'bat-count').text()).toContain(tf('batSelected', { n: 1 }))
+    const all = one(wrapper, 'sel-all').element as HTMLInputElement
+    expect(all.checked).toBe(false)
+    expect(all.indeterminate, '1/6 选中应为半选').toBe(true)
+  })
+
+  it('全选 → 非 CHANGING 全勾（c1 不入选）+ count 5 + sel-all 全选态非半选', async () => {
+    mocks.listRoutes.mockResolvedValue(batchNodes())
+    const { wrapper } = await factory()
+    await one(wrapper, 'sel-all').setValue(true)
+    for (const id of ['p1', 'p2', 'd1', 'd2', 'o1']) {
+      expect(isChecked(wrapper, id), `全选应勾中 ${id}`).toBe(true)
+    }
+    expect(isChecked(wrapper, 'c1')).toBe(false)
+    expect(one(wrapper, 'bat-count').text()).toContain(tf('batSelected', { n: 5 }))
+    const all = one(wrapper, 'sel-all').element as HTMLInputElement
+    expect(all.checked).toBe(true)
+    expect(all.indeterminate).toBe(false)
+  })
+
+  it('全选后再取消全选 → 全不勾 + bat-bar 退场', async () => {
+    mocks.listRoutes.mockResolvedValue(batchNodes())
+    const { wrapper } = await factory()
+    await one(wrapper, 'sel-all').setValue(true)
+    await one(wrapper, 'sel-all').setValue(false)
+    for (const id of ['p1', 'p2', 'd1', 'd2', 'o1']) {
+      expect(isChecked(wrapper, id), `取消全选应清掉 ${id}`).toBe(false)
+    }
+    expect(one(wrapper, 'bat-bar').exists()).toBe(false)
+  })
+
+  it('筛选下 sel-all 仅作用可见行（merge 语义）：DRAFT 视图全选只入 d1/d2，切回 ALL 已选保留', async () => {
+    mocks.listRoutes.mockResolvedValue(batchNodes())
+    const { wrapper } = await factory()
+    await pickStatus(wrapper, t('v2.routes.statusDraft'))
+    await one(wrapper, 'sel-all').setValue(true)
+    expect(isChecked(wrapper, 'd1')).toBe(true)
+    expect(isChecked(wrapper, 'd2')).toBe(true)
+    expect(isChecked(wrapper, 'p1'), '筛选外 PUBLISHED 不应被波及').toBe(false)
+    await pickStatus(wrapper, t('v2.routes.filterAll'))
+    expect(isChecked(wrapper, 'd1')).toBe(true)
+    expect(one(wrapper, 'bat-count').text()).toContain(tf('batSelected', { n: 2 }))
+  })
+
+  it('展开/收起与 keyword 筛选不丢已选（页面无分页，选择集跨视图存活）', async () => {
+    mocks.listRoutes.mockResolvedValue(batchNodes())
+    const { wrapper } = await factory()
+    await rowCbx(wrapper, 'p1').setValue(true)
+    await wrapper.find('[data-testid="route-expand-p1"]').trigger('click')
+    await flushPromises()
+    await wrapper.find('[data-testid="route-expand-p1"]').trigger('click')
+    await flushPromises()
+    expect(isChecked(wrapper, 'p1')).toBe(true)
+    expect(one(wrapper, 'bat-bar').exists()).toBe(true)
+    const kw = wrapper.find(`input[aria-label="${t('v2.routes.searchPlaceholder')}"]`)
+    await kw.setValue('zzz-no-match')
+    expect(rowCbx(wrapper, 'p1').exists(), '行应被筛没').toBe(false)
+    expect(one(wrapper, 'bat-count').text(), '行消失但已选保留').toContain(tf('batSelected', { n: 1 }))
+    await kw.setValue('')
+    expect(isChecked(wrapper, 'p1')).toBe(true)
+  })
+
+  it('点击行 checkbox 不触发行展开（onRowClick 的 input 守卫）', async () => {
+    mocks.listRoutes.mockResolvedValue(batchNodes())
+    const { wrapper } = await factory()
+    await rowCbx(wrapper, 'p1').trigger('click')
+    await flushPromises()
+    expect(isChecked(wrapper, 'p1')).toBe(true)
+    expect(wrapper.find('[data-testid="route-detail-p1"]').exists()).toBe(false)
+  })
+
+  it('单条删除已选行后同步剔除：选 p1+d1 → act-delete 删 d1 → 重拉后 count=1（幽灵计数防护）', async () => {
+    mocks.listRoutes.mockResolvedValue(batchNodes())
+    const { wrapper } = await factory()
+    await rowCbx(wrapper, 'p1').setValue(true)
+    await rowCbx(wrapper, 'd1').setValue(true)
+    expect(one(wrapper, 'bat-count').text()).toContain(tf('batSelected', { n: 2 }))
+    await wrapper.find('[data-testid="route-expand-d1"]').trigger('click')
+    await flushPromises()
+    mocks.listRoutes.mockResolvedValue(batchNodes().filter((n) => n.id !== 'd1'))
+    await cell(wrapper, 'd1', 'act-delete').trigger('click')
+    await flushPromises()
+    expect(rowCbx(wrapper, 'd1').exists(), 'd1 行应已消失').toBe(false)
+    expect(one(wrapper, 'bat-count').text()).toContain(tf('batSelected', { n: 1 }))
+    expect(isChecked(wrapper, 'p1')).toBe(true)
+  })
+})
+
+describe('OPT-3 批量条 — 门禁矩阵与呈现', () => {
+  beforeEach(() => {
+    mocks.listRoutes.mockReset().mockResolvedValue(batchNodes())
+  })
+
+  it('全 PUBLISHED（p1+p2）：下线可用；删除/发布禁用；enabled 钮无不可操作提示', async () => {
+    const { wrapper } = await factory()
+    await rowCbx(wrapper, 'p1').setValue(true)
+    await rowCbx(wrapper, 'p2').setValue(true)
+    expect(one(wrapper, 'bat-offline').attributes('disabled')).toBeUndefined()
+    expect(one(wrapper, 'bat-delete').attributes('disabled'), '全 PUBLISHED 删除应禁用').toBeDefined()
+    expect(one(wrapper, 'bat-publish').attributes('disabled')).toBeDefined()
+    expect(one(wrapper, 'bat-hint-offline').exists()).toBe(false)
+    expect(one(wrapper, 'bat-hint-delete').exists()).toBe(false)
+  })
+
+  it('全 DRAFT|OFFLINE（d1+d2+o1）：删除/发布可用；下线禁用', async () => {
+    const { wrapper } = await factory()
+    await rowCbx(wrapper, 'd1').setValue(true)
+    await rowCbx(wrapper, 'd2').setValue(true)
+    await rowCbx(wrapper, 'o1').setValue(true)
+    expect(one(wrapper, 'bat-delete').attributes('disabled')).toBeUndefined()
+    expect(one(wrapper, 'bat-publish').attributes('disabled')).toBeUndefined()
+    expect(one(wrapper, 'bat-offline').attributes('disabled'), '无可下线项应禁用').toBeDefined()
+  })
+
+  it('仅 OFFLINE（o1）也满足删除/发布门禁（OFFLINE ∈ DRAFT|OFFLINE）', async () => {
+    const { wrapper } = await factory()
+    await rowCbx(wrapper, 'o1').setValue(true)
+    expect(one(wrapper, 'bat-delete').attributes('disabled')).toBeUndefined()
+    expect(one(wrapper, 'bat-publish').attributes('disabled')).toBeUndefined()
+    expect(one(wrapper, 'bat-offline').attributes('disabled')).toBeDefined()
+  })
+
+  it('混合（p1+d1）：三钮全可用 + 三个不可操作提示各计 1', async () => {
+    const { wrapper } = await factory()
+    await rowCbx(wrapper, 'p1').setValue(true)
+    await rowCbx(wrapper, 'd1').setValue(true)
+    expect(one(wrapper, 'bat-offline').attributes('disabled')).toBeUndefined()
+    expect(one(wrapper, 'bat-delete').attributes('disabled')).toBeUndefined()
+    expect(one(wrapper, 'bat-publish').attributes('disabled')).toBeUndefined()
+    expect(one(wrapper, 'bat-hint-offline').text()).toContain(tf('batHintOffline', { n: 1 }))
+    expect(one(wrapper, 'bat-hint-delete').text()).toContain(tf('batHintDelete', { n: 1 }))
+    expect(one(wrapper, 'bat-hint-publish').text()).toContain(tf('batHintPublish', { n: 1 }))
+  })
+
+  it('CHANGING 行 checkbox disabled 且点击不入选（三动作均不适用）', async () => {
+    const { wrapper } = await factory()
+    const c = one(wrapper, 'sel-row-c1')
+    expect(c.attributes('disabled'), 'CHANGING 应禁选').toBeDefined()
+    await c.trigger('click')
+    expect(isChecked(wrapper, 'c1')).toBe(false)
+    expect(one(wrapper, 'bat-bar').exists()).toBe(false)
+  })
+
+  it('bat-clear 清空选择 → checkbox 复位 + bat-bar 退场', async () => {
+    const { wrapper } = await factory()
+    await rowCbx(wrapper, 'p1').setValue(true)
+    await rowCbx(wrapper, 'd1').setValue(true)
+    await one(wrapper, 'bat-clear').trigger('click')
+    expect(isChecked(wrapper, 'p1')).toBe(false)
+    expect(isChecked(wrapper, 'd1')).toBe(false)
+    expect(one(wrapper, 'bat-bar').exists()).toBe(false)
+  })
+
+  it('无障碍：sel-all aria-label=selectAll 文案；行 checkbox aria-label=route_name', async () => {
+    const { wrapper } = await factory()
+    expect(one(wrapper, 'sel-all').attributes('aria-label')).toBe(t('v2.routes.selectAll'))
+    expect(rowCbx(wrapper, 'd1').attributes('aria-label')).toBe('draft_one')
+  })
+})
+
+describe('OPT-3 批量删除 — confirm → 逐条 deleteRoute → 进度/明细/收尾', () => {
+  beforeEach(() => {
+    mocks.listRoutes.mockReset().mockResolvedValue(batchNodes())
+  })
+
+  it('成功链：confirm(danger,{n}) → deleteRoute 逐条 d1,d2 → toast.success(已删 2) → 重拉 + 清空选择', async () => {
+    const { wrapper } = await factory()
+    await rowCbx(wrapper, 'd1').setValue(true)
+    await rowCbx(wrapper, 'd2').setValue(true)
+    const before = mocks.listRoutes.mock.calls.length
+    await one(wrapper, 'bat-delete').trigger('click')
+    await flushPromises()
+    expect(mocks.fcConfirm).toHaveBeenCalledWith(expect.objectContaining({
+      variant: 'danger',
+      title: expect.stringContaining(tf('batDeleteConfirm', { n: 2 }))
+    }))
+    expect(mocks.deleteRoute, '逐条循环单条端点').toHaveBeenCalledTimes(2)
+    expect(mocks.deleteRoute.mock.calls.map((c) => c[0])).toEqual(['d1', 'd2'])
+    expect(mocks.toast.success).toHaveBeenCalledWith(tf('batDeleteSuccess', { n: 2 }))
+    expect(mocks.listRoutes.mock.calls.length, '完成后应重拉一次').toBeGreaterThan(before)
+    expect(one(wrapper, 'bat-bar').exists(), '完成后清空选择').toBe(false)
+    expect(one(wrapper, 'bat-progress').exists()).toBe(false)
+    expect(one(wrapper, 'bat-fail-detail').exists()).toBe(false)
+  })
+
+  it('confirm=false → 零调用、不重拉、选择保留', async () => {
+    mocks.fcConfirm.mockResolvedValue(false)
+    const { wrapper } = await factory()
+    await rowCbx(wrapper, 'd1').setValue(true)
+    await rowCbx(wrapper, 'd2').setValue(true)
+    const before = mocks.listRoutes.mock.calls.length
+    await one(wrapper, 'bat-delete').trigger('click')
+    await flushPromises()
+    expect(mocks.deleteRoute).not.toHaveBeenCalled()
+    expect(mocks.listRoutes.mock.calls.length).toBe(before)
+    expect(one(wrapper, 'bat-bar').exists(), '取消后选择保留').toBe(true)
+  })
+
+  it('部分失败：d1 成 d2 败 o1 成 → toast.warning(2 成 1 败) + bat-fail-d2（名称+原因）→ 重拉 + 清空', async () => {
+    mocks.deleteRoute.mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('上游仍引用该路由'))
+      .mockResolvedValueOnce(undefined)
+    const { wrapper } = await factory()
+    await rowCbx(wrapper, 'd1').setValue(true)
+    await rowCbx(wrapper, 'd2').setValue(true)
+    await rowCbx(wrapper, 'o1').setValue(true)
+    const before = mocks.listRoutes.mock.calls.length
+    await one(wrapper, 'bat-delete').trigger('click')
+    await flushPromises()
+    expect(mocks.deleteRoute.mock.calls.map((c) => c[0])).toEqual(['d1', 'd2', 'o1'])
+    expect(mocks.toast.warning).toHaveBeenCalledWith(tf('batPartial', { ok: 2, fail: 1 }))
+    expect(mocks.toast.success).not.toHaveBeenCalled()
+    expect(one(wrapper, 'bat-fail-detail').exists()).toBe(true)
+    expect(one(wrapper, 'bat-fail-detail').text()).toContain(t('v2.routes.batFailTitle'))
+    const failRow = one(wrapper, 'bat-fail-d2')
+    expect(failRow.exists()).toBe(true)
+    expect(failRow.text()).toContain('draft_two')
+    expect(failRow.text()).toContain('上游仍引用该路由')
+    expect(one(wrapper, 'bat-fail-d1').exists(), '成功项不进明细').toBe(false)
+    expect(mocks.listRoutes.mock.calls.length, '部分成功仍重拉').toBeGreaterThan(before)
+    expect(one(wrapper, 'bat-bar').exists()).toBe(false)
+  })
+
+  it('全部失败：toast.error(删除失败) + 不重拉（单条失败不重拉口径延伸）+ 明细两行', async () => {
+    mocks.deleteRoute.mockRejectedValue(new Error('boom'))
+    const { wrapper } = await factory()
+    await rowCbx(wrapper, 'd1').setValue(true)
+    await rowCbx(wrapper, 'd2').setValue(true)
+    const before = mocks.listRoutes.mock.calls.length
+    await one(wrapper, 'bat-delete').trigger('click')
+    await flushPromises()
+    expect(mocks.deleteRoute, '逐条尝试不因单条失败中断').toHaveBeenCalledTimes(2)
+    expect(mocks.toast.error).toHaveBeenCalledWith(t('v2.routes.batDeleteFailed'))
+    expect(mocks.toast.success).not.toHaveBeenCalled()
+    expect(mocks.toast.warning).not.toHaveBeenCalled()
+    expect(mocks.listRoutes.mock.calls.length).toBe(before)
+    expect(one(wrapper, 'bat-fail-d1').text()).toContain('draft_one')
+    expect(one(wrapper, 'bat-fail-d1').text()).toContain('boom')
+    expect(one(wrapper, 'bat-fail-d2').text()).toContain('draft_two')
+  })
+
+  it('进度与防重：第二条 pending → bat-progress 执行中 1/3 + 三钮 disabled + 未并发；resolve 后收尾', async () => {
+    const d2 = deferred()
+    mocks.deleteRoute.mockResolvedValueOnce(undefined)
+      .mockReturnValueOnce(d2.promise)
+      .mockResolvedValue(undefined)
+    const { wrapper } = await factory()
+    await rowCbx(wrapper, 'd1').setValue(true)
+    await rowCbx(wrapper, 'd2').setValue(true)
+    await rowCbx(wrapper, 'o1').setValue(true)
+    await one(wrapper, 'bat-delete').trigger('click')
+    await flushPromises()
+    expect(one(wrapper, 'bat-progress').exists()).toBe(true)
+    expect(one(wrapper, 'bat-progress').text()).toContain(tf('batProgress', { done: 1, total: 3 }))
+    expect(one(wrapper, 'bat-delete').attributes('disabled'), '执行中防重复点击').toBeDefined()
+    expect(one(wrapper, 'bat-publish').attributes('disabled')).toBeDefined()
+    expect(mocks.deleteRoute, '顺序执行：第二条发出前无第三条').toHaveBeenCalledTimes(2)
+    d2.resolve()
+    await flushPromises()
+    expect(one(wrapper, 'bat-progress').exists()).toBe(false)
+    expect(one(wrapper, 'bat-bar').exists()).toBe(false)
+    expect(mocks.deleteRoute.mock.calls.map((c) => c[0])).toEqual(['d1', 'd2', 'o1'])
+    expect(mocks.toast.success).toHaveBeenCalledWith(tf('batDeleteSuccess', { n: 3 }))
+  })
+
+  it('门禁过滤执行：选 p1+d1+d2 → deleteRoute 仅 d1,d2（p1 跳过不计失败）→ toast(已删 2)', async () => {
+    const { wrapper } = await factory()
+    await rowCbx(wrapper, 'p1').setValue(true)
+    await rowCbx(wrapper, 'd1').setValue(true)
+    await rowCbx(wrapper, 'd2').setValue(true)
+    expect(one(wrapper, 'bat-hint-delete').text()).toContain(tf('batHintDelete', { n: 1 }))
+    await one(wrapper, 'bat-delete').trigger('click')
+    await flushPromises()
+    expect(mocks.deleteRoute.mock.calls.map((c) => c[0])).toEqual(['d1', 'd2'])
+    expect(mocks.deleteRoute).toHaveBeenCalledTimes(2)
+    expect(mocks.toast.success).toHaveBeenCalledWith(tf('batDeleteSuccess', { n: 2 }))
+    expect(one(wrapper, 'bat-fail-detail').exists(), '门禁跳过项不进失败明细').toBe(false)
+  })
+})
+
+describe('OPT-3 批量下线 — confirm → 逐条 offlineRoute', () => {
+  beforeEach(() => {
+    mocks.listRoutes.mockReset().mockResolvedValue(batchNodes())
+  })
+
+  it('成功链：confirm(danger) → offlineRoute p1,p2 → toast(已下线 2) → 重拉 + 清空选择', async () => {
+    const { wrapper } = await factory()
+    await rowCbx(wrapper, 'p1').setValue(true)
+    await rowCbx(wrapper, 'p2').setValue(true)
+    const before = mocks.listRoutes.mock.calls.length
+    await one(wrapper, 'bat-offline').trigger('click')
+    await flushPromises()
+    expect(mocks.fcConfirm).toHaveBeenCalledWith(expect.objectContaining({
+      variant: 'danger',
+      title: expect.stringContaining(tf('batOfflineConfirm', { n: 2 }))
+    }))
+    expect(mocks.offlineRoute.mock.calls.map((c) => c[0])).toEqual(['p1', 'p2'])
+    expect(mocks.toast.success).toHaveBeenCalledWith(tf('batOfflineSuccess', { n: 2 }))
+    expect(mocks.listRoutes.mock.calls.length).toBeGreaterThan(before)
+    expect(one(wrapper, 'bat-bar').exists()).toBe(false)
+  })
+
+  it('confirm=false → 零调用、选择保留', async () => {
+    mocks.fcConfirm.mockResolvedValue(false)
+    const { wrapper } = await factory()
+    await rowCbx(wrapper, 'p1').setValue(true)
+    await one(wrapper, 'bat-offline').trigger('click')
+    await flushPromises()
+    expect(mocks.offlineRoute).not.toHaveBeenCalled()
+    expect(one(wrapper, 'bat-bar').exists()).toBe(true)
+  })
+})
+
+describe('OPT-3 批量发布 — confirm → 逐条 publishRoute（不传 changeDescription）', () => {
+  beforeEach(() => {
+    mocks.listRoutes.mockReset().mockResolvedValue(batchNodes())
+  })
+
+  it('成功链：publishRoute 按 d1,o1 行序逐条 → toast(已发布 2) → 重拉 + 清空选择', async () => {
+    const { wrapper } = await factory()
+    await rowCbx(wrapper, 'd1').setValue(true)
+    await rowCbx(wrapper, 'o1').setValue(true)
+    const before = mocks.listRoutes.mock.calls.length
+    await one(wrapper, 'bat-publish').trigger('click')
+    await flushPromises()
+    expect(mocks.fcConfirm).toHaveBeenCalledWith(expect.objectContaining({
+      variant: 'danger',
+      title: expect.stringContaining(tf('batPublishConfirm', { n: 2 }))
+    }))
+    expect(mocks.publishRoute.mock.calls.map((c) => c[0])).toEqual(['d1', 'o1'])
+    expect(mocks.toast.success).toHaveBeenCalledWith(tf('batPublishSuccess', { n: 2 }))
+    expect(mocks.listRoutes.mock.calls.length).toBeGreaterThan(before)
+    expect(one(wrapper, 'bat-bar').exists()).toBe(false)
+  })
+
+  it('混合 PUBLISHED 跳过：选 p1+d1 → publishRoute 仅 d1 + 提示计 1', async () => {
+    const { wrapper } = await factory()
+    await rowCbx(wrapper, 'p1').setValue(true)
+    await rowCbx(wrapper, 'd1').setValue(true)
+    expect(one(wrapper, 'bat-hint-publish').text()).toContain(tf('batHintPublish', { n: 1 }))
+    await one(wrapper, 'bat-publish').trigger('click')
+    await flushPromises()
+    expect(mocks.publishRoute.mock.calls.map((c) => c[0])).toEqual(['d1'])
+    expect(mocks.toast.success).toHaveBeenCalledWith(tf('batPublishSuccess', { n: 1 }))
+  })
+})
+
+describe('OPT-3 源码契约 — List.vue fs 抽查（testid + 逐条循环接入，P4f① 先例）', () => {
+  it('选择列/批量条 testid 字面量 + publishRoute 接入 + CHANGING 禁选门禁 + 全选半选', () => {
+    const src = batchSource()
+    expect(src).toContain('data-testid="sel-all"')
+    expect(src).toContain('sel-row-')
+    expect(src).toContain('data-testid="bat-bar"')
+    expect(src).toContain('data-testid="bat-count"')
+    expect(src).toContain('data-testid="bat-offline"')
+    expect(src).toContain('data-testid="bat-delete"')
+    expect(src).toContain('data-testid="bat-publish"')
+    expect(src).toContain('data-testid="bat-clear"')
+    expect(src).toContain('data-testid="bat-progress"')
+    expect(src).toContain('bat-fail-')
+    expect(src).toContain('publishRoute')
+    expect(src).toContain("'CHANGING'")
+    expect(src).toContain('indeterminate')
   })
 })
