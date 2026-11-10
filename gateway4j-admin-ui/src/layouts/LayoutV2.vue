@@ -11,6 +11,23 @@
         </div>
       </div>
       <nav class="v2-nav" :aria-label="t('v2.nav.subtitle')">
+        <!-- P3-b: 移动抽屉命令面板入口 —— ≤768 顶栏触发器 display:none（375 溢出收口钉）后
+             命令面板唯一可点 UI 入口。机制与顶栏触发器同款（点击/Enter/Space → 开面板），
+             先收抽屉再开面板（onNav「先收再走」同序）；命令面板无权限语义，登录可见。
+             桌面（≥769）该入口 display:none，侧栏视觉与顶栏链路零变化。 -->
+        <button
+          type="button"
+          class="v2-nav-item v2-menu-search"
+          data-testid="v2-menu-search"
+          aria-haspopup="dialog"
+          @click="sideOpen = false; cmdOpen = true"
+          @keydown.enter.prevent="sideOpen = false; cmdOpen = true"
+          @keydown.space.prevent="sideOpen = false; cmdOpen = true"
+        >
+          <FcIcon name="ri-search-line" :size="15" />
+          <span class="v2-nav-item-label">{{ t('v2.topbar.searchEntry') }}</span>
+          <kbd class="v2-menu-search-kbd">{{ t('v2.topbar.kbd') }}</kbd>
+        </button>
         <div v-for="group in navGroups" :key="group.key" class="v2-nav-group">
           <div class="v2-nav-group-label">{{ t(group.labelKey) }}</div>
           <template v-if="group.items.length > 0">
@@ -58,6 +75,7 @@
           role="button"
           tabindex="0"
           aria-haspopup="dialog"
+          aria-controls="cmd-palette"
           :aria-expanded="cmdOpen"
           @click="cmdOpen = true"
           @keydown.enter.prevent="cmdOpen = true"
@@ -460,6 +478,26 @@ if (inject<FcThemeContext | null>('fc-theme', null) == null) {
   font-size: 12px;
   color: var(--app-text-tertiary);
 }
+/* P3-b: 移动抽屉命令面板入口 —— 复用 .v2-nav-item 条目骨架（内边距/圆角/hover/焦点环随迁），
+   仅补 button 形态复位。默认隐藏：桌面（≥769）侧栏形态不走抽屉，命令面板入口由顶栏
+   v2-top-search 负责；≤768 在底部断点内以 display:flex 放开（移动端唯一可点入口）。 */
+.v2-menu-search {
+  display: none;
+  border: 0;
+  background-color: transparent;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.v2-menu-search-kbd {
+  margin-left: auto;
+  padding: 0 5px;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--app-text-secondary);
+  border: 1px solid var(--app-separator);
+  border-radius: var(--app-radius-sm);
+}
 /* —— 顶栏 —— */
 .v2-top {
   display: flex;
@@ -601,6 +639,10 @@ if (inject<FcThemeContext | null>('fc-theme', null) == null) {
   .v2-side.is-open {
     transform: translateX(0);
     visibility: visible;
+  }
+  /* P3-b: 抽屉内命令面板入口窄视口放开（默认 display:none，见 .v2-nav-item 后基础块） */
+  .v2-menu-search {
+    display: flex;
   }
 }
 /* —— 手机（≤480px）顶栏收口：P4e 三入口把 .v2-top-actions 内容宽顶到 298px ——

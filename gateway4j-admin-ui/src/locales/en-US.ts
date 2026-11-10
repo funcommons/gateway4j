@@ -333,6 +333,7 @@ export default {
     topbar: {
       kbd: '⌘K',
       searchPlaceholder: 'Search routes, plugins, users…',
+      searchEntry: 'Search / Command palette',
       notifications: 'Notifications',
       user: 'User',
       menu: 'Menu',
@@ -356,7 +357,9 @@ export default {
         importExport: 'Import & Export',
         themeToggle: 'Toggle Theme',
         logout: 'Sign Out'
-      }
+      },
+      searchError: 'Search failed. Please try again.',
+      execError: 'Action failed. Please try again.'
     },
     // LOW-2 global shortcut cheat sheet (10 keys, kept in strict sync with zh-CN; key glyphs stay out of i18n, same as v2.topbar.kbd)
     sc: {

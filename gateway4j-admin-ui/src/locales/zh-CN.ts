@@ -330,6 +330,7 @@ export default {
     topbar: {
       kbd: '⌘K',
       searchPlaceholder: '搜索路由、插件、用户…',
+      searchEntry: '搜索 / 命令面板',
       notifications: '通知',
       user: '用户',
       menu: '菜单',
@@ -353,7 +354,9 @@ export default {
         importExport: '导入导出',
         themeToggle: '切换主题',
         logout: '退出登录'
-      }
+      },
+      searchError: '搜索失败，请重试',
+      execError: '执行失败，请重试'
     },
     // LOW-2 全局快捷键速查表（10 key 全表，与 en-US 严格同位；键位字形 keys 不入 i18n，v2.topbar.kbd 同口径）
     sc: {
