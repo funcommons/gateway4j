@@ -100,6 +100,12 @@ public class PluginController {
         return pluginService.disablePlugin(id);
     }
 
+    /**
+     * @deprecated UI 已迁 /v2 插件链全局泳道（取数走 {@code GET /v1/plugins?scope=GLOBAL}），
+     *             前端客户端已随 P4f-C2 拆除（api/plugins.ts），无调用方；
+     *             端点保留至外部调用方确认后移除。
+     */
+    @Deprecated
     @GetMapping("/global")
     public List<Plugin> listGlobalPlugins(@RequestParam(name = "plugin_phase", required = false) String pluginPhase) {
         return pluginService.listGlobalPlugins(pluginPhase);
