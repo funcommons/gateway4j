@@ -436,7 +436,9 @@ const edges = computed<LaidEdge[]>(() => {
 
 <style scoped lang="scss">
 .v2-overview {
-  --ov-violet: #7c5cff;
+  /* 分发类型语义紫：收编全局第四色相档 --app-secondary（P3-e 建档，S7-1 收编），
+     页内保留 --ov-violet 别名；dark 下自动随 token 翻转为 #a38dff（向白走） */
+  --ov-violet: var(--app-secondary);
   min-width: 0;
 }
 

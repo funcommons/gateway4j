@@ -731,9 +731,10 @@ function formatTime(v: string | number | null | undefined): string {
 </script>
 
 <style scoped lang="scss">
-/* token only：violet 系无全局语义档，就近定义页面作用域 token（同 List/Tree 先例） */
+/* token only：violet 档收编全局第四色相档 --app-secondary（P3-e 建档，S7-1 收编；
+   页内保留 --dtl-violet 别名，dark 下随 token 翻转为 #a38dff） */
 .dtl-page {
-  --dtl-violet: #7c5cff;
+  --dtl-violet: var(--app-secondary);
   min-width: 0;
 }
 

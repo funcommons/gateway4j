@@ -330,10 +330,10 @@ function renderBranch(b: DecisionTreeBranch): VNode {
 </script>
 
 <style scoped lang="scss">
-/* 页面作用域 token：violet 系在全局语义 token 无对应档，就近定义
-   （字面值只出现在 token 定义层，同 List/Overview 先例；规则本体一律走 token） */
+/* 页面作用域 token：violet 档收编全局第四色相档 --app-secondary（P3-e 建档，S7-1 收编，
+   页内保留 --tr-violet 别名；规则本体一律走 token，dark 下随 token 翻转为 #a38dff） */
 .v2-tree {
-  --tr-violet: #7c5cff;
+  --tr-violet: var(--app-secondary);
   min-width: 0;
 }
 
