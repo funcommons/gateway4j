@@ -524,7 +524,13 @@ export default {
       syncUnknown: '状态未知',
       // LOW-3 树形折叠（List 折叠钮双态 aria-label，与 en-US 严格同位）
       collapseChildren: '折叠子路由',
-      expandChildren: '展开子路由'
+      expandChildren: '展开子路由',
+      // LOW-4 单条删除 undo 窗口（List 页根级撤销条，与 en-US 严格同位）
+      delUndoDeleted: '已删除「{name}」',
+      delUndoCountdown: '{n}s',
+      delUndoBtn: '撤销',
+      // P3-c 大盘下钻入口可访问名（monitor 慢路由行 + overview 拓扑节点共享一 key，与 en-US 严格同位）
+      viewDetail: '查看 {name} 详情'
     },
     tree: {
       typeDispatch: '分发',

@@ -38,7 +38,9 @@
               </svg>
               <!-- OPT-1：路由节点（dispatch/backend，routeId 非空）双击/Enter 下钻路由详情；
                    client/gateway 固定虚拟节点无 routeId，无 tabindex 不进 Tab 序，双击原地；
-                   单击不导航（双击裁决，Overview.drilldown.test.ts 钉死） -->
+                   单击不导航（双击裁决，Overview.drilldown.test.ts 钉死）。
+                   P3-c：可访问名与可点节点同体（节点名命名插值，与 monitor 慢路由行共享
+                   v2.routes.viewDetail key）；固定节点无名 —— 与 inert 裁决一致，读屏不误暗示下钻 -->
               <div
                 v-for="n in nodes"
                 :key="n.key"
@@ -47,6 +49,7 @@
                 :style="{ left: `${n.x}px`, top: `${n.y}px`, width: `${n.w}px`, height: `${n.h}px` }"
                 :data-testid="`topo-node-${n.key}`"
                 :tabindex="n.routeId != null ? 0 : undefined"
+                :aria-label="n.routeId != null ? t('v2.routes.viewDetail', { name: n.name }) : undefined"
                 @dblclick="openNodeDetail(n)"
                 @keydown.enter="openNodeDetail(n)"
               >

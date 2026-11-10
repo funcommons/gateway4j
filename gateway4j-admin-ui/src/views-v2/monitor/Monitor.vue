@@ -85,13 +85,16 @@
         </div>
         <div class="mon-card-b">
           <!-- OPT-1 drilldown: row id IS route_id, single click / Enter opens route detail
-               (openRouteDetail guards empty id). Contract: Monitor.drilldown.test.ts -->
+               (openRouteDetail guards empty id). Contract: Monitor.drilldown.test.ts.
+               P3-c: accessible name rides the clickable row itself (named interpolation of the
+               route name, shared v2.routes.viewDetail key with Overview nodes). -->
           <div
             v-for="(r, i) in slowRows"
             :key="r.id"
             class="slow-row"
             :data-testid='"mon-slow-row-" + r.id'
             tabindex="0"
+            :aria-label="t('v2.routes.viewDetail', { name: r.name })"
             @click="openRouteDetail(r.id)"
             @keydown.enter="openRouteDetail(r.id)"
           >

@@ -527,7 +527,13 @@ export default {
       syncUnknown: 'Status unknown',
       // LOW-3 tree collapse (List toggle dual-state aria-label; mirrors zh-CN exactly)
       collapseChildren: 'Collapse child routes',
-      expandChildren: 'Expand child routes'
+      expandChildren: 'Expand child routes',
+      // LOW-4 single-delete undo window (List page-root undo bar; mirrors zh-CN exactly)
+      delUndoDeleted: 'Deleted "{name}"',
+      delUndoCountdown: '{n}s',
+      delUndoBtn: 'Undo',
+      // P3-c dashboard drilldown accessible name (shared by monitor slow rows + overview topo nodes; mirrors zh-CN exactly)
+      viewDetail: 'View {name} details'
     },
     tree: {
       typeDispatch: 'Dispatch',
