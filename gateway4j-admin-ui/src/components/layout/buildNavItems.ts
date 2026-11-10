@@ -26,7 +26,37 @@
  */
 import type { Component } from 'vue'
 import type { RouteRecordNormalized } from 'vue-router'
-import type { NavLeaf, NavGroup, NavItem } from './FcSidebarNav.vue'
+
+export interface NavLeaf {
+  /** 唯一 id + emit('select') 时回传的值 (通常是 path) */
+  index: string
+  /** 显示文本 (调用方负责 i18n) */
+  label: string
+  /** ElementPlus 图标组件 (推荐用 resolveIcon 取) */
+  icon?: Component
+  /** 折叠态悬停提示, 默认 = label */
+  tooltip?: string
+  /** 隐藏 (false 不渲染). 业务侧用作角色 / feature flag 控制 */
+  visible?: boolean
+}
+
+export interface NavGroup {
+  type: 'group'
+  /** sub-menu id (非 path), 用于 defaultOpeneds 标识 */
+  index: string
+  /** 分组标题 (i18n resolved) */
+  label: string
+  /** 分组图标 */
+  icon?: Component
+  /** 自定义 popper className. 默认 'fc-sidebar-popper' */
+  popperClass?: string
+  /** 隐藏 */
+  visible?: boolean
+  /** 子项 (叶子) */
+  children: NavLeaf[]
+}
+
+export type NavItem = NavLeaf | NavGroup
 
 export interface NavGroupRule {
   /** sub-menu id. 用于 defaultOpeneds / accordion 控制. */

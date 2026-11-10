@@ -8,7 +8,6 @@ export { default as FcDropdown } from './FcDropdown.vue'
 export { default as FcPicker } from './FcPicker.vue'
 export { default as FcPickerGroup } from './FcPickerGroup.vue'
 export { default as FcImagePicker } from './FcImagePicker.vue'
-export { default as FcCommandPalette } from './FcCommandPalette.vue'
 
 export type { FcDialogProps } from './FcDialog.vue'
 export type { FcDrawerProps } from './FcDrawer.vue'
@@ -20,4 +19,3 @@ export type { FcDropdownProps, FcDropdownItem, FcDropdownCommand, FcDropdownPlac
 export type { FcPickerProps } from './FcPicker.vue'
 export type { FcPickerGroupProps } from './FcPickerGroup.vue'
 export type { FcImagePickerProps, FcImagePickerServerConfig } from './FcImagePicker.vue'
-export type { CommandItem } from './FcCommandPalette.vue'

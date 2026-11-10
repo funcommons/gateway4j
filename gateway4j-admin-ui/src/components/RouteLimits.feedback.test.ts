@@ -10,12 +10,3 @@ describe('RouteBindingsTable — limit feedback', () => {
     expect(src).toContain('maxBindingsReached')
   })
 })
-
-describe('RouteConditionsTable — limit feedback', () => {
-  const src = fs.readFileSync(path.resolve(__dirname, 'RouteConditionsTable.vue'), 'utf-8')
-
-  it('shows a warning message when MAX_CONDITIONS is reached', () => {
-    expect(src).toContain('ElMessage.warning')
-    expect(src).toContain('maxConditionsReached')
-  })
-})

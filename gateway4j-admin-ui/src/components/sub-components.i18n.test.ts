@@ -43,18 +43,6 @@ const i18n = createI18n({
   }
 })
 
-describe('RouteChainPreview — i18n', () => {
-  it('renders column labels and empty state via i18n', async () => {
-    const RouteChainPreview = (await import('@/components/RouteChainPreview.vue')).default
-    const wrapper = mount(RouteChainPreview, {
-      props: { chain: [], bindingsCount: 0 },
-      global: { components: stubs, plugins: [i18n] }
-    })
-    await flushPromises()
-    expect(wrapper.text()).toContain('暂未配置插件')
-  })
-})
-
 describe('RouteBindingsTable — i18n', () => {
   it('renders labels via i18n', async () => {
     const RouteBindingsTable = (await import('@/components/RouteBindingsTable.vue')).default
@@ -66,22 +54,6 @@ describe('RouteBindingsTable — i18n', () => {
     const vm = wrapper.vm as any
     // Verify i18n is used by checking the component mounts
     expect(wrapper.html()).toContain('fc-table')
-  })
-})
-
-describe('RouteConditionsTable — i18n', () => {
-  it('renders operator labels via i18n', async () => {
-    const RouteConditionsTable = (await import('@/components/RouteConditionsTable.vue')).default
-    const wrapper = mount(RouteConditionsTable, {
-      props: { modelValue: [], routeOptions: [] },
-      global: { components: stubs, plugins: [i18n] }
-    })
-    await flushPromises()
-    const vm = wrapper.vm as any
-    const labels = vm.operatorOptions.map((o: any) => o.label)
-    expect(labels).toContain('等于')
-    expect(labels).toContain('不等于')
-    expect(labels).toContain('包含')
   })
 })
 

@@ -219,7 +219,7 @@ function defaultAuditPage() {
   }
 }
 
-async function factory(): Promise<{ wrapper: VueWrapper<any>; router: Router; i18n: I18n<typeof i18nBase['messages'], {}, {}, string, false> }> {
+async function factory(): Promise<{ wrapper: VueWrapper<any>; router: Router; i18n: I18n<typeof i18nBase['messages'], Record<string, unknown>, Record<string, unknown>, string, false> }> {
   const i18n = createI18n(i18nBase)
   const router = createRouter({
     history: createMemoryHistory(),

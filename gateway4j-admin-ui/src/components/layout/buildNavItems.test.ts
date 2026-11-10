@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildNavItems } from '@/components/layout/buildNavItems'
 import type { BuildNavOptions } from '@/components/layout/buildNavItems'
-import type { NavItem, NavLeaf, NavGroup } from '@/components/layout/FcSidebarNav.vue'
+import type { NavItem, NavLeaf, NavGroup } from '@/components/layout/buildNavItems'
 import type { RouteRecordNormalized } from 'vue-router'
 import type { Component } from 'vue'
 
