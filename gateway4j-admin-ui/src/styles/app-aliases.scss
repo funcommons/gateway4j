@@ -13,7 +13,9 @@
   --app-text: #1f2329;
   --app-text-primary: var(--app-text);
   --app-text-secondary: #646a73;
-  --app-text-tertiary: #8f959e;
+  /* P3E: 与 themes.scss [data-theme="light"] 同步 —— 说明级弱化字 ≥3:1
+     （#82868e 对白卡 3.65:1 / 页底 3.40:1 / muted 3.35:1；原 #8f959e 页底仅 2.81:1）。 */
+  --app-text-tertiary: #82868e;
   --app-text-quaternary: #b7bcc3;
   --app-text-inverse: #ffffff;
   --app-text-link: var(--app-accent-text);

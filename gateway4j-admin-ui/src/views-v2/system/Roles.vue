@@ -671,6 +671,14 @@ async function saveMembers() {
 }
 .rol-actions .rol-danger {
   color: var(--app-color-danger);
+
+  /* P3E-F 根因修复: 本规则无禁用分支 (0,2,0), ROLE_ADMIN 行 disabled 删除钮与
+     可用删除钮同为 danger 红 (实机 computed color rgb(245,63,63) = 本规则取值)。
+     补 token 化禁用通道 (规则 39a; 光标通道已由 FcButton &:disabled 提供),
+     tertiary 已按 E4 调至 light 全表面 ≥3:1。编译后 (0,2,1) 压本规则 (0,2,0)。 */
+  &:disabled {
+    color: var(--app-text-tertiary);
+  }
 }
 
 /* —— 弹窗内表单与矩阵工具行 —— */

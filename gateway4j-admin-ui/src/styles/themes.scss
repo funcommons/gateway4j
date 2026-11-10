@@ -8,7 +8,10 @@
   --app-bg-muted: #f5f5f5;
   --app-text: #1f2329;
   --app-text-secondary: #646a73;
-  --app-text-tertiary: #8f959e;
+  /* P3E: 说明级弱化字 ≥3:1（WCAG caption 档）。原 #8f959e 对白卡 3.02:1、
+     对页底 #f5f7fa 仅 2.81:1 / muted #f5f5f5 2.77:1 不达标；
+     #82868e = 3.65 / 3.40 / 3.35 全达标（quaternary 是装饰/占位档，另行豁免裁决）。 */
+  --app-text-tertiary: #82868e;
   --app-text-quaternary: #b7bcc3;
   --app-border: #e5e6eb;
   --app-border-light: #ebedf0;

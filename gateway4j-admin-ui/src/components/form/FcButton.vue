@@ -162,7 +162,9 @@ const listeners = {
   }
 }
 
-.fc-button.variant-danger:not(.is-text-like):not(.is-plain) {
+/* P3E-F 加固: 底色规则自身排除禁用态 (:not(.is-disabled)), 禁用态只走下方
+   显式禁用灰通道, 底色永不泄漏进 disabled (协调方裁决的「更彻底」形态)。 */
+.fc-button.variant-danger:not(.is-text-like):not(.is-plain):not(.is-disabled) {
   /* 危险底压深一档 (76% danger + black, 色相不变): 白字 ≥4.5:1 (规则 40),
      #f56c6c 原值只有 2.90:1 */
   background: color-mix(in srgb, var(--el-color-danger) 76%, black);
@@ -173,6 +175,18 @@ const listeners = {
     filter: brightness(0.95);
     box-shadow: var(--app-shadow-md);
   }
+}
+
+/* P3E/E3 债修复: danger 禁用态 token 化禁用灰 (规则 39a 三通道: 底/边/字 +
+   光标), token 随 light/dark/orange-black 三主题自动翻转。
+   顶层兄弟规则 (不可嵌回上方排除父选择器 —— &.is-disabled 会编译成
+   :not(.is-disabled).is-disabled 自相矛盾永假)。特异性 (0,5,0) ≥ 底色规则
+   (0,4,0) 且底色已自排除, 亦压过 EP 禁用变灰 ((0,2,0) 档)。 */
+.fc-button.variant-danger.is-disabled:not(.is-text-like):not(.is-plain) {
+  background: var(--app-bg-muted);
+  border-color: var(--app-border);
+  color: var(--app-text-tertiary);
+  cursor: not-allowed;
 }
 
 /* 动效降级: 关闭过渡与按压缩放 */

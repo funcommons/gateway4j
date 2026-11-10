@@ -47,14 +47,14 @@ export const PLUGIN_CATEGORY_MAP: Record<string, BuiltinCategoryKey> = {
   watermark: 'other',
 }
 
-export const BUILTIN_CATEGORIES: Array<{ key: BuiltinCategoryKey; i18nKey: string }> = [
-  { key: 'security', i18nKey: 'plugin.categorySecurity' },
-  { key: 'rate-limit', i18nKey: 'plugin.categoryRateLimit' },
-  { key: 'traffic-rewrite', i18nKey: 'plugin.categoryTrafficRewrite' },
-  { key: 'observability', i18nKey: 'plugin.categoryObservability' },
-  { key: 'traffic-control', i18nKey: 'plugin.categoryTrafficControl' },
-  { key: 'response', i18nKey: 'plugin.categoryResponse' },
-  { key: 'other', i18nKey: 'plugin.categoryOther' },
+export const BUILTIN_CATEGORIES: Array<{ key: BuiltinCategoryKey }> = [
+  { key: 'security' },
+  { key: 'rate-limit' },
+  { key: 'traffic-rewrite' },
+  { key: 'observability' },
+  { key: 'traffic-control' },
+  { key: 'response' },
+  { key: 'other' },
 ]
 
 export function getBuiltinCategory(pluginId: string): BuiltinCategoryKey {

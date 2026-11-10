@@ -18,7 +18,8 @@
  * canEdit('user') 门禁：新建/行动作/提交；无权限显 readonly-hint；空态 usr-empty。
  *
  * ── v2 语义差异裁决（相对旧页，C 按此实现）───────────────────────────────────
- * ① 密码 maxlength=64（契约 §4.5 P4d 覆盖旧页的 100！其余 username=50/real_name=50/phone=20）。
+ * ① 密码 maxlength=64（契约 §4.5 P4d 覆盖旧页的 100！其余 username=30（P3E 对齐
+ *    pattern ^[a-zA-Z0-9_]{2,30}$，原 50 计数器误导）/real_name=50/phone=20）。
  * ② 新增 status 筛选（旧页只有 keyword；listUsers 已支持 status 透传 = v2 增量能力），
  *    筛选控件 = FcSegmented（plugins/List.vue P4a-2 先例）：全部(statusAll，'ALL' 哨兵 →
  *    参数 undefined 不透传)/启用/停用，切换重置 page=1。
@@ -442,7 +443,7 @@ describe('P4d-1 — 新建弹窗（开弹窗 / maxlength / 校验）', () => {
   })
 
   it.each([
-    ['usr-input-username', '50', 'username'],
+    ['usr-input-username', '30', 'username（P3E 对齐 pattern {2,30}，测试契约变更：对齐真约束消误导）'],
     ['usr-input-password', '64', 'password（契约 §4.5 覆盖旧页 100！）'],
     ['usr-input-realname', '50', 'real_name'],
     ['usr-input-phone', '20', 'phone']

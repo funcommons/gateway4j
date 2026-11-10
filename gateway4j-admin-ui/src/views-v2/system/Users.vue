@@ -125,7 +125,8 @@
     </FcSection>
 
     <!-- Create / edit dialog (create and edit share one dialog: username disabled in edit mode).
-         maxlength contract: username 50 / password 64 (contract 4.5 overrides legacy 100!) /
+         maxlength contract: username 30 (= pattern ^[a-zA-Z0-9_]{2,30}$, counter no longer
+         misleads) / password 64 (contract 4.5 overrides legacy 100!) /
          real_name 50 / phone 20. Field errors: client validation and server mapFieldErrors
          share the usr-field-error-{field} channel. -->
     <FcDialog v-model:open="dialogOpen" :title="dialogTitle" width="480px">
@@ -135,7 +136,7 @@
           <FcInput
             id="usr-f-username"
             v-model="form.username"
-            maxlength="50"
+            maxlength="30"
             :disabled="isEdit"
             data-testid="usr-input-username"
           />

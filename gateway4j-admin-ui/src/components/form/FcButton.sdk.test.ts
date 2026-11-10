@@ -18,6 +18,15 @@ describe('FcButton', () => {
     expect(w.find('.fc-button.variant-danger').exists()).toBe(true)
   })
 
+  it('P3E: variant=danger + disabled 命中禁用灰选择器 (.variant-danger.is-disabled) 且透传 disabled', () => {
+    const w = mountFc(FcButton, { props: { variant: 'danger', disabled: true }, slots: { default: '删' } })
+    // 样式在 jsdom 不参与计算, 断言锚定 CSS 选择器的两个 class 挂钩:
+    // .variant-danger.is-disabled 同时在位 → 禁用灰覆盖规则生效路径成立。
+    const disabled = w.find('.fc-button.variant-danger.is-disabled')
+    expect(disabled.exists()).toBe(true)
+    expect(disabled.attributes('disabled')).toBeDefined()
+  })
+
   it('size=sm 输出 size-sm class', () => {
     const w = mountFc(FcButton, { props: { size: 'sm' }, slots: { default: 'x' } })
     expect(w.find('.fc-button.size-sm').exists()).toBe(true)
