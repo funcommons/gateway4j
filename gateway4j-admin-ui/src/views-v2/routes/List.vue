@@ -72,8 +72,9 @@
         <span v-if="batHasRepub && batIneligiblePublish > 0" class="bat-hint" data-testid="bat-hint-publish">
           {{ t('v2.routes.batHintPublish', { n: batIneligiblePublish }) }}
         </span>
+        <!-- P3-d：bulk 单请求无逐条进度 → bat-progress 退化为 busy 态（渲染于执行中 / 完成后退场） -->
         <span v-if="batchRunning" class="bat-progress" data-testid="bat-progress" role="status">
-          {{ t('v2.routes.batProgress', { done: batchDone, total: batchTotal }) }}
+          {{ t('v2.routes.batProgress') }}
         </span>
       </div>
 
@@ -303,7 +304,18 @@ import {
   FcTag,
   toast
 } from '@/components'
-import { deleteRoute, duplicateRoute, listRoutes, offlineRoute, publishRoute, type RouteNode } from '@/api/routes'
+// P3-d：批量执行走 bulk 三端点（自带 envelope 归一）；publishRoute 仅 Publish 页使用，本页不接
+import {
+  bulkDeleteRoutes,
+  bulkOfflineRoutes,
+  bulkPublishRoutes,
+  deleteRoute,
+  duplicateRoute,
+  listRoutes,
+  offlineRoute,
+  type BulkResult,
+  type RouteNode
+} from '@/api/routes'
 import { envelope } from '@/api/http'
 import { fetchRouteTimeseries, fetchTrafficSummary, type RouteTrafficSummaryItem } from '@/api/v2'
 import { usePermission } from '@/composables/usePermission'
@@ -312,9 +324,9 @@ import { usePublishSync } from '@/composables/usePublishSync'
 
 /** LOW-3 祖先链：每行携带从根到直接父级的 id 链（根行为空链），供折叠可见性单出口判定 */
 type DisplayRow = RouteNode & { depth: number; ancestors: string[] }
-/** OPT-3 批量动作种类（后端无批量端点，执行 = 客户端逐条循环单条端点） */
+/** OPT-3 批量动作种类（P3-d：执行 = 后端 bulk 端点单请求，无前端逐条循环） */
 type BatchAction = 'offline' | 'delete' | 'publish'
-/** 批量失败明细项（bat-fail-<id>：route_name + 后端拒绝原因；门禁跳过项不进明细） */
+/** 批量失败明细项（bat-fail-<id>：route_name + 服务端拒绝 reason，源自 BulkResult.failed） */
 interface BatchFail {
   id: string
   name: string
@@ -343,11 +355,9 @@ const statusFilter = ref<string>('ALL')
 const keyword = ref('')
 const expanded = reactive(new Set<string>())
 const sparks = reactive<Record<string, SparkState>>({})
-// OPT-3 批量：选择集（Set 跨筛选/展开/单条重拉存活）+ 执行态 + 失败明细（保留到下次批量启动）
+// OPT-3 批量：选择集（Set 跨筛选/展开/单条重拉存活）+ 执行态（bulk 单请求 busy）+ 失败明细（保留到下次批量启动）
 const selectedIds = reactive(new Set<string>())
 const batchRunning = ref(false)
-const batchDone = ref(0)
-const batchTotal = ref(0)
 const batchFails = ref<BatchFail[]>([])
 
 // ═══════ LOW-4 单条删除 undo 窗口（v2 优化 低优先级 #10：删除不再即时，5s 内可撤销）═════════
@@ -368,7 +378,7 @@ const pendingIds = computed(() => new Set(pendingDeletes.value.keys()))
 /**
  * 乐观移除唯一出口（裁决⑥）：aliveRows = rows − pending。移除落在派生层过滤、rows 数组
  * 永不被 mutation——撤销零成本回原位；keywordRows / 门禁矩阵 statusById / pruneSelection /
- * 批量 qualified 四处下游全部改挂本集（一处派生四处互斥），不因状态筛选复活、不进批量。
+ * 批量 ids 四处下游全部改挂本集（一处派生四处互斥），不因状态筛选复活、不进批量。
  */
 const aliveRows = computed(() => rows.value.filter((r) => !pendingIds.value.has(r.id)))
 
@@ -762,34 +772,20 @@ function undoPendingDelete(id: string) {
   pendingDeletes.value.delete(id)
 }
 
-// ═══════════ OPT-3 批量操作（v2 优化建议 #2，对标 APISIX）═══════════
-// 后端零改动：执行 = 客户端逐条顺序 await 单条端点（进度只有逐条才有；bulk* 端点为 P3 未来切换候选）。
-// 门禁矩阵照单条口径（offline 仅 PUBLISHED；delete/publish 仅 DRAFT|OFFLINE）；
+// ═══════════ OPT-3 批量操作（v2 优化建议 #2，对标 APISIX；P3-d 契约演进）═══════════
+// 执行 = 后端 bulk 端点单请求（bulkPublishRoutes / bulkOfflineRoutes / bulkDeleteRoutes →
+// BulkResult{ succeeded, failed }），无前端逐条循环；门禁移交服务端——选中集按行序全量上送
+//（不做前端预过滤），服务端拒绝项经 BulkResult.failed[{id, reason}] 进失败明细。
 // 收尾矩阵：全成 → success + 重拉一次 + 清空；部分失败 → warning + 明细 + 重拉 + 清空；
-// 全败 → error + 明细 + 不重拉（单条「失败不重拉」口径的批量延伸）。
+// 全败 → error + 明细 + 不重拉 + 保留选择（单条「失败不重拉」口径的批量延伸）；
+// 请求级失败（envelope code≠0 / 网络）→ error + 不重拉 + 保留选择 + 无明细行
+//（明细只收 BulkResult.failed；batchRunning 于 finally 复位，bat-progress 退场）。
 
-/**
- * 批量执行纯函数：逐条顺序 await（非并行——进度可见、后端压力可控），
- * 单条失败不中断后续（逐条尝试不因单条失败中断）；只收集「后端拒绝项」，
- * 门禁跳过项由调用方先过滤，不经过本函数、不进明细。
- */
-async function runBatch(
-  ids: string[],
-  exec: (id: string) => Promise<unknown>,
-  onProgress?: (done: number) => void
-): Promise<{ fails: Array<{ id: string; reason: string }> }> {
-  const fails: Array<{ id: string; reason: string }> = []
-  let done = 0
-  for (const id of ids) {
-    try {
-      await exec(id)
-    } catch (e) {
-      fails.push({ id, reason: e instanceof Error && e.message ? e.message : String(e) })
-    }
-    done += 1
-    onProgress?.(done)
-  }
-  return { fails }
+/** bulk 单请求分发（批量发布不传 changeDescription，保持无 body 兼容契约；三函数自带 envelope 归一） */
+function batchExecBulk(action: BatchAction, ids: string[]): Promise<BulkResult> {
+  if (action === 'offline') return bulkOfflineRoutes(ids)
+  if (action === 'delete') return bulkDeleteRoutes(ids)
+  return bulkPublishRoutes(ids)
 }
 
 /** 批量 confirm / 成功 / 全败 toast 的 i18n key（v2.routes.* 树） */
@@ -797,19 +793,6 @@ const BATCH_T: Record<BatchAction, { confirm: string; success: string; failed: s
   offline: { confirm: 'batOfflineConfirm', success: 'batOfflineSuccess', failed: 'batOfflineFailed' },
   delete: { confirm: 'batDeleteConfirm', success: 'batDeleteSuccess', failed: 'batDeleteFailed' },
   publish: { confirm: 'batPublishConfirm', success: 'batPublishSuccess', failed: 'batPublishFailed' }
-}
-
-/** 执行前门禁过滤：仅合格项调用 API，不合格项跳过（不计入失败明细） */
-function batchQualified(action: BatchAction, status: RouteNode['status']): boolean {
-  if (action === 'offline') return status === 'PUBLISHED'
-  return status === 'DRAFT' || status === 'OFFLINE'
-}
-
-/** 单条端点分发（批量发布不传 changeDescription，保持无 body 兼容契约）；信封归一见 execCommand */
-function batchExec(action: BatchAction, id: string): Promise<unknown> {
-  if (action === 'offline') return execCommand(offlineRoute(id))
-  if (action === 'delete') return execCommand(deleteRoute(id))
-  return execCommand(publishRoute(id))
 }
 
 /** 行勾选：CHANGING 行禁选兜底回拨（真浏览器 disabled 拦得住，jsdom 激活仍派发，双保险） */
@@ -844,49 +827,47 @@ function pruneSelection() {
   }
 }
 
-/** 批量入口：confirm(danger, {n=合格项数}) → 门禁过滤 → runBatch 逐条 → 收尾矩阵 */
+/** 批量入口：confirm(danger, {n=选中数}) → bulk 单请求（选中全量按行序）→ 收尾矩阵 */
 async function runBatchAction(action: BatchAction) {
   if (batchRunning.value) return
-  // LOW-4：qualified 源改挂 aliveRows——undo 入窗行不可被批量执行（入窗已剔出选择集，此处双保险）
-  const qualified = aliveRows.value
-    .filter((r) => selectedIds.has(r.id) && batchQualified(action, r.status))
-    .map((r) => r.id)
-  if (!qualified.length) return
+  // LOW-4：ids 源挂 aliveRows——undo 入窗行不可被批量执行（入窗已剔出选择集，此处双保险）；
+  // P3-d：门禁移交服务端，选中集按行序全量上送，不做前端预过滤
+  const ids = aliveRows.value.filter((r) => selectedIds.has(r.id)).map((r) => r.id)
+  if (!ids.length) return
   const agreed = await fcConfirm({
     variant: 'danger',
-    title: t(`v2.routes.${BATCH_T[action].confirm}`, { n: qualified.length })
+    title: t(`v2.routes.${BATCH_T[action].confirm}`, { n: ids.length })
   })
   if (!agreed) return
   batchFails.value = [] // 明细保留到下次批量启动：启动时清上一轮（confirm 取消不算启动）
   batchRunning.value = true
-  batchDone.value = 0
-  batchTotal.value = qualified.length
   const nameById = new Map(rows.value.map((r) => [r.id, r.route_name]))
-  const { fails } = await runBatch(
-    qualified,
-    (id) => batchExec(action, id),
-    (done) => { batchDone.value = done }
-  )
-  batchRunning.value = false
-  const okCount = qualified.length - fails.length
-  if (fails.length) {
-    batchFails.value = fails.map((f) => ({ ...f, name: nameById.get(f.id) ?? f.id }))
-  }
-  if (!fails.length) {
-    // 全部成功 → success + 同步轮询重启（仅发布；配置真变了）+ 重拉一次 + 清空选择
-    toast.success(t(`v2.routes.${BATCH_T[action].success}`, { n: okCount }))
-    if (action === 'publish') sync.start()
-    await reload()
-    selectedIds.clear()
-  } else if (okCount > 0) {
-    // 部分失败 → warning({ok} 成 {fail} 败) + 明细 + 同步轮询重启（仅发布）+ 重拉一次 + 清空选择
-    toast.warning(t('v2.routes.batPartial', { ok: okCount, fail: fails.length }))
-    if (action === 'publish') sync.start()
-    await reload()
-    selectedIds.clear()
-  } else {
-    // 全部失败 → error + 明细 + 不重拉 + 不重启同步轮询 + 保留选择（便于修正后重试）
-    toast.error(t(`v2.routes.${BATCH_T[action].failed}`))
+  try {
+    const res = await batchExecBulk(action, ids)
+    const fails = res.failed.map((f) => ({ ...f, name: nameById.get(f.id) ?? f.id }))
+    batchFails.value = fails
+    const okCount = res.succeeded.length
+    if (!fails.length) {
+      // 全部成功 → success + 同步轮询重启（仅发布；配置真变了）+ 重拉一次 + 清空选择
+      toast.success(t(`v2.routes.${BATCH_T[action].success}`, { n: okCount }))
+      if (action === 'publish') sync.start()
+      await reload()
+      selectedIds.clear()
+    } else if (okCount > 0) {
+      // 部分失败 → warning({ok} 成 {fail} 败) + 明细 + 同步轮询重启（仅发布）+ 重拉一次 + 清空选择
+      toast.warning(t('v2.routes.batPartial', { ok: okCount, fail: fails.length }))
+      if (action === 'publish') sync.start()
+      await reload()
+      selectedIds.clear()
+    } else {
+      // 全部失败 → error + 明细 + 不重拉 + 不重启同步轮询 + 保留选择（便于修正后重试）
+      toast.error(t(`v2.routes.${BATCH_T[action].failed}`))
+    }
+  } catch (e) {
+    // 请求级失败（envelope code≠0 / 网络）→ error + 不重拉 + 保留选择 + 无明细行
+    toast.error(e instanceof Error && e.message ? e.message : t(`v2.routes.${BATCH_T[action].failed}`))
+  } finally {
+    batchRunning.value = false // busy 态退场（成功 / 部分失败 / 全败 / 请求级异常全路径复位）
   }
 }
 </script>

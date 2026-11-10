@@ -2,6 +2,8 @@
  * OPT-6-FE【RED】：路由列表页全局同步状态 chip（v2 优化建议 #5「最后一公里」）。
  * 先红是预期：页面存在（S3-C/OPT-3 已实现），但全局同步 chip（lst-sync-*）未实现——行为缺失型 RED，
  * 由 C 步实现后转绿；既有 List.test.ts（含 OPT-3 全部用例）零改动零误伤（本文件独立，纯增量）。
+ * P3-d【justified】：批量执行已切换后端 bulk 端点单请求（List.test.ts OPT-3 段契约演进）——
+ *   本文件 vi.mock 工厂补 bulk* 三导出，S6 断言由 publishRoute/offlineRoute ×2 改为 bulk 恰一次。
  *
  * ── 侦察结论与落点裁决（如实固化）───────────────────────────────────────────
  * ① usePublishSync 注释铁律：「一个页面实例一个轮询，不要每行一个」→ 本页 chip 是【全局一枚】，
@@ -47,6 +49,10 @@ const mocks = vi.hoisted(() => ({
   offlineRoute: vi.fn(),
   deleteRoute: vi.fn(),
   publishRoute: vi.fn(),
+  // P3-d：批量执行接入 bulk 三端点（工厂缺导出会让 List.vue import 绑定为 undefined，接线后必挂）
+  bulkPublishRoutes: vi.fn(),
+  bulkOfflineRoutes: vi.fn(),
+  bulkDeleteRoutes: vi.fn(),
   fetchTrafficSummary: vi.fn(),
   fetchRouteTimeseries: vi.fn(),
   getSyncStatus: vi.fn(),
@@ -62,7 +68,10 @@ vi.mock('@/api/routes', () => ({
   duplicateRoute: mocks.duplicateRoute,
   offlineRoute: mocks.offlineRoute,
   deleteRoute: mocks.deleteRoute,
-  publishRoute: mocks.publishRoute
+  publishRoute: mocks.publishRoute,
+  bulkPublishRoutes: mocks.bulkPublishRoutes,
+  bulkOfflineRoutes: mocks.bulkOfflineRoutes,
+  bulkDeleteRoutes: mocks.bulkDeleteRoutes
 }))
 vi.mock('@/components', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components')>()
@@ -176,6 +185,11 @@ beforeEach(() => {
   mocks.deleteRoute.mockReset().mockResolvedValue({})
   mocks.offlineRoute.mockReset().mockResolvedValue({})
   mocks.publishRoute.mockReset().mockResolvedValue({ id: 'ok' })
+  // P3-d：bulk 三函数默认「回显全部入参 ids 为 succeeded」（等价旧逐条全成默认，List.test.ts 同款）
+  const bulkEcho = (ids: string[]) => ({ succeeded: ids.map((id) => ({ id })), failed: [] })
+  mocks.bulkPublishRoutes.mockReset().mockImplementation(bulkEcho)
+  mocks.bulkOfflineRoutes.mockReset().mockImplementation(bulkEcho)
+  mocks.bulkDeleteRoutes.mockReset().mockImplementation(bulkEcho)
   mocks.fetchTrafficSummary.mockReset().mockResolvedValue(defaultTraffic())
   mocks.fetchRouteTimeseries.mockReset().mockResolvedValue({ source: 'prometheus', data_points: [] })
   mocks.getSyncStatus.mockReset().mockImplementation(pending)
@@ -284,7 +298,7 @@ describe('S5 — 接口不可用（404/网络失败）→ 立即 delayed + 重�
 // ── S6 批量发布收尾重启轮询 ────────────────────────────────────────────────
 
 describe('S6 — 批量发布成功收尾 → start() 重启同步轮询到 synced 即停', () => {
-  it('选 d1,d2 → bat-publish → confirm → publishRoute×2 成功 → 同步查询第二轮启动（chip 回同步中→已生效）', async () => {
+  it('选 d1,d2 → bat-publish → confirm → bulkPublishRoutes 恰一次成功（P3-d 契约演进，原 publishRoute×2 断言退役）→ 同步查询第二轮启动（chip 回同步中→已生效）', async () => {
     mocks.listRoutes.mockResolvedValue(batchNodes())
     // 第一轮（挂载）：立即 synced 终止
     mocks.getSyncStatus.mockResolvedValueOnce(inSync(true))
@@ -303,7 +317,10 @@ describe('S6 — 批量发布成功收尾 → start() 重启同步轮询到 sync
     await rowCbx(wrapper, 'd2').setValue(true)
     await one(wrapper, 'bat-publish').trigger('click')
     await flushPromises()
-    expect(mocks.publishRoute).toHaveBeenCalledTimes(2)
+    // P3-d：批量发布走 bulk 单请求（单条端点留给行内导航语义，不再逐条 ×2）
+    expect(mocks.publishRoute, '批量发布不再走单条端点').not.toHaveBeenCalled()
+    expect(mocks.bulkPublishRoutes, 'bulk 单请求：恰一次调用').toHaveBeenCalledTimes(1)
+    expect(mocks.bulkPublishRoutes).toHaveBeenCalledWith(['d1', 'd2'])
     expect(mocks.toast.success).toHaveBeenCalled()
     // 收尾重启：同步查询第二轮即时发出（新一轮 start()），chip 回 polling
     expect(mocks.getSyncStatus, '批量发布收尾应重启同步轮询').toHaveBeenCalledTimes(2)
@@ -327,7 +344,10 @@ describe('S6 — 批量发布成功收尾 → start() 重启同步轮询到 sync
     await rowCbx(wrapper, 'p2').setValue(true)
     await one(wrapper, 'bat-offline').trigger('click')
     await flushPromises()
-    expect(mocks.offlineRoute).toHaveBeenCalledTimes(2)
+    // P3-d：批量下线走 bulk 单请求（原 offlineRoute×2 断言退役）
+    expect(mocks.offlineRoute, '批量下线不再走单条端点').not.toHaveBeenCalled()
+    expect(mocks.bulkOfflineRoutes, 'bulk 单请求：恰一次调用').toHaveBeenCalledTimes(1)
+    expect(mocks.bulkOfflineRoutes).toHaveBeenCalledWith(['p1', 'p2'])
     expect(mocks.getSyncStatus, '批量下线收尾不重启同步轮询').toHaveBeenCalledTimes(1)
     expect(one(wrapper, 'lst-sync-chip').attributes('data-phase')).toBe('synced')
   })

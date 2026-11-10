@@ -504,7 +504,8 @@ export default {
       batDelete: '批量删除',
       batPublish: '批量发布',
       batClear: '清空',
-      batProgress: '执行中 {done}/{total}',
+      // P3-d：bulk 单请求无逐条进度 → busy 文案（{done}/{total} 退役）
+      batProgress: '执行中…',
       batHintOffline: '{n} 项不可下线',
       batHintDelete: '{n} 项不可删除',
       batHintPublish: '{n} 项不可发布',

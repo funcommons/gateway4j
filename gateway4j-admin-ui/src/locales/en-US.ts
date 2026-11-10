@@ -507,7 +507,8 @@ export default {
       batDelete: 'Delete',
       batPublish: 'Publish',
       batClear: 'Clear',
-      batProgress: 'Running {done}/{total}',
+      // P3-d: bulk single request has no per-item progress -> busy copy ({done}/{total} retired)
+      batProgress: 'Running…',
       batHintOffline: '{n} not eligible for offline',
       batHintDelete: '{n} not eligible for delete',
       batHintPublish: '{n} not eligible for publish',

@@ -6,6 +6,10 @@
  *   流量列 = fetchTrafficSummary()（@/api/v2，按 route_id 合并；未命中的行流量列 —）；
  *   展开懒加载 = fetchRouteTimeseries(id,'24h','1h')（@/api/v2，按行缓存，收起再展开不重复请求）；
  *   复制配置 = duplicateRoute(id)（@/api/routes）。
+ * P3-d【契约演进】：批量执行由「客户端逐条循环单条端点」切换为「后端 bulk 端点单请求」
+ *   （bulkPublishRoutes / bulkOfflineRoutes / bulkDeleteRoutes → BulkResult{succeeded,failed}）。
+ *   背景与理由、新语义全表见下方 OPT-3 段头注；批量执行用例已按新契约改写
+ *   （执行类先红 = bulk 接线未实现，属预期 RED）。
  * 依赖 i18n key 全表（v2.routes.*，zh/en 同步加，铁律 6）：create / statusPublished / statusDraft /
  *   statusOffline / statusChanging / upstreamUnreachable / flowMatch / pluginCount('{n} 插件') /
  *   decisionTree / healthOk / healthBad / healthUnknown / snapshotFallback / trafficLoadFailed / empty /
@@ -35,6 +39,10 @@ const mocks = vi.hoisted(() => ({
   offlineRoute: vi.fn(),
   deleteRoute: vi.fn(),
   publishRoute: vi.fn(),
+  // P3-d 契约演进：批量执行接入 bulk 三端点（单条端点保留给单条操作/undo 用例）
+  bulkPublishRoutes: vi.fn(),
+  bulkOfflineRoutes: vi.fn(),
+  bulkDeleteRoutes: vi.fn(),
   fetchTrafficSummary: vi.fn(),
   fetchRouteTimeseries: vi.fn(),
   toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
@@ -49,7 +57,10 @@ vi.mock('@/api/routes', () => ({
   duplicateRoute: mocks.duplicateRoute,
   offlineRoute: mocks.offlineRoute,
   deleteRoute: mocks.deleteRoute,
-  publishRoute: mocks.publishRoute
+  publishRoute: mocks.publishRoute,
+  bulkPublishRoutes: mocks.bulkPublishRoutes,
+  bulkOfflineRoutes: mocks.bulkOfflineRoutes,
+  bulkDeleteRoutes: mocks.bulkDeleteRoutes
 }))
 // P4f 前置票①：只替换 toast，Fc* 组件保留真实实现（plugins/List.test.ts、Editor.test.ts 先例）
 vi.mock('@/components', async (importOriginal) => {
@@ -72,6 +83,8 @@ vi.mock('@/composables/usePermission', () => ({
 }))
 
 import List from '@/views-v2/routes/List.vue'
+// 类型仅编译期使用（import type 运行时擦除，不触碰 vi.mock 工厂）
+import type { BulkResult } from '@/api/routes'
 
 const i18n = createI18n({ legacy: false, locale: 'zh-CN', fallbackLocale: 'en-US', messages: { 'zh-CN': zhCN, 'en-US': enUS } })
 const stub = { template: '<div />' }
@@ -533,39 +546,53 @@ describe('P4f① 源码契约 — List.vue fs 抽查（testid + 门禁字面量�
 
 // ═══════════════════════════════════════════════════════════════════════════
 // OPT-3 — 路由列表批量操作（v2 优化建议 #2，对标 APISIX；docs/ui-v2/gateway4j-v2优化.md §三-2）
-// RED：行为未实现（List.vue 真实存在、mount 成功，只是没有选择列/批量条），本段应先红。
 //
-// 语义契约（后端零改动，批量 = 客户端逐条循环单条端点，C 按此实现）：
-//   选择列（原生 <input type=checkbox>，ImportExport.vue imp-row-check 先例，testid 落原生元素）：
+// P3-d【契约演进·本段头注】：批量执行从「客户端逐条循环单条端点」切换为「后端 bulk 端点单请求」。
+//   背景：OPT-3 实装时后端 bulk 端点已存在（bulkPublishRoutes / bulkOfflineRoutes /
+//   bulkDeleteRoutes → POST /v1/routes/bulk-publish|bulk-offline|bulk-delete，返回
+//   BulkResult{ succeeded: [{id}], failed: [{id, reason}] }，见 src/api/routes.ts），但按
+//   「客户端逐条循环保真逐条进度」裁决未接（当时实现注释：bulk* 为 P3 未来切换候选）。
+//   P3-d 主 agent 已裁决演进：改走 bulk 端点——单请求、服务端门禁、部分失败明细原生支持；
+//   代价 = 真进度随请求粒度退化（bulk 单请求无逐条 done/total）→ 进度呈现改为「执行中…」
+//   busy 态，{done}/{total} 文案退役（batProgress 文案改动属 C 步 i18n；本文件只钉
+//   「bat-progress 渲染于执行中、完成后退场」的 busy 契约，不断言进度数字）。
+//
+// 语义契约（P3-d 演进版，C 按此实现）：
+//   选择列（不变）：原生 <input type=checkbox>（ImportExport.vue imp-row-check 先例，testid 落原生元素）：
 //     sel-all —— 表头全选。checked=可见行全选；indeterminate=部分选中；
-//       change 勾 → 仅把「可见行」并入选择集（筛选外已选保留，ImportExport onSelectAll merge 语义）；
-//       change 取消勾 → 仅把「可见行」移出选择集。页面无分页，等效「跨页提示」由
-//       「选择集跨筛选/展开/单条重拉存活」承担（本段用例锁定）。
-//     sel-row-<id> —— 行勾选。aria-label=route_name；CHANGING 行禁选（三动作全不适用，
-//       与单条 act-offline/act-delete 两钮均无同一口径）。
-//   批量条 bat-bar（选中 ≥1 渲染）：bat-count（已选 {n} 项）/ bat-offline / bat-delete /
+//       change 勾 → 仅把「可见行」并入选择集（筛选外已选保留，merge 语义）；取消勾反向。
+//     sel-row-<id> —— 行勾选。aria-label=route_name；CHANGING 行禁选（三动作全不适用）。
+//   批量条 bat-bar（选中 ≥1 渲染，不变）：bat-count（已选 {n} 项）/ bat-offline / bat-delete /
 //     bat-publish / bat-clear。
-//   门禁矩阵（复用单条语义，按钮级 disabled + 不可操作计数提示，呈现裁决=T 步固化）：
-//     批量下线 = 选中集含 ≥1 PUBLISHED；批量删除 / 批量发布 = 含 ≥1 DRAFT|OFFLINE。
-//     混合态按钮可用 + bat-hint-<action> 显示「{n} 项不可…」；执行时按门禁过滤，
-//     不合格项跳过（不计入失败明细——明细只收后端拒绝项）。
-//   执行（逐条 await，顺序非并行）：fcConfirm({ variant:'danger', title:…{n=将执行数} })
-//     → 逐条 deleteRoute/offlineRoute/publishRoute(id)（publish 不传 changeDescription）
-//     → bat-progress「执行中 {done}/{total}」→ 执行中三钮 disabled（防重复点击）
-//     → 完成收尾：重拉一次 + 清空选择 + toast。
-//     全部成功 → toast.success(已 {n} 条)；部分失败 → toast.warning({ok} 成 {fail} 败)
-//     + bat-fail-detail（页根级，不随 bat-bar 清空退场，保留到下次批量启动）
-//     逐项 bat-fail-<id>（route_name + e.message）；全部失败 → toast.error(bat*Failed)
-//     + 不重拉（单条「失败不重拉」口径的批量延伸）。
-//     confirm 取消 → 零调用、不重拉、选择保留。
-//   单条同步：既有 act-delete/act-offline 成功重拉后，选择集剔除已消失 id（幽灵计数防护）。
-// DOM 契约（新 testid 全表）：sel-all / sel-row-<id> / bat-bar / bat-count / bat-offline /
-//   bat-delete / bat-publish / bat-clear / bat-progress / bat-hint-offline / bat-hint-delete /
-//   bat-hint-publish / bat-fail-detail / bat-fail-<id>
-// i18n（v2.routes.* 树追加，双语铁律 6）：selectAll batSelected batOffline batDelete batPublish
-//   batClear batProgress batHintOffline batHintDelete batHintPublish batOfflineConfirm
+//   门禁呈现（不变）：按钮级 disabled（下线=含 ≥1 PUBLISHED；删除/发布=含 ≥1 DRAFT|OFFLINE）
+//     + 混合态 bat-hint-<action>「{n} 项不可…」前端预估计数原样保留。
+//   门禁执行（P3-d 行为变化点）：前端【不再】静默预过滤——ids = 选中集按行序全量交服务端，
+//     服务端门禁拒绝项经 BulkResult.failed[{id,reason}] 进失败明细（原「跳过项不计失败」退役）；
+//     confirm {n} 口径随之 = 选中数（请求全量口径，与「选中的 {n} 条」文案一致）。
+//   执行（bulk 单请求）：fcConfirm({ variant:'danger', title:…{n=选中数} })
+//     → bulkXxx(ids) 恰一次（无逐条循环、无并发重复）
+//     → bat-progress busy 态（渲染于执行中 / 完成后退场）+ 执行中三钮 disabled（防重复点击）
+//     → 收尾矩阵（数据源从逐条 catch → BulkResult，语义不变）：
+//       全部成功（failed 空）→ toast.success(已 {n=|succeeded|} 条) + 重拉一次 + 清空选择；
+//       部分失败 → toast.warning({ok=|succeeded|} 成 {fail=|failed|} 败) + bat-fail-detail
+//         （页根级，保留到下次批量启动）逐项 bat-fail-<id>（route_name + 服务端 reason）
+//         + 重拉一次 + 清空选择；
+//       全部失败 → toast.error(bat*Failed) + 不重拉 + 保留选择（便于修正后重试）；
+//       请求级失败（envelope code≠0 / 网络）→ toast.error(后端消息) + 不重拉 + 保留选择
+//         + 无明细行（明细只收 BulkResult.failed；batchRunning 需 finally 复位，bat-progress 退场）。
+//       confirm 取消 → bulk 零调用、不重拉、选择保留。
+//   单条同步（不变）：既有 act-delete/act-offline 成功重拉后，选择集剔除已消失 id（幽灵计数防护）。
+// DOM 契约（testid 全表，P3-d 零新增零删除）：sel-all / sel-row-<id> / bat-bar / bat-count /
+//   bat-offline / bat-delete / bat-publish / bat-clear / bat-progress / bat-hint-offline /
+//   bat-hint-delete / bat-hint-publish / bat-fail-detail / bat-fail-<id>
+// i18n（v2.routes.* 树，双语铁律 6）：key 全表不变（selectAll batSelected batOffline batDelete
+//   batPublish batClear batProgress batHintOffline batHintDelete batHintPublish batOfflineConfirm
 //   batDeleteConfirm batPublishConfirm batOfflineSuccess batDeleteSuccess batPublishSuccess
-//   batPartial batFailTitle batOfflineFailed batDeleteFailed batPublishFailed
+//   batPartial batFailTitle batOfflineFailed batDeleteFailed batPublishFailed）；
+//   C 步唯一文案变更 = batProgress：zh '执行中 {done}/{total}' → '执行中…' /
+//   en 'Running {done}/{total}' → 'Running…'。
+// RED 预期：本段执行类用例 + fs 抽查红（bulk 接线未实现，List.vue 仍为客户端逐条循环）；
+//   选择态 / 门禁矩阵呈现 / i18n 存在性 / 文件其余用例零波及全绿。
 // ═══════════════════════════════════════════════════════════════════════════
 
 const BATCH_KEYS = ['selectAll', 'batSelected', 'batOffline', 'batDelete', 'batPublish', 'batClear',
@@ -577,6 +604,12 @@ const BATCH_KEYS = ['selectAll', 'batSelected', 'batOffline', 'batDelete', 'batP
 // 只增不改：第三个文件级 beforeEach 仅重置本票新增面，既有用例不感知（P4f① 先例）
 beforeEach(() => {
   mocks.publishRoute.mockReset().mockResolvedValue({ id: 'ok' })
+  // P3-d：bulk 三函数默认「回显全部入参 ids 为 succeeded」（等价旧逐条全成默认），
+  // 用例按场景用 mockResolvedValue / mockImplementationOnce 覆盖部分失败 / 全败 / pending
+  const bulkEcho = (ids: string[]): BulkResult => ({ succeeded: ids.map((id) => ({ id })), failed: [] })
+  mocks.bulkPublishRoutes.mockReset().mockImplementation(bulkEcho)
+  mocks.bulkOfflineRoutes.mockReset().mockImplementation(bulkEcho)
+  mocks.bulkDeleteRoutes.mockReset().mockImplementation(bulkEcho)
   mocks.fcConfirm.mockReset().mockResolvedValue(true)
   mocks.toast.success.mockReset()
   mocks.toast.error.mockReset()
@@ -584,7 +617,7 @@ beforeEach(() => {
   mocks.toast.info.mockReset()
 })
 
-/** 参数化 i18n 取值（{n}/{done}/{total}/{ok}/{fail} 占位替换；仅本段测试用） */
+/** 参数化 i18n 取值（{n}/{ok}/{fail} 占位替换；仅本段测试用。P3-d：{done}/{total} 已退役） */
 function tf(key: string, params: Record<string, string | number>): string {
   let s = String(dig(zhCN, `v2.routes.${key}`))
   for (const [k, v] of Object.entries(params)) s = s.split(`{${k}}`).join(String(v))
@@ -607,10 +640,10 @@ const one = (w: VueWrapper<any>, tid: string) => w.find(`[data-testid="${tid}"]`
 const rowCbx = (w: VueWrapper<any>, id: string) => one(w, `sel-row-${id}`)
 /** 原生 checkbox 选中读数（ImportExport checkOf 先例：testid 落原生元素，element 直读 checked） */
 const isChecked = (w: VueWrapper<any>, id: string) => (rowCbx(w, id).element as HTMLInputElement).checked
-/** 手写 deferred：卡住批量循环，断言进度/防重/顺序性，resolve 后走完 */
-function deferred(): { promise: Promise<void>; resolve: () => void } {
-  let resolve!: () => void
-  const promise = new Promise<void>((r) => { resolve = r })
+/** 手写 deferred：卡住 bulk 单请求，断言 busy/防重（P3-d：resolve 值 = BulkResult），resolve 后走完 */
+function deferred<T>(): { promise: Promise<T>; resolve: (v: T) => void } {
+  let resolve!: (v: T) => void
+  const promise = new Promise<T>((r) => { resolve = r })
   return { promise, resolve }
 }
 /** statusFilter 分段钮（页面无 testid，按文案定位——Users.test.ts needSeg 同款） */
@@ -805,12 +838,12 @@ describe('OPT-3 批量条 — 门禁矩阵与呈现', () => {
   })
 })
 
-describe('OPT-3 批量删除 — confirm → 逐条 deleteRoute → 进度/明细/收尾', () => {
+describe('OPT-3 批量删除 — confirm → bulkDeleteRoutes 单请求 → busy/明细/收尾', () => {
   beforeEach(() => {
     mocks.listRoutes.mockReset().mockResolvedValue(batchNodes())
   })
 
-  it('成功链：confirm(danger,{n}) → deleteRoute 逐条 d1,d2 → toast.success(已删 2) → 重拉 + 清空选择', async () => {
+  it('成功链：confirm(danger,{n=选中数}) → bulkDeleteRoutes 恰一次（ids=[d1,d2] 按行序）→ toast.success(已删 2) → 重拉 + 清空选择', async () => {
     const { wrapper } = await factory()
     await rowCbx(wrapper, 'd1').setValue(true)
     await rowCbx(wrapper, 'd2').setValue(true)
@@ -821,8 +854,9 @@ describe('OPT-3 批量删除 — confirm → 逐条 deleteRoute → 进度/明�
       variant: 'danger',
       title: expect.stringContaining(tf('batDeleteConfirm', { n: 2 }))
     }))
-    expect(mocks.deleteRoute, '逐条循环单条端点').toHaveBeenCalledTimes(2)
-    expect(mocks.deleteRoute.mock.calls.map((c) => c[0])).toEqual(['d1', 'd2'])
+    expect(mocks.bulkDeleteRoutes, 'bulk 单请求：恰一次调用').toHaveBeenCalledTimes(1)
+    expect(mocks.bulkDeleteRoutes).toHaveBeenCalledWith(['d1', 'd2'])
+    expect(mocks.deleteRoute, '批量不再走单条端点（单条留给 undo/行内操作）').not.toHaveBeenCalled()
     expect(mocks.toast.success).toHaveBeenCalledWith(tf('batDeleteSuccess', { n: 2 }))
     expect(mocks.listRoutes.mock.calls.length, '完成后应重拉一次').toBeGreaterThan(before)
     expect(one(wrapper, 'bat-bar').exists(), '完成后清空选择').toBe(false)
@@ -830,7 +864,7 @@ describe('OPT-3 批量删除 — confirm → 逐条 deleteRoute → 进度/明�
     expect(one(wrapper, 'bat-fail-detail').exists()).toBe(false)
   })
 
-  it('confirm=false → 零调用、不重拉、选择保留', async () => {
+  it('confirm=false → bulk 零调用、不重拉、选择保留', async () => {
     mocks.fcConfirm.mockResolvedValue(false)
     const { wrapper } = await factory()
     await rowCbx(wrapper, 'd1').setValue(true)
@@ -838,15 +872,19 @@ describe('OPT-3 批量删除 — confirm → 逐条 deleteRoute → 进度/明�
     const before = mocks.listRoutes.mock.calls.length
     await one(wrapper, 'bat-delete').trigger('click')
     await flushPromises()
-    expect(mocks.deleteRoute).not.toHaveBeenCalled()
+    expect(mocks.bulkDeleteRoutes).not.toHaveBeenCalled()
+    expect(mocks.bulkOfflineRoutes, 'confirm 取消不得波及其它 bulk 端点').not.toHaveBeenCalled()
+    expect(mocks.bulkPublishRoutes).not.toHaveBeenCalled()
     expect(mocks.listRoutes.mock.calls.length).toBe(before)
     expect(one(wrapper, 'bat-bar').exists(), '取消后选择保留').toBe(true)
   })
 
-  it('部分失败：d1 成 d2 败 o1 成 → toast.warning(2 成 1 败) + bat-fail-d2（名称+原因）→ 重拉 + 清空', async () => {
-    mocks.deleteRoute.mockResolvedValueOnce(undefined)
-      .mockRejectedValueOnce(new Error('上游仍引用该路由'))
-      .mockResolvedValueOnce(undefined)
+  it('部分失败：明细改源 BulkResult.failed（d2 败）→ toast.warning(2 成 1 败) + bat-fail-d2（名称+服务端 reason）→ 重拉 + 清空', async () => {
+    // P3-d：明细不再来自逐条 catch，而是 bulk 响应原生 failed[{id,reason}]
+    mocks.bulkDeleteRoutes.mockResolvedValue({
+      succeeded: [{ id: 'd1' }, { id: 'o1' }],
+      failed: [{ id: 'd2', reason: '上游仍引用该路由' }]
+    })
     const { wrapper } = await factory()
     await rowCbx(wrapper, 'd1').setValue(true)
     await rowCbx(wrapper, 'd2').setValue(true)
@@ -854,7 +892,8 @@ describe('OPT-3 批量删除 — confirm → 逐条 deleteRoute → 进度/明�
     const before = mocks.listRoutes.mock.calls.length
     await one(wrapper, 'bat-delete').trigger('click')
     await flushPromises()
-    expect(mocks.deleteRoute.mock.calls.map((c) => c[0])).toEqual(['d1', 'd2', 'o1'])
+    expect(mocks.bulkDeleteRoutes).toHaveBeenCalledTimes(1)
+    expect(mocks.bulkDeleteRoutes).toHaveBeenCalledWith(['d1', 'd2', 'o1'])
     expect(mocks.toast.warning).toHaveBeenCalledWith(tf('batPartial', { ok: 2, fail: 1 }))
     expect(mocks.toast.success).not.toHaveBeenCalled()
     expect(one(wrapper, 'bat-fail-detail').exists()).toBe(true)
@@ -863,74 +902,115 @@ describe('OPT-3 批量删除 — confirm → 逐条 deleteRoute → 进度/明�
     expect(failRow.exists()).toBe(true)
     expect(failRow.text()).toContain('draft_two')
     expect(failRow.text()).toContain('上游仍引用该路由')
-    expect(one(wrapper, 'bat-fail-d1').exists(), '成功项不进明细').toBe(false)
+    expect(one(wrapper, 'bat-fail-d1').exists(), 'succeeded 项不进明细').toBe(false)
+    expect(one(wrapper, 'bat-fail-o1').exists(), 'succeeded 项不进明细').toBe(false)
     expect(mocks.listRoutes.mock.calls.length, '部分成功仍重拉').toBeGreaterThan(before)
     expect(one(wrapper, 'bat-bar').exists()).toBe(false)
   })
 
-  it('全部失败：toast.error(删除失败) + 不重拉（单条失败不重拉口径延伸）+ 明细两行', async () => {
-    mocks.deleteRoute.mockRejectedValue(new Error('boom'))
+  it('全部失败：BulkResult 全员 failed → toast.error(删除失败) + 不重拉 + 明细两行 + 选择保留', async () => {
+    mocks.bulkDeleteRoutes.mockResolvedValue({
+      succeeded: [],
+      failed: [{ id: 'd1', reason: 'boom' }, { id: 'd2', reason: 'boom' }]
+    })
     const { wrapper } = await factory()
     await rowCbx(wrapper, 'd1').setValue(true)
     await rowCbx(wrapper, 'd2').setValue(true)
     const before = mocks.listRoutes.mock.calls.length
     await one(wrapper, 'bat-delete').trigger('click')
     await flushPromises()
-    expect(mocks.deleteRoute, '逐条尝试不因单条失败中断').toHaveBeenCalledTimes(2)
+    expect(mocks.bulkDeleteRoutes, '单请求不因 failed 明细中断').toHaveBeenCalledTimes(1)
     expect(mocks.toast.error).toHaveBeenCalledWith(t('v2.routes.batDeleteFailed'))
     expect(mocks.toast.success).not.toHaveBeenCalled()
     expect(mocks.toast.warning).not.toHaveBeenCalled()
-    expect(mocks.listRoutes.mock.calls.length).toBe(before)
+    expect(mocks.listRoutes.mock.calls.length, '全败不重拉（单条「失败不重拉」口径延伸，契约不变）').toBe(before)
     expect(one(wrapper, 'bat-fail-d1').text()).toContain('draft_one')
     expect(one(wrapper, 'bat-fail-d1').text()).toContain('boom')
     expect(one(wrapper, 'bat-fail-d2').text()).toContain('draft_two')
+    expect(one(wrapper, 'bat-bar').exists(), '全败保留选择（便于修正后重试）').toBe(true)
   })
 
-  it('进度与防重：第二条 pending → bat-progress 执行中 1/3 + 三钮 disabled + 未并发；resolve 后收尾', async () => {
-    const d2 = deferred()
-    mocks.deleteRoute.mockResolvedValueOnce(undefined)
-      .mockReturnValueOnce(d2.promise)
-      .mockResolvedValue(undefined)
+  it('busy 态与防重：bulk 请求 pending → bat-progress 渲染（busy）+ 三钮 disabled + bulk 恰一次；resolve 后退场收尾', async () => {
+    // P3-d：bulk 单请求无逐条进度 → bat-progress 退化为 busy 态（渲染于执行中 / 完成后退场），
+    // 不再断言 {done}/{total} 文案（batProgress 文案退役属 C 步 i18n，测试层不锁具体字样）
+    const gate = deferred<BulkResult>()
+    mocks.bulkDeleteRoutes.mockImplementationOnce(() => gate.promise)
     const { wrapper } = await factory()
     await rowCbx(wrapper, 'd1').setValue(true)
     await rowCbx(wrapper, 'd2').setValue(true)
     await rowCbx(wrapper, 'o1').setValue(true)
     await one(wrapper, 'bat-delete').trigger('click')
     await flushPromises()
-    expect(one(wrapper, 'bat-progress').exists()).toBe(true)
-    expect(one(wrapper, 'bat-progress').text()).toContain(tf('batProgress', { done: 1, total: 3 }))
+    expect(mocks.bulkDeleteRoutes, 'bulk 单请求：执行中恰一次（无逐条循环 / 无重复并发）').toHaveBeenCalledTimes(1)
+    expect(mocks.bulkDeleteRoutes).toHaveBeenCalledWith(['d1', 'd2', 'o1'])
+    const progress = one(wrapper, 'bat-progress')
+    expect(progress.exists(), '执行中 bat-progress busy 态渲染').toBe(true)
+    expect(progress.attributes('role'), 'busy 态以 status 角色播报（无障碍语义不随进度退化丢失）').toBe('status')
     expect(one(wrapper, 'bat-delete').attributes('disabled'), '执行中防重复点击').toBeDefined()
     expect(one(wrapper, 'bat-publish').attributes('disabled')).toBeDefined()
-    expect(mocks.deleteRoute, '顺序执行：第二条发出前无第三条').toHaveBeenCalledTimes(2)
-    d2.resolve()
+    gate.resolve({ succeeded: [{ id: 'd1' }, { id: 'd2' }, { id: 'o1' }], failed: [] })
     await flushPromises()
-    expect(one(wrapper, 'bat-progress').exists()).toBe(false)
+    expect(one(wrapper, 'bat-progress').exists(), '完成后 bat-progress 退场').toBe(false)
     expect(one(wrapper, 'bat-bar').exists()).toBe(false)
-    expect(mocks.deleteRoute.mock.calls.map((c) => c[0])).toEqual(['d1', 'd2', 'o1'])
+    expect(mocks.bulkDeleteRoutes, '整个执行周期恰一次请求').toHaveBeenCalledTimes(1)
     expect(mocks.toast.success).toHaveBeenCalledWith(tf('batDeleteSuccess', { n: 3 }))
   })
 
-  it('门禁过滤执行：选 p1+d1+d2 → deleteRoute 仅 d1,d2（p1 跳过不计失败）→ toast(已删 2)', async () => {
+  it('服务端门禁拒绝（P3-d 行为变化点）：选 p1+d1+d2 → bulk 全量 ids → p1 经 failed 进明细（有 reason），不再前端静默跳过 → toast.warning(2 成 1 败)', async () => {
+    mocks.bulkDeleteRoutes.mockResolvedValue({
+      succeeded: [{ id: 'd1' }, { id: 'd2' }],
+      failed: [{ id: 'p1', reason: '已发布路由不可删除，请先下线' }]
+    })
     const { wrapper } = await factory()
     await rowCbx(wrapper, 'p1').setValue(true)
     await rowCbx(wrapper, 'd1').setValue(true)
     await rowCbx(wrapper, 'd2').setValue(true)
+    // bat-hint 前端预估计数不变（呈现契约原样保留）
     expect(one(wrapper, 'bat-hint-delete').text()).toContain(tf('batHintDelete', { n: 1 }))
+    const before = mocks.listRoutes.mock.calls.length
     await one(wrapper, 'bat-delete').trigger('click')
     await flushPromises()
-    expect(mocks.deleteRoute.mock.calls.map((c) => c[0])).toEqual(['d1', 'd2'])
-    expect(mocks.deleteRoute).toHaveBeenCalledTimes(2)
-    expect(mocks.toast.success).toHaveBeenCalledWith(tf('batDeleteSuccess', { n: 2 }))
-    expect(one(wrapper, 'bat-fail-detail').exists(), '门禁跳过项不进失败明细').toBe(false)
+    // confirm {n} = 选中数（门禁移交服务端后请求为全量口径，与「选中的 {n} 条」文案一致）
+    expect(mocks.fcConfirm).toHaveBeenCalledWith(expect.objectContaining({
+      variant: 'danger',
+      title: expect.stringContaining(tf('batDeleteConfirm', { n: 3 }))
+    }))
+    expect(mocks.bulkDeleteRoutes, '选中全量一次交服务端（不做前端预过滤）').toHaveBeenCalledTimes(1)
+    expect(mocks.bulkDeleteRoutes).toHaveBeenCalledWith(['p1', 'd1', 'd2'])
+    expect(mocks.toast.warning).toHaveBeenCalledWith(tf('batPartial', { ok: 2, fail: 1 }))
+    expect(mocks.toast.success).not.toHaveBeenCalled()
+    const failRow = one(wrapper, 'bat-fail-p1')
+    expect(failRow.exists(), '服务端门禁拒绝项进失败明细（原「跳过不计失败」退役）').toBe(true)
+    expect(failRow.text()).toContain('pub_one')
+    expect(failRow.text()).toContain('请先下线')
+    expect(mocks.listRoutes.mock.calls.length, '部分成功仍重拉').toBeGreaterThan(before)
+    expect(one(wrapper, 'bat-bar').exists()).toBe(false)
+  })
+
+  it('请求级失败：bulk 整体抛错（envelope code≠0 / 网络）→ toast.error(后端消息) + 不重拉 + 选择保留 + 无明细行', async () => {
+    mocks.bulkDeleteRoutes.mockRejectedValue(new Error('批量删除网关忙，请重试'))
+    const { wrapper } = await factory()
+    await rowCbx(wrapper, 'd1').setValue(true)
+    await rowCbx(wrapper, 'd2').setValue(true)
+    const before = mocks.listRoutes.mock.calls.length
+    await one(wrapper, 'bat-delete').trigger('click')
+    await flushPromises()
+    expect(mocks.toast.error).toHaveBeenCalledWith(expect.stringContaining('批量删除网关忙'))
+    expect(mocks.toast.success).not.toHaveBeenCalled()
+    expect(mocks.toast.warning).not.toHaveBeenCalled()
+    expect(mocks.listRoutes.mock.calls.length, '请求级失败不重拉').toBe(before)
+    expect(one(wrapper, 'bat-bar').exists(), '请求级失败保留选择').toBe(true)
+    expect(one(wrapper, 'bat-fail-detail').exists(), '明细只收 BulkResult.failed，请求级失败无明细行').toBe(false)
+    expect(one(wrapper, 'bat-progress').exists(), '失败后 busy 态必须退场（batchRunning 需复位）').toBe(false)
   })
 })
 
-describe('OPT-3 批量下线 — confirm → 逐条 offlineRoute', () => {
+describe('OPT-3 批量下线 — confirm → bulkOfflineRoutes 单请求', () => {
   beforeEach(() => {
     mocks.listRoutes.mockReset().mockResolvedValue(batchNodes())
   })
 
-  it('成功链：confirm(danger) → offlineRoute p1,p2 → toast(已下线 2) → 重拉 + 清空选择', async () => {
+  it('成功链：confirm(danger,{n}) → bulkOfflineRoutes 恰一次（ids=[p1,p2] 按行序）→ toast(已下线 2) → 重拉 + 清空选择', async () => {
     const { wrapper } = await factory()
     await rowCbx(wrapper, 'p1').setValue(true)
     await rowCbx(wrapper, 'p2').setValue(true)
@@ -941,29 +1021,56 @@ describe('OPT-3 批量下线 — confirm → 逐条 offlineRoute', () => {
       variant: 'danger',
       title: expect.stringContaining(tf('batOfflineConfirm', { n: 2 }))
     }))
-    expect(mocks.offlineRoute.mock.calls.map((c) => c[0])).toEqual(['p1', 'p2'])
+    expect(mocks.bulkOfflineRoutes, 'bulk 单请求：恰一次调用').toHaveBeenCalledTimes(1)
+    expect(mocks.bulkOfflineRoutes).toHaveBeenCalledWith(['p1', 'p2'])
+    expect(mocks.offlineRoute, '批量不再走单条端点（单条留给行内操作）').not.toHaveBeenCalled()
     expect(mocks.toast.success).toHaveBeenCalledWith(tf('batOfflineSuccess', { n: 2 }))
     expect(mocks.listRoutes.mock.calls.length).toBeGreaterThan(before)
     expect(one(wrapper, 'bat-bar').exists()).toBe(false)
   })
 
-  it('confirm=false → 零调用、选择保留', async () => {
+  it('confirm=false → bulk 零调用、选择保留', async () => {
     mocks.fcConfirm.mockResolvedValue(false)
     const { wrapper } = await factory()
     await rowCbx(wrapper, 'p1').setValue(true)
     await one(wrapper, 'bat-offline').trigger('click')
     await flushPromises()
-    expect(mocks.offlineRoute).not.toHaveBeenCalled()
+    expect(mocks.bulkOfflineRoutes).not.toHaveBeenCalled()
     expect(one(wrapper, 'bat-bar').exists()).toBe(true)
+  })
+
+  it('服务端门禁拒绝（P3-d 行为变化点）：选 p1+d1 → bulkOfflineRoutes([p1,d1]) → d1 经 failed 进明细 → toast.warning(1 成 1 败)', async () => {
+    // 门禁移交服务端：非 PUBLISHED 项不再前端静默跳过，由服务端拒绝并回传 reason
+    mocks.bulkOfflineRoutes.mockResolvedValue({
+      succeeded: [{ id: 'p1' }],
+      failed: [{ id: 'd1', reason: '仅 PUBLISHED 状态可下线' }]
+    })
+    const { wrapper } = await factory()
+    await rowCbx(wrapper, 'p1').setValue(true)
+    await rowCbx(wrapper, 'd1').setValue(true)
+    expect(one(wrapper, 'bat-hint-offline').text()).toContain(tf('batHintOffline', { n: 1 }))
+    const before = mocks.listRoutes.mock.calls.length
+    await one(wrapper, 'bat-offline').trigger('click')
+    await flushPromises()
+    expect(mocks.bulkOfflineRoutes).toHaveBeenCalledTimes(1)
+    expect(mocks.bulkOfflineRoutes).toHaveBeenCalledWith(['p1', 'd1'])
+    expect(mocks.toast.warning).toHaveBeenCalledWith(tf('batPartial', { ok: 1, fail: 1 }))
+    expect(mocks.toast.success).not.toHaveBeenCalled()
+    const failRow = one(wrapper, 'bat-fail-d1')
+    expect(failRow.exists()).toBe(true)
+    expect(failRow.text()).toContain('draft_one')
+    expect(failRow.text()).toContain('仅 PUBLISHED 状态可下线')
+    expect(mocks.listRoutes.mock.calls.length, '部分成功仍重拉').toBeGreaterThan(before)
+    expect(one(wrapper, 'bat-bar').exists()).toBe(false)
   })
 })
 
-describe('OPT-3 批量发布 — confirm → 逐条 publishRoute（不传 changeDescription）', () => {
+describe('OPT-3 批量发布 — confirm → bulkPublishRoutes 单请求（不传 changeDescription）', () => {
   beforeEach(() => {
     mocks.listRoutes.mockReset().mockResolvedValue(batchNodes())
   })
 
-  it('成功链：publishRoute 按 d1,o1 行序逐条 → toast(已发布 2) → 重拉 + 清空选择', async () => {
+  it('成功链：bulkPublishRoutes 恰一次（ids=[d1,o1] 按行序、不传 changeDescription）→ toast(已发布 2) → 重拉 + 清空选择', async () => {
     const { wrapper } = await factory()
     await rowCbx(wrapper, 'd1').setValue(true)
     await rowCbx(wrapper, 'o1').setValue(true)
@@ -974,26 +1081,41 @@ describe('OPT-3 批量发布 — confirm → 逐条 publishRoute（不传 change
       variant: 'danger',
       title: expect.stringContaining(tf('batPublishConfirm', { n: 2 }))
     }))
-    expect(mocks.publishRoute.mock.calls.map((c) => c[0])).toEqual(['d1', 'o1'])
+    expect(mocks.bulkPublishRoutes, 'bulk 单请求：恰一次调用').toHaveBeenCalledTimes(1)
+    // 单参调用 = 不传 changeDescription（无 body 兼容契约原样保留）
+    expect(mocks.bulkPublishRoutes).toHaveBeenCalledWith(['d1', 'o1'])
+    expect(mocks.publishRoute, '批量不再走单条端点').not.toHaveBeenCalled()
     expect(mocks.toast.success).toHaveBeenCalledWith(tf('batPublishSuccess', { n: 2 }))
     expect(mocks.listRoutes.mock.calls.length).toBeGreaterThan(before)
     expect(one(wrapper, 'bat-bar').exists()).toBe(false)
   })
 
-  it('混合 PUBLISHED 跳过：选 p1+d1 → publishRoute 仅 d1 + 提示计 1', async () => {
+  it('服务端门禁拒绝（P3-d 行为变化点）：选 p1+d1 → bulkPublishRoutes([p1,d1]) → p1 经 failed 进明细 → toast.warning(1 成 1 败)', async () => {
+    // 混合选择不再「前端跳过 PUBLISHED」：全量交服务端，由服务端拒绝并回传 reason
+    mocks.bulkPublishRoutes.mockResolvedValue({
+      succeeded: [{ id: 'd1' }],
+      failed: [{ id: 'p1', reason: '已发布路由不可重复发布' }]
+    })
     const { wrapper } = await factory()
     await rowCbx(wrapper, 'p1').setValue(true)
     await rowCbx(wrapper, 'd1').setValue(true)
+    // bat-hint 前端预估计数不变（呈现契约原样保留）
     expect(one(wrapper, 'bat-hint-publish').text()).toContain(tf('batHintPublish', { n: 1 }))
     await one(wrapper, 'bat-publish').trigger('click')
     await flushPromises()
-    expect(mocks.publishRoute.mock.calls.map((c) => c[0])).toEqual(['d1'])
-    expect(mocks.toast.success).toHaveBeenCalledWith(tf('batPublishSuccess', { n: 1 }))
+    expect(mocks.bulkPublishRoutes).toHaveBeenCalledTimes(1)
+    expect(mocks.bulkPublishRoutes).toHaveBeenCalledWith(['p1', 'd1'])
+    expect(mocks.toast.warning).toHaveBeenCalledWith(tf('batPartial', { ok: 1, fail: 1 }))
+    expect(mocks.toast.success).not.toHaveBeenCalled()
+    const failRow = one(wrapper, 'bat-fail-p1')
+    expect(failRow.exists()).toBe(true)
+    expect(failRow.text()).toContain('pub_one')
+    expect(failRow.text()).toContain('已发布路由不可重复发布')
   })
 })
 
-describe('OPT-3 源码契约 — List.vue fs 抽查（testid + 逐条循环接入，P4f① 先例）', () => {
-  it('选择列/批量条 testid 字面量 + publishRoute 接入 + CHANGING 禁选门禁 + 全选半选', () => {
+describe('OPT-3 源码契约 — List.vue fs 抽查（testid + bulk 端点接入，P4f① 先例）', () => {
+  it('选择列/批量条 testid 字面量 + bulk* 三端点接入（P3-d 契约演进）+ CHANGING 禁选门禁 + 全选半选', () => {
     const src = batchSource()
     expect(src).toContain('data-testid="sel-all"')
     expect(src).toContain('sel-row-')
@@ -1005,7 +1127,11 @@ describe('OPT-3 源码契约 — List.vue fs 抽查（testid + 逐条循环接�
     expect(src).toContain('data-testid="bat-clear"')
     expect(src).toContain('data-testid="bat-progress"')
     expect(src).toContain('bat-fail-')
-    expect(src).toContain('publishRoute')
+    // P3-d：批量执行接入 bulk 三端点（单请求），逐条单条端点接线退役
+    //（offlineRoute/deleteRoute 仍被单条操作引用属正常，故只正断言 bulk 接入不断言单条缺席）
+    expect(src).toContain('bulkPublishRoutes')
+    expect(src).toContain('bulkOfflineRoutes')
+    expect(src).toContain('bulkDeleteRoutes')
     expect(src).toContain("'CHANGING'")
     expect(src).toContain('indeterminate')
   })
