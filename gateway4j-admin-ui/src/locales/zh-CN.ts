@@ -355,6 +355,23 @@ export default {
         logout: '退出登录'
       }
     },
+    // LOW-2 全局快捷键速查表（10 key 全表，与 en-US 严格同位；键位字形 keys 不入 i18n，v2.topbar.kbd 同口径）
+    sc: {
+      title: '快捷键速查',
+      group: {
+        global: '全局',
+        canvas: '画布',
+        list: '列表'
+      },
+      item: {
+        palette: '打开命令面板',
+        help: '打开快捷键速查表',
+        close: '关闭弹层 / 抽屉',
+        undo: '撤销画布操作',
+        redo: '重做画布操作',
+        rowDetail: '打开慢路由行详情'
+      }
+    },
     placeholder: {
       hint: '该模块在后续步骤实现',
       prototype: '对应原型: prototype-v2/{file}'
@@ -504,7 +521,10 @@ export default {
       syncSynced: '已生效',
       syncDelayed: '同步延迟',
       syncRetry: '重试',
-      syncUnknown: '状态未知'
+      syncUnknown: '状态未知',
+      // LOW-3 树形折叠（List 折叠钮双态 aria-label，与 en-US 严格同位）
+      collapseChildren: '折叠子路由',
+      expandChildren: '展开子路由'
     },
     tree: {
       typeDispatch: '分发',
@@ -1083,6 +1103,8 @@ export default {
       colResult: '结果',
       auditActionAll: '全部操作',
       auditActor: '操作者',
+      auditTarget: '目标',
+      auditFilterByValue: '按此值筛选：{value}',
       auditRange: '时间范围',
       auditEmpty: '暂无审计日志',
       changesEmpty: '暂无变更记录',

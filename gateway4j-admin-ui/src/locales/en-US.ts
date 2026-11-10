@@ -358,6 +358,23 @@ export default {
         logout: 'Sign Out'
       }
     },
+    // LOW-2 global shortcut cheat sheet (10 keys, kept in strict sync with zh-CN; key glyphs stay out of i18n, same as v2.topbar.kbd)
+    sc: {
+      title: 'Keyboard Shortcuts',
+      group: {
+        global: 'Global',
+        canvas: 'Canvas',
+        list: 'Lists'
+      },
+      item: {
+        palette: 'Open command palette',
+        help: 'Open shortcut cheat sheet',
+        close: 'Close overlay / drawer',
+        undo: 'Undo canvas change',
+        redo: 'Redo canvas change',
+        rowDetail: 'Open slow-route row detail'
+      }
+    },
     placeholder: {
       hint: 'This module will be implemented in a later step',
       prototype: 'Reference prototype: prototype-v2/{file}'
@@ -507,7 +524,10 @@ export default {
       syncSynced: 'Live',
       syncDelayed: 'Sync delayed',
       syncRetry: 'Retry',
-      syncUnknown: 'Status unknown'
+      syncUnknown: 'Status unknown',
+      // LOW-3 tree collapse (List toggle dual-state aria-label; mirrors zh-CN exactly)
+      collapseChildren: 'Collapse child routes',
+      expandChildren: 'Expand child routes'
     },
     tree: {
       typeDispatch: 'Dispatch',
@@ -1086,6 +1106,8 @@ export default {
       colResult: 'Result',
       auditActionAll: 'All actions',
       auditActor: 'Actor',
+      auditTarget: 'Target',
+      auditFilterByValue: 'Filter by this value: {value}',
       auditRange: 'Time range',
       auditEmpty: 'No audit logs yet',
       changesEmpty: 'No changes yet',

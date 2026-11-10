@@ -208,6 +208,16 @@
             @change="onAuditFilterChange"
           />
         </label>
+        <label class="set-field set-field--inline">
+          <span class="set-label">{{ t('v2.settings.auditTarget') }}</span>
+          <FcInput
+            v-model="auditTarget"
+            :placeholder="t('v2.settings.auditTarget')"
+            clearable
+            data-testid="set-audit-filter-target"
+            @change="onAuditFilterChange"
+          />
+        </label>
         <label class="set-field set-field--inline set-field--range" data-testid="set-audit-filter-range">
           <span class="set-label">{{ t('v2.settings.auditRange') }}</span>
           <FcDatePicker
@@ -233,8 +243,30 @@
             <tr v-for="row in auditRows" :key="String(row.id)" :data-testid="`set-audit-row-${row.id}`">
               <td class="set-mono">{{ formatChangeTime(row.created_at) }}</td>
               <td><code class="set-mono" :data-testid="`set-audit-action-${row.action}`">{{ row.action }}</code></td>
-              <td>{{ row.actor || '-' }}</td>
-              <td class="set-mono">{{ auditTargetText(row) }}</td>
+              <td>
+                <button
+                  v-if="row.actor"
+                  type="button"
+                  class="set-audit-btn"
+                  :data-testid="`set-audit-actor-btn-${row.id}`"
+                  :aria-label="t('v2.settings.auditFilterByValue', { value: String(row.actor) })"
+                  @click="onAuditValueClick('actor', String(row.actor))"
+                  @keydown.enter.prevent="onAuditValueClick('actor', String(row.actor))"
+                >{{ row.actor }}</button>
+                <template v-else>{{ row.actor || '-' }}</template>
+              </td>
+              <td class="set-mono">
+                <button
+                  v-if="auditTargetPayload(row)"
+                  type="button"
+                  class="set-audit-btn"
+                  :data-testid="`set-audit-target-btn-${row.id}`"
+                  :aria-label="t('v2.settings.auditFilterByValue', { value: auditTargetPayload(row) })"
+                  @click="onAuditValueClick('target', auditTargetPayload(row))"
+                  @keydown.enter.prevent="onAuditValueClick('target', auditTargetPayload(row))"
+                >{{ auditTargetText(row) }}</button>
+                <template v-else>{{ auditTargetText(row) }}</template>
+              </td>
               <td>
                 <span class="set-tag" :class="`is-${auditResultColor(row.result)}`" :data-testid="`set-audit-result-${row.id}`">
                   {{ row.result }}
@@ -541,6 +573,7 @@ const auditPage = ref(1)
 const auditPageSize = ref(20)
 const auditAction = ref('')
 const auditActor = ref('')
+const auditTarget = ref('')
 const auditRange = ref<string[] | null>(null)
 
 const auditActionOptions = computed(() => {
@@ -556,6 +589,8 @@ async function loadAuditPage() {
   if (auditAction.value) params.action = auditAction.value
   const actor = auditActor.value.trim()
   if (actor) params.actor = actor
+  const target = auditTarget.value.trim()
+  if (target) params.target = target
   if (auditRange.value?.[0]) params.from = auditRange.value[0]
   if (auditRange.value?.[1]) params.to = auditRange.value[1]
   try {
@@ -574,6 +609,21 @@ function onAuditFilterChange() {
   void loadAuditPage()
 }
 
+/**
+ * 行内值点击填充（LOW-1：actor/target 列可点筛选，上下文断裂修复）：填入筛选值 +
+ * onAuditFilterChange()（页码重置回 1 + 重查）。幂等判词：重复点击同值 = 筛选状态
+ * 幂等（不 toggle 反选、不清空、无 no-op guard），每次点击恰发一次同参查询
+ * （重查兼作刷新 affordance）。@keydown.enter.prevent 挂同一 handler：原生 button 的
+ * Enter 默认动作会再合成一次 click（真实浏览器双发同参查询，违「每击恰一次」判词），
+ * .prevent 截断之；显式挂 keydown 卫 jsdom（不实现默认动作）键盘等价（Login
+ * enter-key 契约同款；Monitor/Overview 的裸 keydown.enter 落在 div 上，无默认动作可防）。
+ */
+function onAuditValueClick(field: 'actor' | 'target', value: string) {
+  if (field === 'actor') auditActor.value = value
+  else auditTarget.value = value
+  onAuditFilterChange()
+}
+
 function onAuditPageChange(page: number, size: number) {
   auditPage.value = page
   auditPageSize.value = size
@@ -588,6 +638,18 @@ function auditTargetText(row: Partial<AuditLogItem>): string {
     .map((p) => String(p))
     .join(':')
   return combo || '-'
+}
+
+/**
+ * target 查询载荷（LOW-1 核心裁决，随 auditTargetText 同序草稿字段优先）：
+ * row.target || row.target_id —— 不是单元格显示文本（'ROUTE:3001' 拿去后端
+ * LIKE target_id 一行不中，防假成功）。仅 target_type 无 target_id 的行没有
+ * 可查载荷 → 返回 ''，单元格保持纯文本、不渲染按钮（LIKE 无从命中）。
+ */
+function auditTargetPayload(row: Partial<AuditLogItem>): string {
+  if (row.target) return String(row.target)
+  if (row.target_id != null && String(row.target_id) !== '') return String(row.target_id)
+  return ''
 }
 
 /** 结果着色词表（宽松匹配常见 SUCCESS/FAIL 词表，未知值中性灰） */
@@ -716,6 +778,10 @@ void loadAuditPage()
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 12px;
 }
+
+/* —— LOW-1 审计行内可点值：仅指针语义一条扁平规则（本票不另立样式体系、不动既有规则；
+   键盘焦点圈由原生 button UA 默认 outline 兜底，token 化 focus-ring 归 Hallmark V 轮门禁）—— */
+.set-audit-btn { cursor: pointer; }
 
 .set-tag {
   display: inline-flex;

@@ -90,6 +90,8 @@
     </div>
     <!-- OPT-2: ⌘K 命令面板常驻挂载（⌘K/Ctrl+K/Esc 全局开关由面板自身监听 window，布局侧不另建监听） -->
     <CommandPalette v-model:open="cmdOpen" />
+    <!-- LOW-2: `?` 快捷键速查表常驻挂载（无 props，开合自持；`?`/Esc 监听由组件自管 window，布局侧不另建监听） -->
+    <ShortcutHelp />
   </div>
 </template>
 
@@ -99,6 +101,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { FcButton, FcIcon, FcThemeSwitcher, isValidBrand, type ThemeMode } from '@/components'
 import CommandPalette from '@/components-v2/command/CommandPalette.vue'
+import ShortcutHelp from '@/components-v2/shortcuts/ShortcutHelp.vue'
 import { usePermission } from '@/composables/usePermission'
 import { useAuthStore } from '@/store/auth'
 
