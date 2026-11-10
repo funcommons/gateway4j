@@ -65,6 +65,12 @@
   --app-color-danger-text-on-tint: color-mix(in srgb, var(--app-color-danger) 60%, white);
   --app-accent-text-on-tint: color-mix(in srgb, var(--app-primary) 60%, white);
   --app-text-secondary-on-tint: color-mix(in srgb, var(--app-text-secondary) 88%, white);
+  // secondary 第四色相档（紫系）：亮色 #7c5cff 在深底掉到 3.88:1（全主题 fill 档最弱），
+  // 按本主题「向白走」惯例提亮一档（≈70% + 30% white）→ 深底 5.6~7.0:1，与 primary/
+  // success/warning 的深底档（5.9~7.4）同带。派生档同构 semantic 三档。
+  --app-secondary: #a38dff;
+  --app-color-secondary-text: color-mix(in srgb, var(--app-secondary) 70%, white);
+  --app-color-secondary-text-on-tint: color-mix(in srgb, var(--app-secondary) 60%, white);
 }
 
 [data-theme="orange-black"] {
@@ -98,4 +104,8 @@
   --app-color-danger-text-on-tint: color-mix(in srgb, var(--app-color-danger) 60%, white);
   --app-accent-text-on-tint: color-mix(in srgb, var(--app-primary) 60%, white);
   --app-text-secondary-on-tint: color-mix(in srgb, var(--app-text-secondary) 88%, white);
+  // secondary 同 dark：#a38dff 对 #18181b 卡底 6.59:1、页底 #0b0b0d 7.31:1
+  --app-secondary: #a38dff;
+  --app-color-secondary-text: color-mix(in srgb, var(--app-secondary) 70%, white);
+  --app-color-secondary-text-on-tint: color-mix(in srgb, var(--app-secondary) 60%, white);
 }

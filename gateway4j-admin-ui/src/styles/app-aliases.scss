@@ -67,6 +67,17 @@
   // 中性染色底（灰底 + 灰字）：中性墨色在染色底上余量最小，再压一档
   --app-text-secondary-on-tint: color-mix(in srgb, var(--app-text-secondary) 88%, black);
 
+  // secondary：第四色相档（紫系 252°）。success 绿 134° / warning 橙 29° / danger 红 0°
+  // 之外唯一与三者色相距离 ≥118° 的档；品牌主色被重映射为橙时（ldx2 #ff6b00）与
+  // warning 仅差 Δhue 4.2° / 1.11:1，紫系把这格色相补回来。值与四处页内 violet 字面量
+  // （--ov-violet / --rt-violet / --dtl-violet / --tr-violet，全部 #7c5cff）同源，
+  // 后续可逐页收编到本 token（本次不动，页内自治）。深色主题层向白提亮一档（#a38dff）。
+  --app-secondary: #7c5cff;
+  // 派生档与 semantic 色同构（base / -text / -text-on-tint 三档，无 hover/active）：
+  // 紫底白卡上原值 4.35:1，文字档压暗一档到 7.53:1 更宽裕；深色主题层向白走。
+  --app-color-secondary-text: color-mix(in srgb, var(--app-secondary) 70%, black);
+  --app-color-secondary-text-on-tint: color-mix(in srgb, var(--app-secondary) 60%, black);
+
   // 主色上的前景色（按钮文字）
   --app-on-primary: #ffffff;
 

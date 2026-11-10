@@ -297,11 +297,12 @@ watch(connectionError, (reason) => {
 })
 
 // —— OPT-4：缩略图节点配色（MiniMap node-color 入参，纯函数：同入参同出参）——
-// 全 token 色禁字面值；色系参考 Overview.vue 拓扑先例（分发=紫系 / 后置=warning / 插件=绿系），
-// 紫系无全局 --app-* token（--ov-violet 是 Overview 页内字面量），分发改取强调色 --app-primary；
+// 全 token 色禁字面值；分发=紫系 --app-secondary（P3-e 新增第四色相档：品牌主色被重映射为
+// 橙时与 warning 仅差 Δhue 4.2° / 1.11:1 不可分，紫 252° 与 warning 29°/success 134°/
+// danger 0° 色相距离 ≥118°）/ 后置=warning / 插件=success；
 // 未知 / 缺型回退 = 既有 .vue-flow__minimap-node CSS fill 同款 --app-text-tertiary。
 function minimapNodeColor(node: { type?: string }): string {
-  if (node?.type === 'DISPATCH') return 'var(--app-primary)'
+  if (node?.type === 'DISPATCH') return 'var(--app-secondary)'
   if (node?.type === 'BACKEND') return 'var(--app-color-warning)'
   if (node?.type === 'PLUGIN') return 'var(--app-color-success)'
   return 'var(--app-text-tertiary)'
@@ -607,7 +608,7 @@ const palette = computed(() => [
 /* OPT-4 修复：per-type 配色落点——特异度须高于上一行统一 fill 规则（+1 类），全 token 零字面
    （CanvasMinimap.test.ts fs 契约：.vue-flow__minimap* 规则体禁 hex/rgb/hsl），未知/缺型无类名
    仍走上方 --app-text-tertiary 回退。 */
-.cnv-canvas :deep(.vue-flow__minimap-node.cnv-mm-dispatch) { fill: var(--app-primary); }
+.cnv-canvas :deep(.vue-flow__minimap-node.cnv-mm-dispatch) { fill: var(--app-secondary); }
 .cnv-canvas :deep(.vue-flow__minimap-node.cnv-mm-backend) { fill: var(--app-color-warning); }
 .cnv-canvas :deep(.vue-flow__minimap-node.cnv-mm-plugin) { fill: var(--app-color-success); }
 .cnv-canvas :deep(.vue-flow__minimap-mask) { fill: color-mix(in srgb, var(--app-text) 8%, transparent); }
