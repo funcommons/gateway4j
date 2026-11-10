@@ -2,16 +2,23 @@
 defineOptions({ name: 'CommandPalette' })
 /**
  * CommandPalette —— ⌘K 全局命令面板（OPT-2，v2 优化建议 #1，对标 Kong Konnect）。
- * 组件契约以 src/components-v2/command/__tests__/CommandPalette.test.ts 头注为准：
+ * 组件契约以 src/components-v2/command/__tests__/CommandPalette.test.ts 头注为准
+ * （P3-a 打磨五项见同目录 __tests__/CommandPalette.polish.test.ts 头注）：
  * - props { open }（v-model:open）；window 常驻监听 ⌘K/Ctrl+K toggle 与 Esc 关闭
- *   （挂载即监听，与 open 状态无关）；所有条目执行后 emit update:open=false。
- * - 分组固定 pages→actions→routes→plugins，空组不渲染；数据/搜索行为在
- *   同目录 useCommandRegistry.ts（页面=侧栏 12 叶子静态直达、异步搜索仅 query 非空发生）。
+ *   （挂载即监听，与 open 状态无关）；条目执行成功后 emit update:open=false
+ *   （P3-a②：run() 失败 → ElMessage.error 兜底且面板保持打开，可重试）。
+ * - 分组序由 useCommandRegistry orderedSegments 单源派生：基准 pages→actions→routes→plugins，
+ *   搜索态（query 非空）动作组排尾；空组不渲染；DOM 组序 = 键盘序。
  * - a11y：dialog/listbox/option 语义 + aria-activedescendant + 打开聚焦输入框 /
- *   关闭焦点归还触发元素 + :focus-visible 焦点环（Hallmark 门槛）。
+ *   关闭焦点归还触发元素 + :focus-visible 焦点环（Hallmark 门槛）；
+ *   P3-a①：打开期间 Tab/Shift+Tab 焦点陷阱（cmd-root 级自实现循环哨兵，关闭即解除）；
+ *   P3-a③：cmd-root 带 DOM id="cmd-palette"（顶栏触发器 aria-controls 指向）。
+ * - P3-a⑤：异步搜索任一侧失败 → cmd-error（role=alert）可见错误态，部分成功结果保留；
+ *   错误态优先于空态，下次输入自然重查、清空 query 回浏览态清场。
  */
 import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { ElMessage } from 'element-plus'
 import { FcIcon } from '@/components'
 import { useCommandRegistry, type CmdOption, type CmdThemeMode } from './useCommandRegistry'
 
@@ -33,7 +40,9 @@ function toggleTheme() {
   else document.documentElement.classList.toggle('dark', next === 'dark')
 }
 
-const { query, loading, groups, flatOptions, activeIndex, moveActive, reset } = useCommandRegistry({ toggleTheme })
+const { query, loading, searchError, groups, flatOptions, activeIndex, moveActive, reset } = useCommandRegistry({
+  toggleTheme
+})
 
 /** 当前高亮项（空态/索引越界为 null → 无 aria-selected=true，Enter no-op） */
 const activeOption = computed<CmdOption | null>(() => flatOptions.value[activeIndex.value] ?? null)
@@ -43,13 +52,16 @@ function close() {
   emit('update:open', false)
 }
 
-/** 执行条目后必关面板（route/plugin 跳转、动作、页面直达同一出口） */
+/** 执行条目：run() 成功才关面板；失败 toast 兜底且保持打开（activeIndex 不动，可重试）。
+ *  必须 catch 而非 finally——finally 会在失败时误关面板，且重抛会以 unhandled rejection 逃逸。 */
 async function execute(opt: CmdOption) {
   try {
     await opt.run()
-  } finally {
-    close()
+  } catch {
+    ElMessage.error(t('v2.cmd.execError'))
+    return
   }
+  close()
 }
 
 function onInputKeydown(e: KeyboardEvent) {
@@ -63,6 +75,37 @@ function onInputKeydown(e: KeyboardEvent) {
     e.preventDefault()
     if (activeOption.value) void execute(activeOption.value)
   }
+}
+
+// —— 焦点陷阱（P3-a①）：面板打开期间 Tab/Shift+Tab 首尾环绕在 cmd-root 内，不逸出背景
+// 页面。自实现循环哨兵而非 SDK useFocusTrap：后者 deactivate 与关闭归还 lastTrigger
+// 两路同时抢焦点，行为不可控。cmd-root 关闭即随 v-if 卸载，陷阱随之解除。——
+const rootEl = ref<HTMLDivElement | null>(null)
+const FOCUSABLE = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])'
+].join(',')
+
+function onRootKeydown(e: KeyboardEvent) {
+  if (e.key !== 'Tab') return
+  const root = rootEl.value
+  if (!root) return
+  const focusables = Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE))
+  if (focusables.length === 0) return
+  const active = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  const idx = active ? focusables.indexOf(active) : -1
+  e.preventDefault() // 陷阱生效：焦点由面板自派，不交给浏览器默认环游
+  if (idx === -1) {
+    // 焦点在面板外（或落在面板内非可聚焦节点）：拉回面板内
+    ;(e.shiftKey ? focusables[focusables.length - 1] : focusables[0]).focus()
+    return
+  }
+  if (e.shiftKey) focusables[idx === 0 ? focusables.length - 1 : idx - 1].focus()
+  else focusables[idx === focusables.length - 1 ? 0 : idx + 1].focus()
 }
 
 // —— window 常驻快捷键（挂载即监听，与 open 无关）：⌘K/Ctrl+K toggle、Esc 关闭 ——
@@ -114,11 +157,14 @@ onBeforeUnmount(() => {
 <template>
   <div
     v-if="open"
+    id="cmd-palette"
+    ref="rootEl"
     data-testid="cmd-root"
     class="cmd-root"
     role="dialog"
     aria-modal="true"
     :aria-label="t('v2.cmd.placeholder')"
+    @keydown="onRootKeydown"
   >
     <div data-testid="cmd-mask" class="cmd-mask" aria-hidden="true" @click="close" />
     <div class="cmd-panel">
@@ -140,11 +186,16 @@ onBeforeUnmount(() => {
         role="listbox"
         :aria-activedescendant="activeId"
       >
+        <!-- 搜索失败横幅（P3-a⑤）：独立于下方 loading/empty 链——部分成功时错误横幅与结果组并存；
+             全空时 empty 条件被 !searchError 拦下，错误态优先于空态（二者不同时渲染） -->
+        <div v-if="searchError" data-testid="cmd-error" role="alert" class="cmd-state">
+          {{ t('v2.cmd.searchError') }}
+        </div>
         <div v-if="loading" data-testid="cmd-loading" class="cmd-state">{{ t('v2.cmd.loading') }}</div>
-        <div v-else-if="flatOptions.length === 0" data-testid="cmd-empty" class="cmd-state">
+        <div v-else-if="flatOptions.length === 0 && !searchError" data-testid="cmd-empty" class="cmd-state">
           {{ t('v2.cmd.empty') }}
         </div>
-        <template v-else>
+        <template v-else-if="flatOptions.length > 0">
           <div
             v-for="g in groups"
             :key="g.testid"

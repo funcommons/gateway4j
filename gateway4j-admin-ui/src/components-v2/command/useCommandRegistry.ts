@@ -24,6 +24,11 @@ import { useAuthStore } from '@/store/auth'
  *   listPlugins({ page: 1, pageSize, keyword })（服务端 keyword）+ plugin_name 客户端复滤。
  *   搜索域 = 标题/名称 + path，不含权限码；请求带序号防乱序回填。
  * - 命中片段切分 hitParts：供模板把命中片段包进 class="cmd-hit"。
+ * - 组序单一事实源 orderedSegments（P3-a④）：基准 pages→actions→routes→plugins，搜索态
+ *   （query 非空）动作组排尾 pages→routes→plugins→actions；groups（DOM 组序，过滤空组）
+ *   与 flatOptions（键盘序）同源派生，二者恒一致。
+ * - 搜索失败错误态 searchError（P3-a⑤）：allSettled 任一侧 rejected → true（seq 守卫），
+ *   部分成功结果保留；!q 分支与 reset() 清场。
  */
 
 export type CmdThemeMode = 'light' | 'dark'
@@ -144,6 +149,8 @@ export function useCommandRegistry(hooks: CmdRegistryHooks) {
   const query = ref('')
   const debouncedQuery: Ref<string> = useDebounce(query, CMD_SEARCH_DEBOUNCE_MS)
   const loading = ref(false)
+  /** 搜索失败可见错误态（P3-a⑤）：allSettled 任一侧 rejected → true（部分成功不吞结果） */
+  const searchError = ref(false)
   const routeHits = ref<RouteNode[]>([])
   const pluginHits = ref<PluginItem[]>([])
 
@@ -227,23 +234,23 @@ export function useCommandRegistry(hooks: CmdRegistryHooks) {
     }))
   })
 
-  /** 分组固定顺序 pages→actions→routes→plugins，空组不渲染 */
-  const groups = computed<CmdGroup[]>(() =>
-    [
-      { testid: 'cmd-group-pages', labelKey: 'v2.cmd.group.pages', items: pageOptions.value },
-      { testid: 'cmd-group-actions', labelKey: 'v2.cmd.group.actions', items: actionOptions.value },
-      { testid: 'cmd-group-routes', labelKey: 'v2.cmd.group.routes', items: routeOptions.value },
-      { testid: 'cmd-group-plugins', labelKey: 'v2.cmd.group.plugins', items: pluginOptions.value }
-    ].filter((g) => g.items.length > 0),
-  )
+  // —— 组序单一事实源：DOM 渲染序（groups 过滤空组）与键盘序（flatOptions 扁平）
+  // 同源派生自 orderedSegments，二者恒一致（P3-a④）——
+  // 基准序 pages→actions→routes→plugins（空 query 浏览态）；query 非空（搜索态）
+  // 动作组排尾 pages→routes→plugins→actions（首项=首个页/路由命中，动作永不居首）。
+  const orderedSegments = computed<CmdGroup[]>(() => {
+    const pages: CmdGroup = { testid: 'cmd-group-pages', labelKey: 'v2.cmd.group.pages', items: pageOptions.value }
+    const actions: CmdGroup = { testid: 'cmd-group-actions', labelKey: 'v2.cmd.group.actions', items: actionOptions.value }
+    const routes: CmdGroup = { testid: 'cmd-group-routes', labelKey: 'v2.cmd.group.routes', items: routeOptions.value }
+    const plugins: CmdGroup = { testid: 'cmd-group-plugins', labelKey: 'v2.cmd.group.plugins', items: pluginOptions.value }
+    return query.value.trim() ? [pages, routes, plugins, actions] : [pages, actions, routes, plugins]
+  })
+
+  /** 渲染分组（空组不渲染） */
+  const groups = computed<CmdGroup[]>(() => orderedSegments.value.filter((g) => g.items.length > 0))
 
   /** 键盘导航用的扁平条目序（与分组渲染顺序一致） */
-  const flatOptions = computed<CmdOption[]>(() => [
-    ...pageOptions.value,
-    ...actionOptions.value,
-    ...routeOptions.value,
-    ...pluginOptions.value
-  ])
+  const flatOptions = computed<CmdOption[]>(() => orderedSegments.value.flatMap((g) => g.items))
 
   // —— 异步搜索：debounce 到点后仅 query 非空发请求；序号防乱序回填 ——
   // flush:'sync'：debounce 定时器到点（含测试 fake timers 的 advanceTimersByTime）时
@@ -256,6 +263,7 @@ export function useCommandRegistry(hooks: CmdRegistryHooks) {
       if (!q) {
         searchSeq++
         loading.value = false
+        searchError.value = false // 清空 query 回浏览态：错误态清场
         routeHits.value = []
         pluginHits.value = []
         return
@@ -268,6 +276,7 @@ export function useCommandRegistry(hooks: CmdRegistryHooks) {
       ])
       if (seq !== searchSeq) return
       loading.value = false
+      searchError.value = routesRes.status === 'rejected' || pluginsRes.status === 'rejected'
       const routes = routesRes.status === 'fulfilled' ? routesRes.value : []
       const plugins = pluginsRes.status === 'fulfilled' ? pluginsRes.value.records : []
       routeHits.value = flattenRoutes(routes).filter((r) => matches(`${r.route_name} ${r.path ?? ''}`, q))
@@ -281,6 +290,7 @@ export function useCommandRegistry(hooks: CmdRegistryHooks) {
     searchSeq++ // 作废在途请求：close→reopen 期间晚到的旧响应不得凭 seq 相等回填浏览态
     query.value = ''
     loading.value = false
+    searchError.value = false
     routeHits.value = []
     pluginHits.value = []
   }
@@ -307,6 +317,7 @@ export function useCommandRegistry(hooks: CmdRegistryHooks) {
   return {
     query,
     loading,
+    searchError,
     groups,
     flatOptions,
     activeIndex,

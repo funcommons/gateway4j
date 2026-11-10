@@ -15,6 +15,10 @@
  * - 分组（顺序固定）：pages（静态 = 侧栏 12 叶子：路由表 V2* 非参数页，权限过滤同侧栏
  *   canAccess，读 meta.permission）→ actions（静态 4 动作）→ routes → plugins（异步）。
  *   空组不渲染；query 非空时各组只留命中项。
+ *   【P3-a 契约演进 · F 裁决】query 非空（搜索态）且任一异步组有命中时，动作组排尾：
+ *   组序 pages→routes→plugins→actions（修「Enter 落向导」怪相）；浏览态（空 query）组序
+ *   pages→actions→routes→plugins 不变，由 CommandPalette.polish.test.ts E 组红线钉死。
+ *   「结果合并」用例原 actions<routes 断言与演进契约冲突，按裁决修订该单行（见该用例）。
  * - 动作集（无权限门槛，恒显）：create-route→push(/v2/routes/wizard)；
  *   import-export→push(/v2/import-export)；theme-toggle→inject('fc-theme').setTheme(翻转)；
  *   logout→auth store logout()+push(/login)。
@@ -540,12 +544,13 @@ describe('CommandPalette — 异步搜索路由/插件', () => {
     expect(pluginsGroup.exists()).toBe(true)
     expect(tid(wrapper, 'cmd-item-plugin-p1').exists(), '插件命中项 user_auth 应渲染').toBe(true)
     expect(tid(wrapper, 'cmd-item-plugin-p2').exists(), '未命中插件 rate_limit 不应渲染').toBe(false)
-    // 分组顺序契约：页面 → 动作 → 路由 → 插件
+    // 分组顺序契约（P3-a 演进）：查询态 pages→routes→plugins→actions（动作组排尾，F 裁决）——
+    // 原 actions<routes 断言与演进契约冲突，仅修订该单行（:547/:549 组序断言不受影响仍成立）
     const html = wrapper.html()
     const at = (id: string) => html.indexOf(`data-testid="${id}"`)
     expect(at('cmd-group-pages')).toBeGreaterThan(-1)
     expect(at('cmd-group-pages')).toBeLessThan(at('cmd-group-actions'))
-    expect(at('cmd-group-actions')).toBeLessThan(at('cmd-group-routes'))
+    expect(at('cmd-group-plugins')).toBeLessThan(at('cmd-group-actions'))
     expect(at('cmd-group-routes')).toBeLessThan(at('cmd-group-plugins'))
   })
 
