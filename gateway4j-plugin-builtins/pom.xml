@@ -18,34 +18,14 @@
             <artifactId>gateway4j-plugin-api</artifactId>
         </dependency>
 
-        <!-- framework4j SDK（内置插件所需能力） -->
+        <!-- Redis 数据面 API：CachePlugin/RateLimitPlugin 直接 import StringRedisTemplate/
+             DefaultRedisScript。原由 framework4j-accesstoken→starter-data-redis 传递携带
+             （3.5.13），SDK 类零引用后改为直依赖；版本由 spring-boot-dependencies BOM
+             托管（Boot 3.5.16 ↔ spring-data-redis 3.5.13，与原传递版本逐字一致）。
+             运行时连接工厂由宿主（gateway-boot 的 framework4j-redis）装配。 -->
         <dependency>
-            <groupId>com.github.funcommons.framework4j</groupId>
-            <artifactId>framework4j-accesstoken</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.github.funcommons.framework4j</groupId>
-            <artifactId>framework4j-signature</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.github.funcommons.framework4j</groupId>
-            <artifactId>framework4j-rate-limit</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.github.funcommons.framework4j</groupId>
-            <artifactId>framework4j-cache</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.github.funcommons.framework4j</groupId>
-            <artifactId>framework4j-audit</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.github.funcommons.framework4j</groupId>
-            <artifactId>framework4j-sensitive</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.github.funcommons.framework4j</groupId>
-            <artifactId>framework4j-id</artifactId>
+            <groupId>org.springframework.data</groupId>
+            <artifactId>spring-data-redis</artifactId>
         </dependency>
 
         <dependency>
