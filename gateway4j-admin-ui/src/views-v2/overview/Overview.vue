@@ -36,13 +36,19 @@
                   <text v-if="e.label" :x="e.mx" :y="e.my - 7" text-anchor="middle" class="topo-edge-label">{{ e.label }}</text>
                 </g>
               </svg>
+              <!-- OPT-1：路由节点（dispatch/backend，routeId 非空）双击/Enter 下钻路由详情；
+                   client/gateway 固定虚拟节点无 routeId，无 tabindex 不进 Tab 序，双击原地；
+                   单击不导航（双击裁决，Overview.drilldown.test.ts 钉死） -->
               <div
                 v-for="n in nodes"
                 :key="n.key"
                 class="topo-node"
-                :class="[`is-${n.kind}`, { 'is-dim': n.kind === 'client' }]"
+                :class="[`is-${n.kind}`, { 'is-dim': n.kind === 'client', 'is-drillable': n.routeId != null }]"
                 :style="{ left: `${n.x}px`, top: `${n.y}px`, width: `${n.w}px`, height: `${n.h}px` }"
                 :data-testid="`topo-node-${n.key}`"
+                :tabindex="n.routeId != null ? 0 : undefined"
+                @dblclick="openNodeDetail(n)"
+                @keydown.enter="openNodeDetail(n)"
               >
                 <div class="tn-title">
                   <FcIcon :name="n.icon" :size="13" />
@@ -125,6 +131,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import { FcIcon, FcSection } from '@/components'
 import { fetchTrafficSummary, type RouteTrafficSummaryItem, type RouteTrafficUpstream } from '@/api/v2'
 import { getTopology, listAuditLogs, type TopologyNode, type TopologyEdge, type AuditLogItem } from '@/api/misc'
@@ -136,6 +143,7 @@ import { getTopology, listAuditLogs, type TopologyNode, type TopologyEdge, type 
  * 边标签优先 traffic-summary.path（S2 口径），无流量数据回退 edge.condition。
  */
 const { t } = useI18n()
+const router = useRouter()
 
 const traffic = ref<RouteTrafficSummaryItem[]>([])
 const trafficFailed = ref(false)
@@ -269,6 +277,7 @@ function fmtTime(v: string | number): string {
 interface LaidNode {
   key: string // 节点 testid 后缀：client / gateway / dispatch-<id> / backend-<id>
   eid: string // 边端点与上游 chip 名：client / gw / <routeId>（gw 与 gateway testid 故意不同名）
+  routeId: string | null // 下钻参数（OPT-1）：路由节点 = eid；client/gateway 固定虚拟节点为 null 不导航
   kind: 'client' | 'gateway' | 'dispatch' | 'backend'
   name: string
   typeLabel: string
@@ -312,7 +321,7 @@ const nodes = computed<LaidNode[]>(() => {
 
   // 固定节点缺省字段工厂
   const base = (p: Partial<LaidNode> & Pick<LaidNode, 'key' | 'eid' | 'kind' | 'name' | 'icon'>): LaidNode =>
-    ({ typeLabel: '', meta: '', showStats: false, qpsText: '', p95Text: '', up: null, x: colX(0), y: TOP_PAD, w: KIND_W.client, h: 40, ...p })
+    ({ typeLabel: '', meta: '', showStats: false, qpsText: '', p95Text: '', up: null, routeId: null, x: colX(0), y: TOP_PAD, w: KIND_W.client, h: 40, ...p })
 
   const laid: LaidNode[] = [
     base({ key: 'client', eid: 'client', kind: 'client', name: t('v2.overview.clientLabel'), icon: 'ri-global-line' }),
@@ -331,7 +340,7 @@ const nodes = computed<LaidNode[]>(() => {
     const s = trafficById.get(raw.id)
     const up = s?.upstream ?? null
     laid.push({
-      key: isDispatch ? `dispatch-${raw.id}` : `backend-${raw.id}`, eid: raw.id, kind,
+      key: isDispatch ? `dispatch-${raw.id}` : `backend-${raw.id}`, eid: raw.id, kind, routeId: raw.id,
       name: raw.name || s?.route_name || raw.id,
       typeLabel: isDispatch ? t('v2.overview.nodeDispatch') : t('v2.overview.nodeBackend'),
       icon: isDispatch ? 'ri-git-merge-line' : 'ri-git-branch-line',
@@ -352,6 +361,19 @@ const nodes = computed<LaidNode[]>(() => {
 function formatQps(s?: RouteTrafficSummaryItem): string {
   const n = toNum(s?.qps)
   return Number.isFinite(n) ? String(Math.round(n)) : '—'
+}
+
+// ── 拓扑节点下钻（OPT-1）：双击/Enter → /v2/routes/{id}/detail ────────────
+/** id 空/undefined 兜底不导航不 throw（List.vue act-detail 同款落点，字符串路径写法） */
+function openRouteDetail(id: string | null | undefined): void {
+  if (!id) return
+  void router.push(`/v2/routes/${id}/detail`)
+}
+
+/** 节点激活：仅带 routeId 的路由节点（dispatch/backend）可下钻；client/gateway 固定
+ * 虚拟节点 routeId=null 原地不动；单击未接任何导航 handler（双击裁决留「选中」语义空位） */
+function openNodeDetail(n: LaidNode): void {
+  openRouteDetail(n.routeId)
 }
 
 const canvasH = computed(() => Math.max(480, nodes.value.reduce((m, n) => Math.max(m, n.y + n.h), 0) + TOP_PAD))
@@ -561,6 +583,14 @@ const edges = computed<LaidEdge[]>(() => {
   }
   &.is-client {
     opacity: 0.6;
+  }
+  /* OPT-1：路由节点可双击下钻，指针 + focus-ring token（Wizard wiz-chip 同款，无新样式体系） */
+  &.is-drillable {
+    cursor: pointer;
+  }
+  &:focus-visible {
+    outline: 2px solid var(--app-focus-ring);
+    outline-offset: 2px;
   }
 }
 .tn-title {

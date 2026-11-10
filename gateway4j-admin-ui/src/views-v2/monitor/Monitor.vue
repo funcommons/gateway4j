@@ -84,7 +84,17 @@
           <span class="mon-card-hint">{{ t('v2.monitor.slowHint') }}</span>
         </div>
         <div class="mon-card-b">
-          <div v-for="(r, i) in slowRows" :key="r.id" class="slow-row" :data-testid='"mon-slow-row-" + r.id'>
+          <!-- OPT-1 drilldown: row id IS route_id, single click / Enter opens route detail
+               (openRouteDetail guards empty id). Contract: Monitor.drilldown.test.ts -->
+          <div
+            v-for="(r, i) in slowRows"
+            :key="r.id"
+            class="slow-row"
+            :data-testid='"mon-slow-row-" + r.id'
+            tabindex="0"
+            @click="openRouteDetail(r.id)"
+            @keydown.enter="openRouteDetail(r.id)"
+          >
             <span class="slow-rank">{{ i + 1 }}</span>
             <span class="slow-name">{{ r.name }}</span>
             <span class="slow-path">{{ r.path }}</span>
@@ -198,6 +208,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import { FcIcon, FcSection, FcSegmented, FcSwitch } from '@/components'
 import { useMonitorStream, type MonitorStreamMetrics } from '@/composables/useMonitorStream'
 import {
@@ -215,6 +226,7 @@ import { listRouteStatus, type RouteStatusItem } from '@/api/misc'
  * config_changed 已去抖回调定向重拉 traffic+timeseries（listRouteStatus 是运行态探测不随拉）。
  */
 const { t } = useI18n()
+const router = useRouter()
 
 const traffic = ref<RouteTrafficSummaryItem[]>([])
 const trafficFailed = ref(false)
@@ -342,6 +354,13 @@ const slowRows = computed<SlowRow[]>(() => {
     }
   })
 })
+
+// ── 慢路由行下钻（OPT-1）：单击/Enter → /v2/routes/{id}/detail ─────────────
+/** 行 id 即 route_id（List.vue act-detail 同款落点）；id 空/undefined 兜底不导航不 throw */
+function openRouteDetail(id: string | null | undefined): void {
+  if (!id) return
+  void router.push(`/v2/routes/${id}/detail`)
+}
 
 // ── 状态码 donut（Σstatus_codes 三桶；Detail.vue dtl-ring 先例）──────────────
 const RING_R = 30
@@ -689,6 +708,10 @@ onUnmounted(() => {
 .slow-row {
   display: grid; grid-template-columns: 20px 170px minmax(0, 1fr) 70px 200px;
   align-items: center; gap: 10px; font-size: 12.5px;
+  /* OPT-1：行可单击下钻，指针 + focus-ring token（Wizard wiz-chip 同款，无新样式体系） */
+  cursor: pointer;
+
+  &:focus-visible { outline: 2px solid var(--app-focus-ring); outline-offset: 2px; }
 }
 .slow-rank { font-size: 11px; color: var(--app-text-tertiary); font-variant-numeric: tabular-nums; }
 .slow-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--app-text); font-weight: 500; }
