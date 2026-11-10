@@ -105,7 +105,9 @@ public class RouteService extends ServiceImpl<RouteMapper, Route> {
     /** 路由树（P2-2 多环境：可选 environment 精确筛选，节点附带 environment 字段）。 */
     public List<Map<String, Object>> listRouteTree(String routeType, String status, String keyword,
                                                    String tag, String environment) {
-        List<Route> all = listRoutes(routeType, status, keyword, tag, environment);
+        // S7-5：keyword 不下推 SQL——LIKE(route_name) 会漏 path 命中（搜索域 = route_name OR
+        // path），改为全量拉取后内存过滤；查询数与 keyword 空时完全一致（零新增查询）。
+        List<Route> all = listRoutes(routeType, status, null, tag, environment);
         Map<Long, List<RoutePluginBinding>> bindingsByRoute = new HashMap<>();
         for (RoutePluginBinding b : bindingMapper.selectList(null)) {
             bindingsByRoute.computeIfAbsent(b.getRouteId(), k -> new ArrayList<>()).add(b);
@@ -117,6 +119,20 @@ public class RouteService extends ServiceImpl<RouteMapper, Route> {
             for (Plugin p : pluginService.listByIds(pluginIds)) {
                 pluginMap.put(p.getId(), p);
             }
+        }
+        // S7-5 平铺契约：keyword 非空（null/"" 均视为未提供）→ 命中行平铺返回，children 恒=[]、
+        // 节点 schema 与树模式完全一致（唯一消费方 ⌘K 面板本就拍平，树形信息零价值）。
+        // 顺带修复既有缺陷：keyword 下推 + 树装配照旧时，命中子路由会因子行挂进 childrenMap
+        // 而父行不在结果集（非 root）被静默丢弃——平铺案该行直接可见。
+        if (keyword != null && !keyword.isEmpty()) {
+            List<Map<String, Object>> flat = new ArrayList<>();
+            for (Route r : all) {
+                if (matchesKeyword(r, keyword)) {
+                    // childrenMap 传空 Map：平铺行无嵌套 children
+                    flat.add(toTreeNode(r, Map.of(), bindingsByRoute, pluginMap));
+                }
+            }
+            return flat;
         }
         Map<Long, List<Route>> childrenMap = new HashMap<>();
         List<Route> roots = new ArrayList<>();
@@ -132,6 +148,16 @@ public class RouteService extends ServiceImpl<RouteMapper, Route> {
             tree.add(toTreeNode(root, childrenMap, bindingsByRoute, pluginMap));
         }
         return tree;
+    }
+
+    /**
+     * S7-5 keyword 内存过滤：搜索域 = route_name OR path，忽略大小写（与 ⌘K 前端客户端
+     * 兜底过滤 matches 的 toLowerCase 口径一致——服务端先行过滤后，大小写差异不再由客户端消化）。
+     */
+    private boolean matchesKeyword(Route route, String keyword) {
+        String kw = keyword.toLowerCase();
+        return (route.getRouteName() != null && route.getRouteName().toLowerCase().contains(kw))
+                || (route.getPath() != null && route.getPath().toLowerCase().contains(kw));
     }
 
     private Map<String, Object> toTreeNode(Route route, Map<Long, List<Route>> childrenMap,

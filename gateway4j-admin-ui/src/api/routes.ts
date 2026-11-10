@@ -58,8 +58,10 @@ export interface BindingDto {
   sort_order?: number
 }
 
-export function listRoutes(params?: { tag?: string; environment?: string }) {
-  if (params?.tag || params?.environment) {
+/** S7-5：keyword 服务端搜索（route_name/path 平铺命中列表，见 RouteServiceKeywordSearchTest 契约）；
+ * as-is 透传勿改名；无任何参数仍走零参分支（既有行为不变）。 */
+export function listRoutes(params?: { tag?: string; environment?: string; keyword?: string }) {
+  if (params?.tag || params?.environment || params?.keyword) {
     return envelope<RouteNode[]>(http.get('/v1/routes', { params }))
   }
   return envelope<RouteNode[]>(http.get('/v1/routes'))

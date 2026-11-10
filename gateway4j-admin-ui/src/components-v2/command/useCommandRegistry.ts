@@ -19,9 +19,10 @@ import { useAuthStore } from '@/store/auth'
  *   权限过滤与侧栏 canAccess 同源：优先读路由 meta.permission，缺省回退条目自带码。
  * - 动作组 4 个恒显（无权限门槛）：create-route / import-export / theme-toggle / logout。
  * - 异步搜索：query 非空才发请求（打开/空 query 零调用）；trailing debounce 200ms
- *   （复用 @/composables useDebounce 默认值）；routes 走 listRoutes()（无 keyword 参数 →
- *   客户端按 route_name/path 过滤，树拍平后分发子路由同样可命中）；plugins 走
- *   listPlugins({ page: 1, pageSize, keyword })（服务端 keyword）+ plugin_name 客户端复滤。
+ *   （复用 @/composables useDebounce 默认值）；routes 走 listRoutes({ keyword })（S7-5
+ *   服务端 route_name/path 过滤，平铺命中列表，树拍平后分发子路由同样可命中）+ 客户端
+ *   matches 兜底复滤；plugins 走 listPlugins({ page: 1, pageSize, keyword })（服务端
+ *   keyword）+ plugin_name 客户端复滤。
  *   搜索域 = 标题/名称 + path，不含权限码；请求带序号防乱序回填。
  * - 命中片段切分 hitParts：供模板把命中片段包进 class="cmd-hit"。
  * - 组序单一事实源 orderedSegments（P3-a④）：基准 pages→actions→routes→plugins，搜索态
@@ -271,7 +272,9 @@ export function useCommandRegistry(hooks: CmdRegistryHooks) {
       const seq = ++searchSeq
       loading.value = true
       const [routesRes, pluginsRes] = await Promise.allSettled([
-        listRoutes(),
+        // S7-5：服务端 keyword 过滤（消全量拉带宽）；下方客户端 matches 过滤保留兜底
+        // （服务端漏网行不得透传，LEAK_ROW 守卫钉）
+        listRoutes({ keyword: q }),
         listPlugins({ page: 1, pageSize: CMD_PLUGIN_PAGE_SIZE, keyword: q })
       ])
       if (seq !== searchSeq) return

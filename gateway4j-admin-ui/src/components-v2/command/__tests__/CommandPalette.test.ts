@@ -524,7 +524,9 @@ describe('CommandPalette — 异步搜索路由/插件', () => {
     expect(mocks.listPlugins, '199ms 时不应已发请求').not.toHaveBeenCalled()
     vi.advanceTimersByTime(1)
     expect(mocks.listRoutes).toHaveBeenCalledTimes(1)
-    expect(mocks.listRoutes).toHaveBeenCalledWith()
+    // S7-5 契约演进（F 裁决单行修订，P3-a④ 先例）：搜索态 listRoutes({ keyword: q })，
+    // 服务端 route_name/path 过滤 + 客户端兜底过滤保留——原零参断言随演进修订
+    expect(mocks.listRoutes).toHaveBeenCalledWith(expect.objectContaining({ keyword: 'user' }))
     expect(mocks.listPlugins).toHaveBeenCalledTimes(1)
     expect(mocks.listPlugins).toHaveBeenCalledWith(expect.objectContaining({ page: 1, keyword: 'user' }))
     expect((tid(wrapper, 'cmd-input').element as HTMLInputElement).value).toBe('user')
