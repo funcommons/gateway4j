@@ -1,5 +1,6 @@
 package fun.commons.gateway4j.admin.controller;
 
+import fun.commons.gateway4j.admin.service.ConfigSyncStatusService;
 import fun.commons.gateway4j.admin.service.ImportSnapshotService;
 import fun.commons.gateway4j.admin.service.RouteBindingService;
 import fun.commons.gateway4j.admin.service.RouteCanvasApplyService;
@@ -40,6 +41,7 @@ class RouteControllerTest {
     @Mock private ImportSnapshotService importSnapshotService;
     @Mock private RouteEnvironmentDiffService routeEnvironmentDiffService;
     @Mock private RouteVersionService routeVersionService;
+    @Mock private ConfigSyncStatusService configSyncStatusService;
     @InjectMocks private RouteController controller;
 
     @Test
