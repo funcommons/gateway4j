@@ -668,3 +668,46 @@ describe('P4e-0 追加 — 顶栏三入口（登出/主题/语言）', () => {
     }
   })
 })
+
+// ═══════════ 375 壳层溢出收口钉（样式层源码契约，Settings.test.ts「375 防溢出源码契约」先例）═══════════
+// V 轮 375 实测病灶：.v2-top-actions 内容宽 298px、右缘 x=388（settings/monitor/overview
+// 三页 scrollWidth 同值 388，页面内容均在各自横滚容器内）—— 唯一溢出源是壳层顶栏，
+// 病根是 P4e 三入口入列后动作区内容超预算。修法 = ≤480 media query 纯收紧（动作区 gap、
+// EP 相邻钮 margin、按钮水平 padding、主题切换器外衬 padding、顶栏边距），零入口砍除。
+// 本钉防两类回归：① 收紧规则被删/被挪出 ≤480 块；② 有人以「修溢出」为名动
+// v2-top-search 的 ≤768 display:none 既有响应式决策（移动端搜索入口缺口已另记 P3）。
+describe('375 壳层溢出收口钉 — 顶栏动作区 ≤480 收紧（样式层源码契约）', () => {
+  /** 取源码中第一个完整 @media 块（至下一个 @media 或文件尾） */
+  function mediaBlock(source: string, header: string): string {
+    const at = source.indexOf(header)
+    expect(at, `未找到 ${header}`).toBeGreaterThan(-1)
+    const next = source.indexOf('@media', at + header.length)
+    return next > -1 ? source.slice(at, next) : source.slice(at)
+  }
+
+  it('≤480 块存在且五路收紧齐全：动作区 gap、EP 相邻 margin、按钮水平 padding、主题外衬 padding、顶栏边距', () => {
+    const source = fs.readFileSync(path.resolve(__dirname, '../LayoutV2.vue'), 'utf-8')
+    const css = mediaBlock(source, '@media (max-width: 480px)')
+    expect(css, '动作区 gap 未收紧到 4px').toMatch(/\.v2-top-actions\s*\{[^}]*gap:\s*4px/)
+    expect(css, 'EP 相邻钮 margin-left 未归零（与 gap 叠加 12px 是溢出主因之一）')
+      .toMatch(/\.v2-top-actions\s+:deep\(\.el-button\s*\+\s*\.el-button\)\s*\{[^}]*margin-left:\s*0/)
+    expect(css, '动作区按钮水平 padding 未收紧到 8px')
+      .toMatch(/\.v2-top-actions\s+:deep\(\.el-button\)\s*\{[^}]*padding-right:\s*8px[^}]*padding-left:\s*8px/)
+    expect(css, '主题切换器外衬 padding 未收平（FcThemeSwitcher 根基类自带 12px）')
+      .toMatch(/\.v2-top-theme\s+:deep\(\.fc-theme-switcher\)\s*\{[^}]*padding:\s*0/)
+    expect(css, '顶栏边距未收窄到 12px').toMatch(/\.v2-top\s*\{[^}]*padding:\s*0\s+12px/)
+  })
+
+  it('既有响应式决策不被回归：v2-top-search ≤768 display:none 仍在原块（移动端搜索入口缺口另记 P3，不在此票擅动）；三入口模板仍在动作区', () => {
+    const source = fs.readFileSync(path.resolve(__dirname, '../LayoutV2.vue'), 'utf-8')
+    const css = mediaBlock(source, '@media (max-width: 768px)')
+    expect(css, 'v2-top-search 的 display:none 决策被挪动/删除').toMatch(/\.v2-top-search\s*\{[^}]*display:\s*none/)
+    // 五入口零砍除：三 P4e 入口模板仍在 .v2-top-actions 内（P4e-0 行为用例钉存在性，此处钉「未挪出动作区」）
+    const at = source.indexOf('class="v2-top-actions"')
+    expect(at, '未找到顶栏动作区 .v2-top-actions').toBeGreaterThan(-1)
+    const block = source.slice(at, at + 900)
+    expect(block).toContain('data-testid="v2-logout"')
+    expect(block).toContain('data-testid="v2-theme-switch"')
+    expect(block).toContain('data-testid="v2-lang-switch"')
+  })
+})

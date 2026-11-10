@@ -600,6 +600,42 @@ if (inject<FcThemeContext | null>('fc-theme', null) == null) {
     visibility: visible;
   }
 }
+/* —— 手机（≤480px）顶栏收口：P4e 三入口把 .v2-top-actions 内容宽顶到 298px ——
+   V 轮 375 实测：动作区右缘 x=388（settings/monitor/overview 三页 scrollWidth
+   同值 388）—— 页面内容都在各自横滚容器内，唯一溢出源就是壳层顶栏。
+   内容宽 298px 逐项对账（zh-CN，与实测一分不差）：
+     通知 37（EP small is-text：11+图标15+11）
+   + 主题 82（触发钮 58 = 15+外观26+15+描边2，外衬 +24 = FcThemeSwitcher 根节点
+     .fc-theme-switcher 基类自带 padding:12px）
+   + 语言 37 + 登出 82（钮 70 = 11+退出登录48+11，再 +12 = EP 相邻钮
+     .el-button+.el-button{margin-left:12px} 与 flex gap 叠加）
+   + 头像 28 + gap 8×4 = 32。
+   修法 = 纯收紧、零入口砍除（五入口全部保留；v2-top-search 的 ≤768 display:none
+   既有决策不动）：动作区 gap、EP 相邻 margin、按钮水平 padding、主题外衬 padding
+   四路收缩 + 顶栏边距收窄，合计确定性 -108px（动作区 298 → 214，右缘 388 → 280）。
+   actions 区保持 flex:0 0 auto：让它收缩只会把内容裁出容器，不如收内容本身。
+   规则全部锁在 ≤480 断点，>480px（含 768/1440）渲染零变化。 */
+@media (max-width: 480px) {
+  .v2-top {
+    gap: 8px;
+    padding: 0 12px;
+  }
+  .v2-top-actions {
+    gap: 4px;
+  }
+  /* EP 相邻钮自带 margin-left:12px，手机上间距只留 gap 一份 */
+  .v2-top-actions :deep(.el-button + .el-button) {
+    margin-left: 0;
+  }
+  .v2-top-actions :deep(.el-button) {
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+  /* 主题切换器根节点外衬 12px（组件 scoped 基类）收平，与相邻钮左缘对齐 */
+  .v2-top-theme :deep(.fc-theme-switcher) {
+    padding: 0;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .v2-nav-item,
   .v2-side,
