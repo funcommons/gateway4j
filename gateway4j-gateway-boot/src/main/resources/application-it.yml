@@ -42,6 +42,9 @@ framework4j:
         druid:
           initial-size: 2
           max-active: 10
+          # v1.10.0 起框架缺省不再带 wall，此处显式保持升级前行为（stat,wall,slf4j）；
+          # 本服务运行时无 Flyway，wall 无碍。
+          filters: stat,wall,slf4j
 
   redis:
     enabled: true

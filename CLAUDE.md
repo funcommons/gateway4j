@@ -6,8 +6,8 @@
 
 ## 技术栈
 
-- **后端**：Java 17、Spring Boot 3.5.16、Spring Cloud Gateway 4.3.1、framework4j v1.2.1、MyBatis-Plus、PostgreSQL 16+、Groovy 4.0
-- **基础框架**：framework4j v1.2.1（鉴权/签名/限流/缓存/审计/脱敏/幂等/ID/多Redis/多DataSource/ApiResponse）
+- **后端**：Java 17、Spring Boot 3.5.16、Spring Cloud Gateway 4.3.1、framework4j v1.10.1、MyBatis-Plus、PostgreSQL 16+、Groovy 4.0
+- **基础框架**：framework4j v1.10.1（鉴权/签名/限流/缓存/审计/脱敏/幂等/ID/多Redis/多DataSource/ApiResponse）
 - **前端**：Vue 3、TypeScript、Element Plus、Vue Flow、Pinia、ECharts
 - **监控**：Micrometer + Prometheus
 - **构建**：Maven（后端）、Vite（前端）

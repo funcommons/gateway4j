@@ -67,6 +67,9 @@ framework4j:
         port: ${GATEWAY4J_REDIS_PORT:6379}
         database: 0
 
+  id:
+    enabled: true   # v1.8 起缺省不激活（issue #26）；@TableId(ASSIGN_ID) 依赖 Redis-租约雪花语义
+
   access-token:
     enabled: true
     # P2-9：JWT 签名密钥（HS256，≥32 字符）与 Redis Key 加盐外部化。

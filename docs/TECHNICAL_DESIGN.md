@@ -158,11 +158,11 @@ graph TB
 |---|---|---|---|
 | 网关引擎 | Spring Cloud Gateway | 4.2.0 | 响应式非阻塞，基于 Netty |
 | Web 框架 | Spring Boot | 3.4.1 | 管理后台 API |
-| 基础框架 | framework4j | v1.1.2 | 鉴权/签名/限流/缓存/审计/脱敏/幂等/ID/多Redis/多DataSource |
+| 基础框架 | framework4j | v1.10.1 | 鉴权/签名/限流/缓存/审计/脱敏/幂等/ID/多Redis/多DataSource |
 | 数据库 | PostgreSQL | 16+ | 配置持久化 |
 | 连接池 | Druid | 1.2.24 | 阿里数据库连接池 |
 | ORM | MyBatis-Plus | 3.5.x | 简化 CRUD |
-| 缓存 | framework4j-cache (Caffeine + Redis) | v1.1.2 | 多级缓存（路由/插件配置） |
+| 缓存 | framework4j-cache (Caffeine + Redis) | v1.10.1 | 多级缓存（路由/插件配置） |
 | 脚本引擎 | Groovy | 4.0.x | 脚本插件 + 脚本条件 |
 | 监控 | Micrometer + Prometheus | - | 指标采集与展示 |
 | 日志 | Log4j2 | - | 结构化 JSON 日志 |
