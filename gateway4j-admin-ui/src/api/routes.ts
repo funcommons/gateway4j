@@ -108,8 +108,14 @@ export function updateRoute(id: string, payload: Partial<{
   return envelope<RouteDetail>(http.patch(`/v1/routes/${id}`, payload))
 }
 
+/**
+ * 命令端点（delete/publish/offline 等）统一过 envelope()：全站契约 = 一切异常 HTTP 200 +
+ * ApiResponse 失败信封（success:false/code≠0）。裸 http 调用会把失败信封当成功 resolve
+ * → 调用方假成功（成功 toast / 批量计成功）。过 envelope 后 code≠0 抛 BusinessError
+ * （进调用方 catch → 错误呈现），成功裸实体 / 空体原样透传（信封幂等：双层包裹无害）。
+ */
 export function deleteRoute(id: string) {
-  return http.delete(`/v1/routes/${id}`)
+  return envelope(http.delete(`/v1/routes/${id}`))
 }
 
 /**
@@ -118,13 +124,13 @@ export function deleteRoute(id: string) {
  */
 export function publishRoute(id: string, changeDescription?: string) {
   if (changeDescription != null && changeDescription !== '') {
-    return http.post(`/v1/routes/${id}/publish`, { change_description: changeDescription })
+    return envelope(http.post(`/v1/routes/${id}/publish`, { change_description: changeDescription }))
   }
-  return http.post(`/v1/routes/${id}/publish`)
+  return envelope(http.post(`/v1/routes/${id}/publish`))
 }
 
 export function offlineRoute(id: string) {
-  return http.post(`/v1/routes/${id}/offline`)
+  return envelope(http.post(`/v1/routes/${id}/offline`))
 }
 
 /** 复制路由：返回新建的路由实体 */
@@ -155,7 +161,7 @@ export function bulkDeleteRoutes(ids: string[]) {
 }
 
 export function validateRoute(payload: { route_id?: string; conditions: RouteConditionDto[] }) {
-  return http.post('/v1/routes/validate', payload)
+  return envelope(http.post('/v1/routes/validate', payload))
 }
 
 export function listRouteChildren(id: string) {
@@ -163,14 +169,14 @@ export function listRouteChildren(id: string) {
 }
 
 export function sortRoutes(routeIds: string[]) {
-  return http.put('/v1/routes/sort', { route_ids: routeIds })
+  return envelope(http.put('/v1/routes/sort', { route_ids: routeIds }))
 }
 
 export function getCanvas(routeId: string) {
   return envelope<{ route_id: string; canvas_data: any }>(http.get(`/v1/routes/${routeId}/canvas`))
 }
 export function saveCanvas(routeId: string, canvasData: any) {
-  return http.put(`/v1/routes/${routeId}/canvas`, { canvas_data: canvasData })
+  return envelope(http.put(`/v1/routes/${routeId}/canvas`, { canvas_data: canvasData }))
 }
 
 /** 画布应用到路由树 — 请求体 */
@@ -200,29 +206,29 @@ export function applyCanvas(routeId: string, payload: CanvasApplyPayload) {
 }
 
 export function addCondition(routeId: string, condition: RouteConditionDto) {
-  return http.post(`/v1/routes/${routeId}/conditions`, condition)
+  return envelope(http.post(`/v1/routes/${routeId}/conditions`, condition))
 }
 export function updateCondition(routeId: string, condId: string, condition: RouteConditionDto) {
-  return http.put(`/v1/routes/${routeId}/conditions/${condId}`, condition)
+  return envelope(http.put(`/v1/routes/${routeId}/conditions/${condId}`, condition))
 }
 export function deleteCondition(routeId: string, condId: string) {
-  return http.delete(`/v1/routes/${routeId}/conditions/${condId}`)
+  return envelope(http.delete(`/v1/routes/${routeId}/conditions/${condId}`))
 }
 
 export function listBindings(routeId: string) {
   return envelope<BindingDto[]>(http.get(`/v1/routes/${routeId}/plugins`))
 }
 export function bindPlugin(routeId: string, payload: { plugin_id: string; binding_config: string }) {
-  return http.post(`/v1/routes/${routeId}/plugins`, payload)
+  return envelope(http.post(`/v1/routes/${routeId}/plugins`, payload))
 }
 export function updateBinding(routeId: string, bindingId: string, payload: { binding_config: string; sort_order?: number }) {
-  return http.put(`/v1/routes/${routeId}/plugins/${bindingId}`, payload)
+  return envelope(http.put(`/v1/routes/${routeId}/plugins/${bindingId}`, payload))
 }
 export function unbindPlugin(routeId: string, bindingId: string) {
-  return http.delete(`/v1/routes/${routeId}/plugins/${bindingId}`)
+  return envelope(http.delete(`/v1/routes/${routeId}/plugins/${bindingId}`))
 }
 export function sortRoutePlugins(routeId: string, pluginPhase: string, bindingIds: string[]) {
-  return http.put(`/v1/routes/${routeId}/plugins/sort`, { plugin_phase: pluginPhase, binding_ids: bindingIds })
+  return envelope(http.put(`/v1/routes/${routeId}/plugins/sort`, { plugin_phase: pluginPhase, binding_ids: bindingIds }))
 }
 export function getPluginChain(routeId: string) {
   return envelope<{ pre_chain: any[]; post_chain: any[] }>(http.get(`/v1/routes/${routeId}/plugin-chain`))

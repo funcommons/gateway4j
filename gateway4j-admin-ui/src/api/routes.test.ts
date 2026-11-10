@@ -19,7 +19,16 @@ vi.mock('@/api/http', () => ({
     patch: mocks.patch,
     delete: mocks.del
   },
-  envelope: <T>(p: Promise<T>) => p
+  // 信封桩：真实语义复刻（同 create-route-envelope.test.ts）——code≠0 抛错、code=0 解包
+  // data、无信封载荷透传。此前恒等透传，无法钉住「命令端点失败信封必须 reject」的根修契约。
+  envelope: async <T = unknown>(p: Promise<unknown>): Promise<T> => {
+    const r = (await p) as { code?: number; data?: T; message?: string }
+    if (r && typeof r === 'object' && 'code' in r) {
+      if ((r.code ?? 0) !== 0) throw new Error(r.message ?? '业务失败')
+      return r.data as T
+    }
+    return r as T
+  }
 }))
 
 // Import after mocking so the SUT picks up the stub.
@@ -71,6 +80,25 @@ describe('routes api — lifecycle', () => {
   it('offlineRoute -> POST /v1/routes/:id/offline', async () => {
     await api.offlineRoute('5')
     expect(mocks.post).toHaveBeenCalledWith('/v1/routes/5/offline')
+  })
+
+  // 根修回归钉（信封语义）：命令端点后端拒绝 = HTTP 200 + 失败信封（code≠0），
+  // 必须 reject（BusinessError/Error）而非 resolve 假成功；成功裸实体原样透传。
+  it('offlineRoute 失败信封（仅 PUBLISHED 可下线）-> reject 不假成功', async () => {
+    mocks.post.mockResolvedValueOnce({ code: 10402, message: '仅 PUBLISHED 状态可下线' })
+    await expect(api.offlineRoute('5')).rejects.toThrow('仅 PUBLISHED 状态可下线')
+  })
+
+  it('publishRoute 失败信封（change_description 校验）-> reject 不假成功', async () => {
+    mocks.post.mockResolvedValueOnce({ code: 10100, message: '变更说明必填' })
+    await expect(api.publishRoute('5', 'desc')).rejects.toThrow('变更说明必填')
+  })
+
+  it('deleteRoute 失败信封（已发布不可删除）-> reject；成功裸实体透传', async () => {
+    mocks.del.mockResolvedValueOnce({ code: 10402, message: '已发布路由不可删除，请先下线' })
+    await expect(api.deleteRoute('r4')).rejects.toThrow('已发布路由不可删除，请先下线')
+    mocks.del.mockResolvedValueOnce(undefined)
+    await expect(api.deleteRoute('r4')).resolves.toBeUndefined()
   })
 
   it('validateRoute -> POST /v1/routes/validate', async () => {
