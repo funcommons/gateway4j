@@ -520,6 +520,8 @@ export default {
       batOfflineFailed: '批量下线失败',
       batDeleteFailed: '批量删除失败',
       batPublishFailed: '批量发布失败',
+      // S7-3 守卫二：批量收尾 reload 抛错的降级文案（固定文案不透传原始错误，与 en-US 严格同位）
+      batReloadFailed: '操作已提交，但列表刷新失败',
       // OPT-6 发布同步状态（Publish 轮询三态 / Detail per-route 快照 / List 全局 chip 共用，与 en-US 严格同位）
       syncSyncing: '同步中',
       syncSynced: '已生效',

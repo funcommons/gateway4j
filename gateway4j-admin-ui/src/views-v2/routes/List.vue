@@ -276,7 +276,7 @@
       <div v-for="p in pendingList" :key="p.row.id" class="undo-item" :data-testid="`del-undo-${p.row.id}`">
         <span class="undo-text">{{ t('v2.routes.delUndoDeleted', { name: p.row.route_name }) }}</span>
         <span class="undo-countdown" :data-testid="`del-undo-countdown-${p.row.id}`">{{ t('v2.routes.delUndoCountdown', { n: p.remaining }) }}</span>
-        <FcButton variant="secondary" size="sm" :data-testid="`del-undo-btn-${p.row.id}`" @click="undoPendingDelete(p.row.id)">
+        <FcButton variant="secondary" size="sm" :data-testid="`del-undo-btn-${p.row.id}`" :disabled="p.committing" @click="undoPendingDelete(p.row.id)">
           {{ t('v2.routes.delUndoBtn') }}
         </FcButton>
       </div>
@@ -369,6 +369,8 @@ interface PendingDelete {
   timer: ReturnType<typeof setTimeout>
   tick: ReturnType<typeof setInterval>
   remaining: number
+  /** S7-3 守卫一：commit 发起后置 true——撤销不可回头（撤销钮 disabled + undoPendingDelete 早退共用） */
+  committing: boolean
 }
 /** Map 保插入序（多条并存条目按删除先后排列）；ref 深响应：set/delete/remaining 步进均触发派生 */
 const pendingDeletes = ref(new Map<string, PendingDelete>())
@@ -742,7 +744,8 @@ async function onDelete(row: DisplayRow) {
       const cur = pendingDeletes.value.get(row.id)
       if (cur) cur.remaining -= 1
     }, 1000),
-    remaining: Math.ceil(UNDO_WINDOW_MS / 1000)
+    remaining: Math.ceil(UNDO_WINDOW_MS / 1000),
+    committing: false
   })
 }
 
@@ -752,6 +755,9 @@ async function commitPendingDelete(id: string) {
   if (!pending) return
   clearTimeout(pending.timer)
   clearInterval(pending.tick)
+  // S7-3 守卫一：commit 发起即进 committing 态（await deleteRoute 期间条目仍在 Map，终态才退场）——
+  // 消除「撤销钮仍可点 → 点撤销行短暂复活、commit 成功 reload 后又消失」的闪烁误导
+  pending.committing = true
   try {
     await execCommand(deleteRoute(id))
     await reload()
@@ -766,7 +772,9 @@ async function commitPendingDelete(id: string) {
 /** 撤销（纯本地恢复）：清双 timer + 出 Map → aliveRows 重含该行（零 API 零 reload 零 toast） */
 function undoPendingDelete(id: string) {
   const pending = pendingDeletes.value.get(id)
-  if (!pending) return
+  // S7-3 守卫一：committing 期点击 no-op（真浏览器 disabled 拦得住、jsdom/键盘激活仍派发
+  // click——onRowCheck 同款双保险先例），仅 disabled 不够，必须程序化早退兜底
+  if (!pending || pending.committing) return
   clearTimeout(pending.timer)
   clearInterval(pending.tick)
   pendingDeletes.value.delete(id)
@@ -780,6 +788,8 @@ function undoPendingDelete(id: string) {
 // 全败 → error + 明细 + 不重拉 + 保留选择（单条「失败不重拉」口径的批量延伸）；
 // 请求级失败（envelope code≠0 / 网络）→ error + 不重拉 + 保留选择 + 无明细行
 //（明细只收 BulkResult.failed；batchRunning 于 finally 复位，bat-progress 退场）。
+// S7-3 守卫二：收尾 reload 抛错（全成/部分失败两分支）不进外层 catch——恰一枚 batReloadFailed
+// 固定文案 + loading 复位 + 选择照旧清空 + 明细保留；外层 catch 只管 bulk 请求级失败。
 
 /** bulk 单请求分发（批量发布不传 changeDescription，保持无 body 兼容契约；三函数自带 envelope 归一） */
 function batchExecBulk(action: BatchAction, ids: string[]): Promise<BulkResult> {
@@ -851,13 +861,27 @@ async function runBatchAction(action: BatchAction) {
       // 全部成功 → success + 同步轮询重启（仅发布；配置真变了）+ 重拉一次 + 清空选择
       toast.success(t(`v2.routes.${BATCH_T[action].success}`, { n: okCount }))
       if (action === 'publish') sync.start()
-      await reload()
+      try {
+        await reload()
+      } catch {
+        // S7-3 守卫二：收尾 reload 抛错不进外层 catch（外层只管 bulk 请求本身）——
+        // 恰一枚固定文案（原始 e.message 对用户不可操作）+ 复位 loading（reload 入口置 true、
+        // 抛错跳过出口复位，不守卫则页面钉死骨架屏）；选择清空照旧（bulk 已在服务端落定）
+        toast.error(t('v2.routes.batReloadFailed'))
+        loading.value = false
+      }
       selectedIds.clear()
     } else if (okCount > 0) {
       // 部分失败 → warning({ok} 成 {fail} 败) + 明细 + 同步轮询重启（仅发布）+ 重拉一次 + 清空选择
       toast.warning(t('v2.routes.batPartial', { ok: okCount, fail: fails.length }))
       if (action === 'publish') sync.start()
-      await reload()
+      try {
+        await reload()
+      } catch {
+        // S7-3 守卫二：同全成分支；batchFails 明细只收 BulkResult.failed，不受 reload 失败污染
+        toast.error(t('v2.routes.batReloadFailed'))
+        loading.value = false
+      }
       selectedIds.clear()
     } else {
       // 全部失败 → error + 明细 + 不重拉 + 不重启同步轮询 + 保留选择（便于修正后重试）
@@ -1159,11 +1183,10 @@ th.col-num {
 
 /* —— 行内链路 chips —— */
 /* P3-2 三段分色：匹配=info 系（FcTag primary，蓝）· 插件=violet 系 · 上游=ok 系（FcTag success）。
-   violet 系在全局语义 token（success/warning/danger/primary）里没有对应档，
-   就近定义页面作用域 token（字面值只出现在 token 定义层，等价 app-aliases 模式）；
+   violet 档即全局第四色相档 --app-secondary（P3-e 建档，S7-1 收编；页内保留 --rt-violet 别名）；
    规则本体一律走 token —— 墨色向 --app-text 混，light/dark 自动翻转，不按主题写死。 */
 .v2-route-list {
-  --rt-violet: #7c5cff;
+  --rt-violet: var(--app-secondary);
 }
 
 .rt-flow {

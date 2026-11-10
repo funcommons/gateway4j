@@ -523,6 +523,8 @@ export default {
       batOfflineFailed: 'Batch offline failed',
       batDeleteFailed: 'Batch delete failed',
       batPublishFailed: 'Batch publish failed',
+      // S7-3 guard two: fallback copy when batch-finish reload throws (fixed copy, raw error never surfaced; mirrors zh-CN exactly)
+      batReloadFailed: 'Applied, but the list refresh failed',
       // OPT-6 publish sync status (shared by Publish polling / Detail per-route snapshot / List global chip; mirrors zh-CN exactly)
       syncSyncing: 'Syncing',
       syncSynced: 'Live',
