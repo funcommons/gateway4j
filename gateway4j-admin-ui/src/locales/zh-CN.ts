@@ -336,6 +336,25 @@ export default {
       logout: '退出登录',
       lang: '语言'
     },
+    // OPT-2 ⌘K 命令面板（12 key 全表，与 en-US 严格同步；页面条目复用 v2.nav.*，触发器复用 v2.topbar.*）
+    cmd: {
+      placeholder: '搜索页面、动作、路由、插件…',
+      empty: '未找到匹配结果',
+      loading: '搜索中…',
+      footer: '↑↓ 选择 · Enter 打开 · Esc 关闭',
+      group: {
+        pages: '页面',
+        actions: '快捷操作',
+        routes: '路由',
+        plugins: '插件'
+      },
+      action: {
+        createRoute: '新建路由',
+        importExport: '导入导出',
+        themeToggle: '切换主题',
+        logout: '退出登录'
+      }
+    },
     placeholder: {
       hint: '该模块在后续步骤实现',
       prototype: '对应原型: prototype-v2/{file}'

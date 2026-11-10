@@ -51,7 +51,18 @@
           <span class="v2-crumb-sep" aria-hidden="true"></span>
           <b class="v2-crumb-current" data-testid="v2-breadcrumb-current">{{ crumbTitle }}</b>
         </div>
-        <div class="v2-top-search" aria-hidden="true">
+        <!-- OPT-2: ⌘K 命令面板触发器（非文本输入形态，内部禁 <input>；面板本体见模板尾部常驻挂载） -->
+        <div
+          class="v2-top-search"
+          data-testid="v2-topbar-search"
+          role="button"
+          tabindex="0"
+          aria-haspopup="dialog"
+          :aria-expanded="cmdOpen"
+          @click="cmdOpen = true"
+          @keydown.enter.prevent="cmdOpen = true"
+          @keydown.space.prevent="cmdOpen = true"
+        >
           <FcIcon name="ri-search-line" :size="14" />
           <span>{{ t('v2.topbar.searchPlaceholder') }}</span>
           <kbd class="v2-top-kbd">{{ t('v2.topbar.kbd') }}</kbd>
@@ -77,6 +88,8 @@
         <router-view />
       </main>
     </div>
+    <!-- OPT-2: ⌘K 命令面板常驻挂载（⌘K/Ctrl+K/Esc 全局开关由面板自身监听 window，布局侧不另建监听） -->
+    <CommandPalette v-model:open="cmdOpen" />
   </div>
 </template>
 
@@ -85,6 +98,7 @@ import { computed, inject, onBeforeUnmount, onMounted, provide, ref, type Ref } 
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { FcButton, FcIcon, FcThemeSwitcher, isValidBrand, type ThemeMode } from '@/components'
+import CommandPalette from '@/components-v2/command/CommandPalette.vue'
 import { usePermission } from '@/composables/usePermission'
 import { useAuthStore } from '@/store/auth'
 
@@ -92,6 +106,9 @@ const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { hasPermission } = usePermission()
+
+/** OPT-2: ⌘K 命令面板开合（面板组件 v-model:open；⌘K/Esc 全局监听在面板内部） */
+const cmdOpen = ref(false)
 
 /**
  * 窄视口（≤768px）侧栏抽屉开关（P1-1）。
@@ -483,7 +500,7 @@ if (inject<FcThemeContext | null>('fc-theme', null) == null) {
 .v2-menu-btn {
   display: none;
 }
-/* ⌘K 搜索占位 (S1 不可交互, aria-hidden) */
+/* ⌘K 搜索触发器 (OPT-2: S1 占位 → 命令面板真实入口; 仍保持非文本输入形态, 内部无 <input>) */
 .v2-top-search {
   display: flex;
   align-items: center;
@@ -497,6 +514,11 @@ if (inject<FcThemeContext | null>('fc-theme', null) == null) {
   background: var(--app-bg-muted);
   color: var(--app-text-tertiary);
   font-size: 12.5px;
+  cursor: pointer;
+}
+.v2-top-search:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
 }
 .v2-top-search span {
   overflow: hidden;
@@ -536,8 +558,8 @@ if (inject<FcThemeContext | null>('fc-theme', null) == null) {
   .v2-menu-btn {
     display: inline-flex;
   }
-  /* P2: 375 窄视口横向溢出收口 —— ⌘K 搜索占位为纯装饰 (aria-hidden, S1 不可交互),
-     窄视口直接隐藏, 消除 260px 固定宽把 .v2-top-actions 顶出视口的根因。
+  /* P2: 375 窄视口横向溢出收口 —— ⌘K 搜索触发器窄视口仍隐藏（260px 固定宽会把
+     .v2-top-actions 顶出视口；面板本体可经 ⌘K 快捷键到达）。
      面包屑改为主轴伸展 (min-width:0 已有, 截断省略), 顶栏动作区仍贴右缘。 */
   .v2-top-search {
     display: none;

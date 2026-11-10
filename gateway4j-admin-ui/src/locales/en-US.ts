@@ -339,6 +339,25 @@ export default {
       logout: 'Sign out',
       lang: 'Language'
     },
+    // OPT-2 ⌘K command palette (12 keys, kept in strict sync with zh-CN; page entries reuse v2.nav.*, trigger reuses v2.topbar.*)
+    cmd: {
+      placeholder: 'Search pages, actions, routes, plugins…',
+      empty: 'No matching results',
+      loading: 'Searching…',
+      footer: '↑↓ Navigate · Enter Open · Esc Close',
+      group: {
+        pages: 'Pages',
+        actions: 'Actions',
+        routes: 'Routes',
+        plugins: 'Plugins'
+      },
+      action: {
+        createRoute: 'New Route',
+        importExport: 'Import & Export',
+        themeToggle: 'Toggle Theme',
+        logout: 'Sign Out'
+      }
+    },
     placeholder: {
       hint: 'This module will be implemented in a later step',
       prototype: 'Reference prototype: prototype-v2/{file}'
