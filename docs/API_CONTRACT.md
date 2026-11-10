@@ -1365,8 +1365,10 @@ BEARER 类型 + jti 撤销检查 + Redis nonce 强一致，与拦截器同源收
 - **改密端点（已存在）**：`POST /v1/users/{id}/reset-password`（body
   `{new_password}`）或 `PATCH /v1/users/{id}`（body 带 `password` 字段），均走 admin
   权限（@RequiresToken BEARER）。前端弱口令横幅跳转用其一即可。
-- secret 轮换语义：framework4j v1.2.1 为**单 key HS256，无双 key 过渡**，轮换 = 替换
-  env + 重启 = 全量登出，详见 `docs/SECRET_ROTATION.md`。
+- secret 轮换语义：framework4j v1.10.1（gateway4j 现依赖版本）accesstoken 仍为**单 key
+  HS256，无 kid / 多 key 验签，无双 key 过渡配置**，轮换 = 替换 env + 重启 = 全量登出
+  （v1.2.1 → v1.10.1 期间该语义未变，经 v1.10.1 源码逐条复核；refresh token 同 key 验签，
+  换 key 连 refresh 一并失效），详见 `docs/SECRET_ROTATION.md`。
 - 凭证已全部外部化（本地栈不设 env 用默认值原样启动）：
   `GATEWAY4J_DB_PASSWORD` / `GATEWAY4J_JWT_SECRET` / `GATEWAY4J_JWT_HASH_SALT` /
   `GATEWAY4J_OPEN_API_SECRET`（另有 DB/Redis 主机端口与 Prometheus 地址可选 env）。

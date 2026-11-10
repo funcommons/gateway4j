@@ -156,11 +156,11 @@ graph TB
 
 | 层次 | 技术 | 版本 | 说明 |
 |---|---|---|---|
-| 网关引擎 | Spring Cloud Gateway | 4.2.0 | 响应式非阻塞，基于 Netty |
-| Web 框架 | Spring Boot | 3.4.1 | 管理后台 API |
+| 网关引擎 | Spring Cloud Gateway | 4.3.1 | 响应式非阻塞，基于 Netty |
+| Web 框架 | Spring Boot | 3.5.16 | 管理后台 API |
 | 基础框架 | framework4j | v1.10.1 | 鉴权/签名/限流/缓存/审计/脱敏/幂等/ID/多Redis/多DataSource |
 | 数据库 | PostgreSQL | 16+ | 配置持久化 |
-| 连接池 | Druid | 1.2.24 | 阿里数据库连接池 |
+| 连接池 | Druid | 1.2.28 | 阿里数据库连接池 |
 | ORM | MyBatis-Plus | 3.5.x | 简化 CRUD |
 | 缓存 | framework4j-cache (Caffeine + Redis) | v1.10.1 | 多级缓存（路由/插件配置） |
 | 脚本引擎 | Groovy | 4.0.x | 脚本插件 + 脚本条件 |
@@ -858,7 +858,7 @@ public ApiResponse<RouteVO> updateRoute(@PathVariable Long id,
 | 项 | 内容 |
 |---|---|
 | **背景** | 需要选择 HTTP 网关的基础框架，候选方案包括：自研 Netty Server、Spring Cloud Gateway、Kong、APISIX |
-| **决策** | 采用 Spring Cloud Gateway 4.2.0 作为网关基础，在其上层封装路由决策和插件体系 |
+| **决策** | 采用 Spring Cloud Gateway 4.3.1 作为网关基础，在其上层封装路由决策和插件体系 |
 | **理由** | (1) 基于 Reactor + Netty，天然非阻塞，满足高并发需求；(2) 与 Spring Boot 生态无缝集成，降低运维复杂度；(3) 内置路由转发、过滤器链等能力，减少重复造轮子；(4) 社区活跃，长期维护有保障 |
 | **后果** | 正面：快速交付、生态丰富、非阻塞性能优异。负面：与 Spring 生态强绑定，迁移成本高；SCG 的 RouteLocator 抽象需适配自定义路由模型 |
 | **状态** | 已采纳 |
