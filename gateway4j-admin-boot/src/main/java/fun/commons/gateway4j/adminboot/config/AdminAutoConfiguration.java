@@ -30,13 +30,22 @@ public class AdminAutoConfiguration {
     }
 
     /**
-     * framework4j MultiDataSourceAutoConfiguration 手动注册 SqlSessionFactory 时未把
-     * MybatisPlusInterceptor 接入 plugins，这里在上下文就绪后补插，否则分页 total 恒为 0。
+     * v1.2.1 时代 framework4j 的 MultiDataSourceRegistrar 注册 SqlSessionFactory 时
+     * 不接 MybatisPlusInterceptor 插件，导致分页 total 恒为 0，本补插应运而生。
+     * framework4j v1.10.0 起工厂已通过 setPlugins(RuntimeBeanReference) 装配同一
+     * 拦截器 bean，而 MyBatis InterceptorChain 无去重——再无条件补插会把
+     * PaginationInnerInterceptor 注册两次，Page 查询被追加两个 LIMIT
+     * （LIMIT ? LIMIT ? → PG syntax error → 10001 数据库操作异常）。
+     * 因此按实例判等幂等补插：链上已有则跳过；老版本框架（未装配）时仍兜底生效。
      */
     @Bean
     public org.springframework.beans.factory.SmartInitializingSingleton mybatisPlusInterceptorApplier(
             org.apache.ibatis.session.SqlSessionFactory sqlSessionFactory,
             com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor interceptor) {
-        return () -> sqlSessionFactory.getConfiguration().addInterceptor(interceptor);
+        return () -> {
+            if (!sqlSessionFactory.getConfiguration().getInterceptors().contains(interceptor)) {
+                sqlSessionFactory.getConfiguration().addInterceptor(interceptor);
+            }
+        };
     }
 }
