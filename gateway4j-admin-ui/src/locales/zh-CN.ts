@@ -498,7 +498,13 @@ export default {
       batFailTitle: '以下路由操作失败',
       batOfflineFailed: '批量下线失败',
       batDeleteFailed: '批量删除失败',
-      batPublishFailed: '批量发布失败'
+      batPublishFailed: '批量发布失败',
+      // OPT-6 发布同步状态（Publish 轮询三态 / Detail per-route 快照 / List 全局 chip 共用，与 en-US 严格同位）
+      syncSyncing: '同步中',
+      syncSynced: '已生效',
+      syncDelayed: '同步延迟',
+      syncRetry: '重试',
+      syncUnknown: '状态未知'
     },
     tree: {
       typeDispatch: '分发',
@@ -818,6 +824,13 @@ export default {
       actionFailed: '操作失败，请稍后重试',
       empty: '暂无插件，点击右上角「新建插件」开始',
       readonlyHint: '当前为只读权限，仅可查看插件列表'
+    },
+    // OPT-5：插件 config 编辑器 FcCodeEditor（CodeMirror 6 封装，v2.cde.* 4 key，与 en-US 严格同步）
+    cde: {
+      format: '格式化',
+      formatInvalidHint: '修复 JSON 后才能格式化',
+      errorAt: '第 {line} 行 JSON 解析失败',
+      editorLabel: '配置 JSON'
     },
     // S11b：调试台（v2.debug.* 45 key，与 en-US 严格同步；不引用 v2.canvas/v2.chain/route.* 旧树）
     debug: {

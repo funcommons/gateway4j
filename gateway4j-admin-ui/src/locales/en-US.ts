@@ -501,7 +501,13 @@ export default {
       batFailTitle: 'Some routes failed',
       batOfflineFailed: 'Batch offline failed',
       batDeleteFailed: 'Batch delete failed',
-      batPublishFailed: 'Batch publish failed'
+      batPublishFailed: 'Batch publish failed',
+      // OPT-6 publish sync status (shared by Publish polling / Detail per-route snapshot / List global chip; mirrors zh-CN exactly)
+      syncSyncing: 'Syncing',
+      syncSynced: 'Live',
+      syncDelayed: 'Sync delayed',
+      syncRetry: 'Retry',
+      syncUnknown: 'Status unknown'
     },
     tree: {
       typeDispatch: 'Dispatch',
@@ -821,6 +827,13 @@ export default {
       actionFailed: 'Action failed, please retry later',
       empty: 'No plugins yet. Use New Plugin in the top-right corner to start',
       readonlyHint: 'Read-only permission: you can view the plugin list only'
+    },
+    // OPT-5: plugin config editor FcCodeEditor (CodeMirror 6 wrapper, v2.cde.* 4 keys kept strictly in sync with zh-CN)
+    cde: {
+      format: 'Format JSON',
+      formatInvalidHint: 'Fix the JSON to enable formatting',
+      errorAt: 'Invalid JSON at line {line}',
+      editorLabel: 'Config JSON'
     },
     // S11b: debug console (v2.debug.* 45 keys kept strictly in sync with zh-CN; no references to v2.canvas/v2.chain/route.* trees)
     debug: {

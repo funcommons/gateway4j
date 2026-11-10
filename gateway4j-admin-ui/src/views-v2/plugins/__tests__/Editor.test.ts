@@ -64,7 +64,10 @@
  * ped-f-name / ped-f-plugin-id（input 本体，attrs 透传）；edit 模式两者 disabled
  * ped-f-type / ped-f-phase / ped-f-scope（FcSegmented 根 role=radiogroup；disabled 时根含
  *   is-disabled 类且点击选项无效果。edit 模式：type/scope disabled（F 步修正），phase 可改）
- * ped-f-config（textarea 本体，maxlength=10000）
+ * ped-f-config（textarea 本体，maxlength=10000）—— OPT-5 起该形态由封装编辑器 FcCodeEditor
+ *   接管（CodeMirror 6，动态 import 懒加载）：config 断言走 configArea/configVal 双形态
+ *   助手（cde-content 优先、ped-f-config 过渡回退），组件以 cdeStub 拦截（见文件中段
+ *   vi.mock 注释），迁移全程本套件语义零改动；接线 fs 契约在 Editor.code-editor.test.ts
  * ped-f-sort-order（FcInputNumber 内 input；:min=1 :max=9999 夹取）
  * ped-f-remark（textarea 本体，maxlength=200）
  * ped-err-<prop>（字段错误条，prop ∈ plugin_name|plugin_id|plugin_phase|config|sort_order；
@@ -148,6 +151,16 @@ vi.mock('@/components', async (importOriginal) => {
 })
 
 import Editor from '@/views-v2/plugins/Editor.vue'
+
+// OPT-5-T：config 字段在 C 步换 FcCodeEditor（CodeMirror 6 封装，Editor.vue 侧动态 import
+// 懒加载）。本套件按可控 stub 拦截该组件（工厂 mock 可注册在【尚不存在】的模块路径上——
+// 探针实证；现阶段 Editor.vue 未 import 它 = mock 无害，C 步接线后动态 import 命中 stub，
+// 40 例与 CodeMirror/jsdom 解耦保持确定性）。stub 本体：components-v2/editor/__tests__/cdeStub.ts；
+// 接线契约与 fs 断言：Editor.code-editor.test.ts。
+vi.mock('@/components-v2/editor/FcCodeEditor.vue', async () => {
+  const { cdeStub } = await import('@/components-v2/editor/__tests__/cdeStub')
+  return { default: cdeStub }
+})
 
 const i18n = createI18n({ legacy: false, locale: 'zh-CN', fallbackLocale: 'en-US', messages: { 'zh-CN': zhCN, 'en-US': enUS } })
 const stub = { template: '<div />' }
@@ -236,6 +249,13 @@ const inputOf = (w: VueWrapper<any>, tid: string) => w.find(`input[data-testid="
 const inputVal = (w: VueWrapper<any>, tid: string) => (w.find(`input[data-testid="${tid}"]`).element as HTMLInputElement).value
 const areaVal = (w: VueWrapper<any>, tid: string) => (w.find(`textarea[data-testid="${tid}"]`).element as HTMLTextAreaElement).value
 const areaOf = (w: VueWrapper<any>, tid: string) => w.find(`textarea[data-testid="${tid}"]`)
+// OPT-5：config 编辑区定位/取值——C 步换封装组件后走 cde-content（stub 或真组件镜像
+// textarea 同形同 testid）；过渡期回退旧 ped-f-config textarea。断言点双向兼容，语义不变。
+const configArea = (w: VueWrapper<any>) =>
+  w.find('textarea[data-testid="cde-content"]').exists()
+    ? w.find('textarea[data-testid="cde-content"]')
+    : w.find('textarea[data-testid="ped-f-config"]')
+const configVal = (w: VueWrapper<any>) => (configArea(w).element as HTMLTextAreaElement).value
 /** tab 触发钮：FcTabsPanel 由 props 渲染按钮，按文案定位（头注 DOM 契约） */
 const findTab = (w: VueWrapper<any>, key: 'basic' | 'groovy' | 'jar' | 'group') =>
   w.findAll('.fc-tab').find((b) => b.text().includes(t(`v2.plugins.tab${key[0].toUpperCase()}${key.slice(1)}`)))
@@ -300,7 +320,7 @@ describe('P4a-1 — 模式判定（new 保留字 / 行主键 edit）', () => {
     expect(one(wrapper, 'ped-skeleton').exists()).toBe(false)
     expect(inputVal(wrapper, 'ped-f-name')).toBe('')
     expect(inputVal(wrapper, 'ped-f-plugin-id')).toBe('')
-    expect(areaVal(wrapper, 'ped-f-config')).toBe('{}')
+    expect(configVal(wrapper)).toBe('{}')
     expect(inputVal(wrapper, 'ped-f-sort-order')).toBe('1')
     expect(one(wrapper, 'ped-f-type').attributes('role')).toBe('radiogroup')
     // 缺省 GROOVY → Groovy tab 在、JAR/GROUP tab 不在
@@ -325,7 +345,7 @@ describe('P4a-1 — 模式判定（new 保留字 / 行主键 edit）', () => {
     expect(mocks.getPlugin).toHaveBeenCalledWith('7001')
     expect(inputVal(wrapper, 'ped-f-name')).toBe('我的插件')
     expect(inputVal(wrapper, 'ped-f-plugin-id')).toBe('my-plugin')
-    expect(areaVal(wrapper, 'ped-f-config')).toBe('{"limit":10}')
+    expect(configVal(wrapper)).toBe('{"limit":10}')
     expect(inputVal(wrapper, 'ped-f-sort-order')).toBe('3')
     expect(areaVal(wrapper, 'ped-f-remark')).toBe('备注甲')
     expect(segOption(wrapper, 'ped-f-type', t('v2.plugins.typeGroovy'))?.attributes('aria-checked')).toBe('true')
@@ -434,12 +454,12 @@ describe('P4a-1 — BASIC 手写校验（Wizard 模式，字段错误逐 prop �
   it('config 非 JSON → ped-err-config=configJsonInvalid；合法 JSON / 空串放行', async () => {
     const { wrapper } = await factory()
     await fillValid(wrapper)
-    await areaOf(wrapper, 'ped-f-config').setValue('not-json')
+    await configArea(wrapper).setValue('not-json')
     await need(wrapper, 'ped-save', '保存钮').trigger('click')
     await flushPromises()
     expect(one(wrapper, 'ped-err-config').text()).toContain(t('v2.plugins.configJsonInvalid'))
     expect(mocks.createPlugin).not.toHaveBeenCalled()
-    await areaOf(wrapper, 'ped-f-config').setValue('{"ok":1}')
+    await configArea(wrapper).setValue('{"ok":1}')
     await need(wrapper, 'ped-save', '保存钮').trigger('click')
     await flushPromises()
     expect(one(wrapper, 'ped-err-config').exists()).toBe(false)
@@ -646,7 +666,7 @@ describe('P4a-1 — 保存：create → createPlugin + 跳转；edit → updateP
     const { wrapper, router } = await factory()
     await inputOf(wrapper, 'ped-f-name').setValue('my_plugin')
     await inputOf(wrapper, 'ped-f-plugin-id').setValue('my-plugin')
-    await areaOf(wrapper, 'ped-f-config').setValue('{"a":1}')
+    await configArea(wrapper).setValue('{"a":1}')
     await areaOf(wrapper, 'ped-f-remark').setValue('备注')
     await need(wrapper, 'ped-save', '保存钮').trigger('click')
     await flushPromises()

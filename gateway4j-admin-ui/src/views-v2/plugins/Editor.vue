@@ -57,7 +57,22 @@
             </div>
             <div class="ped-field ped-field--wide">
               <label class="ped-label" for="ped-config">{{ t('v2.plugins.fieldConfig') }}</label>
-              <FcInput id="ped-config" v-model="form.config" type="textarea" :rows="6" :maxlength="10000" data-testid="ped-f-config" />
+              <!-- OPT-5: config JSON editor upgraded to FcCodeEditor (CodeMirror 6 wrapper, lazily
+                   imported so CodeMirror never enters the main bundle). While the editor chunk is
+                   in flight, an interim plain textarea takes the SAME cde-content slot with the
+                   same v-model, so DOM-baseline dirty tracking never misses (and the swap is a
+                   same-slot same-value replacement). Label association rides the id passthrough;
+                   cde-content aria-label is the 2nd belt. -->
+              <FcCodeEditor v-if="editorChunkReady" id="ped-config" v-model="form.config" :maxlength="10000" />
+              <FcInput
+                v-else
+                id="ped-config"
+                v-model="form.config"
+                type="textarea"
+                :rows="6"
+                :maxlength="10000"
+                data-testid="cde-content"
+              />
               <p v-if="errors.config" class="ped-err" data-testid="ped-err-config" role="alert">{{ errors.config }}</p>
             </div>
             <div class="ped-field ped-field--wide">
@@ -164,6 +179,12 @@
  *   只挂载一个 pane，不会重复）。tab 集 = basic 恒在 + groovy/jar/group 按 plugin_type 条件。
  * - 64KB Blob 上限（GROOVY 脚本）、50MB .jar 单文件（FcDropZone max-size，reject 兜底
  *   jarSizeExceeded 文案）。
+ * - OPT-5（2026-11-10，v2 优化建议 #4）：config 字段 FcInput textarea → FcCodeEditor
+ *   （CodeMirror 6 封装，对标 APISIX 表单/JSON 双模）。defineAsyncComponent 动态 import
+ *   懒加载（CodeMirror 不进主 bundle）；v-model 链路（form.config）与提交校验链路零改动
+ *   （validateAll 的 JSON.parse 前置门原样保留）；契约与组件行为见
+ *   src/views-v2/plugins/__tests__/Editor.code-editor.test.ts 与
+ *   src/components-v2/editor/__tests__/FcCodeEditor.test.ts 头注。
  * - 横切全随迁：loadEpoch 竞态防护 / 骨架 / 错误态 / 脏离开 confirm({variant:'danger'})；
  *   dirtyTracking 在 load 完成的 nextTick 之后才开启，避免回填被误标脏。
  * - 脏离开守卫用 router.beforeEach（按路由 name 圈定、onUnmounted 解绑）而不是
@@ -173,7 +194,7 @@
  *   等价于 beforeunload 的「离开时对比」语义；create 成功跳转前清空基线（保存成功不算脏）。
  * - SDK only（无 el-* 直用）；template 块零 CJK（文案一律 t()）；颜色 token-only。
  */
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useFcConfirm } from '@/composables/useFcConfirm'
@@ -189,6 +210,30 @@ const { confirm } = useFcConfirm()
 const { canEdit } = usePermission()
 const route = useRoute()
 const router = useRouter()
+
+// ── OPT-5：config 字段封装编辑器（CodeMirror 6 封装）——必须【动态 import】懒加载
+//    （CodeMirror 体量禁止进主 bundle，构建已有 1.36MB chunk advisory）；fs 边界契约
+//    见 src/views-v2/plugins/__tests__/Editor.code-editor.test.ts：全仓 CodeMirror import
+//    只允许出现在 src/components-v2/editor/**，本页零直引。校验语义零改动：save() 仍前置
+//    validateAll()（JSON.parse(f.config) + configJsonInvalid）门槛，编辑器即时解析只是
+//    反馈，提交权威仍是服务端 validateConfig。
+//    模块作用域即起 import（仍是动态 import = 独立 chunk，主 bundle 不含）：Editor 页模块
+//    加载时就开始拉取编辑器 chunk，把 fs/网络成本前移到挂载之前。chunk 就绪前的过渡期渲染
+//    同 testid 同 v-model 的原生 textarea（editorChunkReady 分支）：collectDomValues 的 DOM
+//    基线从首帧起就覆盖 config 编辑区，chunk 到位后的换装是同位同值替换 → 脏离开零假阳性；
+//    loader 显式取 .default（等 await import 写法，契约允许）：vi.mock 工厂产出的 mock 命名
+//    空间不带 __esModule/toStringTag('Module')，Vue 异步壳无法自动抽取（探针实证）。 ────
+const fcCodeEditorModule = import('@/components-v2/editor/FcCodeEditor.vue')
+const editorChunkReady = ref(false)
+void fcCodeEditorModule.then(() => {
+  editorChunkReady.value = true
+}).catch(() => {
+  /* chunk 失败：停留过渡期 textarea（降级语义同组件内 fallback） */
+})
+const FcCodeEditor = defineAsyncComponent(async () => {
+  const mod: { default: Component } = await fcCodeEditorModule
+  return mod.default
+})
 
 const TYPE_SET = new Set<string>(['BUILTIN', 'JAR', 'GROOVY', 'GROUP'])
 const NAME_RE = /^[a-zA-Z0-9_]{2,50}$/
