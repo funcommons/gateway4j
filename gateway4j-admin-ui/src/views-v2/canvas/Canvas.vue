@@ -155,7 +155,16 @@
               >
                 <Background pattern-color="var(--app-text-quaternary)" :gap="16" />
                 <Controls />
-                <MiniMap />
+                <!-- OPT-4: production-grade minimap — draggable pan + wheel zoom + per-type
+                     token colors + i18n aria (new mini-* testid family; kept in read-only) -->
+                <MiniMap
+                  data-testid="mini-map"
+                  :pannable="true"
+                  :zoomable="true"
+                  :aria-label="t('v2.canvas.minimapAria')"
+                  :node-color="minimapNodeColor"
+                  :node-class-name="minimapNodeClass"
+                />
               </VueFlow>
               <div v-if="showEmpty" class="cnv-empty" data-testid="cnv-empty">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
@@ -240,7 +249,9 @@ import ApplyDiffDialog from './ApplyDiffDialog.vue'
  *   load 尾部 → markLoaded（旧 dirty=false 语义随迁）；状态 chip idle/dirty/saving/saved/failed；
  * - 应用入口守卫（孤儿分发 / 嵌套深度）通过后才 open() 弹窗；成功 toast 归本层（S9b 范围）；
  * - 只读态（canEdit('route')=false）：可写 UI（节点库/面板/应用入口/保存 chip）全隐，
- *   undo/redo/delete disabled；看图（status/chips/back）不受限。
+ *   undo/redo/delete disabled；看图（status/chips/back）不受限；
+ * - OPT-4：MiniMap 成品化（pannable/zoomable + 按类型 token 配色 + i18n aria，只读保留）；
+ *   非法连线即时 toast（watch connectionError，文案复用 reason 枚举 key，绿路径静默）。
  */
 defineOptions({ name: 'V2Canvas' })
 
@@ -276,6 +287,37 @@ const {
   onMutate: touch,
   onLoaded: onGraphLoaded
 })
+
+// —— OPT-4：非法连线即时反馈（组件层接线，内核 useCanvasGraph 保持无 i18n / 无 toast）——
+// 红：内核把 reason 枚举写入 connectionError 的当场 toast（文案复用既有 v2.canvas.selfLoop /
+// backendOutgoing key，零新增），与持久 chip（cnv-conn-error）双通道；绿：内核清错（reason=''
+// 不弹）、ghost 端点早退（ref 不动不弹）均静默，防告警噪音。watch 只在新错误落地时触发。
+watch(connectionError, (reason) => {
+  if (reason) toast.error(t(`v2.canvas.${reason}`))
+})
+
+// —— OPT-4：缩略图节点配色（MiniMap node-color 入参，纯函数：同入参同出参）——
+// 全 token 色禁字面值；色系参考 Overview.vue 拓扑先例（分发=紫系 / 后置=warning / 插件=绿系），
+// 紫系无全局 --app-* token（--ov-violet 是 Overview 页内字面量），分发改取强调色 --app-primary；
+// 未知 / 缺型回退 = 既有 .vue-flow__minimap-node CSS fill 同款 --app-text-tertiary。
+function minimapNodeColor(node: { type?: string }): string {
+  if (node?.type === 'DISPATCH') return 'var(--app-primary)'
+  if (node?.type === 'BACKEND') return 'var(--app-color-warning)'
+  if (node?.type === 'PLUGIN') return 'var(--app-color-success)'
+  return 'var(--app-text-tertiary)'
+}
+
+// OPT-4 修复：nodeColor 经包内实现落为 rect 的 fill **attribute**（@vue-flow/minimap dist
+// `fill: _ctx.color`），而下方既有 `:deep(.vue-flow__minimap-node)` 作者规则按级联恒压
+// presentation attribute（且 var() 不解析于 attribute）——不补类名时 per-type 配色 DOM 层
+// 永不生效（三类型仍全灰）。故按 type 附类，配下方高一档特异度 token 规则真实上色；
+// nodeColor 契约原样保留（CanvasMinimap.test.ts prop 契约钉死其为函数 + var(--) 返回）。
+function minimapNodeClass(node: { type?: string }): string {
+  if (node?.type === 'DISPATCH') return 'cnv-mm-dispatch'
+  if (node?.type === 'BACKEND') return 'cnv-mm-backend'
+  if (node?.type === 'PLUGIN') return 'cnv-mm-plugin'
+  return ''
+}
 
 // —— S12③：适应画布 / 自动布局（fitView 走 useVueFlow 实例通道，只读保留）——
 const { fitView } = useVueFlow()
@@ -562,6 +604,12 @@ const palette = computed(() => [
   overflow: hidden;
 }
 .cnv-canvas :deep(.vue-flow__minimap-node) { fill: var(--app-text-tertiary); }
+/* OPT-4 修复：per-type 配色落点——特异度须高于上一行统一 fill 规则（+1 类），全 token 零字面
+   （CanvasMinimap.test.ts fs 契约：.vue-flow__minimap* 规则体禁 hex/rgb/hsl），未知/缺型无类名
+   仍走上方 --app-text-tertiary 回退。 */
+.cnv-canvas :deep(.vue-flow__minimap-node.cnv-mm-dispatch) { fill: var(--app-primary); }
+.cnv-canvas :deep(.vue-flow__minimap-node.cnv-mm-backend) { fill: var(--app-color-warning); }
+.cnv-canvas :deep(.vue-flow__minimap-node.cnv-mm-plugin) { fill: var(--app-color-success); }
 .cnv-canvas :deep(.vue-flow__minimap-mask) { fill: color-mix(in srgb, var(--app-text) 8%, transparent); }
 .cnv-canvas :deep(.vue-flow__controls-button) {
   background: var(--app-bg-card);

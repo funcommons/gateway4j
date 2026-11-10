@@ -645,6 +645,8 @@ export default {
       empty: '画布为空',
       emptyHint: '从左侧节点库添加分发 / 后置 / 插件节点开始编排',
       retry: '重试',
+      // OPT-4：画布缩略图（MiniMap aria-label）
+      minimapAria: '画布缩略图',
       // S9b：属性面板 + 保存/应用 + 自动保存（与 en-US 严格同步；不引用 route.* 旧树）
       panelTitle: '属性',
       propType: '类型',

@@ -648,6 +648,8 @@ export default {
       empty: 'The canvas is empty',
       emptyHint: 'Add dispatch, backend or plugin nodes from the palette to start',
       retry: 'Retry',
+      // OPT-4: canvas minimap (MiniMap aria-label)
+      minimapAria: 'Canvas minimap',
       // S9b: property panel + save/apply + autosave (kept strictly in sync with zh-CN; no route.* legacy keys)
       panelTitle: 'Properties',
       propType: 'Type',
