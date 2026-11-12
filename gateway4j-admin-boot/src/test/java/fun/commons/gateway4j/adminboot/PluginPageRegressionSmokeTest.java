@@ -4,6 +4,9 @@ import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.InnerInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.github.dockerjava.api.model.ExposedPort;
+import com.github.dockerjava.api.model.PortBinding;
+import com.github.dockerjava.api.model.Ports;
 import fun.commons.gateway4j.admin.service.PluginService;
 import fun.commons.gateway4j.common.model.Plugin;
 import org.apache.ibatis.plugin.Interceptor;
@@ -13,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.ContainerState;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -52,8 +56,15 @@ import static org.assertj.core.api.Assertions.assertThat;
  *       断言更精准。</li>
  * </ol>
  *
- * <p>同 AdminBootApplicationSmokeTest 先例：Testcontainers 需要本机 Docker，
- * 暂未挂入 ci.yml，单独运行：
+ * <p>同 AdminBootApplicationSmokeTest 先例（S8-2 端口段加固一并套用）：宿主映射
+ * 端口用 Docker 端口段绑定（{@code -p start-end:container}）约束到临时端口段之外
+ * 的安全区（postgres 15432-15531 / redis 16379-16478），由守护进程在段内原子挑
+ * 空闲端口 —— 根治 macOS 随机映射撞上本机服务（如 IntelliJ 内置 63342）导致
+ * lettuce 连错服务、用例全灭的偶发 flake，详见安全段常量处注释。与
+ * AdminBootApplicationSmokeTest / gateway-boot 冒烟测试共用同一安全段：测试票间
+ * 串行执行，同段无冲突。
+ *
+ * <p>Testcontainers 需要本机 Docker，暂未挂入 ci.yml，单独运行：
  * <pre>mvn -pl gateway4j-admin-boot -am test -Dtest=PluginPageRegressionSmokeTest -Dsurefire.failIfNoSpecifiedTests=false</pre>
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -63,18 +74,64 @@ class PluginPageRegressionSmokeTest {
     /** 种子行标识前缀：keyword 按它过滤，与迁移种子行（security/cache/…）完全隔离，total 才可断言。 */
     private static final String MARKER = "p3f-limit-pin";
 
+    /**
+     * Testcontainers 宿主映射端口安全段（根治端口碰撞 flake）：Docker 默认把容器
+     * 端口随机映射到宿主临时端口段（macOS 49152-65535），与本机常驻服务偶发碰撞
+     * ——典型如 IntelliJ 内置服务器 127.0.0.1:63342。因 IDE 绑定回环、Docker 绑定
+     * 通配，OS 层可共存不报错，但客户端连到的是 IDE 的 HTTP 服务，握手即断
+     * （RedisConnectionException: Connection closed prematurely），用例全灭且难
+     * 复现。
+     *
+     * <p>修法：把映射端口约束到临时段之外的低段安全区，由 Docker 守护进程在段内
+     * <b>原子</b>挑选空闲端口（{@code -p start-end:container} 绑定语义，段内端口
+     * 被本机进程或残留容器占用时自动顺延），从根上消灭随机碰撞面。启动后由
+     * {@link #assertMappedPortWithinSafeRange} 兜底校验：若 Docker 引擎对端口段
+     * 绑定的支持失效，立即给出明确诊断，而不是把静默连错的风险放回。
+     */
+    static final int POSTGRES_HOST_PORT_RANGE_START = 15432;
+    static final int POSTGRES_HOST_PORT_RANGE_END = 15531;
+    static final int REDIS_HOST_PORT_RANGE_START = 16379;
+    static final int REDIS_HOST_PORT_RANGE_END = 16478;
+
     @Container
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17")
             .withDatabaseName("gateway4j_page_pin")
             .withUsername("admin")
-            .withPassword("test@2026");
+            .withPassword("test@2026")
+            .withCreateContainerCmdModifier(cmd -> cmd.withPortBindings(new PortBinding(
+                    Ports.Binding.bindPortRange(POSTGRES_HOST_PORT_RANGE_START, POSTGRES_HOST_PORT_RANGE_END),
+                    new ExposedPort(5432))));
 
     @Container
     static final GenericContainer<?> REDIS = new GenericContainer<>("redis:7")
-            .withExposedPorts(6379);
+            .withExposedPorts(6379)
+            .withCreateContainerCmdModifier(cmd -> cmd.withPortBindings(new PortBinding(
+                    Ports.Binding.bindPortRange(REDIS_HOST_PORT_RANGE_START, REDIS_HOST_PORT_RANGE_END),
+                    new ExposedPort(6379))));
+
+    /**
+     * 兜底校验：容器启动后实际映射端口必须落在安全段内。
+     */
+    private static void assertMappedPortWithinSafeRange(ContainerState container, int containerPort,
+                                                        int rangeStart, int rangeEnd, String name) {
+        Integer mapped = container.getMappedPort(containerPort);
+        if (mapped == null || mapped < rangeStart || mapped > rangeEnd) {
+            throw new IllegalStateException(String.format(
+                    "%s 容器宿主映射端口越界：期望 %d-%d（安全段，避开 macOS 临时端口段与 IDE 端口），实际 %s"
+                            + " —— Testcontainers 端口段绑定未生效，请检查 Docker 引擎对"
+                            + " -p start-end:port 绑定的支持",
+                    name, rangeStart, rangeEnd, mapped));
+        }
+    }
 
     @DynamicPropertySource
     static void overrideFramework4jConnections(DynamicPropertyRegistry registry) {
+        // 端口碰撞兜底：确认容器映射端口确实落在安全段（见常量注释），越界即快败
+        assertMappedPortWithinSafeRange(POSTGRES, 5432,
+                POSTGRES_HOST_PORT_RANGE_START, POSTGRES_HOST_PORT_RANGE_END, "postgres");
+        assertMappedPortWithinSafeRange(REDIS, 6379,
+                REDIS_HOST_PORT_RANGE_START, REDIS_HOST_PORT_RANGE_END, "redis");
+
         registry.add("framework4j.datasource.datasources.default.url", POSTGRES::getJdbcUrl);
         registry.add("framework4j.datasource.datasources.default.username", POSTGRES::getUsername);
         registry.add("framework4j.datasource.datasources.default.password", POSTGRES::getPassword);
