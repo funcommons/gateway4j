@@ -1,0 +1,27 @@
+用例: 11-01-cmd-keyword-server-filter
+时间: 2026-11-12T08:59:56.133Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/login
+200 GET /v1/permissions
+200 GET /v1/config/sync-status
+200 GET /v1/routes
+200 GET /v1/monitor/routes/traffic-summary
+200 GET /v1/routes
+200 GET /v1/plugins?page=1&page_size=20&keyword=internal_api
+200 GET /v1/routes?keyword=internal_api
+
+--- Extra ---
+keyword URL: http://localhost:9302/v1/routes?keyword=internal_api; keyword 响应行数: 1; 全量基线行数: 228; routes 组命中项: 1
