@@ -1,5 +1,8 @@
 package fun.commons.gateway4j.gateway;
 
+import com.github.dockerjava.api.model.ExposedPort;
+import com.github.dockerjava.api.model.PortBinding;
+import com.github.dockerjava.api.model.Ports;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -10,6 +13,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import org.testcontainers.containers.ContainerState;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -62,6 +66,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 订阅 {@code gateway4j:config:changed} pub/sub、写 {@code gateway4j:plugin:runtime}
  * 等键 —— 全部落到 Testcontainers 实例，不碰本机真库。
  *
+ * <p>宿主映射端口用 Docker 端口段绑定（{@code -p start-end:container}）约束到
+ * 临时端口段之外的安全区（postgres 15432-15531 / redis 16379-16478），由守护进程
+ * 在段内原子挑空闲端口 —— 根治 macOS 随机映射撞上本机服务（如 IntelliJ 内置
+ * 63342）导致 lettuce 连错服务、四例全灭的偶发 flake，详见安全段常量处注释。
+ *
  * <p>运行方式（需要本机 Docker）：
  * <pre>mvn -pl gateway4j-gateway-boot -am test -Dtest=GatewayBootApplicationSmokeTest</pre>
  */
@@ -69,20 +78,66 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Testcontainers
 class GatewayBootApplicationSmokeTest {
 
+    /**
+     * Testcontainers 宿主映射端口安全段（根治端口碰撞 flake）：Docker 默认把容器
+     * 端口随机映射到宿主临时端口段（macOS 49152-65535），与本机常驻服务偶发碰撞
+     * ——典型如 IntelliJ 内置服务器 127.0.0.1:63342。因 IDE 绑定回环、Docker 绑定
+     * 通配，OS 层可共存不报错，但客户端连到的是 IDE 的 HTTP 服务，握手即断
+     * （RedisConnectionException: Connection closed prematurely），冒烟四例全灭
+     * 且难复现。
+     *
+     * <p>修法：把映射端口约束到临时段之外的低段安全区，由 Docker 守护进程在段内
+     * <b>原子</b>挑选空闲端口（{@code -p start-end:container} 绑定语义，段内端口
+     * 被本机进程或残留容器占用时自动顺延），从根上消灭随机碰撞面。启动后由
+     * {@link #assertMappedPortWithinSafeRange} 兜底校验：若 Docker 引擎对端口段
+     * 绑定的支持失效，立即给出明确诊断，而不是把静默连错的风险放回。
+     */
+    static final int POSTGRES_HOST_PORT_RANGE_START = 15432;
+    static final int POSTGRES_HOST_PORT_RANGE_END = 15531;
+    static final int REDIS_HOST_PORT_RANGE_START = 16379;
+    static final int REDIS_HOST_PORT_RANGE_END = 16478;
+
     @Container
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17")
             .withDatabaseName("gateway4j")
             .withUsername("admin")
-            .withPassword("test@2026");
+            .withPassword("test@2026")
+            .withCreateContainerCmdModifier(cmd -> cmd.withPortBindings(new PortBinding(
+                    Ports.Binding.bindPortRange(POSTGRES_HOST_PORT_RANGE_START, POSTGRES_HOST_PORT_RANGE_END),
+                    new ExposedPort(5432))));
 
     @Container
     static final GenericContainer<?> REDIS = new GenericContainer<>("redis:7")
-            .withExposedPorts(6379);
+            .withExposedPorts(6379)
+            .withCreateContainerCmdModifier(cmd -> cmd.withPortBindings(new PortBinding(
+                    Ports.Binding.bindPortRange(REDIS_HOST_PORT_RANGE_START, REDIS_HOST_PORT_RANGE_END),
+                    new ExposedPort(6379))));
+
+    /**
+     * 兜底校验：容器启动后实际映射端口必须落在安全段内。
+     */
+    private static void assertMappedPortWithinSafeRange(ContainerState container, int containerPort,
+                                                        int rangeStart, int rangeEnd, String name) {
+        Integer mapped = container.getMappedPort(containerPort);
+        if (mapped == null || mapped < rangeStart || mapped > rangeEnd) {
+            throw new IllegalStateException(String.format(
+                    "%s 容器宿主映射端口越界：期望 %d-%d（安全段，避开 macOS 临时端口段与 IDE 端口），实际 %s"
+                            + " —— Testcontainers 端口段绑定未生效，请检查 Docker 引擎对"
+                            + " -p start-end:port 绑定的支持",
+                    name, rangeStart, rangeEnd, mapped));
+        }
+    }
 
     private static final AtomicBoolean SCHEMA_MIGRATED = new AtomicBoolean(false);
 
     @DynamicPropertySource
     static void overrideFramework4jConnections(DynamicPropertyRegistry registry) {
+        // 端口碰撞兜底：确认容器映射端口确实落在安全段（见常量注释），越界即快败
+        assertMappedPortWithinSafeRange(POSTGRES, 5432,
+                POSTGRES_HOST_PORT_RANGE_START, POSTGRES_HOST_PORT_RANGE_END, "postgres");
+        assertMappedPortWithinSafeRange(REDIS, 6379,
+                REDIS_HOST_PORT_RANGE_START, REDIS_HOST_PORT_RANGE_END, "redis");
+
         // flyway-core 只在 test classpath 上，Boot 的 FlywayAutoConfiguration 会据
         // DataSource bean 自动激活并以 classpath:db/migration 为默认位置，对本测试
         // 的 filesystem 迁移报"resolved 不到"的 ERROR；网关本身不内嵌 Flyway，关掉。
