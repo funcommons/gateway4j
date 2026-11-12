@@ -1,0 +1,20 @@
+用例: 09-08-dict-not-exist
+时间: 2026-11-12T06:41:22.134Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/dict/NOT_EXIST_DICT_CODE
+
+--- Extra ---
+错误提示: "加载失败: 未知字典: NOT_EXIST_DICT_CODE"

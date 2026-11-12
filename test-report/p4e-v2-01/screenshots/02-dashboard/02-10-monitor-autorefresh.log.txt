@@ -1,0 +1,22 @@
+用例: 02-10-monitor-autorefresh
+时间: 2026-11-12T06:28:34.535Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/monitor/gateway/timeseries?time_range=24h&granularity=1h
+200 GET /v1/monitor/routes/status
+200 GET /v1/monitor/routes/traffic-summary
+
+--- Extra ---
+before=最近刷新 14:28:27 / after=最近刷新 14:28:33

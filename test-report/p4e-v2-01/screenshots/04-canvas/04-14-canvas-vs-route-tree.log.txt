@@ -1,0 +1,21 @@
+用例: 04-14-canvas-vs-route-tree
+时间: 2026-11-12T06:34:32.707Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/routes/-100/canvas
+200 GET /v1/routes/-100/children
+
+--- Extra ---
+-100 画布节点数=22; 路由树子路由数=4; 同步入口 cnv-apply 可见

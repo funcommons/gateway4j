@@ -1,0 +1,20 @@
+用例: 04-08-toolbar-view-aids-autolayout
+时间: 2026-11-12T06:33:09.347Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 PUT /v1/routes/2120766810581725185/canvas
+
+--- Extra ---
+适应画布/自动布局点击无错；自动布局改动已自动保存（save-chip=saved）

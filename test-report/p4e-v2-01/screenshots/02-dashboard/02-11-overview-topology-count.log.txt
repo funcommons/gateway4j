@@ -1,0 +1,25 @@
+用例: 02-11-overview-topology-count
+时间: 2026-11-12T06:28:37.961Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzk0NDcyMTE2NDI5LCJub25jZSI6IjE2OTExNTEzLTg2NGQtNDUxYi04YjZlLTBjYzc1NjZiNGIxYiIsImlhdCI6MTc5NDQ2NDkxNjQyOSwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiIwODI1OTE3Yi04OTg4LTRhMTMtYTNjZS0yMTdlZDNlYzcyZDIifQ.mX5tsQyMYusq0kGjU7Tymxh5uimcIFSLaQdZftgAI7M :: net::ERR_ABORTED
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/audit/logs?page=1&pageSize=5
+200 GET /v1/monitor/routes/traffic-summary
+200 GET /v1/monitor/topology
+200 GET /v1/monitor/topology
+
+--- Extra ---
+UI 节点数=211, 后端节点数=209

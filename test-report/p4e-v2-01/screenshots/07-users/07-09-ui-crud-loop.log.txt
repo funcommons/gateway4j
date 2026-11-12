@@ -1,0 +1,23 @@
+用例: 07-09-ui-crud-loop
+时间: 2026-11-12T06:39:44.292Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/users
+200 GET /v1/users?page=1&page_size=20
+200 DELETE /v1/users/2120768485174374402
+200 GET /v1/users?page=1&page_size=20
+
+--- Extra ---
+UI 闭环用户=e2e_uiuser_mwd6h5cy661

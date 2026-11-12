@@ -1,0 +1,20 @@
+用例: 04-01-canvas-loaded
+时间: 2026-11-12T06:31:48.828Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+(无)
+
+--- Extra ---
+URL: http://localhost:9302/v2/routes/canvas/2120766486760484865; routeId=2120766486760484865

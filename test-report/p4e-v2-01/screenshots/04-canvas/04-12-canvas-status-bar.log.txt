@@ -1,0 +1,20 @@
+用例: 04-12-canvas-status-bar
+时间: 2026-11-12T06:34:25.613Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+(无)
+
+--- Extra ---
+状态栏="1 节点 · 0 连线 有未保存更改"; 校验 chip="校验通过"

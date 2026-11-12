@@ -1,0 +1,27 @@
+用例: 05-08-imported-route-in-list
+时间: 2026-11-12T06:36:07.266Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/routes/import/validate
+200 POST /v1/routes/import/snapshot
+200 POST /v1/routes/import
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/config/sync-status
+200 GET /v1/routes
+200 GET /v1/monitor/routes/traffic-summary
+
+--- Extra ---
+导入后列表命中行数: 1; 路由名: e2e_imp_mwd6cce2362

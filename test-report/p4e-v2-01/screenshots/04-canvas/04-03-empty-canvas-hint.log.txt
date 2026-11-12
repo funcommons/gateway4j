@@ -1,0 +1,20 @@
+用例: 04-03-empty-canvas-hint
+时间: 2026-11-12T06:32:49.704Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+(无)
+
+--- Extra ---
+画布节点数=0; 空态文案="画布为空 从左侧节点库添加分发 / 后置 / 插件节点开始编排"

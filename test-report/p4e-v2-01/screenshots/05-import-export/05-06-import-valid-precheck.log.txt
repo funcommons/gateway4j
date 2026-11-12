@@ -1,0 +1,24 @@
+用例: 05-06-import-valid-precheck
+时间: 2026-11-12T06:34:58.516Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/routes/import/validate
+
+--- Extra ---
+预检报告文本: "预检通过，可以导入
+
+目标环境: default
+
+路由包来源环境: default"

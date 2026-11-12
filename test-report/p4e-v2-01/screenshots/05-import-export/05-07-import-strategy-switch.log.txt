@@ -1,0 +1,20 @@
+用例: 05-07-import-strategy-switch
+时间: 2026-11-12T06:35:01.593Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+(无)
+
+--- Extra ---
+选项=跳过同名/覆盖同名/遇同名报错, 三策略逐项切换 aria-checked 均生效

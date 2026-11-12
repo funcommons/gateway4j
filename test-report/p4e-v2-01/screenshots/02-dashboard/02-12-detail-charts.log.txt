@@ -1,0 +1,27 @@
+用例: 02-12-detail-charts
+时间: 2026-11-12T06:29:34.812Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+GET http://localhost:9302/v1/monitor/stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJCRUFSRVIiLCJpc3MiOiJnYXRld2F5NGotYWRtaW4iLCJ0eXBlIjoiQkVBUkVSIiwiZXhwIjoxNzk0NDcyMTczMjI4LCJub25jZSI6IjQ1NGViMzM5LThmYjMtNDZhNS1iNjA5LWJhYWI3MzQ2NzA2YSIsImlhdCI6MTc5NDQ2NDk3MzIyOCwiaGFzaCI6IjNjZGZiYTg0MTRhYjUzZjZiM2QyZmI3NmI2MTM3YjZmZWI3YzlhMWZiYmY3OThlY2RjNTQ0N2FiZDkwYzFiMjMiLCJqdGkiOiI1ZmQ1Zjk4Zi1kY2ZjLTRmNmMtOGM4ZC03NmIyMDdkNGNjMTIifQ.Ut_aHtKG1lY17mkODtKujPbhkcG-Wu-qJUqCmfhj6QU :: net::ERR_ABORTED
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/monitor/timeseries?routeId=-100&timeRange=24h&granularity=1h
+200 GET /v1/routes/-100/versions
+200 GET /v1/routes/-100/sync-status
+200 GET /v1/routes
+200 GET /v1/audit/logs?page=1&pageSize=5&target=-100
+200 GET /v1/monitor/routes/traffic-summary
+
+--- Extra ---
+图卡数=4, 时序错误条=false

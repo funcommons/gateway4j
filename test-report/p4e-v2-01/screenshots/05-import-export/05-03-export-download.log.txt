@@ -1,0 +1,20 @@
+用例: 05-03-export-download
+时间: 2026-11-12T06:34:44.602Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/routes/export?environment=default
+
+--- Extra ---
+下载文件名: routes-1794465282957.json

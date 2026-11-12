@@ -1,0 +1,24 @@
+用例: 06-14-builtin-install-state
+时间: 2026-11-12T06:38:21.015Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/plugins/builtin-types
+200 GET /v1/plugins/runtime-status
+200 GET /v1/plugins?page=1&page_size=200&scope=GLOBAL
+
+--- Extra ---
+目录分组=7, 卡片=67; security 安装钮 disabled=true, 文案="已装"

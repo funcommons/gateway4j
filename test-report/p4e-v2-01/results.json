@@ -1,0 +1,2675 @@
+{
+  "config": {
+    "argv": [
+      "/opt/homebrew/Cellar/node/26.0.0/bin/node",
+      "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/node_modules/.bin/playwright",
+      "test",
+      "--config=playwright.regression.config.ts",
+      "--list"
+    ],
+    "configFile": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/playwright.regression.config.ts",
+    "rootDir": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-regression",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {},
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-regression",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 90000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "../test-report/p4e-v2-01/results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.61.1",
+    "workers": 1,
+    "webServer": {
+      "command": "npm run dev",
+      "port": 9302,
+      "reuseExistingServer": true,
+      "timeout": 120000
+    }
+  },
+  "suites": [
+    {
+      "title": "01-auth.spec.ts",
+      "file": "01-auth.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "BL-01 认证与登录",
+          "file": "01-auth.spec.ts",
+          "line": 16,
+          "column": 6,
+          "specs": [
+            {
+              "title": "01-01 登录页正常渲染（品牌标题/用户名/密码/记住我/登录按钮）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "791b3c4e0869e77b2651-eec495d8d1ee2d3657ec",
+              "file": "01-auth.spec.ts",
+              "line": 19,
+              "column": 3
+            },
+            {
+              "title": "01-02 空用户名/空密码提交被前端拦截并提示",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "791b3c4e0869e77b2651-6c1f8e313dd5bdc5c30d",
+              "file": "01-auth.spec.ts",
+              "line": 29,
+              "column": 3
+            },
+            {
+              "title": "01-03 错误口令给出可见错误提示且不跳转",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "791b3c4e0869e77b2651-efc79597cc8a6309cf43",
+              "file": "01-auth.spec.ts",
+              "line": 37,
+              "column": 3
+            },
+            {
+              "title": "01-04 正确凭证登录成功并进入 v2 路由列表",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "791b3c4e0869e77b2651-a8e70c2c6f83e6706ce8",
+              "file": "01-auth.spec.ts",
+              "line": 52,
+              "column": 3
+            },
+            {
+              "title": "01-05 未登录直接访问受保护路由被守卫拦截并跳登录页",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "791b3c4e0869e77b2651-e79a3bf80e020a7922c4",
+              "file": "01-auth.spec.ts",
+              "line": 62,
+              "column": 3
+            },
+            {
+              "title": "01-06 登录后刷新页面保持登录态（会话持久化）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "791b3c4e0869e77b2651-9ad071d1fb18cc25fcb6",
+              "file": "01-auth.spec.ts",
+              "line": 72,
+              "column": 3
+            },
+            {
+              "title": "01-07 顶栏登出按钮存在且可点击退出登录（v2 纯本地登出）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "791b3c4e0869e77b2651-567d370247df4ec79850",
+              "file": "01-auth.spec.ts",
+              "line": 81,
+              "column": 3
+            },
+            {
+              "title": "01-08 退出登录后无法再访问受保护路由",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "791b3c4e0869e77b2651-43d83e1d698dd5ea11e1",
+              "file": "01-auth.spec.ts",
+              "line": 94,
+              "column": 3
+            },
+            {
+              "title": "01-09 v2 侧边栏渲染出各业务线导航入口",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "791b3c4e0869e77b2651-945ce686b88c739384e6",
+              "file": "01-auth.spec.ts",
+              "line": 110,
+              "column": 3
+            },
+            {
+              "title": "01-10 v2 顶栏渲染面包屑/搜索/通知/用户信息区",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "791b3c4e0869e77b2651-f23494b4da3e2f147cc9",
+              "file": "01-auth.spec.ts",
+              "line": 123,
+              "column": 3
+            },
+            {
+              "title": "01-11 主题/语言切换器可达（v2 顶栏三入口，P4e-0 解冻）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "791b3c4e0869e77b2651-1db61748a3fbf21ec4f2",
+              "file": "01-auth.spec.ts",
+              "line": 134,
+              "column": 3
+            },
+            {
+              "title": "01-12 登录失败时不残留无效 Token",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "791b3c4e0869e77b2651-b57a6dabc653bd4c9c04",
+              "file": "01-auth.spec.ts",
+              "line": 147,
+              "column": 3
+            },
+            {
+              "title": "01-13 \"记住我\"勾选状态决定 refresh token 的存储位置",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "791b3c4e0869e77b2651-892b7be7a682aef38513",
+              "file": "01-auth.spec.ts",
+              "line": 161,
+              "column": 3
+            },
+            {
+              "title": "01-14 未知路由应展示 404 页面而不是静默跳回路由列表",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "791b3c4e0869e77b2651-b0dfb49faa790732cbad",
+              "file": "01-auth.spec.ts",
+              "line": 200,
+              "column": 3
+            },
+            {
+              "title": "01-15 直接访问 /login 已登录时不再重复登录",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "791b3c4e0869e77b2651-5b1cb7e93bb425e6039a",
+              "file": "01-auth.spec.ts",
+              "line": 211,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "02-dashboard.spec.ts",
+      "file": "02-dashboard.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "BL-02 监控大盘",
+          "file": "02-dashboard.spec.ts",
+          "line": 32,
+          "column": 6,
+          "specs": [
+            {
+              "title": "02-01 大盘页面加载：KPI 五卡渲染（P0-2 数字护栏）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4d2f27bfb2b30c5eaf6b-f2ab209d84d60a4c2cda",
+              "file": "02-dashboard.spec.ts",
+              "line": 37,
+              "column": 3
+            },
+            {
+              "title": "02-02 上游健康卡渲染（原路由状态表重定位）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4d2f27bfb2b30c5eaf6b-792b8bd14a7d1c9a231a",
+              "file": "02-dashboard.spec.ts",
+              "line": 52,
+              "column": 3
+            },
+            {
+              "title": "02-05 时序工具条：时间范围分段 + 自动刷新开关 + 最近刷新（原指标工具栏重定位）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4d2f27bfb2b30c5eaf6b-d30e4c4f7f19bbe151a1",
+              "file": "02-dashboard.spec.ts",
+              "line": 69,
+              "column": 3
+            },
+            {
+              "title": "02-06 时序图渲染：QPS SVG polyline（原 ECharts canvas 重定位）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4d2f27bfb2b30c5eaf6b-39469d925e2c795ced7e",
+              "file": "02-dashboard.spec.ts",
+              "line": 82,
+              "column": 3
+            },
+            {
+              "title": "02-09 时间范围切换后网关时序重拉重渲染",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4d2f27bfb2b30c5eaf6b-e8583bfb8072df0fd64d",
+              "file": "02-dashboard.spec.ts",
+              "line": 93,
+              "column": 3
+            },
+            {
+              "title": "02-10 自动刷新开关 + 最近刷新时间（24 小时制 P0 护栏）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4d2f27bfb2b30c5eaf6b-11dc6d2282c8f0e16f63",
+              "file": "02-dashboard.spec.ts",
+              "line": 110,
+              "column": 3
+            },
+            {
+              "title": "02-07 拓扑渲染（overview SVG 关系图，原 VueFlow 拓扑 Tab 重定位）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4d2f27bfb2b30c5eaf6b-1e0dee554e86771707e1",
+              "file": "02-dashboard.spec.ts",
+              "line": 132,
+              "column": 3
+            },
+            {
+              "title": "02-11 拓扑节点数与后端 /v1/monitor/topology 一致（含固定 client/gateway 合成节点）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4d2f27bfb2b30c5eaf6b-e6fa758ba4c48a3ec1ff",
+              "file": "02-dashboard.spec.ts",
+              "line": 143,
+              "column": 3
+            },
+            {
+              "title": "02-12 单路由指标四联图恒渲染（原未选路由空态重定位）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4d2f27bfb2b30c5eaf6b-cc937b33af2199316e03",
+              "file": "02-dashboard.spec.ts",
+              "line": 166,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "03-routes.spec.ts",
+      "file": "03-routes.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "BL-03 路由管理",
+          "file": "03-routes.spec.ts",
+          "line": 70,
+          "column": 6,
+          "specs": [
+            {
+              "title": "03-01 路由列表加载：语义表格渲染且含分发型种子路由",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-982b88e36b13c0ee125f",
+              "file": "03-routes.spec.ts",
+              "line": 77,
+              "column": 3
+            },
+            {
+              "title": "03-02 状态过滤标签切换生效（全部/已发布/草稿/已下线，v2 裁除变更中）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-0fbb6074ebe73212d4d2",
+              "file": "03-routes.spec.ts",
+              "line": 85,
+              "column": 3
+            },
+            {
+              "title": "03-03 搜索框按路由名过滤（大小写不敏感）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-31625af97382c44ebde7",
+              "file": "03-routes.spec.ts",
+              "line": 99,
+              "column": 3
+            },
+            {
+              "title": "03-04 搜索无结果时展示空态而非报错",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-6293a31f9c24bc26f2b5",
+              "file": "03-routes.spec.ts",
+              "line": 110,
+              "column": 3
+            },
+            {
+              "title": "03-05 行级展开/收起可用（v2 逐行详情卡，无全局展开钮）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-88de444f7d9745386c83",
+              "file": "03-routes.spec.ts",
+              "line": 119,
+              "column": 3
+            },
+            {
+              "title": "03-06 路由列表应提供「新建路由」主操作入口",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-6bd1f4d4b8ae057004a2",
+              "file": "03-routes.spec.ts",
+              "line": 134,
+              "column": 3
+            },
+            {
+              "title": "03-07 新建路由：第 1 步必选模板 + 必填项分步校验",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-e8a055798d326029191e",
+              "file": "03-routes.spec.ts",
+              "line": 143,
+              "column": 3
+            },
+            {
+              "title": "03-08 新建路由：非法名称/路径格式被前端拦截",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-da82609a7ce109fc5bf5",
+              "file": "03-routes.spec.ts",
+              "line": 162,
+              "column": 3
+            },
+            {
+              "title": "03-09 后端拒绝非法格式的路由（与前端校验对齐，D9 已修复）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-c5ea605920aeced34c41",
+              "file": "03-routes.spec.ts",
+              "line": 190,
+              "column": 3
+            },
+            {
+              "title": "03-10 新建路由：向导合法输入创建成功并回到列表可见",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-395938de9339abfc3a43",
+              "file": "03-routes.spec.ts",
+              "line": 208,
+              "column": 3
+            },
+            {
+              "title": "03-11 编辑态：基础信息/分发条件/插件绑定三分区 + 插件链只读区均可打开",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-68432c3f46486f605073",
+              "file": "03-routes.spec.ts",
+              "line": 221,
+              "column": 3
+            },
+            {
+              "title": "03-12 编辑已有路由：应能加载出基本信息表单（D3 已修复）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-d3e98c087c1a892075f5",
+              "file": "03-routes.spec.ts",
+              "line": 243,
+              "column": 3
+            },
+            {
+              "title": "03-13 编辑已有路由：后端更新能力（PATCH）正常",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-58f96bbac5a4f12bacaf",
+              "file": "03-routes.spec.ts",
+              "line": 255,
+              "column": 3
+            },
+            {
+              "title": "03-14 草稿路由可发布（v2 独立发布页 + 状态真的变为已发布）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-6bb5a522bfa950ada5e3",
+              "file": "03-routes.spec.ts",
+              "line": 272,
+              "column": 3
+            },
+            {
+              "title": "03-15 已发布路由状态可下线（v2 无 UI 入口缺口：API 驱动 + 列表展示断言）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-6b8c3c49b9927ca4049e",
+              "file": "03-routes.spec.ts",
+              "line": 300,
+              "column": 3
+            },
+            {
+              "title": "03-16 已发布路由不提供删除动作（v2 行动作为固定五钮集合）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-f22dcebd2e1aa7dca495",
+              "file": "03-routes.spec.ts",
+              "line": 334,
+              "column": 3
+            },
+            {
+              "title": "03-17 草稿路由可删除（v2 无 UI 入口缺口：API 驱动 + 列表消失断言）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-7a25e4fd687118577a55",
+              "file": "03-routes.spec.ts",
+              "line": 348,
+              "column": 3
+            },
+            {
+              "title": "03-18 分发路由形态：向导分发模板出分支配置 + 编辑态父路由选择在",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-4744c3100f835afc2b88",
+              "file": "03-routes.spec.ts",
+              "line": 372,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "04-canvas.spec.ts",
+      "file": "04-canvas.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "BL-04 路由编排画布",
+          "file": "04-canvas.spec.ts",
+          "line": 29,
+          "column": 6,
+          "specs": [
+            {
+              "title": "04-01 画布页加载：工具栏 + 节点库 + VueFlow 画布 + 状态栏",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3d15cb16ad5b8fb7641c-648dc423e05a446314dc",
+              "file": "04-canvas.spec.ts",
+              "line": 48,
+              "column": 3
+            },
+            {
+              "title": "04-02 节点库列出三类可添加的节点类型",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3d15cb16ad5b8fb7641c-d6f8623274389f8f6749",
+              "file": "04-canvas.spec.ts",
+              "line": 58,
+              "column": 3
+            },
+            {
+              "title": "04-03 空画布给出引导空态文案（v2 已修复 D7）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3d15cb16ad5b8fb7641c-c02901aa5290574049dc",
+              "file": "04-canvas.spec.ts",
+              "line": 68,
+              "column": 3
+            },
+            {
+              "title": "04-04 点击节点库可创建节点并渲染在画布上（v2 点击添加）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3d15cb16ad5b8fb7641c-1a07805c565f8717173b",
+              "file": "04-canvas.spec.ts",
+              "line": 81,
+              "column": 3
+            },
+            {
+              "title": "04-05 选中节点后右侧属性面板显示可编辑字段",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3d15cb16ad5b8fb7641c-a91176f6a5f2c18beb43",
+              "file": "04-canvas.spec.ts",
+              "line": 91,
+              "column": 3
+            },
+            {
+              "title": "04-06 属性面板可编辑节点标签并回写画布",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3d15cb16ad5b8fb7641c-abbbf257aba99b1e2948",
+              "file": "04-canvas.spec.ts",
+              "line": 102,
+              "column": 3
+            },
+            {
+              "title": "04-07 未选中节点时属性面板不渲染（v2 形态：无占位）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3d15cb16ad5b8fb7641c-d45af0e2b0a2fdfd7551",
+              "file": "04-canvas.spec.ts",
+              "line": 116,
+              "column": 3
+            },
+            {
+              "title": "04-08 工具栏视图三钮可用：自动布局触发改动并自动保存（v2 无面板折叠态）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3d15cb16ad5b8fb7641c-783c92e4f9e977616b29",
+              "file": "04-canvas.spec.ts",
+              "line": 130,
+              "column": 3
+            },
+            {
+              "title": "04-09 画布改动自动保存后刷新页面节点持久化",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3d15cb16ad5b8fb7641c-6fdaf457a1962c478036",
+              "file": "04-canvas.spec.ts",
+              "line": 144,
+              "column": 3
+            },
+            {
+              "title": "04-10 撤销/重做按钮状态随操作变化",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3d15cb16ad5b8fb7641c-e468f4d437d82db988c9",
+              "file": "04-canvas.spec.ts",
+              "line": 167,
+              "column": 3
+            },
+            {
+              "title": "04-11 自动保存始终开启：改动后 save-chip 进入已保存态（v2 无开关）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3d15cb16ad5b8fb7641c-f238d664df7347ea7292",
+              "file": "04-canvas.spec.ts",
+              "line": 187,
+              "column": 3
+            },
+            {
+              "title": "04-12 画布状态栏展示节点/连线计数与校验提示（旧 path-preview 不随迁）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3d15cb16ad5b8fb7641c-b70097e199cf53f2234d",
+              "file": "04-canvas.spec.ts",
+              "line": 199,
+              "column": 3
+            },
+            {
+              "title": "04-13 属性面板可删除节点",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3d15cb16ad5b8fb7641c-33bce1c5cbe52a2fcfad",
+              "file": "04-canvas.spec.ts",
+              "line": 213,
+              "column": 3
+            },
+            {
+              "title": "04-14 画布应与路由树保持数据一致（-100 两侧非空 + 应用入口在）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3d15cb16ad5b8fb7641c-845edb9a102d8051f3f5",
+              "file": "04-canvas.spec.ts",
+              "line": 226,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "05-import-export.spec.ts",
+      "file": "05-import-export.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "BL-05 导入导出",
+          "file": "05-import-export.spec.ts",
+          "line": 16,
+          "column": 6,
+          "specs": [
+            {
+              "title": "05-01 导入导出页加载：导出/导入/环境对比三个 Tab 均存在",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "db015985682caa9ac432-6d7aca7d14125ed383e3",
+              "file": "05-import-export.spec.ts",
+              "line": 22,
+              "column": 3
+            },
+            {
+              "title": "05-02 导出 Tab：路由表格加载并支持多选",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "db015985682caa9ac432-92d3f38489dd7d83851d",
+              "file": "05-import-export.spec.ts",
+              "line": 32,
+              "column": 3
+            },
+            {
+              "title": "05-03 导出：下载路由包触发浏览器下载",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "db015985682caa9ac432-fc1fb81b3f3ec00553c0",
+              "file": "05-import-export.spec.ts",
+              "line": 48,
+              "column": 3
+            },
+            {
+              "title": "05-04 导出：不勾选任何路由时导出全部并给出成功反馈（v2 裁决 6）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "db015985682caa9ac432-c33358513872ff0e8e2b",
+              "file": "05-import-export.spec.ts",
+              "line": 62,
+              "column": 3
+            },
+            {
+              "title": "05-05 导入 Tab：非法 JSON 预检应给出可定位的错误原因",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "db015985682caa9ac432-b1e76833aefae11072ff",
+              "file": "05-import-export.spec.ts",
+              "line": 78,
+              "column": 3
+            },
+            {
+              "title": "05-06 导入 Tab：合法路由包预检通过并展示报告",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "db015985682caa9ac432-96b8a20b7ac0df764671",
+              "file": "05-import-export.spec.ts",
+              "line": 89,
+              "column": 3
+            },
+            {
+              "title": "05-07 导入 Tab：冲突策略（跳过/覆盖/报错）可切换",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "db015985682caa9ac432-4303ca879ae8197c2259",
+              "file": "05-import-export.spec.ts",
+              "line": 113,
+              "column": 3
+            },
+            {
+              "title": "05-08 导入：正式导入后新路由出现在路由列表",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "db015985682caa9ac432-dc01709e788d888f3491",
+              "file": "05-import-export.spec.ts",
+              "line": 132,
+              "column": 3
+            },
+            {
+              "title": "05-09 导入：JSON 结构非法（缺 routes 数组）应给出原因",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "db015985682caa9ac432-8fc26b15ade454f4203a",
+              "file": "05-import-export.spec.ts",
+              "line": 158,
+              "column": 3
+            },
+            {
+              "title": "05-10 v2 侧栏提供「导入导出」入口并可直达本页",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "db015985682caa9ac432-34594c7830e63743b1fa",
+              "file": "05-import-export.spec.ts",
+              "line": 169,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "06-plugins.spec.ts",
+      "file": "06-plugins.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "BL-06 插件管理",
+          "file": "06-plugins.spec.ts",
+          "line": 27,
+          "column": 6,
+          "specs": [
+            {
+              "title": "06-01 插件列表加载：语义表格渲染且含名称/类型/阶段/作用域/状态列",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "cf46b6c7f40606933e18-95cfa0e5ab1ac45bbb2b",
+              "file": "06-plugins.spec.ts",
+              "line": 33,
+              "column": 3
+            },
+            {
+              "title": "06-02 列表/分组视图切换可用",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "cf46b6c7f40606933e18-20c2930d650e3b4f45fb",
+              "file": "06-plugins.spec.ts",
+              "line": 47,
+              "column": 3
+            },
+            {
+              "title": "06-03 按插件名搜索应过滤结果",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "cf46b6c7f40606933e18-f3a31be414d5a3d7c795",
+              "file": "06-plugins.spec.ts",
+              "line": 61,
+              "column": 3
+            },
+            {
+              "title": "06-04 类型筛选应生效",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "cf46b6c7f40606933e18-ee6cc2643625b599cd2a",
+              "file": "06-plugins.spec.ts",
+              "line": 75,
+              "column": 3
+            },
+            {
+              "title": "06-05 状态筛选应生效",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "cf46b6c7f40606933e18-1b8e0a8e4f87568069e7",
+              "file": "06-plugins.spec.ts",
+              "line": 96,
+              "column": 3
+            },
+            {
+              "title": "06-06 插件列表应提供「新建插件」主操作入口",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "cf46b6c7f40606933e18-3b2f681a487d3c2600cf",
+              "file": "06-plugins.spec.ts",
+              "line": 110,
+              "column": 3
+            },
+            {
+              "title": "06-07 新建插件：后端创建能力（POST /v1/plugins）正常",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "cf46b6c7f40606933e18-400fa088098604031c6d",
+              "file": "06-plugins.spec.ts",
+              "line": 118,
+              "column": 3
+            },
+            {
+              "title": "06-08 新建插件：必填与格式校验提示",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "cf46b6c7f40606933e18-5cd0a51afa3d32856582",
+              "file": "06-plugins.spec.ts",
+              "line": 135,
+              "column": 3
+            },
+            {
+              "title": "06-09 Groovy 插件：脚本校验按钮返回校验结果",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "cf46b6c7f40606933e18-b38e4e6a8f4d632ee991",
+              "file": "06-plugins.spec.ts",
+              "line": 151,
+              "column": 3
+            },
+            {
+              "title": "06-10 插件启用/禁用：状态真的变更",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "cf46b6c7f40606933e18-9e2c0c631000054bdf69",
+              "file": "06-plugins.spec.ts",
+              "line": 168,
+              "column": 3
+            },
+            {
+              "title": "06-11 插件删除：确认后从列表消失",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "cf46b6c7f40606933e18-d64cc40aa8eaec8ef020",
+              "file": "06-plugins.spec.ts",
+              "line": 193,
+              "column": 3
+            },
+            {
+              "title": "06-13 内置插件市场：目录卡片渲染且配置弹窗渲染 schema 动态表单",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "cf46b6c7f40606933e18-0fab720574ada96c7efb",
+              "file": "06-plugins.spec.ts",
+              "line": 218,
+              "column": 3
+            },
+            {
+              "title": "06-14 内置插件市场：安装入口对已安装内置置灰（目录/安装语义）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "cf46b6c7f40606933e18-2a541ee5bf460085904a",
+              "file": "06-plugins.spec.ts",
+              "line": 252,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "07-users.spec.ts",
+      "file": "07-users.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "BL-07 用户管理",
+          "file": "07-users.spec.ts",
+          "line": 10,
+          "column": 6,
+          "specs": [
+            {
+              "title": "07-01 用户列表加载：表格 + 分页 + 关键列渲染",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a29df86e51d14040a2b2-f74579528794ff4034a4",
+              "file": "07-users.spec.ts",
+              "line": 16,
+              "column": 3
+            },
+            {
+              "title": "07-02 用户搜索过滤生效",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a29df86e51d14040a2b2-52203c94224af7daf1a2",
+              "file": "07-users.spec.ts",
+              "line": 27,
+              "column": 3
+            },
+            {
+              "title": "07-03 用户列表应提供「新建用户」主操作入口",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a29df86e51d14040a2b2-c3b911bcc6fde63f778c",
+              "file": "07-users.spec.ts",
+              "line": 39,
+              "column": 3
+            },
+            {
+              "title": "07-04 用户行应提供 编辑/启用禁用/重置密码/删除 操作",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a29df86e51d14040a2b2-9ee1594a78319f2b0fab",
+              "file": "07-users.spec.ts",
+              "line": 46,
+              "column": 3
+            },
+            {
+              "title": "07-05 权限状态对用户不静默（有操作按钮 或 明确只读提示）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a29df86e51d14040a2b2-ce0d1193f60a5beb6e08",
+              "file": "07-users.spec.ts",
+              "line": 64,
+              "column": 3
+            },
+            {
+              "title": "07-06 后端用户 CRUD 能力正常（API 层）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a29df86e51d14040a2b2-7c6063a5a79b326d9aed",
+              "file": "07-users.spec.ts",
+              "line": 74,
+              "column": 3
+            },
+            {
+              "title": "07-07 用户列表分页可翻页",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a29df86e51d14040a2b2-ac880a071c674c44aec1",
+              "file": "07-users.spec.ts",
+              "line": 93,
+              "column": 3
+            },
+            {
+              "title": "07-08 用户管理页应有可写操作的可达入口（新建/编辑）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a29df86e51d14040a2b2-38aff01e4715e6bba99d",
+              "file": "07-users.spec.ts",
+              "line": 107,
+              "column": 3
+            },
+            {
+              "title": "07-09 用户 UI 闭环：新建（usr-submit）→ 行内删除（v2Confirm + v2Toast）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a29df86e51d14040a2b2-21b38215a00f9633b82d",
+              "file": "07-users.spec.ts",
+              "line": 114,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "08-roles.spec.ts",
+      "file": "08-roles.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "BL-08 角色与权限",
+          "file": "08-roles.spec.ts",
+          "line": 15,
+          "column": 6,
+          "specs": [
+            {
+              "title": "08-01 角色权限页加载：角色表渲染",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "19dec8dfe1f0ef3d2d31-eda53d17f0c4d458ee77",
+              "file": "08-roles.spec.ts",
+              "line": 21,
+              "column": 3
+            },
+            {
+              "title": "08-02 4 个种子角色全部渲染（ROLE_ADMIN/ROLE_OPS/ROLE_DEV/ROLE_GUEST）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "19dec8dfe1f0ef3d2d31-a9cc7e74f7856682b675",
+              "file": "08-roles.spec.ts",
+              "line": 29,
+              "column": 3
+            },
+            {
+              "title": "08-05 角色权限页应提供角色新增/编辑/授权能力入口",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "19dec8dfe1f0ef3d2d31-ffd904a71ca83f9428b0",
+              "file": "08-roles.spec.ts",
+              "line": 38,
+              "column": 3
+            },
+            {
+              "title": "08-06 非 admin 角色的权限绑定缺失应能被感知",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "19dec8dfe1f0ef3d2d31-ac265150dab807b3cfbb",
+              "file": "08-roles.spec.ts",
+              "line": 52,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "09-settings.spec.ts",
+      "file": "09-settings.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "BL-09 系统设置",
+          "file": "09-settings.spec.ts",
+          "line": 15,
+          "column": 6,
+          "specs": [
+            {
+              "title": "09-01 系统设置页加载：四个分区均存在",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d9b0efa2d176ff653156-befaa6de56bdef302154",
+              "file": "09-settings.spec.ts",
+              "line": 21,
+              "column": 3
+            },
+            {
+              "title": "09-02 站点配置：站点名称与语言字段渲染",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d9b0efa2d176ff653156-13ffe66229619456df32",
+              "file": "09-settings.spec.ts",
+              "line": 30,
+              "column": 3
+            },
+            {
+              "title": "09-03 站点配置应提供「保存」按钮",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d9b0efa2d176ff653156-01eea9bb8d027e663b10",
+              "file": "09-settings.spec.ts",
+              "line": 39,
+              "column": 3
+            },
+            {
+              "title": "09-04 配置接口 GET /v1/config/system 应可用",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d9b0efa2d176ff653156-c0af0df444cdcc4a920f",
+              "file": "09-settings.spec.ts",
+              "line": 47,
+              "column": 3
+            },
+            {
+              "title": "09-05 站点配置页不应向用户暴露后端原始错误文案",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d9b0efa2d176ff653156-1cd28ae8d99fbf8bc6c4",
+              "file": "09-settings.spec.ts",
+              "line": 56,
+              "column": 3
+            },
+            {
+              "title": "09-06 安全过期字段：Token/Refresh 过期时间数字输入渲染",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d9b0efa2d176ff653156-a594d1e10f436ad4c4c0",
+              "file": "09-settings.spec.ts",
+              "line": 63,
+              "column": 3
+            },
+            {
+              "title": "09-07 字典查询：已知 code 返回条目并渲染表格",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d9b0efa2d176ff653156-cd96321a433a7e1f65ff",
+              "file": "09-settings.spec.ts",
+              "line": 71,
+              "column": 3
+            },
+            {
+              "title": "09-08 字典查询：不存在的 code 应给出友好提示且不崩溃",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d9b0efa2d176ff653156-f1e9341c4cc0e5a08854",
+              "file": "09-settings.spec.ts",
+              "line": 83,
+              "column": 3
+            },
+            {
+              "title": "09-09 主题切换入口应可达（v2 顶栏 v2-theme-switch，步 4 解冻）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d9b0efa2d176ff653156-9fb1c08009508c0eba9f",
+              "file": "09-settings.spec.ts",
+              "line": 97,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "10-theme.spec.ts",
+      "file": "10-theme.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "BL-10 主题回归",
+          "file": "10-theme.spec.ts",
+          "line": 317,
+          "column": 6,
+          "specs": [
+            {
+              "title": "10-01 浅色主题：html 属性与页面底色为浅",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "314d6717c590633d0408-caaa862edf6edb8061a2",
+              "file": "10-theme.spec.ts",
+              "line": 318,
+              "column": 3
+            },
+            {
+              "title": "10-02 深色主题：html 属性 + dark 类 + token 真的翻暗",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "314d6717c590633d0408-7ef817dbe3d1cec340cf",
+              "file": "10-theme.spec.ts",
+              "line": 333,
+              "column": 3
+            },
+            {
+              "title": "10-03 深色主题：卡片底色翻暗（EP 面板不是白盒子）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "314d6717c590633d0408-b01497baf21d4acb8a6f",
+              "file": "10-theme.spec.ts",
+              "line": 381,
+              "column": 3
+            },
+            {
+              "title": "10-04 顶栏切换器能把深色切出来（真实用户路径，v2 壳）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "314d6717c590633d0408-2715ccd08798230b374c",
+              "file": "10-theme.spec.ts",
+              "line": 392,
+              "column": 3
+            },
+            {
+              "title": "10-05 深色主题：刷新后保持（持久化，v2 壳）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "314d6717c590633d0408-8409d5e1900704416d02",
+              "file": "10-theme.spec.ts",
+              "line": 431,
+              "column": 3
+            },
+            {
+              "title": "10-06 深色主题：登录后的外壳/侧栏/表格全部翻暗（v2 壳）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "314d6717c590633d0408-b353aeb64ac15f32445c",
+              "file": "10-theme.spec.ts",
+              "line": 456,
+              "column": 3
+            },
+            {
+              "title": "10-07 深色主题：输入框描边可见（对比度 >= 3:1）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "314d6717c590633d0408-ba8c433b2efafb52485f",
+              "file": "10-theme.spec.ts",
+              "line": 501,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "visual.spec.ts",
+      "file": "visual.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "视觉基线 · light",
+          "file": "visual.spec.ts",
+          "line": 88,
+          "column": 6,
+          "specs": [
+            {
+              "title": "login-page · 登录页",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "视觉回归默认关闭：GW_VISUAL=1 时启用（防 nightly 在 CI 字体渲染差异下爆基线）",
+                      "location": {
+                        "file": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-regression/visual.spec.ts",
+                        "line": 34,
+                        "column": 6
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "8324bb52c49185e48ff4-daac745127f33e40eb1d",
+              "file": "visual.spec.ts",
+              "line": 93,
+              "column": 3
+            },
+            {
+              "title": "routes-list · 路由列表",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "视觉回归默认关闭：GW_VISUAL=1 时启用（防 nightly 在 CI 字体渲染差异下爆基线）",
+                      "location": {
+                        "file": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-regression/visual.spec.ts",
+                        "line": 34,
+                        "column": 6
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "8324bb52c49185e48ff4-a3656b2313427f03c31a",
+              "file": "visual.spec.ts",
+              "line": 99,
+              "column": 3
+            },
+            {
+              "title": "dashboard · 监控大盘",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "视觉回归默认关闭：GW_VISUAL=1 时启用（防 nightly 在 CI 字体渲染差异下爆基线）",
+                      "location": {
+                        "file": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-regression/visual.spec.ts",
+                        "line": 34,
+                        "column": 6
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "8324bb52c49185e48ff4-567c4e8bdac449d5bd50",
+              "file": "visual.spec.ts",
+              "line": 110,
+              "column": 3
+            },
+            {
+              "title": "route-canvas · 编排画布",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "视觉回归默认关闭：GW_VISUAL=1 时启用（防 nightly 在 CI 字体渲染差异下爆基线）",
+                      "location": {
+                        "file": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-regression/visual.spec.ts",
+                        "line": 34,
+                        "column": 6
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "8324bb52c49185e48ff4-43248e909f2e6f3ca270",
+              "file": "visual.spec.ts",
+              "line": 116,
+              "column": 3
+            },
+            {
+              "title": "builtin-plugins · 插件市场（原内置插件卡片）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "视觉回归默认关闭：GW_VISUAL=1 时启用（防 nightly 在 CI 字体渲染差异下爆基线）",
+                      "location": {
+                        "file": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-regression/visual.spec.ts",
+                        "line": 34,
+                        "column": 6
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "8324bb52c49185e48ff4-824f052d316e051bfe9b",
+              "file": "visual.spec.ts",
+              "line": 128,
+              "column": 3
+            },
+            {
+              "title": "settings · 系统设置",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "视觉回归默认关闭：GW_VISUAL=1 时启用（防 nightly 在 CI 字体渲染差异下爆基线）",
+                      "location": {
+                        "file": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-regression/visual.spec.ts",
+                        "line": 34,
+                        "column": 6
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "8324bb52c49185e48ff4-6ef17b844fb41ccc0645",
+              "file": "visual.spec.ts",
+              "line": 143,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "视觉基线 · dark",
+          "file": "visual.spec.ts",
+          "line": 151,
+          "column": 6,
+          "specs": [
+            {
+              "title": "login-page · 登录页（dark）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "视觉回归默认关闭：GW_VISUAL=1 时启用（防 nightly 在 CI 字体渲染差异下爆基线）",
+                      "location": {
+                        "file": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-regression/visual.spec.ts",
+                        "line": 34,
+                        "column": 6
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "8324bb52c49185e48ff4-37f9d1e3cb0dcaa226bf",
+              "file": "visual.spec.ts",
+              "line": 156,
+              "column": 3
+            },
+            {
+              "title": "dashboard · 监控大盘（dark）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "视觉回归默认关闭：GW_VISUAL=1 时启用（防 nightly 在 CI 字体渲染差异下爆基线）",
+                      "location": {
+                        "file": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-regression/visual.spec.ts",
+                        "line": 34,
+                        "column": 6
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "8324bb52c49185e48ff4-b971bf2dc11d1acfc99a",
+              "file": "visual.spec.ts",
+              "line": 162,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-11-12T06:26:47.120Z",
+    "duration": 52.97399999999999,
+    "expected": 0,
+    "skipped": 116,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

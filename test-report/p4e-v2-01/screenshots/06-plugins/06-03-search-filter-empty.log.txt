@@ -1,0 +1,21 @@
+用例: 06-03-search-filter-empty
+时间: 2026-11-12T06:36:26.179Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/plugins?page=1&page_size=20&keyword=__no_such_plugin__
+200 GET /v1/plugins?page=1&page_size=20&keyword=__no_such_plugin__
+
+--- Extra ---
+UI 行数=0, 空态=1, 后端带 keyword 返回=0

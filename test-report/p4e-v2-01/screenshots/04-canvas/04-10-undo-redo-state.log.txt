@@ -1,0 +1,20 @@
+用例: 04-10-undo-redo-state
+时间: 2026-11-12T06:33:21.418Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+(无)
+
+--- Extra ---
+撤销按钮禁用态: 操作前=true; 撤销→重做可用=true

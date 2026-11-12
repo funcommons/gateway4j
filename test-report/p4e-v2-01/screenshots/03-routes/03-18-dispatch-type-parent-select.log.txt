@@ -1,0 +1,35 @@
+用例: 03-18-dispatch-type-parent-select
+时间: 2026-11-12T06:31:45.880Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/plugins?page=1&page_size=100
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/monitor/timeseries?routeId=-100&timeRange=24h&granularity=1h
+200 GET /v1/routes/-100/sync-status
+200 GET /v1/routes
+200 GET /v1/routes/-100/versions
+200 GET /v1/audit/logs?page=1&pageSize=5&target=-100
+200 GET /v1/monitor/routes/traffic-summary
+200 GET /v1/plugins/builtin-types
+200 GET /v1/routes/-100
+200 GET /v1/routes/-100/plugins
+200 GET /v1/routes
+200 GET /v1/routes/-100/plugin-chain
+
+--- Extra ---
+向导分发模板→wizard-branch 分支配置可见；编辑态 ref-input-parent_route_id 可见

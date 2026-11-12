@@ -1,0 +1,20 @@
+用例: 04-11-autosave-chip-saved
+时间: 2026-11-12T06:33:27.625Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 PUT /v1/routes/2120766887392014337/canvas
+
+--- Extra ---
+chip 终态文本="已自动保存"

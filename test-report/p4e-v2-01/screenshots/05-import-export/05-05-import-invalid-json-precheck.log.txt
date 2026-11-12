@@ -1,0 +1,20 @@
+用例: 05-05-import-invalid-json-precheck
+时间: 2026-11-12T06:34:53.393Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+(无)
+
+--- Extra ---
+预检原因: "JSON 解析失败：Expected property name or '}' in JSON at position 2 (line 1 column 3)"
