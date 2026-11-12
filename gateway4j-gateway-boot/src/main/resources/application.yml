@@ -6,10 +6,11 @@ spring:
     name: gateway4j-gateway
 
   autoconfigure:
-    # OpenIdAutoConfiguration 无 ConditionalOnWebApplication 守卫，其 WebMvcConfigurer
-    # 签名在纯 reactive 网关（无 spring-webmvc）下 introspect 即 CNFE；网关数据面
-    # 不使用 openid（MVC 参数解析/Jackson 定制均为 Servlet 侧能力），故显式排除。
-    exclude: com.alibaba.druid.spring.boot3.autoconfigure.DruidDataSourceAutoConfigure,org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,org.springframework.boot.actuate.autoconfigure.jdbc.DataSourceHealthContributorAutoConfiguration,fun.commons.framework4j.openid.config.OpenIdAutoConfiguration
+    # 曾长期排除 fun.commons.framework4j.openid.config.OpenIdAutoConfiguration（无
+    # ConditionalOnWebApplication 守卫，reactive 网关下 introspect 即 WebMvcConfigurer
+    # CNFE）。P3-i（a00513f）清僵尸依赖后 framework4j-id 已彻底退出 gateway-boot
+    # classpath（fat jar BOOT-INF/lib 仅 7 颗 FW jar），该 exclude 成死配置，S8-3 摘除。
+    exclude: com.alibaba.druid.spring.boot3.autoconfigure.DruidDataSourceAutoConfigure,org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,org.springframework.boot.actuate.autoconfigure.jdbc.DataSourceHealthContributorAutoConfiguration
 
   main:
     web-application-type: reactive
