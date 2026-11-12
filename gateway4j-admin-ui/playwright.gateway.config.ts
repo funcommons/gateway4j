@@ -1,14 +1,13 @@
 import { defineConfig } from '@playwright/test'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-
-const configDir = path.dirname(fileURLToPath(import.meta.url))
+import { REPORT_ROOT } from './e2e-regression/helpers'
 
 /**
  * 网关数据面验证专用配置（独立于管理面回归配置）。
  * - testDir: ./e2e-gateway
  * - 纯 request 上下文，不需要浏览器，也无 webServer（9300/9301 由环境预先启动）
  * - 单 worker 串行；每个用例自建自清路由，互不依赖
+ * - 报告目录与回归配置同源（按跑批日期自动推导，规则见 e2e-regression/helpers.ts）
  */
 export default defineConfig({
   testDir: './e2e-gateway',
@@ -19,15 +18,7 @@ export default defineConfig({
   expect: { timeout: 45_000 },
   reporter: [
     ['list'],
-    [
-      'json',
-      {
-        outputFile: path.resolve(
-          configDir,
-          '../test-report/p4e-v2-01/gateway-data-plane-results.json',
-        ),
-      },
-    ],
+    ['json', { outputFile: path.join(REPORT_ROOT, 'gateway-data-plane-results.json') }],
   ],
   use: {
     trace: 'off',

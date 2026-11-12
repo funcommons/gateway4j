@@ -1,0 +1,57 @@
+用例: 01-14-unknown-route
+时间: 2026-11-12T07:03:15.706Z
+
+--- Console Errors ---
+Failed to load resource: the server responded with a status of 429 (Too Many Requests)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+429 POST http://localhost:9302/v1/auth/login
+
+--- 后端 API 调用记录 (status METHOD path) ---
+429 POST /v1/auth/login
+200 POST /v1/auth/login
+200 GET /v1/permissions
+200 GET /v1/audit/logs?page=1&pageSize=5
+200 GET /v1/monitor/topology
+200 GET /v1/monitor/routes/traffic-summary
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+
+--- Extra ---
+落地 URL: http://localhost:9302/v2/this-path-does-not-exist-zzz; 页面文本: Gateway4j
+可视化网关 · v2
+总览
+拓扑总览
+路由
+路由列表
+新建路由向导
+导入导出
+插件
+插件链
+插件管理
+插件编辑器
+可观测
+监控大盘
+调试台
+系统
+用户管理
+角色权限
+系统设置
+Gateway4j
+NotFound
+搜索路由、插件、用户…
+⌘K
+外观
+退出登录
+
+404
+
+页面不存在
+
+你访问的页面已

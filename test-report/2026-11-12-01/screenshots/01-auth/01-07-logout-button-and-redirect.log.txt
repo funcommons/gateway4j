@@ -1,0 +1,24 @@
+用例: 01-07-logout-button-and-redirect
+时间: 2026-11-12T07:02:03.712Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/login
+200 GET /v1/permissions
+200 GET /v1/audit/logs?page=1&pageSize=5
+200 GET /v1/monitor/routes/traffic-summary
+200 GET /v1/monitor/topology
+
+--- Extra ---
+落地 URL: http://localhost:9302/login

@@ -1,0 +1,20 @@
+用例: 01-05-guard-redirect-to-login
+时间: 2026-11-12T07:02:00.268Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+(无)
+
+--- Extra ---
+落地 URL: http://localhost:9302/login?redirect=/v2/overview

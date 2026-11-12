@@ -1,9 +1,12 @@
 import { defineConfig } from '@playwright/test'
+import * as path from 'path'
+import { REPORT_ROOT } from './e2e-regression/helpers'
 
 /**
  * 全量回归测试专用配置（不改动原有 e2e 配置）。
  * - testDir: ./e2e-regression
- * - 截图由 helper 统一写入 test-report/<日期>-<序号>/screenshots/<业务线>/
+ * - 截图由 helper 统一写入 REPORT_ROOT/screenshots/<业务线>/（目录按跑批日期自动推导，
+ *   规则与 fail-fast 护栏见 e2e-regression/helpers.ts；GW_REPORT_DIR / GW_REPORT_SLUG 可显式指定）
  */
 export default defineConfig({
   testDir: './e2e-regression',
@@ -14,7 +17,7 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   reporter: [
     ['list'],
-    ['json', { outputFile: '../test-report/p4e-v2-01/results.json' }],
+    ['json', { outputFile: path.join(REPORT_ROOT, 'results.json') }],
   ],
   use: {
     baseURL: 'http://localhost:9302',

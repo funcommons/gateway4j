@@ -1,0 +1,24 @@
+用例: 01-13-remember-me-storage
+时间: 2026-11-12T07:02:16.486Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/login
+200 GET /v1/permissions
+200 GET /v1/audit/logs?page=1&pageSize=5
+200 GET /v1/monitor/routes/traffic-summary
+200 GET /v1/monitor/topology
+
+--- Extra ---
+勾选态=false / localStorage=无 / sessionStorage=有

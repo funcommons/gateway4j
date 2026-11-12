@@ -1,0 +1,24 @@
+用例: 01-09-sidebar-nav-entries
+时间: 2026-11-12T07:02:06.977Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/login
+200 GET /v1/permissions
+200 GET /v1/audit/logs?page=1&pageSize=5
+200 GET /v1/monitor/routes/traffic-summary
+200 GET /v1/monitor/topology
+
+--- Extra ---
+导航入口数: 13; 菜单: 搜索 / 命令面板 / 拓扑总览 / 路由列表 / 新建路由向导 / 导入导出 / 插件链 / 插件管理 / 插件编辑器 / 监控大盘 / 调试台 / 用户管理 / 角色权限 / 系统设置

@@ -1,9 +1,87 @@
+import { execFileSync } from 'child_process'
 import { test as base, expect, Page } from '@playwright/test'
 import * as fs from 'fs'
 import * as path from 'path'
+import { fileURLToPath } from 'node:url'
 
-/** 报告根目录（与 playwright.regression.config.ts 中的 results.json 输出目录一致） */
-export const REPORT_ROOT = path.resolve(process.cwd(), '../test-report/p4e-v2-01')
+// ═══════════════════════════════════════════════════════════════════════════
+// 报告目录解析（S8-4d：根治 REPORT_ROOT 硬编码的复发风险）
+//
+// 事故背景：b2c819c（2026-11-03）起 REPORT_ROOT 硬编码 test-report/2026-11-02-01，
+// 11-09 P4e 迭代跑批把新产物灌进已提交的历史存档（149 个 tracked 文件被覆写污染）。
+// 此后规则改为：每个报告周期开新目录，历史存档永不覆写——
+//   1. GW_REPORT_DIR 显式指定 → 原样采用（刻意续跑已入库目录的唯一入口，git 跟踪时仅告警）
+//   2. GW_REPORT_SLUG 指定   → test-report/<YYYY-MM-DD>-<slug>
+//   3. 均未指定              → test-report/<YYYY-MM-DD>-NN（NN 取当天第一个未占用序号，沿用历史命名惯例）
+// 且推导（非显式）出的目录若已被 git 跟踪 → fail-fast，杜绝再次灌历史存档。
+//
+// 锚定用 import.meta.url（本文件位置）而非 process.cwd()：playwright.gateway.config.ts
+// 也 import 本常量，两者必须与 cwd 无关地落到同一个仓库根 test-report/ 下。
+// ═══════════════════════════════════════════════════════════════════════════
+
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+
+/** 当天日期戳 YYYY-MM-DD（本地时区） */
+function todayStamp(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** best-effort 探测仓库根相对路径是否已被 git 跟踪（= 含提交历史）；非 git 环境返回 false（护栏失效但不阻断） */
+function isGitTracked(relFromRepoRoot: string): boolean {
+  try {
+    const out = execFileSync('git', ['ls-files', '--', relFromRepoRoot], {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+    return out.trim().length > 0
+  } catch {
+    return false
+  }
+}
+
+function resolveReportRoot(): string {
+  const envDir = process.env.GW_REPORT_DIR?.trim()
+  if (envDir) {
+    const root = path.isAbsolute(envDir) ? envDir : path.resolve(REPO_ROOT, envDir)
+    if (isGitTracked(path.relative(REPO_ROOT, root))) {
+      console.warn(
+        `[gateway4j-e2e] GW_REPORT_DIR=${envDir} 指向已入库（git 跟踪）的报告目录，视为刻意续跑、放行。`
+      )
+    }
+    return root
+  }
+  const day = todayStamp()
+  const slug = process.env.GW_REPORT_SLUG?.trim()
+  if (slug && (!/^[A-Za-z0-9._-]+$/.test(slug) || slug.includes('..'))) {
+    // 防目录穿越：含 / 或 .. 的 slug 经 path.join 归一化后可把产物写出 test-report/、
+    // 甚至落进历史存档（正是本护栏要堵死的洞），直接 fail-fast。
+    throw new Error(
+      `[gateway4j-e2e] GW_REPORT_SLUG 只允许 [A-Za-z0-9._-] 且不得含 ".."，收到：${slug}`
+    )
+  }
+  let name = slug ? `${day}-${slug}` : ''
+  if (!name) {
+    for (let n = 1; ; n++) {
+      const candidate = `${day}-${String(n).padStart(2, '0')}`
+      if (!fs.existsSync(path.join(REPO_ROOT, 'test-report', candidate))) {
+        name = candidate
+        break
+      }
+    }
+  }
+  if (isGitTracked(`test-report/${name}`)) {
+    throw new Error(
+      `[gateway4j-e2e] fail-fast：报告目录 test-report/${name} 已含提交历史（git 跟踪），` +
+        `拒绝覆写历史存档（2026-11-09 覆写事故防护）。请显式指定 GW_REPORT_DIR 续跑，或换 GW_REPORT_SLUG 开新目录。`
+    )
+  }
+  return path.join(REPO_ROOT, 'test-report', name)
+}
+
+/** 报告根目录：默认按当天日期推导（test-report/<YYYY-MM-DD>-NN，同一目录不会被重复选中），GW_REPORT_DIR / GW_REPORT_SLUG 可显式指定；与 playwright.regression.config.ts / playwright.gateway.config.ts 的 json reporter 输出同源 */
+export const REPORT_ROOT = resolveReportRoot()
 export const SHOT_ROOT = path.join(REPORT_ROOT, 'screenshots')
 
 export const CREDENTIALS = { username: 'admin', password: 'admin123' }
@@ -192,8 +270,8 @@ function ensureDir(line: LineKey) {
 
 // ═══════════════════════════════════════════════════════════════════════════
 // v2 专属助手（P4e 迁移步 1 新增）—— 只增不改：上方旧助手原样保留。
-// REPORT_ROOT 已在 P4e 收官步（步 5）换新目录 test-report/p4e-v2-01（与
-// playwright.regression.config.ts results.json 输出同步），全量 11 spec 已打 v2。
+// REPORT_ROOT 自 S8-4d 起动态解析（默认 test-report/<YYYY-MM-DD>-NN，规则见文件头），
+// 与 playwright.regression.config.ts / playwright.gateway.config.ts 的 json reporter 输出同源。
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
