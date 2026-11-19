@@ -230,14 +230,34 @@
 
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---|---|
-| condition_type | String | 是 | HEADER/PATH/QUERY/BODY/GROOVY |
+| condition_type | String | 是 | 13 类 SCG predicate 全集：HEADER/PATH/QUERY/BODY/GROOVY/WEIGHT/HOST/METHOD/COOKIE/REMOTE_ADDR/AFTER/BEFORE/BETWEEN（S10 批对齐） |
 | operator | String | 是 | EQ/NE/CONTAINS/REGEX/EXISTS/GT/LT |
-| condition_key | String | 否 | 条件键 |
-| condition_value | String | 否 | 条件值 |
+| condition_key | String | 否 | 条件键（按类型，见下表） |
+| condition_value | String | 否 | 条件值（按类型，见下表） |
 | target_route_id | String | 是 | 匹配后跳转的路由 ID |
 | priority | Integer | 否 | 优先级，默认 0 |
 
-> **条件必填规则**：HEADER/PATH/QUERY/BODY 类型 + EQ/NE/CONTAINS/REGEX/GT/LT 运算符时，condition_key 和 condition_value 均必填；EXISTS 运算符可省略 condition_value；GROOVY 类型可省略 condition_key。
+> **条件必填规则**：HEADER/PATH/QUERY/BODY 类型 + EQ/NE/CONTAINS/REGEX/GT/LT 运算符时，condition_key 和 condition_value 均必填；EXISTS 运算符可省略 condition_value；GROOVY 类型可省略 condition_key。**S10 批新增七类型**（对齐 Spring Cloud Gateway predicate 全集）：COOKIE 的 condition_key 必填；HOST/METHOD/REMOTE_ADDR/AFTER/BEFORE/BETWEEN 留空 condition_key、condition_value 必填；WEIGHT 语义不变（condition_key=权重整数，condition_value 可空）。
+
+**各类型 key/value 填写口径（S10 批对齐 Spring Cloud Gateway predicate）**：
+
+| 类型 | condition_key | condition_value | 求值口径 |
+|---|---|---|---|
+| HEADER | Header 名（必填） | 期望值/正则（按 operator） | 取首个值走通用 operator；键缺失时 EXISTS=false、NE=true（gateway4j 既有口径，与 SCG 谓词缺值=false 不同，保留） |
+| PATH | 既有校验仍必填（引擎求值不使用） | 期望值/正则 | 对完整请求路径走通用 operator |
+| QUERY | 参数名（必填） | 期望值/正则 | 同 HEADER 缺失口径 |
+| BODY | JsonPath（必填，`$.` 前缀可省） | 期望值 | 需缓存请求体；字段缺失 NE=true、EXISTS=false |
+| GROOVY | 可省略 | Groovy 脚本（沙箱，返回 true 命中） | 需真实请求上下文 |
+| WEIGHT | 权重正整数字符串（必填） | 可空忽略 | 非请求谓词：同分发路由无其他条件命中时按权重随机选目标 |
+| HOST | 留空 | SCG HostPredicate pattern（如 `**.example.com`）或正则 | 预编译缓存；Host 头缺失=false |
+| METHOD | 留空 | HTTP 方法（GET/POST/...） | EQ 比较大小写不敏感 |
+| COOKIE | Cookie 名（必填） | 期望值（按 operator） | 取首个匹配 Cookie；缺失口径同 HEADER |
+| REMOTE_ADDR | 留空 | CIDR（IPv4/IPv6） | IpSubnetFilterRule 口径前缀比较；无斜杠=单值精确匹配 |
+| AFTER | 留空 | ISO-8601 时刻（如 `2026-01-01T00:00:00+08:00`） | 请求时刻晚于 value 命中 |
+| BEFORE | 留空 | ISO-8601 时刻 | 请求时刻早于 value 命中 |
+| BETWEEN | 留空 | `start,end`（逗号分隔） | 请求时刻落在 [start, end) 闭开区间命中 |
+
+> **性能注记（S10 批）**：REGEX/HOST 预编译缓存（ConcurrentHashMap），不再每请求 `Pattern.compile`。
 
 **响应 data**：路由对象
 
@@ -746,12 +766,14 @@ API 侧可选**——不带 body 的旧调用完全兼容）。携带时随 fram
 
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---|---|
-| condition_type | String | 是 | HEADER/PATH/QUERY/BODY/GROOVY |
+| condition_type | String | 是 | 13 类 SCG predicate 全集：HEADER/PATH/QUERY/BODY/GROOVY/WEIGHT/HOST/METHOD/COOKIE/REMOTE_ADDR/AFTER/BEFORE/BETWEEN（S10 批对齐） |
 | operator | String | 是 | EQ/NE/CONTAINS/REGEX/EXISTS/GT/LT |
-| condition_key | String | 否 | 条件键 |
-| condition_value | String | 否 | 条件值 |
+| condition_key | String | 否 | 条件键（按类型，口径同 §4.2） |
+| condition_value | String | 否 | 条件值（按类型，口径同 §4.2） |
 | target_route_id | String | 是 | 匹配后跳转的路由 ID |
 | priority | Integer | 否 | 优先级，默认 0 |
+
+> 各类型 key/value 填写口径、必填规则与求值语义同 §4.2「各类型 key/value 填写口径」表（S10 批对齐 Spring Cloud Gateway predicate 全集），不再重复。
 
 **响应 data**：条件对象（含生成的 id）
 
@@ -759,7 +781,7 @@ API 侧可选**——不带 body 的旧调用完全兼容）。携带时随 fram
 |---|---|---|
 | id | String | 条件 ID |
 | route_id | String | 所属路由 ID |
-| condition_type | String | 条件类型 |
+| condition_type | String | 条件类型（13 类，口径见 §4.2） |
 | operator | String | 运算符 |
 | condition_key | String | 条件键 |
 | condition_value | String | 条件值 |
@@ -1282,7 +1304,7 @@ DISPATCH 排序在前（order = -1_000_000 + sort_order）、BACKEND 按 sort_or
 | matched | Boolean | 是否有路由接住请求 |
 | route | Object\|null | 命中路由 `{id, route_name, route_type, path, upstream_url}` |
 | evaluated | Array | 按求值顺序逐路由 trace：`{route_id, route_name, route_type, matched, path_matched, reason}`。`matched`=实际接住（仅胜者 true）；`path_matched`=纯谓词结果；reason 说明落选/命中原因 |
-| dispatch | Object | 仅命中 DISPATCH 时出现：`{conditions:[{condition_type, operator, condition_key, condition_value, priority, matched, reason, target_route_id, target_route_name, target_resolvable}], weight_candidates:[...], resolved_target:Object\|null}`。HEADER/QUERY/PATH 条件现场求值；**BODY/GROOVY 需真实请求上下文，Trace-lite 跳过并注明**；WEIGHT 非请求谓词仅列 `{weight}` 候选不掷点（resolved_target 保持 null） |
+| dispatch | Object | 仅命中 DISPATCH 时出现：`{conditions:[{condition_type, operator, condition_key, condition_value, priority, matched, reason, target_route_id, target_route_name, target_resolvable}], weight_candidates:[...], resolved_target:Object\|null}`。HEADER/QUERY/PATH 条件现场求值；**BODY/GROOVY 需真实请求上下文，Trace-lite 跳过并注明**；WEIGHT 非请求谓词仅列 `{weight}` 候选不掷点（resolved_target 保持 null）；S10 批新增的 HOST/METHOD/COOKIE/REMOTE_ADDR/AFTER/BEFORE/BETWEEN 亦为请求谓词（engine 侧已支持），管理面 Trace-lite 暂不现场求值，模拟器后续同步 |
 | plugins | Object | 插件链装配预览：`{global_pre:[...], route:[...], global_post:[...]}`。route 段含命中路由的路由级绑定（DISPATCH 时合并目标子路由绑定）：`{plugin_id, plugin_name, plugin_type, plugin_phase, plugin_status, sort_order, binding_config, bound_route_id, bound_route_name}` |
 | request | Object | 回显 `{path, method}` |
 

@@ -1,4 +1,4 @@
-# 可视化网关 - 数据库设计 V1.2.0
+# 可视化网关 - 数据库设计 V1.5.3
 
 ## 1. 基础信息
 
@@ -18,6 +18,7 @@
 |---|---|---|---|---|---|
 | V1.0.0 | 2026-07-13 | 新建 | 初始化数据库设计，核心表结构与规范 | - | - |
 | V1.2.0 | 2026-07-14 | 修订 | 补充修订历史、Mermaid ER、表清单、全列 COMMENT、索引策略、分区方案、敏感字段、数据字典、逻辑外键关系等 | - | - |
+| V1.5.3 | 2026-11-19 | 修订 | gw_route_condition.condition_type 同步 S10 批：对齐 Spring Cloud Gateway predicate 全集扩至 13 类型（新增 HOST/METHOD/COOKIE/REMOTE_ADDR/AFTER/BEFORE/BETWEEN，补录 WEIGHT），迁移 V1.5.3__condition_type_scg_predicates.sql 仅更新列注释、无列/数据变更；§3/§5.2/§9.7 同步并注明 SCG 对齐口径 | S10-3 | - |
 
 ## 2. 全局规范
 
@@ -137,7 +138,7 @@ erDiagram
         BIGSERIAL id PK "主键"
         BIGINT route_id FK "所属路由"
         BIGINT target_route_id FK "目标路由"
-        VARCHAR condition_type "HEADER/PATH/QUERY/BODY/GROOVY"
+        VARCHAR condition_type "HEADER/PATH/QUERY/BODY/GROOVY/WEIGHT/HOST/METHOD/COOKIE/REMOTE_ADDR/AFTER/BEFORE/BETWEEN"
     }
 
     gw_route_plugin_binding {
@@ -294,7 +295,7 @@ CREATE TABLE gw_route_condition (
     id               BIGSERIAL,
     route_id         BIGINT       NOT NULL,
     target_route_id  BIGINT       NOT NULL,
-    condition_type   VARCHAR(20)  NOT NULL,   -- HEADER / PATH / QUERY / BODY / GROOVY
+    condition_type   VARCHAR(20)  NOT NULL,   -- 13 类型 SCG predicate 全集（见 §9.7 与迁移 V1.5.3）
     operator         VARCHAR(20)  NOT NULL,   -- EQ / NE / CONTAINS / REGEX / EXISTS / GT / LT
     condition_key    VARCHAR(200) DEFAULT NULL,
     condition_value  VARCHAR(500) DEFAULT NULL,
@@ -311,13 +312,22 @@ COMMENT ON TABLE gw_route_condition IS '分发条件';
 COMMENT ON COLUMN gw_route_condition.id IS '主键';
 COMMENT ON COLUMN gw_route_condition.route_id IS '所属分发路由ID';
 COMMENT ON COLUMN gw_route_condition.target_route_id IS '目标路由ID';
-COMMENT ON COLUMN gw_route_condition.condition_type IS '条件类型：HEADER/PATH/QUERY/BODY/GROOVY';
+COMMENT ON COLUMN gw_route_condition.condition_type IS
+    '条件类型 13 类（S10 批对齐 Spring Cloud Gateway predicate 全集）。既有六类：HEADER（key=Header 名）/PATH（key 留空）/QUERY（key=参数名）/BODY（key=JsonPath）/GROOVY（value=沙箱脚本）/WEIGHT（流量分割权重，非请求谓词，key=权重整数）。新增七类（key 均留空）：HOST（value=HostPredicate pattern 如 **.example.com 或正则，预编译缓存，Host 缺失=false）/METHOD（value=HTTP 方法，EQ 大小写不敏感）/COOKIE（key=Cookie 名，value 走通用 operator，缺失语义同 HEADER）/REMOTE_ADDR（value=CIDR，IPv4/IPv6 前缀比较，IpSubnetFilterRule 口径，无斜杠=单值）/AFTER/BEFORE（value=ISO-8601 时刻如 2026-01-01T00:00:00+08:00）/BETWEEN（value=start,end，[start,end) 闭开区间）。既有口径：键缺失时 EXISTS=false、NE=true（与 SCG 谓词缺值=false 不同，保留）';
 COMMENT ON COLUMN gw_route_condition.operator IS '比较运算符：EQ/NE/CONTAINS/REGEX/EXISTS/GT/LT';
 COMMENT ON COLUMN gw_route_condition.condition_key IS '条件键（如Header名、参数名）';
 COMMENT ON COLUMN gw_route_condition.condition_value IS '条件值（如期望值、正则表达式）';
 COMMENT ON COLUMN gw_route_condition.priority IS '优先级（数值越小越先匹配）';
 COMMENT ON COLUMN gw_route_condition.created_at IS '创建时间';
 ```
+
+> **S10 批（迁移 V1.5.3__condition_type_scg_predicates.sql，2026-11-19）**：condition_type 对齐
+> Spring Cloud Gateway predicate 全集扩至 **13 类型**——新增
+> HOST/METHOD/COOKIE/REMOTE_ADDR/AFTER/BEFORE/BETWEEN，并补录 WEIGHT（落码于条件模型
+> 但 V1.0.0 注释未涵盖）。仅列注释变更，无列/数据变更（VARCHAR(20) 容纳最长值
+> REMOTE_ADDR，11 字符）。新七类型 key/value 口径见 §9.7；字典 COND_TYPE 由
+> DictService 以 ConditionType 枚举驱动，无种子数据需迁移。上方 SQL 块中的
+> condition_type 注释已同步为迁移后的现值，其余列注释保持 V1.0.0 原貌。
 
 ### 5.3 gw_plugin - 插件（实体表）
 
@@ -844,13 +854,26 @@ COMMENT ON COLUMN gw_role_permission_rel.created_at IS '创建时间';
 
 ### 9.7 COND_TYPE - 条件类型
 
-| 枚举值 | 含义 | 使用表 |
-|---|---|---|
-| HEADER | 请求头条件 | gw_route_condition |
-| PATH | 路径条件 | gw_route_condition |
-| QUERY | 查询参数条件 | gw_route_condition |
-| BODY | 请求体条件 | gw_route_condition |
-| GROOVY | Groovy 脚本条件 | gw_route_condition |
+> **S10 批（迁移 V1.5.3）对齐 Spring Cloud Gateway predicate 全集：13 类型。**
+> 既有口径：HEADER/QUERY/COOKIE 的键在请求中缺失时 EXISTS=false、NE=true
+> （gateway4j 既有行为，与 SCG 谓词缺值=false 不同，保留）；性能注记：REGEX/HOST
+> 预编译缓存（ConcurrentHashMap），不再每请求 Pattern.compile。
+
+| 枚举值 | 含义 | condition_key | condition_value | 使用表 |
+|---|---|---|---|---|
+| HEADER | 请求头条件（取首个值） | Header 名 | 期望值/正则（走通用 operator） | gw_route_condition |
+| PATH | 路径条件（对完整请求路径求值） | 引擎不使用（既有校验仍必填） | 期望值/正则 | gw_route_condition |
+| QUERY | 查询参数条件（取首个值） | 参数名 | 期望值/正则 | gw_route_condition |
+| BODY | JSON 请求体条件 | JsonPath（`$.` 前缀可省） | 期望值 | gw_route_condition |
+| GROOVY | Groovy 脚本条件（沙箱） | 可省略 | 脚本（返回 true 命中） | gw_route_condition |
+| WEIGHT | 流量分割权重（非请求谓词） | 权重正整数字符串 | 可空忽略 | gw_route_condition |
+| HOST | Host 头条件（SCG HostPredicate 口径） | 留空 | HostPredicate pattern（如 `**.example.com`）或正则，预编译缓存；Host 头缺失=false | gw_route_condition |
+| METHOD | HTTP 方法条件 | 留空 | HTTP 方法（GET/POST/...）；EQ 比较大小写不敏感 | gw_route_condition |
+| COOKIE | Cookie 条件（取首个匹配） | Cookie 名 | 期望值（走通用 operator）；缺失口径同 HEADER | gw_route_condition |
+| REMOTE_ADDR | 客户端地址条件 | 留空 | CIDR（IPv4/IPv6 前缀比较，IpSubnetFilterRule 口径）；无斜杠=单值精确匹配 | gw_route_condition |
+| AFTER | 时间窗条件（请求时刻晚于 value 命中） | 留空 | ISO-8601 时刻（如 `2026-01-01T00:00:00+08:00`） | gw_route_condition |
+| BEFORE | 时间窗条件（请求时刻早于 value 命中） | 留空 | ISO-8601 时刻 | gw_route_condition |
+| BETWEEN | 时间区间条件 | 留空 | `start,end`（逗号分隔，[start,end) 闭开区间） | gw_route_condition |
 
 ### 9.8 COND_OPERATOR - 条件运算符
 

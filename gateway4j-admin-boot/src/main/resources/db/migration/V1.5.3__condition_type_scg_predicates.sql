@@ -1,0 +1,38 @@
+-- ============================================================================
+-- V1.5.3__condition_type_scg_predicates.sql
+-- S10 批（条件模型 100% SCG predicate 对齐）：gw_route_condition.condition_type
+-- 列注释更新为 13 类型全集。仅注释变更，无列/数据变更。
+--
+-- 背景（docs/ui-v2/实施契约.md §8，2026-11-19 用户裁决 B 方案）：
+--   既有六类型 HEADER/PATH/QUERY/BODY/GROOVY/WEIGHT 之外新增七类型
+--   HOST/METHOD/COOKIE/REMOTE_ADDR/AFTER/BEFORE/BETWEEN，语义对齐
+--   Spring Cloud Gateway 内置谓词（Host/Method/Cookie/RemoteAddr/After/
+--   Before/Between）。V1.0.0 初始注释停在五类型，WEIGHT 落码时未回写
+--   DDL 注释，本次一并补齐为 13 类型。
+--
+-- 为何无列变更：condition_type 为 VARCHAR(20)，最长枚举值 REMOTE_ADDR
+-- 共 11 字符，容量足够；字典 COND_TYPE 由 DictService 以 ConditionType
+-- 枚举驱动（无字典种子数据），枚举扩展即自动生效。
+--
+-- 新七类型简要语义（key 均留空，详见 docs/DATABASE_DESIGN.md §9.7 与
+-- docs/API_CONTRACT.md §4.2）：
+--   HOST         value=SCG HostPredicate pattern（**.example.com）或正则，
+--                预编译缓存；Host 头缺失=false
+--   METHOD       value=HTTP 方法（GET/POST/...）；EQ 比较大小写不敏感
+--   COOKIE       key=Cookie 名，value 走通用 operator（取首个匹配 Cookie）；
+--                缺失语义同 HEADER/QUERY 既有口径
+--   REMOTE_ADDR  value=CIDR（IPv4/IPv6 前缀字节比较，IpSubnetFilterRule
+--                口径）；无斜杠=单值精确匹配
+--   AFTER/BEFORE value=ISO-8601 时刻（2026-01-01T00:00:00+08:00）；请求
+--                时刻晚于/早于该值才命中
+--   BETWEEN      value=start,end（逗号分隔）；请求时刻落在 [start,end)
+--                闭开区间才命中
+--
+-- 语义注记：HEADER/QUERY/COOKIE 的键在请求中缺失时 EXISTS=false、NE=true
+-- 为 gateway4j 既有口径（与 SCG 谓词缺值=false 不同），保留不改。
+-- 性能注记：REGEX/HOST 由每请求 Pattern.compile 改为 ConcurrentHashMap
+-- 预编译缓存（S10-1 顺带修既有 REGEX 性能债，HEADER/PATH/QUERY 同受益）。
+-- ============================================================================
+
+COMMENT ON COLUMN gw_route_condition.condition_type IS
+    '条件类型 13 类（S10 批对齐 Spring Cloud Gateway predicate 全集）。既有六类：HEADER（key=Header 名）/PATH（key 留空）/QUERY（key=参数名）/BODY（key=JsonPath）/GROOVY（value=沙箱脚本）/WEIGHT（流量分割权重，非请求谓词，key=权重整数）。新增七类（key 均留空）：HOST（value=HostPredicate pattern 如 **.example.com 或正则，预编译缓存，Host 缺失=false）/METHOD（value=HTTP 方法，EQ 大小写不敏感）/COOKIE（key=Cookie 名，value 走通用 operator，缺失语义同 HEADER）/REMOTE_ADDR（value=CIDR，IPv4/IPv6 前缀比较，IpSubnetFilterRule 口径，无斜杠=单值）/AFTER/BEFORE（value=ISO-8601 时刻如 2026-01-01T00:00:00+08:00）/BETWEEN（value=start,end，[start,end) 闭开区间）。既有口径：键缺失时 EXISTS=false、NE=true（与 SCG 谓词缺值=false 不同，保留）';

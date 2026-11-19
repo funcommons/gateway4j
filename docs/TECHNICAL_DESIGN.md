@@ -222,7 +222,7 @@ RouteConfig（路由配置）
 
 Condition（分发条件）
 ├── id: Long
-├── conditionType: ConditionType (HEADER/PATH/QUERY/BODY/GROOVY)
+├── conditionType: ConditionType (HEADER/PATH/QUERY/BODY/GROOVY/WEIGHT/HOST/METHOD/COOKIE/REMOTE_ADDR/AFTER/BEFORE/BETWEEN)
 ├── operator: String       (eq/ne/contains/regex/...)
 ├── key: String            (条件键，如 header name)
 ├── value: String          (条件值)
