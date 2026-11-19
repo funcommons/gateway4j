@@ -29,13 +29,21 @@ public class DictService {
             case "PLUGIN_PHASE" -> ofEnum(PluginPhase.values(), Map.of("PRE", "前置阶段", "POST", "后置阶段"));
             case "PLUGIN_SCOPE" -> ofEnum(PluginScope.values(), Map.of("GLOBAL", "全局作用域", "ROUTE", "路由作用域"));
             case "PLUGIN_STATUS" -> ofEnum(PluginStatus.values(), Map.of("ENABLED", "已启用", "DISABLED", "已禁用"));
-            case "COND_TYPE" -> ofEnum(ConditionType.values(), Map.of(
-                    "HEADER", "请求头条件", "PATH", "路径条件", "QUERY", "查询参数条件",
-                    "BODY", "请求体条件", "GROOVY", "Groovy 脚本条件",
-                    // H5a 遗留收录：ConditionType.values() 自 WEIGHT 起含 6 值，
-                    // 此前缺标签回落为枚举码「WEIGHT」；校验侧无白名单（条件类型
+            case "COND_TYPE" -> ofEnum(ConditionType.values(), Map.ofEntries(
+                    Map.entry("HEADER", "请求头条件"), Map.entry("PATH", "路径条件"),
+                    Map.entry("QUERY", "查询参数条件"), Map.entry("BODY", "请求体条件"),
+                    Map.entry("GROOVY", "Groovy 脚本条件"),
+                    // H5a 遗留收录：ConditionType.values() 此前自 WEIGHT 起含 6 值，
+                    // 缺标签回落为枚举码「WEIGHT」；校验侧无白名单（条件类型
                     // 全程字符串透传），字典仅影响展示。
-                    "WEIGHT", "权重分流"));
+                    Map.entry("WEIGHT", "权重分流"),
+                    // S10-1 七谓词扩容（SCG Host/Method/Cookie/RemoteAddr/After/Before/
+                    // Between predicate 全对齐，engine RouteConditionMatcher 已现场求值）
+                    // 同步收录；13 对键值超出 Map.of 十对上限，改用 Map.ofEntries。
+                    Map.entry("HOST", "域名匹配"), Map.entry("METHOD", "请求方法"),
+                    Map.entry("COOKIE", "Cookie 匹配"), Map.entry("REMOTE_ADDR", "客户端地址"),
+                    Map.entry("AFTER", "时间窗起"), Map.entry("BEFORE", "时间窗止"),
+                    Map.entry("BETWEEN", "时间窗口")));
             case "COND_OPERATOR" -> ofEnum(ConditionOperator.values(), Map.of(
                     "EQ", "等于", "NE", "不等于", "CONTAINS", "包含", "REGEX", "正则匹配",
                     "EXISTS", "存在", "GT", "大于", "LT", "小于"));

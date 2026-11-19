@@ -217,4 +217,187 @@ class RouteSimulateServiceTest {
         String reason = (String) ((Map<?, ?>) evaluated.get(0)).get("reason");
         assertTrue(reason.contains("path 不匹配"));
     }
+
+    // ===== S10-5：七谓词求值同步（与 engine RouteConditionMatcher 8ff95fd 同语义）=====
+
+    @Test
+    void hostConditionWildcardMatchesSubdomainCaseInsensitive() {
+        Route dispatch = Route.builder().id(10L).routeName("dispatch").routeType("DISPATCH")
+                .path("/api/**").sortOrder(0).build();
+        Route backend = Route.builder().id(11L).routeName("v2").routeType("BACKEND")
+                .path("/api/**").sortOrder(0).build();
+        publish(dispatch, backend);
+        when(conditionMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(
+                RouteCondition.builder().routeId(10L).targetRouteId(11L)
+                        .conditionType("HOST").operator("EQ").conditionKey("")
+                        .conditionValue("**.example.com").priority(0).build()));
+        when(routeService.getById(11L)).thenReturn(backend);
+
+        // ** 至少一段任意子域；Host 头 trim+lowercase 后整串匹配（键名大小写不敏感查找）
+        Map<String, Object> hit = service.simulate("/api/x", "GET",
+                Map.of("HOST", "API.Example.COM"), Map.of());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> hitTrace = (Map<String, Object>) hit.get("dispatch");
+        assertEquals("11", ((Map<?, ?>) hitTrace.get("resolved_target")).get("id"));
+
+        // Host 头缺失 → false（engine 不回落 remote address）
+        Map<String, Object> miss = service.simulate("/api/x", "GET", Map.of(), Map.of());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> missTrace = (Map<String, Object>) miss.get("dispatch");
+        assertNull(missTrace.get("resolved_target"));
+        List<?> conditions = (List<?>) missTrace.get("conditions");
+        assertEquals(false, ((Map<?, ?>) conditions.get(0)).get("matched"));
+        assertTrue(String.valueOf(((Map<?, ?>) conditions.get(0)).get("reason")).contains("Host 头"));
+    }
+
+    @Test
+    void hostConditionBareDomainMissesDoubleStarPattern() {
+        Route dispatch = Route.builder().id(10L).routeName("dispatch").routeType("DISPATCH")
+                .path("/api/**").sortOrder(0).build();
+        Route backend = Route.builder().id(11L).routeName("v2").routeType("BACKEND")
+                .path("/api/**").sortOrder(0).build();
+        publish(dispatch, backend);
+        when(conditionMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(
+                RouteCondition.builder().routeId(10L).targetRouteId(11L)
+                        .conditionType("HOST").operator("EQ").conditionKey("")
+                        .conditionValue("**.example.com").priority(0).build()));
+
+        // 裸域 example.com 不命中 **（pattern 要求至少一段子域，与 engine 点号分段口径一致）
+        Map<String, Object> result = service.simulate("/api/x", "GET",
+                Map.of("Host", "example.com"), Map.of());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> trace = (Map<String, Object>) result.get("dispatch");
+        assertNull(trace.get("resolved_target"));
+        List<?> conditions = (List<?>) trace.get("conditions");
+        assertEquals(false, ((Map<?, ?>) conditions.get(0)).get("matched"));
+    }
+
+    @Test
+    void hostConditionExactEqWithoutWildcard() {
+        Route dispatch = Route.builder().id(10L).routeName("dispatch").routeType("DISPATCH")
+                .path("/api/**").sortOrder(0).build();
+        Route backend = Route.builder().id(11L).routeName("v2").routeType("BACKEND")
+                .path("/api/**").sortOrder(0).build();
+        publish(dispatch, backend);
+        when(conditionMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(
+                RouteCondition.builder().routeId(10L).targetRouteId(11L)
+                        .conditionType("HOST").operator("EQ").conditionKey("")
+                        .conditionValue("api.example.com").priority(0).build()));
+        when(routeService.getById(11L)).thenReturn(backend);
+
+        // 无通配符走 matchOperator（EQ=精确域名）；Host 实际值 lowercase 后命中小写 pattern
+        Map<String, Object> hit = service.simulate("/api/x", "GET",
+                Map.of("Host", "API.example.COM"), Map.of());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> hitTrace = (Map<String, Object>) hit.get("dispatch");
+        assertEquals("11", ((Map<?, ?>) hitTrace.get("resolved_target")).get("id"));
+
+        Map<String, Object> miss = service.simulate("/api/x", "GET",
+                Map.of("Host", "www.example.com"), Map.of());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> missTrace = (Map<String, Object>) miss.get("dispatch");
+        assertNull(missTrace.get("resolved_target"));
+    }
+
+    @Test
+    void methodConditionEqCaseInsensitive() {
+        Route dispatch = Route.builder().id(10L).routeName("dispatch").routeType("DISPATCH")
+                .path("/api/**").sortOrder(0).build();
+        Route backend = Route.builder().id(11L).routeName("v2").routeType("BACKEND")
+                .path("/api/**").sortOrder(0).build();
+        publish(dispatch, backend);
+        when(conditionMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(
+                RouteCondition.builder().routeId(10L).targetRouteId(11L)
+                        .conditionType("METHOD").operator("EQ").conditionKey("")
+                        .conditionValue("post").priority(0).build()));
+        when(routeService.getById(11L)).thenReturn(backend);
+
+        // expected 统一大写后比较 → post 等价 POST
+        Map<String, Object> hit = service.simulate("/api/x", "POST", Map.of(), Map.of());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> hitTrace = (Map<String, Object>) hit.get("dispatch");
+        assertEquals("11", ((Map<?, ?>) hitTrace.get("resolved_target")).get("id"));
+
+        Map<String, Object> miss = service.simulate("/api/x", "GET", Map.of(), Map.of());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> missTrace = (Map<String, Object>) miss.get("dispatch");
+        assertNull(missTrace.get("resolved_target"));
+    }
+
+    @Test
+    void timeWindowConditionsEvaluateAgainstNow() {
+        Route dispatch = Route.builder().id(10L).routeName("dispatch").routeType("DISPATCH")
+                .path("/api/**").sortOrder(0).build();
+        Route backend = Route.builder().id(11L).routeName("v2").routeType("BACKEND")
+                .path("/api/**").sortOrder(0).build();
+        publish(dispatch, backend);
+        // 条件值取 2000/2999/3000 极值，now 处于宽窗口内，断言与时钟漂移无关
+        when(conditionMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(
+                RouteCondition.builder().routeId(10L).targetRouteId(11L)
+                        .conditionType("AFTER").operator("EQ").conditionKey("")
+                        .conditionValue("2000-01-01T08:00:00+08:00").priority(0).build(),
+                RouteCondition.builder().routeId(10L).targetRouteId(11L)
+                        .conditionType("AFTER").operator("EQ").conditionKey("")
+                        .conditionValue("2999-01-01T00:00:00Z").priority(1).build(),
+                RouteCondition.builder().routeId(10L).targetRouteId(11L)
+                        .conditionType("BEFORE").operator("EQ").conditionKey("")
+                        .conditionValue("2999-01-01T00:00:00Z").priority(2).build(),
+                RouteCondition.builder().routeId(10L).targetRouteId(11L)
+                        .conditionType("BEFORE").operator("EQ").conditionKey("")
+                        .conditionValue("2000-01-01T00:00:00Z").priority(3).build(),
+                RouteCondition.builder().routeId(10L).targetRouteId(11L)
+                        .conditionType("BETWEEN").operator("EQ").conditionKey("")
+                        .conditionValue("2000-01-01T00:00:00Z,2999-01-01T00:00:00Z").priority(4).build(),
+                RouteCondition.builder().routeId(10L).targetRouteId(11L)
+                        .conditionType("BETWEEN").operator("EQ").conditionKey("")
+                        .conditionValue("2999-01-01T00:00:00Z,3000-01-01T00:00:00Z").priority(5).build(),
+                RouteCondition.builder().routeId(10L).targetRouteId(11L)
+                        .conditionType("BETWEEN").operator("EQ").conditionKey("")
+                        .conditionValue("2000-01-01T00:00:00Z").priority(6).build()));
+        when(routeService.getById(11L)).thenReturn(backend);
+
+        Map<String, Object> result = service.simulate("/api/x", "GET", Map.of(), Map.of());
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> trace = (Map<String, Object>) result.get("dispatch");
+        // 首个命中（AFTER 过去阈值，OffsetDateTime 带时区偏移形态）锁定目标
+        assertEquals("11", ((Map<?, ?>) trace.get("resolved_target")).get("id"));
+
+        List<?> conditions = (List<?>) trace.get("conditions");
+        // [AFTER 过去=真, AFTER 未来=假, BEFORE 未来=真, BEFORE 过去=假,
+        //  BETWEEN 含 now=真, BETWEEN start 在未来=假（闭开 [start,end)）, BETWEEN 单段畸形=假]
+        List<Boolean> expected = List.of(true, false, true, false, true, false, false);
+        for (int i = 0; i < expected.size(); i++) {
+            assertEquals(expected.get(i), ((Map<?, ?>) conditions.get(i)).get("matched"),
+                    "条件[" + i + "] " + ((Map<?, ?>) conditions.get(i)).get("condition_type")
+                            + " value=" + ((Map<?, ?>) conditions.get(i)).get("condition_value"));
+        }
+    }
+
+    @Test
+    void cookieAndRemoteAddrConditionsAreSkippedLikeBodyGroovy() {
+        Route dispatch = Route.builder().id(10L).routeName("dispatch").routeType("DISPATCH")
+                .path("/api/**").sortOrder(0).build();
+        Route backend = Route.builder().id(11L).routeName("v2").routeType("BACKEND")
+                .path("/api/**").sortOrder(0).build();
+        publish(dispatch, backend);
+        when(conditionMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(
+                RouteCondition.builder().routeId(10L).targetRouteId(11L)
+                        .conditionType("COOKIE").operator("EQ").conditionKey("session")
+                        .conditionValue("abc").priority(0).build(),
+                RouteCondition.builder().routeId(10L).targetRouteId(11L)
+                        .conditionType("REMOTE_ADDR").operator("EQ").conditionKey("")
+                        .conditionValue("10.0.0.0/8").priority(1).build()));
+
+        Map<String, Object> result = service.simulate("/api/x", "GET", Map.of(), Map.of());
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> trace = (Map<String, Object>) result.get("dispatch");
+        assertNull(trace.get("resolved_target"), "COOKIE/REMOTE_ADDR 跳过求值 → 无 resolved_target");
+        List<?> conditions = (List<?>) trace.get("conditions");
+        assertEquals(2, conditions.size());
+        assertTrue(String.valueOf(((Map<?, ?>) conditions.get(0)).get("reason")).contains("Trace-lite"));
+        assertTrue(String.valueOf(((Map<?, ?>) conditions.get(0)).get("reason")).contains("cookie 字段"));
+        assertTrue(String.valueOf(((Map<?, ?>) conditions.get(1)).get("reason")).contains("remoteAddress 字段"));
+    }
 }

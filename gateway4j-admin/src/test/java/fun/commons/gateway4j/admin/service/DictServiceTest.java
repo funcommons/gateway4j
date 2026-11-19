@@ -43,7 +43,7 @@ class DictServiceTest {
     @Test
     void getDictCondTypeIncludesWeightWithLabel() {
         List<Map<String, String>> result = dictService.getDict("COND_TYPE");
-        assertEquals(6, result.size(), "ConditionType 6 值全收录");
+        assertEquals(13, result.size(), "ConditionType 13 值全收录（S10-1 七谓词扩容同步）");
         Map<String, String> weight = result.stream()
                 .filter(m -> "WEIGHT".equals(m.get("value")))
                 .findFirst()

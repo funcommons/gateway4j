@@ -14,10 +14,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.util.pattern.PathPattern;
 import org.springframework.web.util.pattern.PathPatternParser;
 
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 
@@ -32,9 +36,12 @@ import java.util.regex.Pattern;
  *       {@code RoutePathUtils.normalizePath(path)} 后 matches（与 engine 同源）；</li>
  *   <li>排序：DISPATCH 优先（order = -1_000_000 + sort_order），BACKEND 按 sort_order
  *       —— engine 的 RoutePredicateHandlerMapping 取顺序第一个命中；</li>
- *   <li>DISPATCH 命中后按 priority 升序求值条件（HEADER/QUERY/PATH 现场求值，
- *       BODY/GROOVY 需要真实请求上下文，Trace-lite 标记跳过），首个命中的
- *       条件决定目标子路由；WEIGHT 非请求谓词，仅列候选不掷点。</li>
+ *   <li>DISPATCH 命中后按 priority 升序求值条件（HEADER/QUERY/PATH/HOST/METHOD/
+ *       AFTER/BEFORE/BETWEEN 现场求值，与 engine {@code RouteConditionMatcher}
+ *       同语义；BODY/GROOVY/COOKIE/REMOTE_ADDR 需要模拟请求模型没有的输入
+ *       ——真实请求体/脚本上下文/结构化 Cookie/remoteAddress——Trace-lite
+ *       标记跳过），首个命中的条件决定目标子路由；WEIGHT 非请求谓词，
+ *       仅列候选不掷点。</li>
  * </ul>
  */
 @Slf4j
@@ -66,13 +73,14 @@ public class RouteSimulateService {
      * 模拟一次请求的路由命中与插件链装配。
      *
      * @param path    请求路径（如 /api/user/1）
-     * @param method  HTTP 方法（回显；当前 engine 路径谓词不区分方法）
-     * @param headers 模拟请求头（DISPATCH HEADER 条件求值输入）
+     * @param method  HTTP 方法（回显 + DISPATCH METHOD 条件求值输入；空/缺省按 GET）
+     * @param headers 模拟请求头（DISPATCH HEADER/HOST 条件求值输入）
      * @param query   模拟查询参数（DISPATCH QUERY 条件求值输入）
      */
     public Map<String, Object> simulate(String path, String method,
                                         Map<String, String> headers, Map<String, String> query) {
         String normalizedPath = RoutePathUtils.normalizePath(path);
+        String normalizedMethod = method == null || method.isBlank() ? "GET" : method.toUpperCase(Locale.ROOT);
         Map<String, String> safeHeaders = headers == null ? Map.of() : headers;
         Map<String, String> safeQuery = query == null ? Map.of() : query;
 
@@ -108,12 +116,13 @@ public class RouteSimulateService {
         result.put("route", matched != null ? routeSummary(matched) : null);
         result.put("evaluated", evaluated);
         if (matched != null && TYPE_DISPATCH.equals(matched.getRouteType())) {
-            result.put("dispatch", resolveDispatch(matched, normalizedPath, safeHeaders, safeQuery));
+            result.put("dispatch", resolveDispatch(matched, normalizedPath, normalizedMethod,
+                    safeHeaders, safeQuery));
         }
         result.put("plugins", collectPlugins(matched));
         result.put("request", Map.of(
                 "path", normalizedPath,
-                "method", method == null || method.isBlank() ? "GET" : method.toUpperCase()));
+                "method", normalizedMethod));
         return result;
     }
 
@@ -157,7 +166,7 @@ public class RouteSimulateService {
      * DISPATCH 条件求值 trace：priority 升序逐条求值，命中即锁定目标（与
      * RouteDispatcher「首个匹配且目标可解析者胜出」一致）；WEIGHT 仅列候选。
      */
-    private Map<String, Object> resolveDispatch(Route dispatchRoute, String requestPath,
+    private Map<String, Object> resolveDispatch(Route dispatchRoute, String requestPath, String requestMethod,
                                                 Map<String, String> headers, Map<String, String> query) {
         List<RouteCondition> conditions = conditionMapper.selectList(
                 new LambdaQueryWrapper<RouteCondition>()
@@ -181,7 +190,7 @@ public class RouteSimulateService {
                 weightCandidates.add(candidate);
                 continue;
             }
-            Evaluation evaluation = evaluateCondition(condition, requestPath, headers, query);
+            Evaluation evaluation = evaluateCondition(condition, requestPath, requestMethod, headers, query);
             Map<String, Object> item = conditionItem(condition, evaluation.matched(), evaluation.reason());
             Long targetId = condition.getTargetRouteId();
             Route target = targetId == null ? null : publishedMap.get(targetId);
@@ -217,8 +226,12 @@ public class RouteSimulateService {
         return item;
     }
 
-    /** HEADER/QUERY/PATH 现场求值（与 engine RouteConditionMatcher 同语义）；BODY/GROOVY 标记跳过。 */
-    private Evaluation evaluateCondition(RouteCondition condition, String requestPath,
+    /**
+     * 现场求值（与 engine RouteConditionMatcher 同语义）：HEADER/QUERY/PATH/HOST/
+     * METHOD/AFTER/BEFORE/BETWEEN 逐分支对齐（S10-5 七谓词同步）；BODY/GROOVY/
+     * COOKIE/REMOTE_ADDR 需要模拟请求模型没有的输入，按 Trace-lite 先例标记跳过。
+     */
+    private Evaluation evaluateCondition(RouteCondition condition, String requestPath, String requestMethod,
                                          Map<String, String> headers, Map<String, String> query) {
         String type = condition.getConditionType();
         String operator = condition.getOperator();
@@ -234,12 +247,139 @@ public class RouteSimulateService {
                 yield evaluateValue(operator, actual, value);
             }
             case "PATH" -> evaluateValue(operator, requestPath, value);
+            case "HOST" -> {
+                // 与 engine RouteConditionMatcher#matchHost 对齐（S10-5）：匹配目标为 Host 头
+                // （缺失 false，禁止回落 remote address），Host 先 toLowerCase 再匹配；value 含
+                // 通配符（** 至少一段任意子域 / * 恰好单段）时按 SCG pattern 语义翻译为正则
+                // 整串 matches（模拟器一次性求值不建预编译缓存，语义等价），无通配符时按
+                // operator 语义（EQ=精确域名）走 matchOperator。
+                String host = firstHeaderIgnoreCase(headers, "Host");
+                if (host == null || host.isBlank() || value == null || value.isBlank()) {
+                    yield new Evaluation(false, "Host 头或条件值缺失（engine 不回落 remote address）");
+                }
+                String normalizedHost = host.trim().toLowerCase(Locale.ROOT);
+                if (value.indexOf('*') >= 0) {
+                    boolean hit = hostPatternToRegex(value).matcher(normalizedHost).matches();
+                    yield new Evaluation(hit,
+                            "HostPattern actual=" + normalizedHost + ", pattern=" + value + " → 整串匹配=" + hit);
+                }
+                yield evaluateValue(operator, normalizedHost, value);
+            }
+            case "METHOD" -> {
+                // 与 engine RouteConditionMatcher#matchMethod 对齐（S10-5）：实际方法名恒为
+                // 大写（回显侧已归一化），expected 统一大写后走 matchOperator → EQ/NE
+                // 大小写不敏感（post 等价 POST）。
+                yield evaluateValue(operator, requestMethod,
+                        value == null ? null : value.toUpperCase(Locale.ROOT));
+            }
+            case "AFTER" -> {
+                // 与 engine RouteConditionMatcher#matchAfter 对齐（S10-5）：now 严格晚于
+                // threshold 即命中；不走 matchOperator，解析失败 false。
+                Instant threshold = parseInstantValue(value);
+                Instant now = Instant.now();
+                boolean hit = threshold != null && now.isAfter(threshold);
+                yield new Evaluation(hit, threshold == null
+                        ? "时间值解析失败: " + value
+                        : "now=" + now + (hit ? " 晚于 " : " 不晚于 ") + threshold + "（AFTER 严格晚于）");
+            }
+            case "BEFORE" -> {
+                // 与 engine RouteConditionMatcher#matchBefore 对齐（S10-5）：now 严格早于
+                // threshold 即命中；不走 matchOperator，解析失败 false。
+                Instant threshold = parseInstantValue(value);
+                Instant now = Instant.now();
+                boolean hit = threshold != null && now.isBefore(threshold);
+                yield new Evaluation(hit, threshold == null
+                        ? "时间值解析失败: " + value
+                        : "now=" + now + (hit ? " 早于 " : " 不早于 ") + threshold + "（BEFORE 严格早于）");
+            }
+            case "BETWEEN" -> {
+                // 与 engine RouteConditionMatcher#matchBetween 对齐（S10-5）：闭开区间
+                // [start, end)，value 为 start,end 逗号分隔两段 ISO-8601；start 含端、end
+                // 含端不命中；畸形（非两段/任一段解析失败）返回 false；不走 matchOperator。
+                String[] parts = value == null || value.isBlank() ? new String[0] : value.split(",", -1);
+                if (parts.length != 2) {
+                    yield new Evaluation(false, "BETWEEN 条件值需 start,end 两段: " + value);
+                }
+                Instant start = parseInstantValue(parts[0]);
+                Instant end = parseInstantValue(parts[1]);
+                if (start == null || end == null) {
+                    yield new Evaluation(false, "BETWEEN 时间值解析失败: " + value);
+                }
+                Instant now = Instant.now();
+                boolean hit = !now.isBefore(start) && now.isBefore(end);
+                yield new Evaluation(hit, "now=" + now + " 于 [" + start + ", " + end + ") 判定=" + hit);
+            }
             case "BODY" -> new Evaluation(false,
                     "BODY 条件需真实请求体（Trace-lite 不模拟 body，跳过求值）");
             case "GROOVY" -> new Evaluation(false,
                     "GROOVY 条件需真实请求上下文（Trace-lite 不执行脚本，跳过求值）");
+            case "COOKIE" -> new Evaluation(false,
+                    "COOKIE 条件需结构化 Cookie 输入（模拟请求模型无 cookie 字段，Trace-lite 跳过求值）");
+            case "REMOTE_ADDR" -> new Evaluation(false,
+                    "REMOTE_ADDR 条件需客户端地址输入（模拟请求模型无 remoteAddress 字段，Trace-lite 跳过求值）");
             default -> new Evaluation(false, "未知条件类型 " + type + "（engine default 分支恒 false）");
         };
+    }
+
+    /** Host 头大小写不敏感查找（engine {@code HttpHeaders#getFirst} 口径；模拟请求 headers 为普通 Map）。 */
+    private String firstHeaderIgnoreCase(Map<String, String> headers, String name) {
+        for (Map.Entry<String, String> entry : headers.entrySet()) {
+            if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(name)) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 与 engine RouteConditionMatcher#hostPatternToRegex 逐字对齐（S10-5）：SCG
+     * HostPredicate pattern → 正则（点号分段口径），{@code **} 至少一段任意子域
+     * （故裸域不命中）、{@code *} 恰好单段；字面段按 Pattern.quote 转义。
+     */
+    private static Pattern hostPatternToRegex(String pattern) {
+        String[] segments = pattern.split("\\.", -1);
+        StringBuilder regex = new StringBuilder();
+        for (int i = 0; i < segments.length; i++) {
+            String segment = segments[i];
+            boolean last = i == segments.length - 1;
+            if ("**".equals(segment)) {
+                if (last) {
+                    regex.append("[^.]+(?:\\.[^.]+)*");
+                } else {
+                    // 段分隔点已并入重复单元，后面无需再补 "\\."
+                    regex.append("(?:[^.]+\\.)+");
+                }
+            } else if ("*".equals(segment)) {
+                regex.append("[^.]+");
+            } else {
+                regex.append(Pattern.quote(segment));
+            }
+            if (!last && !"**".equals(segment)) {
+                regex.append("\\.");
+            }
+        }
+        return Pattern.compile(regex.toString());
+    }
+
+    /**
+     * 与 engine RouteConditionMatcher#parseInstantValue 逐字对齐（S10-5）：
+     * ISO-8601 容错解析——优先 OffsetDateTime（带时区偏移），回落 Instant
+     * （Z 结尾）；失败返回 null。
+     */
+    private Instant parseInstantValue(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String trimmed = value.trim();
+        try {
+            return OffsetDateTime.parse(trimmed).toInstant();
+        } catch (DateTimeParseException e) {
+            try {
+                return Instant.parse(trimmed);
+            } catch (DateTimeParseException e2) {
+                return null;
+            }
+        }
     }
 
     /** 与 engine RouteConditionMatcher#matchOperator 逐字对齐（含缺 key 时的 EXISTS/NE 特例）。 */
