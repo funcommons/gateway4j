@@ -1193,7 +1193,20 @@ export default {
       condValueRemoteAddr: '1.2.3.0/24',
       condValueAfter: 'ISO-8601 时刻，如 2025-01-01T00:00:00+08:00',
       condValueBefore: 'ISO-8601 时刻，如 2025-01-01T00:00:00+08:00',
-      condValueBetween: 'start,end（起始,结束）'
+      condValueBetween: 'start,end（起始,结束）',
+      domainField: '域名',
+      domainHint: '留空不限域名；填写后按 Host 精确匹配',
+      pathsTitle: '路径映射',
+      pathCol: '路径',
+      ruleCol: '匹配规则',
+      serviceCol: '服务名称',
+      portCol: '端口',
+      pathAdd: '添加路径',
+      pathRemove: '删除',
+      pathsLoadFailed: '路径映射加载失败，已降级（不影响保存）',
+      rulePrefix: '前缀',
+      ruleExact: '精确',
+      ruleRegex: '正则'
     }
   }
 }

@@ -1196,7 +1196,20 @@ export default {
       condValueRemoteAddr: '1.2.3.0/24',
       condValueAfter: 'ISO-8601 instant, e.g. 2025-01-01T00:00:00Z',
       condValueBefore: 'ISO-8601 instant, e.g. 2025-01-01T00:00:00Z',
-      condValueBetween: 'start,end (from,to)'
+      condValueBetween: 'start,end (from,to)',
+      domainField: 'Domain',
+      domainHint: 'Leave empty to match any domain; a filled value matches Host exactly',
+      pathsTitle: 'Path Mapping',
+      pathCol: 'Path',
+      ruleCol: 'Match Rule',
+      serviceCol: 'Service',
+      portCol: 'Port',
+      pathAdd: 'Add Path',
+      pathRemove: 'Remove',
+      pathsLoadFailed: 'Failed to load path mapping; degraded (saving unaffected)',
+      rulePrefix: 'Prefix',
+      ruleExact: 'Exact',
+      ruleRegex: 'Regex'
     }
   }
 }

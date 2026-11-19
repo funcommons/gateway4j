@@ -167,6 +167,79 @@
       </div>
 
       <div v-show="activeTab === 'conditions'" class="ref-pane" data-testid="ref-section-conditions">
+            <!-- DISPATCH rule-card only: domain field (sugar layer, translated to a
+                 HEADER+Host+EQ condition row at save; the translation row itself is
+                 never rendered in the condition row area) -->
+            <div v-if="isDispatch" class="ref-field ref-field--wide" data-testid="ref-domain-field">
+              <label class="ref-label" for="ref-f-domain">{{ t('v2.edit.domainField') }}</label>
+              <FcInput
+                id="ref-f-domain"
+                v-model="domain"
+                maxlength="200"
+                data-testid="ref-domain-input"
+              />
+              <p class="ref-hint">{{ t('v2.edit.domainHint') }}</p>
+            </div>
+
+            <!-- DISPATCH rule-card only: path mapping rows (source = listRouteChildren;
+                 row save = createRoute/updateRoute/deleteRoute per-row batch; degraded
+                 load keeps the rest of the form fully usable) -->
+            <div v-if="isDispatch" class="ref-paths" data-testid="ref-paths">
+              <b class="ref-paths-title">{{ t('v2.edit.pathsTitle') }}</b>
+              <div v-if="pathsError" class="ref-banner is-warn" data-testid="ref-paths-error" role="status">
+                <FcIcon name="ri-error-warning-line" :size="14" />
+                <span class="ref-banner-text">{{ pathsError }}</span>
+              </div>
+              <div
+                v-for="(r, i) in pathRows"
+                :key="r.id || `new-${i}`"
+                class="ref-path-row"
+                :data-testid="`ref-path-row-${i}`"
+              >
+                <div class="ref-cond-cell ref-cond-cell--path">
+                  <span class="ref-cond-label">{{ t('v2.edit.pathCol') }}</span>
+                  <FcInput
+                    v-model="r.path"
+                    :data-testid="`ref-path-path-${i}`"
+                  />
+                </div>
+                <div class="ref-cond-cell">
+                  <span class="ref-cond-label">{{ t('v2.edit.ruleCol') }}</span>
+                  <FcSelect
+                    v-model="r.rule"
+                    :options="pathRuleOptions"
+                    :data-testid="`ref-path-rule-${i}`"
+                  />
+                </div>
+                <div class="ref-cond-cell">
+                  <span class="ref-cond-label">{{ t('v2.edit.serviceCol') }}</span>
+                  <FcInput
+                    v-model="r.service"
+                    :data-testid="`ref-path-service-${i}`"
+                  />
+                </div>
+                <div class="ref-cond-cell ref-cond-cell--narrow">
+                  <span class="ref-cond-label">{{ t('v2.edit.portCol') }}</span>
+                  <FcInput
+                    v-model="r.port"
+                    :data-testid="`ref-path-port-${i}`"
+                  />
+                </div>
+                <div class="ref-cond-cell ref-cond-cell--act">
+                  <FcButton variant="text" size="sm" :data-testid="`ref-path-remove-${i}`" @click="removePathRow(i)">
+                    <FcIcon name="ri-delete-bin-line" :size="13" />
+                    {{ t('v2.edit.pathRemove') }}
+                  </FcButton>
+                </div>
+              </div>
+              <div class="ref-pane-head">
+                <FcButton variant="secondary" size="sm" data-testid="ref-path-add" @click="addPathRow">
+                  <FcIcon name="ri-add-line" :size="13" />
+                  {{ t('v2.edit.pathAdd') }}
+                </FcButton>
+              </div>
+            </div>
+
             <div class="ref-pane-head">
               <FcButton variant="secondary" size="sm" data-testid="ref-cond-add" @click="addCondition">
                 <FcIcon name="ri-add-line" :size="13" />
@@ -416,8 +489,14 @@
  *   (visible=dirty) + 组件自带 onBeforeRouteLeave（vue-router；dirty && !saving →
  *   confirm(danger) → false 阻断）；cancel 自带 confirm → emit close（宿主无条件收起）。
  * - SDK only（无 el-* 直用）；template 块零 CJK（文案一律 t()）；i18n 独立树 v2.edit.*。
+ * - S10-4 规则卡（分发路由形态，MSE 口径）：域名段（语法糖层 → HEADER+Host+EQ 翻译行）
+ *   + 路径映射段（行式编辑，数据源=listRouteChildren；行保存 create/update/delete 逐行
+ *   批量，时序 行提交→父 updateRoute→deleteRoute）落 ref-section-conditions 面板内，
+ *   段序 域名→路径映射→分发条件行；三 tab 骨架与后置路由形态零变化。子路由 CRUD 走
+ *   ./routePathMapping 独立通道（主组件 @/api/routes import 白名单 6 成员不变，被既有
+ *   源码契约测试钉死）；正则行翻译语义/降级守卫详见该模块头注。
  */
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { onBeforeRouteLeave } from 'vue-router'
 import { useFcConfirm } from '@/composables/useFcConfirm'
@@ -430,6 +509,11 @@ import {
 import { getRoute, listRoutes, updateRoute, validateRoute, listBindings, getPluginChain } from '@/api/routes'
 import { listBuiltinTypes } from '@/api/plugins'
 import { BusinessError, mapFieldErrors } from '@/api/http'
+import {
+  buildPathRow, createChildRoute, fetchRouteChildren, mergeUpstream, removeChildRoute,
+  takeHostCondition, takeRegexConditions, translatedPath, synthesizeRowName
+} from './routePathMapping'
+import type { ConditionRow, PathRow } from './routePathMapping'
 
 const props = defineProps<{ routeId: string }>()
 const emit = defineEmits<{ saved: []; close: []; 'dirty-change': [isDirty: boolean] }>()
@@ -527,6 +611,19 @@ let dirtyTracking = false
 let loadEpoch = 0
 let newBindingSeq = 0
 
+// ── S10-4 规则卡状态（仅分发路由形态；域名/正则翻译行是语法糖隐藏层，不进条件行区）──
+const domain = ref('')
+/** 回显摘除的 Host 翻译行（改域名更新该行、清空移除；target/priority 等其余字段保留） */
+const domainCond = ref<ConditionRow | null>(null)
+/** 路径映射行（回显行 id=子路由 id，新行 id=''；baseline 定桩供保存脏判） */
+const pathRows = ref<PathRow[]>([])
+/** 回显摘除的正则翻译行（按 target=子路由 id 索引；保存时随行更新/废弃） */
+const regexCondsByTarget = ref<Map<string, ConditionRow>>(new Map())
+/** 本次会话被删的回显行 id（保存末尾 deleteRoute，在父路由保存之后） */
+let removedChildIds: string[] = []
+const pathsError = ref('')
+let newPathRowSeq = 0
+
 const canEditRoute = computed(() => canEdit('route'))
 const envReady = computed(() => env.available)
 const envOptions = computed<SelectOpt[]>(() => (env.options ?? []) as SelectOpt[])
@@ -605,6 +702,16 @@ const targetOptions = computed<SelectOpt[]>(() =>
     .map((r) => ({ value: r.id, label: r.route_name }))
 )
 
+/** 分发路由形态（规则卡）：域名段/路径映射段仅此形态渲染与装载 */
+const isDispatch = computed(() => form.value.route_type === 'DISPATCH')
+
+/** 匹配规则三枚举（值域钉死 PREFIX|EXACT|REGEX；label 走 i18n，value 原样枚举） */
+const pathRuleOptions = computed<SelectOpt[]>(() => [
+  { value: 'PREFIX', label: t('v2.edit.rulePrefix') },
+  { value: 'EXACT', label: t('v2.edit.ruleExact') },
+  { value: 'REGEX', label: t('v2.edit.ruleRegex') }
+])
+
 // ── 装载（五源并行；loadEpoch 竞态守卫：陈旧成功不覆写表单、陈旧失败不复活错误条）──
 async function load() {
   dirtyTracking = false
@@ -678,6 +785,31 @@ async function load() {
     pluginOptions.value = []
   }
 
+  // S10-4 规则卡装载（仅分发路由形态）：域名/正则翻译行回显摘除 + 子路由行模型组装。
+  // 降级守卫：listRouteChildren 失败（含旧 mock 工厂缺成员的同步 TypeError——async 边界
+  // 转为 rejected promise）只挂 ref-paths-error，表单其余照常（含保存），不抛未处理异常。
+  resetPathMappingState()
+  if (form.value.route_type === 'DISPATCH') {
+    const hostTake = takeHostCondition(conditions.value as ConditionRow[])
+    conditions.value = hostTake.rows as EditCondition[]
+    domainCond.value = hostTake.host
+    domain.value = hostTake.host ? String(hostTake.host.condition_value ?? '') : ''
+    try {
+      const children = await fetchRouteChildren(routeId)
+      if (my !== loadEpoch) return
+      const regexTake = takeRegexConditions(
+        conditions.value as ConditionRow[],
+        new Set(children.map((c) => String(c.id ?? '')))
+      )
+      conditions.value = regexTake.rows as EditCondition[]
+      regexCondsByTarget.value = regexTake.byTarget
+      pathRows.value = children.map((ch) => buildPathRow(ch, regexTake.byTarget.get(String(ch.id ?? '')) ?? null))
+    } catch {
+      if (my !== loadEpoch) return
+      pathsError.value = t('v2.edit.pathsLoadFailed')
+    }
+  }
+
   loading.value = false
   await nextTick()
   // dirtyTracking 在装载完成的 nextTick 之后才开启：回显本身不误报脏
@@ -731,6 +863,14 @@ onMounted(() => {
 watch(form, () => {
   if (dirtyTracking) dirty.value = true
 }, { deep: true })
+
+// 规则卡编辑同样计入脏态（回显写值发生在 dirtyTracking 开启前，不误报）
+watch([domain, pathRows], () => {
+  if (dirtyTracking) dirty.value = true
+}, { deep: true })
+
+// 卸载即清理未保存翻译行的悬挂状态（切路由走 load() 内 resetPathMappingState）
+onBeforeUnmount(resetPathMappingState)
 
 watch(dirty, (v) => {
   emit('dirty-change', v)
@@ -790,22 +930,96 @@ function mapConditions(): any[] {
   }))
 }
 
-// ── 保存（旧 Editor.save 时序逐字随迁）────────────────────────────────────
+// ── S10-4 规则卡：行提交与合并条件（翻译层）────────────────────────────────
+/** 将提交的脏行（新行 + 与回显基线有差异的行）；未动行零调用（不重写 path，往返安全，
+ * `/*` 单段宽容回显亦不回退）。翻译按行当前状态重跑（改端口不得回退路径翻译）。 */
+function collectPendingRows(): Array<{ row: PathRow; isNew: boolean; childPath: string; upstream: string }> {
+  const out: Array<{ row: PathRow; isNew: boolean; childPath: string; upstream: string }> = []
+  for (const row of pathRows.value) {
+    const b = row.baseline
+    const dirty = !b || b.path !== row.path || b.rule !== row.rule || b.service !== row.service || b.port !== row.port
+    if (!dirty) continue
+    out.push({
+      row,
+      isNew: !row.id,
+      childPath: translatedPath(row.path, row.rule),
+      upstream: mergeUpstream(row.service, row.port)
+    })
+  }
+  return out
+}
+
+/** 父路由 conditions 合并（预检与保存共用）：渲染行 + 域名翻译行（非空恰一条
+ * HEADER+Host+EQ，更新回显行或追加新行；清空则不含）+ 正则翻译行（恰为当前 REGEX
+ * 规则行，target=行子路由 id——挂分发路由是引擎活语义，后置路由条件引擎不评估）。
+ * 翻译行恒六字段（id 等回显杂字段不透传，与 mapConditions 口径一致）。 */
+function mergedConditions(): ConditionRow[] {
+  const out: ConditionRow[] = mapConditions()
+  if (form.value.route_type !== 'DISPATCH') return out
+  const d = domain.value.trim()
+  if (d) {
+    const prev = domainCond.value
+    out.push(prev
+      ? {
+          condition_type: prev.condition_type,
+          operator: prev.operator,
+          condition_key: prev.condition_key,
+          condition_value: d,
+          target_route_id: prev.target_route_id,
+          priority: prev.priority
+        }
+      : { condition_type: 'HEADER', operator: 'EQ', condition_key: 'Host', condition_value: d, target_route_id: '', priority: 1 })
+  }
+  for (const row of pathRows.value) {
+    if (row.rule !== 'REGEX') continue
+    const prev = row.id ? regexCondsByTarget.value.get(row.id) : undefined
+    out.push(prev
+      ? {
+          condition_type: prev.condition_type,
+          operator: prev.operator,
+          condition_key: prev.condition_key,
+          condition_value: row.path,
+          target_route_id: prev.target_route_id,
+          priority: prev.priority
+        }
+      : { condition_type: 'PATH', operator: 'REGEX', condition_key: '', condition_value: row.path, target_route_id: row.id, priority: 1 })
+  }
+  return out
+}
+
+// ── 保存（旧 Editor.save 时序逐字随迁 + S10-4 批量时序：行提交 → 父收尾 → 删行收尾）──
 async function save() {
   if (!canEditRoute.value) return
   if (loading.value || saving.value) return
   saveError.value = ''
   if (!validateBasic()) return
   if (!validateConditions()) return
-  // DISPATCH 且 conditions 空 = 客户端预检阻断（不调任何 API）
-  if (form.value.route_type === 'DISPATCH' && conditions.value.length === 0) {
+  const dispatch = form.value.route_type === 'DISPATCH'
+  // 行级预检（仅将提交的脏行）：后端 createRoute 硬拒 BACKEND 空 path（正则行 path 列
+  // 存正则原文非空），upstream 同为 BACKEND 必填；未动行不预检
+  const pending = dispatch ? collectPendingRows() : []
+  for (const p of pending) {
+    if (!p.childPath || !p.upstream) {
+      const idx = pathRows.value.indexOf(p.row) + 1
+      saveError.value = `${t('v2.edit.pathsTitle')} #${idx}: ${t('v2.edit.pathCol')}/${t('v2.edit.serviceCol')} ${t('v2.edit.validationFailed')}`
+      return
+    }
+  }
+  // DISPATCH 有效条件数（渲染行 + 域名翻译行 + 正则翻译行）为空 = 客户端预检阻断（不调任何 API）
+  const effectiveConds = dispatch
+    ? conditions.value.length
+      + (domain.value.trim() ? 1 : 0)
+      + pathRows.value.filter((r) => r.rule === 'REGEX').length
+    : conditions.value.length
+  if (dispatch && effectiveConds === 0) {
     saveError.value = t('v2.edit.dispatchNeedsConditions')
     return
   }
-  // DISPATCH 且有 conditions = validateRoute 服务端预检（先于 updateRoute，失败阻断）
-  if (form.value.route_type === 'DISPATCH' && conditions.value.length > 0) {
+  // DISPATCH 且有条件 = validateRoute 服务端预检（先于一切写操作，失败阻断）
+  if (dispatch) {
     try {
-      await validateRoute({ route_id: props.routeId, conditions: mapConditions() })
+      // 宽类型（字符串字段）→ DTO 字面量联合由调用侧收窄（mapConditions 先例同款）
+      await validateRoute({ route_id: props.routeId, conditions: mergedConditions() as never })
     } catch (e) {
       saveError.value = (e as Error)?.message || t('v2.edit.validationFailed')
       return
@@ -813,6 +1027,24 @@ async function save() {
   }
   saving.value = true
   try {
+    // ① 行提交（create→update；create 先行拿回填 id 供正则翻译行 target 引用；
+    //    行级乐观锁随行 expected_version=子 config_version）
+    for (const p of pending) {
+      if (p.isNew) {
+        const created = await createChildRoute({
+          route_name: synthesizeRowName(newPathRowSeq, p.row.path),
+          route_type: 'BACKEND',
+          path: p.childPath,
+          upstream_url: p.upstream,
+          parent_route_id: props.routeId
+        })
+        p.row.id = String((created as { id?: unknown })?.id ?? '')
+      } else {
+        const childPayload: Record<string, unknown> = { path: p.childPath, upstream_url: p.upstream }
+        if (p.row.childVersion) childPayload.expected_version = p.row.childVersion
+        await updateRoute(p.row.id, childPayload)
+      }
+    }
     const f = form.value
     const payload: Record<string, unknown> = {
       route_name: f.route_name,
@@ -823,7 +1055,7 @@ async function save() {
       remark: f.remark,
       tags: f.tags || '',
       parent_route_id: f.parent_route_id || undefined,
-      conditions: mapConditions(),
+      conditions: mergedConditions(),
       bindings: bindings.value.map((b, i) => ({
         plugin_id: b.plugin_id,
         binding_config: b.binding_config || '{}',
@@ -833,7 +1065,12 @@ async function save() {
     // 乐观锁（Long→String 契约）+ 环境仅在显式改动时携带（缺省保持）
     if (expectedVersion.value) payload.expected_version = expectedVersion.value
     if (envReady.value && formEnvironment.value !== initialEnvironment.value) payload.environment = formEnvironment.value
+    // ② 父路由收尾（翻译行随父保存落库；后端 deleteRoute 引用守卫由此先行解除）
     await updateRoute(props.routeId, payload)
+    // ③ 删行收尾（恒在父保存之后；此时被删行的正则翻译条件已随父保存移除）
+    for (const id of removedChildIds) {
+      await removeChildRoute(id)
+    }
     toast.success(t('v2.edit.saveSuccess'))
     toastFeedback.value = { kind: 'success', text: t('v2.edit.saveSuccess') }
     dirty.value = false
@@ -886,6 +1123,31 @@ onBeforeRouteLeave(async () => {
     if (!ok) return false
   }
 })
+
+// ── S10-4 规则卡：路径映射行操作与悬挂状态清理 ────────────────────────────
+/** 清理未保存翻译行的悬挂状态（切路由 load() / 卸载 onBeforeUnmount 双通道） */
+function resetPathMappingState() {
+  domain.value = ''
+  domainCond.value = null
+  pathRows.value = []
+  regexCondsByTarget.value = new Map()
+  removedChildIds = []
+  pathsError.value = ''
+}
+
+/** 添加路径：新行 id=''（未保存态），默认前缀规则；route_name 序号随行合成 */
+function addPathRow() {
+  newPathRowSeq += 1
+  pathRows.value.push({ id: '', path: '', rule: 'PREFIX', service: '', port: '', baseline: null, childVersion: '' })
+}
+
+/** 删行：回显行记入待删清单（保存末尾 deleteRoute），新行直接移除 */
+function removePathRow(index: number) {
+  const row = pathRows.value[index]
+  if (!row) return
+  if (row.id) removedChildIds.push(row.id)
+  pathRows.value.splice(index, 1)
+}
 
 // ── conditions 行操作（默认形态照旧表：HEADER/EQ/键值空/priority 1）──────────
 function addCondition() {
@@ -989,6 +1251,10 @@ function moveBinding(index: number, dir: -1 | 1) {
 .ref-cond-cell--act { flex: 0 0 auto; }
 .ref-cond-label { font-size: 11.5px; color: var(--app-text-tertiary); }
 .ref-cond-err { flex-basis: 100%; }
+.ref-paths { display: flex; flex-direction: column; gap: 8px; }
+.ref-paths-title { font-size: 13px; font-weight: 600; color: var(--app-text-primary); }
+.ref-path-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; padding: 10px 12px; border: 1px solid var(--app-border, var(--el-border-color)); border-radius: var(--app-radius-sm, 6px); }
+.ref-cond-cell--path { flex: 1 1 180px; }
 .ref-binding-row { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border: 1px solid var(--app-border, var(--el-border-color)); border-radius: var(--app-radius-sm, 6px); }
 .ref-binding-name { flex: 0 0 auto; font-size: 13px; font-weight: 600; color: var(--app-text-primary); }
 .ref-binding-config { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--app-font-mono, monospace); font-size: 12px; color: var(--app-text-secondary); }
