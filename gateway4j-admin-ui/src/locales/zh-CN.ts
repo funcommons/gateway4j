@@ -1186,7 +1186,14 @@ export default {
       loadFailed: '路由加载失败',
       retry: '重试',
       keyRequired: '条件键不能为空',
-      valueRequired: '条件值不能为空'
+      valueRequired: '条件值不能为空',
+      condKeyCookie: 'Cookie 名，如 theme',
+      condValueHost: '**.example.com',
+      condValueMethod: 'GET',
+      condValueRemoteAddr: '1.2.3.0/24',
+      condValueAfter: 'ISO-8601 时刻，如 2025-01-01T00:00:00+08:00',
+      condValueBefore: 'ISO-8601 时刻，如 2025-01-01T00:00:00+08:00',
+      condValueBetween: 'start,end（起始,结束）'
     }
   }
 }

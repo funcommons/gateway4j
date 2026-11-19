@@ -202,6 +202,8 @@
                 <FcInput
                   v-model="c.condition_key"
                   :type="c.condition_type === 'WEIGHT' ? 'number' : 'text'"
+                  :disabled="condKeyDisabled(c.condition_type)"
+                  :placeholder="condKeyPlaceholder(c.condition_type)"
                   :data-testid="`ref-cond-key-${i}`"
                 />
               </div>
@@ -210,6 +212,7 @@
                 <FcInput
                   v-model="c.condition_value"
                   :disabled="c.condition_type === 'WEIGHT'"
+                  :placeholder="condValuePlaceholder(c.condition_type)"
                   :data-testid="`ref-cond-value-${i}`"
                 />
               </div>
@@ -391,9 +394,14 @@
  *   path/upstream 仅 BACKEND 必填（^\/[^\s]+$ / ^https?:\/\/\S+$，maxlength 500）；
  *   sort 1-9999；remark/tags 200。字段错误位 ref-field-error-{field}（客户端校验与
  *   服务端 mapFieldErrors 共用通道）。
+ * - conditions 13 谓词下拉（SCG predicate 对齐，引擎 S10-1 同名）：既有 5（HEADER/PATH/
+ *   QUERY/BODY/GROOVY）+ 新七（HOST/METHOD/COOKIE/REMOTE_ADDR/AFTER/BEFORE/BETWEEN）+
+ *   WEIGHT 恒收尾；新七类型化提示——禁键六类型 key 输入禁用且校验豁免、COOKIE key 可编辑
+ *   仍必填、value 恒可编辑（禁 value 是 WEIGHT 独占），placeholder 双语随
+ *   v2.edit.condKeyCookie / condValueHost 等七 key。
  * - conditions 七 operator EQ/NE/CONTAINS/REGEX/EXISTS/GT/LT；WEIGHT 行 operator/value
- *   禁用 + key 走权重数字（旧语义随迁）；键值校验 v2 增量：key 必填、value 必填但
- *   EXISTS/WEIGHT 行可空，错误位 ref-cond-error-{n}。
+ *   禁用 + key 走权重数字（旧语义随迁）；键值校验 v2 增量：key 必填（禁键六类型豁免）、
+ *   value 必填但 EXISTS/WEIGHT 行可空，错误位 ref-cond-error-{n}。
  * - bindings 增改删 + 上下移排序（sort_order 0 起重排；旧页无上下移为 v2 增量、无启停
  *   禁臆造）；MAX 20 超限 ref-binding-max；增改走 FcDialog（插件选项 = listBuiltinTypes）。
  * - 保存时序（旧 Editor.save 逐字随迁）：canEdit/loading/saving 双击防重 → 字段校验 →
@@ -552,8 +560,43 @@ const operatorOptions = computed<SelectOpt[]>(() =>
   OPERATORS.map((op) => ({ value: op, label: t(`v2.edit.${OPERATOR_KEY[op]}`) }))
 )
 
-const COND_TYPES = ['HEADER', 'PATH', 'QUERY', 'BODY', 'GROOVY', 'WEIGHT']
+// 13 谓词（SCG predicate 对齐，引擎票 S10-1 同名）：既有 5 在前 + 新七居中 + WEIGHT 恒收尾
+const COND_TYPES = [
+  'HEADER', 'PATH', 'QUERY', 'BODY', 'GROOVY',
+  'HOST', 'METHOD', 'COOKIE', 'REMOTE_ADDR', 'AFTER', 'BEFORE', 'BETWEEN',
+  'WEIGHT'
+]
 const condTypeOptions = computed<SelectOpt[]>(() => COND_TYPES.map((v) => ({ value: v, label: v })))
+
+/** 无需 condition_key 的六类型：key 输入禁用 + 键值校验豁免（COOKIE key 可编辑，不在此列） */
+const KEY_DISABLED_TYPES = new Set(['HOST', 'METHOD', 'REMOTE_ADDR', 'AFTER', 'BEFORE', 'BETWEEN'])
+
+/** 新七谓词的类型化占位（用户可见文案一律 t()；i18n key 双语随 zh-CN/en-US v2.edit.*） */
+const COND_KEY_PLACEHOLDER: Record<string, string> = {
+  COOKIE: 'v2.edit.condKeyCookie'
+}
+const COND_VALUE_PLACEHOLDER: Record<string, string> = {
+  HOST: 'v2.edit.condValueHost',
+  METHOD: 'v2.edit.condValueMethod',
+  REMOTE_ADDR: 'v2.edit.condValueRemoteAddr',
+  AFTER: 'v2.edit.condValueAfter',
+  BEFORE: 'v2.edit.condValueBefore',
+  BETWEEN: 'v2.edit.condValueBetween'
+}
+
+function condKeyDisabled(type: string): boolean {
+  return KEY_DISABLED_TYPES.has(type)
+}
+
+function condKeyPlaceholder(type: string): string | undefined {
+  const key = COND_KEY_PLACEHOLDER[type]
+  return key ? t(key) : undefined
+}
+
+function condValuePlaceholder(type: string): string | undefined {
+  const key = COND_VALUE_PLACEHOLDER[type]
+  return key ? t(key) : undefined
+}
 
 /** 分发目标候选 = 路由树全量（排除自己）；候选降级时为空 */
 const targetOptions = computed<SelectOpt[]>(() =>
@@ -719,12 +762,15 @@ function validateBasic(): boolean {
   return Object.keys(errs).length === 0
 }
 
-/** 键值校验（v2 增量）：key 必填；value 必填但 EXISTS/WEIGHT 行可空；WEIGHT 行整行豁免 */
+/** 键值校验（v2 增量）：key 必填（禁键六类型豁免）；value 必填但 EXISTS/WEIGHT 行可空；WEIGHT 行整行豁免 */
 function validateConditions(): boolean {
   const errs: Record<number, string> = {}
   conditions.value.forEach((c, i) => {
     if (c.condition_type === 'WEIGHT') return
-    if (!String(c.condition_key ?? '').trim()) errs[i] = t('v2.edit.keyRequired')
+    // 禁键六类型 key 留空豁免（HOST/METHOD/REMOTE_ADDR/AFTER/BEFORE/BETWEEN 不需 key）；
+    // COOKIE key 未禁用 → 仍必填，不得过度豁免
+    const keyBlank = !String(c.condition_key ?? '').trim()
+    if (keyBlank && !KEY_DISABLED_TYPES.has(c.condition_type)) errs[i] = t('v2.edit.keyRequired')
     else if (!String(c.condition_value ?? '').trim() && c.operator !== 'EXISTS') errs[i] = t('v2.edit.valueRequired')
   })
   condErrors.value = errs

@@ -1189,7 +1189,14 @@ export default {
       loadFailed: 'Failed to load route',
       retry: 'Retry',
       keyRequired: 'Condition key is required',
-      valueRequired: 'Condition value is required'
+      valueRequired: 'Condition value is required',
+      condKeyCookie: 'Cookie name, e.g. theme',
+      condValueHost: '**.example.com',
+      condValueMethod: 'GET',
+      condValueRemoteAddr: '1.2.3.0/24',
+      condValueAfter: 'ISO-8601 instant, e.g. 2025-01-01T00:00:00Z',
+      condValueBefore: 'ISO-8601 instant, e.g. 2025-01-01T00:00:00Z',
+      condValueBetween: 'start,end (from,to)'
     }
   }
 }
