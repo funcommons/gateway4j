@@ -99,12 +99,20 @@ public class BuiltinPluginTypeRegistry {
         register(new BuiltinType("dingtalk", "钉钉认证插件", "PRE", "钉钉 SSO OAuth2 登录，用户信息注入 X-User 头",
                 obj(str("corpId", "企业 CorpId"), str("appKey", "应用 AppKey"), str("appSecret", "应用 AppSecret"),
                         str("loginServer", "登录主页"), str("cookieName", "Token Cookie 名"),
-                        arr("excludePaths", "排除路径"), arr("excludeFileExt", "排除文件扩展名"))));
-        register(new BuiltinType("watermark", "安全水印插件", "POST", "HTML 响应注入水印 JS，移除 CSP 头",
+                        arr("excludePaths", "排除路径"), arr("excludeFileExt", "排除文件扩展名"),
+                        pwdEnc("stateSecret", "State CSRF 密钥", "缺省从 appSecret 派生（SHA-256）"),
+                        numDef("stateTimeout", "State 时效(秒)", 300),
+                        pwdEnc("jwtSecret", "会话 JWT 密钥", "缺省回落 appSecret"),
+                        numDef("tokenTimeout", "会话 JWT 有效期(秒)", 43200),
+                        str("basePath", "logout 路径前缀（空=精确匹配 /logout）"),
+                        str("logoutRedirect", "logout 后跳转地址（空=200 JSON）"))));
+        register(new BuiltinType("watermark", "安全水印插件", "POST", "HTML 响应注入水印 JS（stripCsp=true 时移除 CSP 头）",
                 obj(str("org", "组织名称"), str("color", "水印颜色"),
                         num("width", "水印宽度"), num("height", "水印高度"),
                         num("fontSize", "字号"), num("rotate", "旋转角度"),
-                        str("scriptUrl", "自定义水印脚本 URL"))));
+                        str("scriptUrl", "自定义水印脚本 URL"),
+                        strDef("sessionCookieName", "会话 Cookie 名", "fu-gw-token"),
+                        boolDef("stripCsp", "剥离 CSP 头", false))));
     }
 
     public List<BuiltinType> listAll() {
@@ -151,6 +159,26 @@ public class BuiltinPluginTypeRegistry {
 
     private String mapOfStr(String name, String title) {
         return field(name, title, "{\"type\":\"object\",\"additionalProperties\":{\"type\":\"string\"},\"title\":\"@t\"}");
+    }
+
+    // ---- 带缺省值 / 敏感键形态（S11 补强键）----
+
+    private String strDef(String name, String title, String def) {
+        return field(name, title, "{\"type\":\"string\",\"title\":\"@t\",\"default\":\"" + def + "\"}");
+    }
+
+    private String numDef(String name, String title, long def) {
+        return field(name, title, "{\"type\":\"integer\",\"title\":\"@t\",\"default\":" + def + "}");
+    }
+
+    private String boolDef(String name, String title, boolean def) {
+        return field(name, title, "{\"type\":\"boolean\",\"title\":\"@t\",\"default\":" + def + "}");
+    }
+
+    /** 敏感键：password 形态 + 注明加密存储（gw_plugin.config 列 [ENCRYPT: AES-256-GCM]）。 */
+    private String pwdEnc(String name, String title, String desc) {
+        return field(name, title, "{\"type\":\"string\",\"format\":\"password\",\"title\":\"@t\","
+                + "\"description\":\"" + desc + "；加密存储（AES-256-GCM）\"}");
     }
 
     private String en(String name, String title, String... values) {

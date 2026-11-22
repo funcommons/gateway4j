@@ -1215,7 +1215,39 @@ signature = HMAC-SHA256(secret, accessKey + timestamp + nonce + bodyMd5)
 | 插件 | plugin_id | 阶段 | 说明 |
 |---|---|---|---|
 | 钉钉认证 | dingtalk | PRE | 钉钉 SSO OAuth2 登录，回调换取用户信息注入 X-User 头 |
-| 安全水印 | watermark | POST | HTML 响应注入水印 JS（</body> 前），移除 CSP 头 |
+| 安全水印 | watermark | POST | HTML 响应注入水印 JS（</body> 前），stripCsp=true 时移除 CSP 头 |
+
+#### 16.3.1 dingtalk 配置键（S11-1 补强，schema 见 GET /v1/plugins/builtin-types/dingtalk/schema）
+
+| 键 | 类型 | 缺省 | 说明 |
+|---|---|---|---|
+| corpId | String | — | 企业 CorpId |
+| appKey | String | — | 应用 AppKey |
+| appSecret | String | — | 应用 AppSecret（敏感，加密存储） |
+| loginServer | String | — | 登录主页 |
+| cookieName | String | `fu-gw-token` | 会话 Token Cookie 名 |
+| excludePaths | String[] | — | 放行路径（不走登录闸） |
+| excludeFileExt | String[] | — | 放行文件扩展名 |
+| stateSecret | String | appSecret 派生 | §1 state CSRF HMAC 密钥；缺省 SHA-256(appSecret) 32 字节（敏感，加密存储，schema 标 password 形态） |
+| stateTimeout | Integer | 300 | §1 state 签名时效（秒） |
+| jwtSecret | String | 回落 appSecret | §4 会话 JWT HS256 密钥；缺省回落 appSecret 并告警一次（敏感，加密存储，schema 标 password 形态） |
+| tokenTimeout | Integer | 43200 | §4 会话 JWT 有效期（秒，43200=12h） |
+| basePath | String | `""` | §5 logout 路径前缀；空 → 精确匹配 `/logout` |
+| logoutRedirect | String | `""` | §5 logout 后跳转地址；空 → 200 JSON，非空 → 302 该址 |
+
+#### 16.3.2 watermark 配置键（S11-2 补强，schema 见 GET /v1/plugins/builtin-types/watermark/schema）
+
+| 键 | 类型 | 缺省 | 说明 |
+|---|---|---|---|
+| org | String | `企业` | 水印组织名称 |
+| color | String | `rgba(200, 128, 128, 0.10)` | 水印颜色 |
+| width / height | Integer | 360 / 180 | 单枚水印尺寸（px） |
+| fontSize | Integer | 24 | 字号 |
+| rotate | Integer | -20 | 旋转角度 |
+| maxBodyLength | Integer | 1048576 | 参与注入的最大响应体长度（字节，超限透传） |
+| scriptUrl | String | — | 自定义水印脚本 URL |
+| sessionCookieName | String | `fu-gw-token` | 会话 cookie 名（对齐 dingtalk cookieName），脚本据此读 JWT payload 个性化文案 |
+| stripCsp | Boolean | false | 是否剥离 Content-Security-Policy 头；缺省保留，true 时仅在注入路径删除 |
 
 ---
 
