@@ -11,6 +11,10 @@ public class WatermarkPluginConfig {
     private int rotate = -20;
     private long maxBodyLength = 1024 * 1024;
     private String scriptUrl;
+    /** 会话 cookie 名，缺省对齐 DingTalkPluginConfig 的 fu-gw-token；脚本据此读 JWT payload 个性化文案。 */
+    private String sessionCookieName = "fu-gw-token";
+    /** 是否剥离 Content-Security-Policy 响应头；缺省 false=保留，仅在注入路径生效。 */
+    private boolean stripCsp = false;
 
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
@@ -30,4 +34,8 @@ public class WatermarkPluginConfig {
     public void setMaxBodyLength(long maxBodyLength) { this.maxBodyLength = maxBodyLength; }
     public String getScriptUrl() { return scriptUrl; }
     public void setScriptUrl(String scriptUrl) { this.scriptUrl = scriptUrl; }
+    public String getSessionCookieName() { return sessionCookieName; }
+    public void setSessionCookieName(String sessionCookieName) { this.sessionCookieName = sessionCookieName; }
+    public boolean isStripCsp() { return stripCsp; }
+    public void setStripCsp(boolean stripCsp) { this.stripCsp = stripCsp; }
 }
