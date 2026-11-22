@@ -41,7 +41,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *    MAC 密钥 = config.stateSecret，缺省从 appSecret 派生（SHA-256(appSecret) 全 32 字节，两端自洽）；
  *    MAC 输入 = random + "." + timestamp + "." + redirect 原文；时效 config.stateTimeout 秒（缺省 300）。
  * §2 回调 ?authCode= 先做 state 验签（MessageDigest.isEqual 常量时间）+ 时效，再 WebClient 换
- *    token/用户信息（出站 URL 不变）→ corpId 校验 → 自签 HS256 会话 JWT → HttpOnly cookie →
+ *    token/用户信息（出站前缀=apiBaseUrl，缺省 api.dingtalk.com，尾 '/' 剥除防双斜杠）→
+ *    corpId 校验 → 自签 HS256 会话 JWT → HttpOnly cookie →
  *    302 回 state 内完整原 URL（不代理，不进插件链）。
  * §3 鉴权闸门：Bearer/cookie 双源 token，验签+时效；过→注入 X-User/X-User-Nick（先移除既有同名头，
  *    防客户端伪造）放行；败→浏览器（Accept 含 text/html）302 重登，API 401 JSON+清 cookie。
@@ -52,8 +53,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class DingTalkPlugin extends AbstractGatewayPlugin {
 
     private static final Logger log = LoggerFactory.getLogger(DingTalkPlugin.class);
-    private static final String DINGTALK_TOKEN_URL = "https://api.dingtalk.com/v1.0/oauth2/userAccessToken";
-    private static final String DINGTALK_USER_URL = "https://api.dingtalk.com/v1.0/contact/users/me";
+    /** 出站 API 域名缺省锚：config.apiBaseUrl 未配置时出站 URL 逐字不变。 */
+    private static final String DEFAULT_API_BASE_URL = "https://api.dingtalk.com";
+    /** 出站路径不变，仅前缀（apiBaseUrl）可配。 */
+    private static final String TOKEN_PATH = "/v1.0/oauth2/userAccessToken";
+    private static final String USER_PATH = "/v1.0/contact/users/me";
     private static final String OAUTH_AUTHORIZE_URL = "https://login.dingtalk.com/oauth2/auth";
 
     private static final long DEFAULT_STATE_TIMEOUT_SECONDS = 300;
@@ -138,6 +142,15 @@ public class DingTalkPlugin extends AbstractGatewayPlugin {
             basePath = basePath.substring(0, basePath.length() - 1);
         }
         return (basePath + "/logout").equals(exchange.getRequest().getPath().value());
+    }
+
+    /** 出站 API 域名前缀：config.apiBaseUrl 优先（剥尾 '/' 防拼接双斜杠），空缺省回落 api.dingtalk.com。 */
+    private String apiBaseUrl() {
+        String base = config.getApiBaseUrl() == null ? "" : config.getApiBaseUrl().trim();
+        while (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
+        }
+        return base.isEmpty() ? DEFAULT_API_BASE_URL : base;
     }
 
     // ---------------------------------------------------------------- token 双源
@@ -277,7 +290,7 @@ public class DingTalkPlugin extends AbstractGatewayPlugin {
         // 出站链抽成具名落点（tokenMono/userSession），规避 javac 对 lambda 套 lambda 的裸型归因
         // （内层 lambda 参数被三参方法消费时，外层 onErrorResume 的 e 会被推成 Object）
         Mono<Map> tokenMono = webClient.post()
-                .uri(DINGTALK_TOKEN_URL)
+                .uri(apiBaseUrl() + TOKEN_PATH)
                 .bodyValue(tokenRequest)
                 .retrieve()
                 .bodyToMono(Map.class);
@@ -288,7 +301,7 @@ public class DingTalkPlugin extends AbstractGatewayPlugin {
                 return authFailure(exchange, "dingtalk token exchange failed");
             }
             Mono<Map> userMono = webClient.get()
-                    .uri(DINGTALK_USER_URL)
+                    .uri(apiBaseUrl() + USER_PATH)
                     .header("x-acs-dingtalk-access-token", accessToken)
                     .retrieve()
                     .bodyToMono(Map.class);

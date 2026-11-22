@@ -24,6 +24,8 @@ public class DingTalkPluginConfig {
     private String basePath;
     /** §5 logout 后跳转地址，可空：空→200 JSON，非空→302 该址。 */
     private String logoutRedirect;
+    /** 出站 API 域名前缀，缺省 https://api.dingtalk.com（路径不变，仅前缀可配；尾 '/' 拼接前剥除防双斜杠）。 */
+    private String apiBaseUrl = "https://api.dingtalk.com";
 
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
@@ -53,4 +55,6 @@ public class DingTalkPluginConfig {
     public void setBasePath(String basePath) { this.basePath = basePath; }
     public String getLogoutRedirect() { return logoutRedirect; }
     public void setLogoutRedirect(String logoutRedirect) { this.logoutRedirect = logoutRedirect; }
+    public String getApiBaseUrl() { return apiBaseUrl; }
+    public void setApiBaseUrl(String apiBaseUrl) { this.apiBaseUrl = apiBaseUrl; }
 }
