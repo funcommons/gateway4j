@@ -2,6 +2,7 @@ package fun.commons.gateway4j.engine.config;
 
 import fun.commons.gateway4j.engine.filter.DispatchRoutingFilter;
 import fun.commons.gateway4j.engine.filter.PluginExecutionFilter;
+import fun.commons.gateway4j.engine.filter.PluginResponseDecorationBridgeFilter;
 import fun.commons.gateway4j.engine.metrics.InFlightRequestTracker;
 import fun.commons.gateway4j.engine.plugin.metrics.PluginExecutionStats;
 import fun.commons.gateway4j.engine.plugin.runtime.PluginInstanceRegistry;
@@ -71,5 +72,17 @@ public class GatewayFilterBeansConfiguration {
                                                        @Value("${gateway4j.debug.shadow-token:}") String shadowToken) {
         return new PluginExecutionFilter(configService, pluginInstanceRegistry,
                 inFlightRequestTracker, pluginExecutionStats, shadowToken);
+    }
+
+    /**
+     * S11-4e 响应装饰晚绑定桥：order=-2（WRITE_RESPONSE_FILTER_ORDER-1，先于写过滤器
+     * 被调），无条件把 response 换成透明晚绑定装饰器，使插件链运行时 PRE 插件置入
+     * attributes 的装饰工厂在写回时才被解析应用——穿透 SCG NettyWriteResponseFilter
+     * 写回闭包（写回闭包在插件链运行前已绑定原始 exchange，PRE 的 mutate().response()
+     * 结构上不可达）。无工厂时逐字节透传，普通请求零影响。
+     */
+    @Bean
+    public PluginResponseDecorationBridgeFilter pluginResponseDecorationBridgeFilter() {
+        return new PluginResponseDecorationBridgeFilter();
     }
 }

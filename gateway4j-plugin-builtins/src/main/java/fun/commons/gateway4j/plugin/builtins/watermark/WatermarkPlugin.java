@@ -1,5 +1,6 @@
 package fun.commons.gateway4j.plugin.builtins.watermark;
 
+import fun.commons.gateway4j.common.constant.GatewayConstants;
 import fun.commons.gateway4j.common.util.JsonUtils;
 import fun.commons.gateway4j.plugin.api.AbstractGatewayPlugin;
 import fun.commons.gateway4j.plugin.api.PluginChain;
@@ -9,12 +10,14 @@ import org.reactivestreams.Publisher;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.http.MediaType;
+import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.http.server.reactive.ServerHttpResponseDecorator;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
+import java.util.function.Function;
 
 /**
  * 安全水印插件。拦截 HTML 响应，在 </body> 前注入水印脚本（缺省内联 IIFE 自包含执行；
@@ -31,12 +34,26 @@ import java.nio.charset.StandardCharsets;
  * <p>CSP 头按需剥离：stripCsp=false（缺省）保留 Content-Security-Policy；true 时仅在
  * 注入路径删除。非 HTML（含 SSE text/event-stream）与超限响应透传路径一律不动 CSP 头。</p>
  *
- * <p><b>架构约束：响应改写类插件必须挂 PRE 阶段转发前装饰（order=900 置 PRE 末尾）。</b>
- * PluginExecutionFilter 的 POST 链在 {@code chain.filter(exchange).then(POST 链)} 中于转发
- * 完成后执行，此时上游响应已由 SCG 用原始 response 写回客户端——POST 阶段的 response
- * decorator mutate 太晚，天然失效（真实流量实测 execute 被调但响应零注入）。挂 PRE 末尾
- * （dingtalk=2/security 等短路类先跑：未登录已被 302 短路轮不到水印）让放行请求先被
- * WatermarkDecorator 包装再转发，注入才能生效。</p>
+ * <p><b>架构约束：响应改写类插件的响应装饰必须晚绑定（S11-4e），三层叙事：</b></p>
+ * <ol>
+ *   <li>① POST 阶段改写天然失效：PluginExecutionFilter 的 POST 链在
+ *       {@code chain.filter(exchange).then(POST 链)} 中于转发完成后执行，上游响应已由
+ *       SCG 用原始 response 写回客户端——已修（phase PRE，order=900 置 PRE 末尾，
+ *       dingtalk=2/security 等短路类先跑：未登录已被 302 短路轮不到水印）；</li>
+ *   <li>② runner 边界 mutated 传播断裂：PRE 插件 mutate 后的 exchange 此前未传播到
+ *       转发链——已修（S11-4d，FailSafePluginChainRunner 边界）；</li>
+ *   <li>③ SCG 写回闭包提前绑定：NettyWriteResponseFilter（order=-1）的写回闭包
+ *       {@code chain.filter(exchange).then(Mono.defer(...))} 在插件链（order 10020）
+ *       运行<b>前</b>就捕获了装配时的原始 exchange——PRE 插件 mutate().response()
+ *       只向下游传播，写回用的仍是原始 response，装饰结构上不可达（真实流量实测
+ *       装饰器包上了但 writeWith 零调用）——本票修复（S11-4e 晚绑定桥）。</li>
+ * </ol>
+ *
+ * <p><b>响应装饰类插件新用法（勿再 mutate().response()）</b>：execute 时把装饰工厂
+ * {@code Function<ServerHttpResponse, ServerHttpResponse>} 置入 exchange attributes
+ * （{@link GatewayConstants#RESPONSE_DECORATOR_FACTORY_KEY}），然后透传 exchange——
+ * order=-2 的桥（engine 的 PluginResponseDecorationBridgeFilter）持有的晚绑定装饰器
+ * 会在写回时解析工厂并应用，穿透 SCG 写回闭包。</p>
  */
 public class WatermarkPlugin extends AbstractGatewayPlugin {
 
@@ -238,9 +255,13 @@ public class WatermarkPlugin extends AbstractGatewayPlugin {
         if (config == null || !config.isEnabled()) {
             return chain.execute(exchange);
         }
-        ServerWebExchange mutated = exchange.mutate()
-                .response(new WatermarkDecorator(exchange)).build();
-        return chain.execute(mutated);
+        // S11-4e 晚绑定装饰：不再 mutate().response()——SCG NettyWriteResponseFilter
+        // （order=-1）的写回闭包在本插件链（order 10020）运行前已绑定原始 exchange，
+        // mutate 结构上不可达。置装饰工厂进 attributes（原始/mutated exchange 共享），
+        // 由 order=-2 桥的晚绑定装饰器在写回时解析应用（详见 GatewayConstants 契约）。
+        Function<ServerHttpResponse, ServerHttpResponse> factory = WatermarkDecorator::new;
+        exchange.getAttributes().put(GatewayConstants.RESPONSE_DECORATOR_FACTORY_KEY, factory);
+        return chain.execute(exchange);
     }
 
     @Override
@@ -294,8 +315,8 @@ public class WatermarkPlugin extends AbstractGatewayPlugin {
 
     private class WatermarkDecorator extends ServerHttpResponseDecorator {
 
-        WatermarkDecorator(ServerWebExchange exchange) {
-            super(exchange.getResponse());
+        WatermarkDecorator(ServerHttpResponse response) {
+            super(response);
         }
 
         @Override
