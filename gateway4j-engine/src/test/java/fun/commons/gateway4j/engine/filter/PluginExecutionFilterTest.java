@@ -328,6 +328,144 @@ class PluginExecutionFilterTest {
         assertArrayEquals(new long[]{1, 0, 0}, stats.statsFor("gpre"));
     }
 
+    // ------------------------------------------------------------------
+    // S11-4d: PRE mutated-exchange propagation to the forward
+    // ------------------------------------------------------------------
+
+    /**
+     * A PRE plugin handing a mutated exchange (response decorator) to the chain:
+     * the decorator must survive the runner boundary and wrap the response the
+     * forward chain actually sees — otherwise response-mutating PRE plugins
+     * (watermark etc.) silently no-op (S11-4c regression: execute ran, forward
+     * injected nothing).
+     */
+    @Test
+    void preResponseDecoratorReachesTheForwardChain() {
+        seed();
+        MockServerWebExchange exchange = exchange();
+        java.util.concurrent.atomic.AtomicInteger decoratorWrites = new java.util.concurrent.atomic.AtomicInteger();
+        registry.register(new GatewayPlugin() {
+            @Override public String pluginId() { return "decorator-pre"; }
+            @Override public String pluginName() { return pluginId(); }
+            @Override public String phase() { return "PRE"; }
+            @Override public int order() { return 900; }
+            @Override public Mono<Void> execute(ServerWebExchange ex, PluginChain chain) {
+                execution.add("decorator-pre:PRE");
+                org.springframework.http.server.reactive.ServerHttpResponseDecorator decorator =
+                        new org.springframework.http.server.reactive.ServerHttpResponseDecorator(ex.getResponse()) {
+                            @Override public Mono<Void> writeWith(
+                                    org.reactivestreams.Publisher<? extends org.springframework.core.io.buffer.DataBuffer> body) {
+                                decoratorWrites.incrementAndGet();
+                                return super.writeWith(body);
+                            }
+                        };
+                return chain.execute(ex.mutate().response(decorator).build());
+            }
+        });
+        plugins.add(Plugin.builder().id(10L).pluginId("decorator-pre").pluginName("d")
+                .pluginType("BUILTIN").pluginPhase("PRE").scope("GLOBAL")
+                .status("ENABLED").sortOrder(900).config("{}").build());
+        configService.loadAllConfig();
+
+        java.util.concurrent.atomic.AtomicReference<ServerWebExchange> seen =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        filter.filter(exchange, ex -> {
+            seen.set(ex);
+            // simulated forward writes the upstream body through the response it received
+            return ex.getResponse().writeWith(Mono.just(ex.getResponse().bufferFactory()
+                    .wrap("upstream".getBytes())));
+        }).block();
+
+        assertNotNull(seen.get(), "forward chain must run");
+        assertInstanceOf(org.springframework.http.server.reactive.ServerHttpResponseDecorator.class,
+                seen.get().getResponse(),
+                "forward must receive the PRE-mutated exchange (decorator survives the runner boundary)");
+        assertEquals(1, decoratorWrites.get(), "forward response writes must flow through the decorator");
+    }
+
+    /** Multi-plugin propagation: p1 mutates → p2 receives the mutated exchange → forward gets the SAME one. */
+    @Test
+    void mutatedExchangePropagatesAcrossPluginsToTheForward() {
+        seed();
+        MockServerWebExchange exchange = exchange();
+        java.util.concurrent.atomic.AtomicReference<ServerWebExchange> plugin2Saw =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        registry.register(new GatewayPlugin() {
+            @Override public String pluginId() { return "mutator-p1"; }
+            @Override public String pluginName() { return pluginId(); }
+            @Override public String phase() { return "PRE"; }
+            @Override public int order() { return 1; }
+            @Override public Mono<Void> execute(ServerWebExchange ex, PluginChain chain) {
+                execution.add("mutator-p1:PRE");
+                org.springframework.http.server.reactive.ServerHttpResponseDecorator decorator =
+                        new org.springframework.http.server.reactive.ServerHttpResponseDecorator(ex.getResponse()) {};
+                return chain.execute(ex.mutate().response(decorator).build());
+            }
+        });
+        registry.register(new GatewayPlugin() {
+            @Override public String pluginId() { return "passthrough-p2"; }
+            @Override public String pluginName() { return pluginId(); }
+            @Override public String phase() { return "PRE"; }
+            @Override public int order() { return 2; }
+            @Override public Mono<Void> execute(ServerWebExchange ex, PluginChain chain) {
+                execution.add("passthrough-p2:PRE");
+                plugin2Saw.set(ex);
+                return chain.execute(ex);
+            }
+        });
+        plugins.add(Plugin.builder().id(11L).pluginId("mutator-p1").pluginName("m1")
+                .pluginType("BUILTIN").pluginPhase("PRE").scope("GLOBAL")
+                .status("ENABLED").sortOrder(1).config("{}").build());
+        plugins.add(Plugin.builder().id(12L).pluginId("passthrough-p2").pluginName("p2")
+                .pluginType("BUILTIN").pluginPhase("PRE").scope("GLOBAL")
+                .status("ENABLED").sortOrder(2).config("{}").build());
+        configService.loadAllConfig();
+
+        java.util.concurrent.atomic.AtomicReference<ServerWebExchange> seen =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        filter.filter(exchange, ex -> {
+            seen.set(ex);
+            return Mono.empty();
+        }).block();
+
+        assertNotNull(plugin2Saw.get(), "plugin 2 must run");
+        assertSame(plugin2Saw.get(), seen.get(),
+                "the exchange plugin 2 received must be the very exchange the forward gets");
+    }
+
+    /** Anchor (existing semantics): a PRE plugin that writes the response must skip forward and POST chain. */
+    @Test
+    void preCommittedResponseSkipsForwardAndPostChain() {
+        seed();
+        MockServerWebExchange exchange = exchange();
+        registry.register(new GatewayPlugin() {
+            @Override public String pluginId() { return "shortcircuit-pre"; }
+            @Override public String pluginName() { return pluginId(); }
+            @Override public String phase() { return "PRE"; }
+            @Override public int order() { return 1; }
+            @Override public Mono<Void> execute(ServerWebExchange ex, PluginChain chain) {
+                execution.add("shortcircuit-pre:PRE");
+                ex.getResponse().setStatusCode(HttpStatus.I_AM_A_TEAPOT);
+                return ex.getResponse().writeWith(Mono.just(ex.getResponse().bufferFactory()
+                        .wrap("short-circuited".getBytes())));
+            }
+        });
+        plugins.add(Plugin.builder().id(13L).pluginId("shortcircuit-pre").pluginName("s")
+                .pluginType("BUILTIN").pluginPhase("PRE").scope("GLOBAL")
+                .status("ENABLED").sortOrder(1).config("{}").build());
+        configService.loadAllConfig();
+
+        boolean[] forwarded = {false};
+        filter.filter(exchange, ex -> {
+            forwarded[0] = true;
+            return Mono.empty();
+        }).block();
+
+        assertFalse(forwarded[0], "committed response must skip the forward");
+        assertFalse(execution.contains("gpost:POST"), "committed response must skip the POST chain too");
+        assertEquals(HttpStatus.I_AM_A_TEAPOT, exchange.getResponse().getStatusCode());
+    }
+
     @Test
     void onErrorCloseConfigReachesTheChainRunner() {
         // security-style strict config on a throwing plugin: 503 short-circuit, no forward

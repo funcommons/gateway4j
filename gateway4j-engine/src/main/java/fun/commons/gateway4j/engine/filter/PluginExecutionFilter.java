@@ -21,6 +21,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Bridges the gateway plugin chain into the SCG filter chain:
@@ -35,6 +36,11 @@ import java.util.Objects;
  *       they are bound to), ordered by binding sort_order.</li>
  *   <li>Every plugin runs fail-open (see {@link FailSafePluginChainRunner}): a
  *       plugin error is logged and the chain continues.</li>
+ *   <li>S11-4d: a PRE plugin may hand a mutated exchange downstream (e.g. a
+ *       response decorator); the forward uses the chain's FINAL exchange, so
+ *       the mutation (rewrite/decorator) reaches the upstream call instead of
+ *       dying at the runner boundary. The POST chains stay observe-only on the
+ *       original exchange.</li>
  *   <li>The POST chain runs on both forward outcomes — success AND failure
  *       (upstream refused/timeout) — so logging-post/tracing-post/cache-post
  *       never miss failed requests. On failure the POST chain runs, then the
@@ -153,15 +159,29 @@ public class PluginExecutionFilter implements GlobalFilter, org.springframework.
                     ids(pre), ids(post));
         }
 
-        return new FailSafePluginChainRunner(pre, activeStats).execute(exchange, Mono.empty())
+        // S11-4d: a PRE plugin may hand a mutated exchange downstream (e.g. a
+        // response decorator for watermark injection). The runner's continuation
+        // receives the chain's FINAL exchange; capturing it here lets the forward
+        // use the mutated view instead of the stale original — the mutation used
+        // to die at the runner boundary. When the chain never reached the end
+        // (a PRE plugin short-circuited without delegating) the reference stays
+        // null and we fall back to the original exchange, exactly as before.
+        AtomicReference<ServerWebExchange> chainedExchange = new AtomicReference<>();
+        return new FailSafePluginChainRunner(pre, activeStats)
+                .executeFn(exchange, ex -> {
+                    chainedExchange.set(ex);
+                    return Mono.empty();
+                })
                 .then(Mono.defer(() -> {
-                    if (exchange.getResponse().isCommitted()) {
+                    ServerWebExchange forwarding = chainedExchange.get() != null
+                            ? chainedExchange.get() : exchange;
+                    if (forwarding.getResponse().isCommitted()) {
                         // A PRE plugin short-circuited (already wrote the response):
                         // neither the forward nor the POST chain may run.
                         log.debug("Response committed by PRE plugin chain, skipping forward and POST chain");
                         return Mono.empty();
                     }
-                    applyRewrite(exchange);
+                    applyRewrite(forwarding);
                     // POST chain must run on BOTH outcomes of the forward:
                     //  - success  → .then(defer(post))
                     //  - failure (upstream refused/timeout) → onErrorResume runs the POST
@@ -169,7 +189,9 @@ public class PluginExecutionFilter implements GlobalFilter, org.springframework.
                     //    re-emits the ORIGINAL error. The forward is never re-attempted
                     //    (no second chain.filter subscription in any resume path) and a
                     //    POST-chain failure must not mask the upstream error.
-                    return chain.filter(exchange)
+                    // POST stays observe-only on the ORIGINAL exchange (legacy runner
+                    // API): POST has no decorator semantics, its inputs are unchanged.
+                    return chain.filter(forwarding)
                             .onErrorResume(forwardError -> {
                                 // Marker for POST-phase observers (MetricsPlugin counts the
                                 // request as an error even though no status was rendered yet).

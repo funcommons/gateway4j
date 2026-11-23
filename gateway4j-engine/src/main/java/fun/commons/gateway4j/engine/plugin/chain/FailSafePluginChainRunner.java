@@ -12,6 +12,7 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * Executes a plugin list in order with per-plugin fail-open semantics:
@@ -36,6 +37,16 @@ import java.util.List;
  * {@link PluginExecutionStats} — {@code ok} / {@code skipped} / {@code error} —
  * feeding the {@code gateway4j_plugin_execution} meter and the Redis runtime
  * catalog's {@code stats} object.</p>
+ *
+ * <p>Exchange propagation (S11-4d): within the chain every plugin already
+ * receives whatever its predecessor handed downstream (a plugin may call
+ * {@code chain.execute(mutated)}). {@link #executeFn(ServerWebExchange, Function)}
+ * extends that propagation past the chain boundary: the terminal continuation
+ * is invoked with the chain's final exchange, so caller-side steps that run
+ * after the chain (the SCG forward, path rewrite) observe the mutated view
+ * (e.g. a PRE response decorator) instead of the stale original. The legacy
+ * {@link #execute(ServerWebExchange, Mono)} keeps its fixed-Mono continuation
+ * for observe-only chains.</p>
  */
 public class FailSafePluginChainRunner {
 
@@ -62,19 +73,54 @@ public class FailSafePluginChainRunner {
     }
 
     /**
+     * Legacy entry point: the terminal continuation is a fixed {@link Mono},
+     * which is blind to any exchange mutation a plugin performed on the way
+     * through the chain. Delegates to {@link #executeFn(ServerWebExchange,
+     * Function)} discarding the chain's final exchange — the right choice for
+     * observe-only chains (POST phase) and for continuations that don't depend
+     * on the mutated view.
+     *
      * @param continuation executed after the last plugin (e.g. the SCG filter chain);
      *                     pass {@link Mono#empty()} for observe-only chains (POST phase).
      */
     public Mono<Void> execute(ServerWebExchange exchange, Mono<Void> continuation) {
         Mono<Void> base = continuation == null ? Mono.<Void>empty() : continuation;
-        Mono<Void> guarded = base
+        return executeFn(exchange, ignored -> base);
+    }
+
+    /**
+     * S11-4d: like {@link #execute(ServerWebExchange, Mono)} but the terminal
+     * continuation receives the chain's <em>final</em> exchange — the one the
+     * last executed plugin handed downstream. A PRE plugin may mutate the
+     * exchange (e.g. wrap the response in a decorator for watermark injection);
+     * with the legacy API that mutation died at this runner's boundary because
+     * the caller kept forwarding the ORIGINAL exchange reference. Here the
+     * mutated exchange flows out of the chain, so the caller can forward it.
+     *
+     * <p>The continuation guard rail (continuation-started marker, see
+     * {@code onErrorResume} below) is unchanged: the marker lands on the entry
+     * exchange's attribute map, which mutated (decorated) exchanges share by
+     * delegation.</p>
+     *
+     * @param continuation function executed after the last plugin; receives the
+     *                     final chain exchange. The continuation Mono is only
+     *                     subscribed if the chain reached the end (every plugin
+     *                     delegated) — a short-circuiting plugin that never
+     *                     delegates skips it by construction.
+     */
+    public Mono<Void> executeFn(ServerWebExchange exchange,
+                                Function<ServerWebExchange, Mono<Void>> continuation) {
+        Function<ServerWebExchange, Mono<Void>> guarded = ex -> continuation.apply(ex)
                 .doOnSubscribe(s -> exchange.getAttributes().put(CONTINUATION_STARTED_ATTR, Boolean.TRUE));
         return executeFrom(0, exchange, guarded);
     }
 
-    private Mono<Void> executeFrom(int index, ServerWebExchange exchange, Mono<Void> continuation) {
+    private Mono<Void> executeFrom(int index, ServerWebExchange exchange,
+                                   Function<ServerWebExchange, Mono<Void>> continuation) {
         if (index >= plugins.size()) {
-            return continuation;
+            // End of the chain: hand the continuation the exchange this level
+            // received — the final (possibly plugin-mutated) view.
+            return continuation.apply(exchange);
         }
         GatewayPlugin plugin = plugins.get(index);
 
@@ -151,9 +197,9 @@ public class FailSafePluginChainRunner {
     private final class RemainingChain implements PluginChain {
 
         private final int index;
-        private final Mono<Void> continuation;
+        private final Function<ServerWebExchange, Mono<Void>> continuation;
 
-        private RemainingChain(int index, Mono<Void> continuation) {
+        private RemainingChain(int index, Function<ServerWebExchange, Mono<Void>> continuation) {
             this.index = index;
             this.continuation = continuation;
         }

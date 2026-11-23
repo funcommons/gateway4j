@@ -14,6 +14,7 @@ import reactor.test.StepVerifier;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -336,5 +337,126 @@ class FailSafePluginChainRunnerTest {
 
         assertEquals(List.of("after"), log);
         assertNull(exchange.getResponse().getStatusCode(), "open policy must not touch the response");
+    }
+
+    // ------------------------------------------------------------------
+    // S11-4d: legacy Mono continuation API stays intact (POST observe-only usage)
+    // ------------------------------------------------------------------
+
+    /**
+     * Anchor: the legacy {@code execute(exchange, Mono)} API (used by the POST
+     * observe-only chains) keeps running the continuation exactly once, even for
+     * a plugin that mutates the exchange downstream.
+     */
+    @Test
+    void legacyMonoContinuationStillRunsExactlyOnce() {
+        MockServerWebExchange exchange = exchange();
+        AtomicInteger forwarded = new AtomicInteger();
+
+        GatewayPlugin mutator = new GatewayPlugin() {
+            @Override public String pluginId() { return "mutator"; }
+            @Override public String pluginName() { return "mutator"; }
+            @Override public String phase() { return "PRE"; }
+            @Override public int order() { return 0; }
+            @Override public Mono<Void> execute(ServerWebExchange ex, PluginChain chain) {
+                return chain.execute(ex.mutate().response(
+                        new org.springframework.http.server.reactive.ServerHttpResponseDecorator(ex.getResponse()) {}
+                ).build());
+            }
+        };
+
+        StepVerifier.create(new FailSafePluginChainRunner(List.of(mutator))
+                        .execute(exchange, Mono.fromRunnable(forwarded::incrementAndGet)))
+                .verifyComplete();
+
+        assertEquals(1, forwarded.get(), "legacy continuation must run exactly once");
+    }
+
+    // ------------------------------------------------------------------
+    // S11-4d: executeFn — the continuation receives the chain's final exchange
+    // ------------------------------------------------------------------
+
+    /** Mutates the exchange (response decorator) and hands it to the chain. */
+    private GatewayPlugin mutator(String id, List<String> log) {
+        return new GatewayPlugin() {
+            @Override public String pluginId() { return id; }
+            @Override public String pluginName() { return id; }
+            @Override public String phase() { return "PRE"; }
+            @Override public int order() { return 0; }
+            @Override public Mono<Void> execute(ServerWebExchange ex, PluginChain chain) {
+                log.add(id);
+                return chain.execute(ex.mutate().response(
+                        new org.springframework.http.server.reactive.ServerHttpResponseDecorator(ex.getResponse()) {}
+                ).build());
+            }
+        };
+    }
+
+    @Test
+    void executeFnHandsFinalExchangeToTheContinuation() {
+        MockServerWebExchange exchange = exchange();
+        AtomicReference<ServerWebExchange> continuationSaw = new AtomicReference<>();
+
+        StepVerifier.create(new FailSafePluginChainRunner(List.of(mutator("m1", log)))
+                        .executeFn(exchange, ex -> {
+                            continuationSaw.set(ex);
+                            return Mono.empty();
+                        }))
+                .verifyComplete();
+
+        assertNotNull(continuationSaw.get(), "continuation must run at the chain boundary");
+        assertInstanceOf(org.springframework.http.server.reactive.ServerHttpResponseDecorator.class,
+                continuationSaw.get().getResponse(),
+                "continuation must receive the plugin-mutated exchange, not the original");
+    }
+
+    @Test
+    void executeFnPropagatesMutatedExchangeAcrossPlugins() {
+        MockServerWebExchange exchange = exchange();
+        AtomicReference<ServerWebExchange> plugin2Saw = new AtomicReference<>();
+        AtomicReference<ServerWebExchange> continuationSaw = new AtomicReference<>();
+
+        GatewayPlugin passthrough = new GatewayPlugin() {
+            @Override public String pluginId() { return "p2"; }
+            @Override public String pluginName() { return "p2"; }
+            @Override public String phase() { return "PRE"; }
+            @Override public int order() { return 0; }
+            @Override public Mono<Void> execute(ServerWebExchange ex, PluginChain chain) {
+                plugin2Saw.set(ex);
+                return chain.execute(ex);
+            }
+        };
+
+        StepVerifier.create(new FailSafePluginChainRunner(List.of(mutator("m1", log), passthrough))
+                        .executeFn(exchange, ex -> {
+                            continuationSaw.set(ex);
+                            return Mono.empty();
+                        }))
+                .verifyComplete();
+
+        assertEquals(List.of("m1"), log);
+        assertSame(plugin2Saw.get(), continuationSaw.get(),
+                "plugin 2 and the continuation must see the very same mutated exchange");
+    }
+
+    @Test
+    void mutatedExchangeSurvivesFailOpenContinue() {
+        // m1 mutates → boom-async explodes → fail-open continues with the exchange
+        // boom-async received (the mutated one) → continuation still sees the decorator
+        MockServerWebExchange exchange = exchange();
+        AtomicReference<ServerWebExchange> continuationSaw = new AtomicReference<>();
+
+        StepVerifier.create(new FailSafePluginChainRunner(List.of(
+                        mutator("m1", log), asyncBoom("boom-async")))
+                        .executeFn(exchange, ex -> {
+                            continuationSaw.set(ex);
+                            return Mono.empty();
+                        }))
+                .verifyComplete();
+
+        assertEquals(List.of("m1"), log);
+        assertInstanceOf(org.springframework.http.server.reactive.ServerHttpResponseDecorator.class,
+                continuationSaw.get().getResponse(),
+                "fail-open continue must preserve the mutated exchange for the continuation");
     }
 }
