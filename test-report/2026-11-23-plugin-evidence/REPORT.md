@@ -37,8 +37,8 @@
 | # | 证据 | 断言 | 结果 | 截图 |
 |---|---|---|---|---|
 | ev1 | 未登录 302 跳钉钉 | `GET /mock/hello` 无 cookie → 302 → `login.dingtalk.com/oauth2/auth?...state=...` | ✅ | `ev1-mock-intercept.png`（HTTP 级抓包+state 四段解构）/ `ev1-login-redirect.png`（浏览器真实跳转落到钉钉域名） |
-| ev2 | 登录态 + 水印渲染 | 回调 `?authCode&state` → 出站换 token → users/me → JWT cookie（httpOnly）→ 302 回原 URL → 上游页面 **canvas 水印满屏** + `X-User: mock-union-001` 回显 | ✅ | `ev2-logged-in-watermark.png` |
-| ev3 | 会话 cookie 安全性 | `fu-gw-token` httpOnly=true；`document.cookie` 读不到 → 水印回落静态文案（已知限制，见 §5） | ✅ | run.json `ev3` 字段 |
+| ev2 | 登录态 + 水印渲染（用户化） | 回调 `?authCode&state` → 出站换 token → users/me → JWT cookie（httpOnly）+ **展示 cookie fu-gw-nick（非 HttpOnly，值=预脱敏「张\*\|138\*\*\*\*8000」）** → 302 回原 URL → 上游页面 **canvas 水印满屏且为用户化文案「名传内部数据 严禁外泄 / 张\* 138\*\*\*\*8000 <天数> <CRC>」** + `X-User: mock-union-001` 回显 | ✅ | `ev2-logged-in-watermark.png`（S11-6 后复拍） |
+| ev3 | 会话 cookie 安全性 | `fu-gw-token` httpOnly=true（XSS 读不到会话）；`fu-gw-nick` 非 HttpOnly 且 JS 可见（水印身份来源）——两者共存，安全与个性化兼得（S11-6） | ✅ | run.json `ev3` 字段 + ev2 cookies |
 | ev4 | 水印防删 | JS 删除 `#gw-watermark` → MutationObserver 即刻重建（`restored: true`） | ✅ | `ev4-watermark-antiremove.png`（红框为探针删除尝试标记，水印满屏依旧） |
 | ev5 | state 防篡改 | 篡改 state 第四段（HMAC 签名）→ `401 {"code":401,"message":"state validation failed"}` | ✅ | `ev5-tampered-401.png` |
 | ev6 | logout | `GET /mock/logout` → 200 logged out + cookie 清空（cookies after = 0）→ 再访问 302 重登 | ✅ | `ev6-after-logout.png`（logout 后浏览器被 302 到钉钉登录域——重新进入未登录拦截流的真实落页） |
@@ -90,12 +90,12 @@ filter(exchange, chain) → chain.filter(exchange)        ← 下行传"它被�
 
 **修复后即时验证**：响应体 135 字节 → 5078 字节，脚本恰在 `</body>` 前注入，canvas/CRC16/MutationObserver 能力函数全在位。
 
-### 4.4 三组 mvn 终态（S11-4d + S11-4e 合计）
+### 4.4 三组 mvn 终态（S11-4d + S11-4e + S11-6 合计）
 
 | 模块 | 终态 |
 |---|---|
 | gateway4j-engine | 247 全绿（S11-4d +7 / S11-4e 桥 +6，基线 234） |
-| gateway4j-plugin-builtins | 267 全绿（水印语义迁移 13 用例 + attribute 契约 2 新增，基线 265） |
+| gateway4j-plugin-builtins | **275 全绿**（基线 265 → S11-4e 语义迁移 +2 → S11-6 展示 cookie +8） |
 | gateway4j-gateway-boot | 25 全绿（含 Testcontainers 冒烟 4/4） |
 
 ### 4.5 波及面提示（遗留候选池）
@@ -104,14 +104,16 @@ filter(exchange, chain) → chain.filter(exchange)        ← 下行传"它被�
 
 ---
 
-## 5. 已知限制与处置候选
+## 5. 已知限制与处置
 
-**HttpOnly 会话 cookie vs 水印用户化冲突**（ev3 实锤）：
-- S11-1 安全口径下 `fu-gw-token` 为 HttpOnly，水印脚本 `document.cookie` 读不到 JWT → nick/mobile 脱敏用户化文案不生效，**回落静态文案**（当前截图即静态「名传内部系统 / 未经授权 禁止外传」）；
-- 防伪权衡：改成非 HttpOnly 会把会话 JWT 暴露给 XSS；
-- **处置候选**：钉钉插件回调时额外下发非 HttpOnly 的**展示专用** cookie（如 `fu-gw-nick`，只含脱敏展示字段、无会话效力），水印脚本改读它——待用户裁决后排票。
+**~~HttpOnly 会话 cookie vs 水印用户化冲突~~ ✅ 已解决（S11-6，commit 0019784，用户裁决后落地）**：
+- 初测实锤：`fu-gw-token` 为 HttpOnly（S11-1 安全口径），水印脚本 `document.cookie` 读不到 JWT → 用户化文案回落静态（首轮截图即静态文案）；
+- **解法**：钉钉插件登录时额外下发非 HttpOnly 展示 cookie `fu-gw-nick`，值=**服务端预脱敏**的「张\*|138\*\*\*\*8000」整体 URLEncode（原始 nick/手机号不进浏览器，XSS 也只能读到脱敏值，无会话效力）；水印脚本优先读它渲染用户化文案，JWT 解析保留为非 HttpOnly 部署回退；logout/401 双清；
+- **复测实锤**：ev2 截图水印文案已切用户化「名传内部数据 严禁外泄 / 张\* 138\*\*\*\*8000 9823 2A」（9823=自 2000-01-01 天数，2A=CRC16 校验码），ev3 确认 `fu-gw-token` 仍 HttpOnly + `fu-gw-nick` JS 可见——安全与个性化兼得。
 
 **Playwright 跨域导航拦截 flake**：`page.route('**login.dingtalk.com**')` 拦截 302 导航两轮未命中（同脚本早轮命中过），改用 API 请求层直取 302 Location（`ev1only.mjs`）确定性取证——HTTP 级证据反而更强。
+
+**URLEncoder form 编码口径**：nick 含空格会在 cookie 值中落 '+' 字面（URLEncoder 语义），脚本 decodeURIComponent 后同样还原为 '+'——已知口径非缺陷，真实钉钉 nick 含空格时展示按此呈现。
 
 ---
 

@@ -1,15 +1,25 @@
 {
-  "ev1Url": "https://login.dingtalk.com/oauth2/challenge.htm?redirect_uri=http%3A%2F%2Flocalhost%3A9300%2Fmock%2Fhello&response_type=code&client_id=test-app-key&scope=openid&state=0pBMRtZ97luC3xEJWGQpuw.1795419681.aHR0cDovL2xvY2FsaG9zdDo5MzAwL21vY2svaGVsbG8.LkYj0BjUoqdmctzF8LyHQHgezoTwlRSdEr0quid6e5g&prompt=consent",
-  "ev1State": "0pBMRtZ97luC3xEJWGQpuw.1795419681.aHR0cDovL2xvY2FsaG9zdDo5MzAwL21vY2svaGVsbG8.LkYj0BjUoqdmctzF8LyHQHgezoTwlRSdEr0quid6e5g",
+  "ev1Url": "https://login.dingtalk.com/oauth2/challenge.htm?redirect_uri=http%3A%2F%2Flocalhost%3A9300%2Fmock%2Fhello&response_type=code&client_id=test-app-key&scope=openid&state=HDkwXs-V2435_PrFYUyWfQ.1795423085.aHR0cDovL2xvY2FsaG9zdDo5MzAwL21vY2svaGVsbG8.VecE_kVY83li2MQjG_aT6iQHCStpzhtqIGeFR70bW_A&prompt=consent",
+  "ev1State": "HDkwXs-V2435_PrFYUyWfQ.1795423085.aHR0cDovL2xvY2FsaG9zdDo5MzAwL21vY2svaGVsbG8.VecE_kVY83li2MQjG_aT6iQHCStpzhtqIGeFR70bW_A",
   "ev2Url": "http://localhost:9300/mock/hello",
   "ev2Cookies": [
     {
       "name": "fu-gw-token",
-      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1bmlvbklkIjoibW9jay11bmlvbi0wMDEiLCJuaWNrIjoi5byg5LiJIiwiY29ycElkIjoiZGluZy1tb2NrLWNvcnAiLCJtb2JpbGUiOiIxMzgwMDEzODAwMCIsImlzcyI6ImRpbmd0YWxrIiwiZXhwIjoxNzk1NDYyODgzfQ.vWqvxIR6Yy4cZAzkh6tlgRMao6pmeIoka7toP5WvIDQ",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1bmlvbklkIjoibW9jay11bmlvbi0wMDEiLCJuaWNrIjoi5byg5LiJIiwiY29ycElkIjoiZGluZy1tb2NrLWNvcnAiLCJtb2JpbGUiOiIxMzgwMDEzODAwMCIsImlzcyI6ImRpbmd0YWxrIiwiZXhwIjoxNzk1NDY2Mjg4fQ.E7JoTRYPgOrwE20zfgR6knxQZWOUySkYoAhLP-1vIpk",
       "domain": "localhost",
       "path": "/",
       "expires": -1,
       "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "fu-gw-nick",
+      "value": "%E5%BC%A0*%7C138****8000",
+      "domain": "localhost",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
     }
@@ -31,7 +41,7 @@
     "wmTextSample": "url(\"data:image/png;base64,iVB..."
   },
   "ev3": {
-    "documentCookieReadable": "",
+    "documentCookieReadable": "fu-gw-nick=%E5%BC%A0*%7C138****8000",
     "fuGwTokenReadable": false,
     "note": "HttpOnly cookie 对 document.cookie 不可见"
   },
