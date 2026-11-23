@@ -2,11 +2,11 @@ package fun.commons.gateway4j.admin.controller;
 
 import fun.commons.gateway4j.admin.service.ConfigSyncStatusService;
 import fun.commons.gateway4j.admin.service.ImportSnapshotService;
+import fun.commons.gateway4j.admin.service.RouteBatchService;
 import fun.commons.gateway4j.admin.service.RouteBindingService;
 import fun.commons.gateway4j.admin.service.RouteCanvasApplyService;
 import fun.commons.gateway4j.admin.service.RouteEnvironmentDiffService;
 import fun.commons.gateway4j.admin.service.RouteCanvasService;
-import fun.commons.gateway4j.admin.service.RouteIngressService;
 import fun.commons.gateway4j.admin.service.RoutePackage;
 import fun.commons.gateway4j.admin.service.RouteService;
 import fun.commons.gateway4j.admin.service.RouteTransferService;
@@ -47,7 +47,7 @@ class RouteControllerTest {
     @Mock private RouteEnvironmentDiffService routeEnvironmentDiffService;
     @Mock private RouteVersionService routeVersionService;
     @Mock private ConfigSyncStatusService configSyncStatusService;
-    @Mock private RouteIngressService routeIngressService;
+    @Mock private RouteBatchService routeBatchService;
     @InjectMocks private RouteController controller;
 
     @Test
@@ -78,61 +78,82 @@ class RouteControllerTest {
         verify(routeService).createRouteWithBindings(any(Route.class), isNull(), isNull());
     }
 
-    /** S12-3：批量 Ingress 建路由端点 —— 委托服务并回信封（data.created[]）。 */
+    /** S12-7b：批量建路由端点（SCG RouteDefinition 1:1 形态）—— 委托服务并回信封（data.created[]）。 */
     @Test
-    void createIngressRoutes() {
-        RouteController.IngressCreateResult created = new RouteController.IngressCreateResult(
-                List.of(new RouteController.IngressCreatedRoute(
-                        1L, "api_gateway_1", "/api/**", "api.example.com")));
-        when(routeIngressService.createIngress(any())).thenReturn(created);
+    void createRoutesBatch() {
+        RouteController.BatchCreateResult created = new RouteController.BatchCreateResult(
+                List.of(new RouteController.BatchCreatedRoute(
+                        1L, "api_gateway_1", "http://user-service:8080", "/api/**", 1, 1)));
+        when(routeBatchService.createBatch(any())).thenReturn(created);
 
-        RouteController.IngressCreateRequest request = new RouteController.IngressCreateRequest(
-                "api_gateway", "default", "", "",
-                List.of(new RouteController.IngressRuleRequest("api.example.com",
-                        List.of(new RouteController.IngressPathRequest("/api", "PREFIX",
-                                "http://user-service:8080")))),
-                List.of(), List.of());
+        RouteController.BatchCreateRequest request = new RouteController.BatchCreateRequest(
+                List.of(new RouteController.BatchRouteRequest(
+                        "api_gateway_1", "http://user-service:8080",
+                        List.of("Path=/api/**", "Host=api.example.com"),
+                        List.of("AddRequestHeader=X-Foo, bar"),
+                        10, null, "default", "", "")));
 
-        var response = controller.createIngressRoutes(request);
+        var response = controller.createRoutesBatch(request);
         assertNotNull(response);
         assertTrue(response.isSuccess());
         assertEquals(1, response.getData().created().size());
         assertEquals("api_gateway_1", response.getData().created().get(0).routeName());
-        verify(routeIngressService).createIngress(request);
+        assertEquals("/api/**", response.getData().created().get(0).path());
+        verify(routeBatchService).createBatch(request);
+    }
+
+    /** S12-7b：batch 端点已替代 /ingress —— K8s Ingress 形态端点与方法不复存在。 */
+    @Test
+    void ingressEndpointRemoved() throws Exception {
+        List<String> declaredMethods = Arrays.stream(RouteController.class.getDeclaredMethods())
+                .map(java.lang.reflect.Method::getName)
+                .toList();
+        assertFalse(declaredMethods.contains("createIngressRoutes"),
+                "POST /v1/routes/ingress 已随 S12-7b 删除，方法不得残留");
+        List<String> nestedNames = Arrays.stream(RouteController.class.getDeclaredClasses())
+                .map(Class::getSimpleName)
+                .filter(n -> n.contains("Ingress"))
+                .toList();
+        assertTrue(nestedNames.isEmpty(), "Ingress 嵌套 record 已随 S12-7b 删除，仍存在：" + nestedNames);
+        List<String> serviceNames = Arrays.stream(RouteController.class.getDeclaredFields())
+                .map(java.lang.reflect.Field::getName)
+                .toList();
+        assertFalse(serviceNames.contains("routeIngressService"),
+                "RouteIngressService 依赖已随 S12-7b 移除");
     }
 
     /**
-     * S12-6：path 级 uri 字段的 Bean Validation 契约 —— 必须是
+     * S12-7b：uri 字段的 Bean Validation 契约 —— 必须是
      * {@code ^https?://\S+$}，且错误文案点明「http:// 或 https:// 开头的完整上游地址」
      * 与格式示例（{@code http://user-service:8080}）。
      */
     @Test
-    void ingressPathUriValidationContract() throws Exception {
+    void batchUriValidationContract() throws Exception {
         // record 组件上的约束注解按 JLS 传播到访问器方法（@Target 含 METHOD）
-        var uriAccessor = RouteController.IngressPathRequest.class.getDeclaredMethod("uri");
+        var uriAccessor = RouteController.BatchRouteRequest.class.getDeclaredMethod("uri");
 
         Pattern pattern = uriAccessor.getAnnotation(Pattern.class);
-        assertNotNull(pattern, "IngressPathRequest 必须有 uri 字段并标注 @Pattern");
+        assertNotNull(pattern, "BatchRouteRequest 必须有 uri 字段并标注 @Pattern");
         assertEquals("^https?://\\S+$", pattern.regexp());
         assertTrue(pattern.message().contains("http://"), pattern.message());
         assertTrue(pattern.message().contains("https://"), pattern.message());
         assertTrue(pattern.message().contains("http://user-service:8080"), pattern.message());
 
         NotBlank notBlank = uriAccessor.getAnnotation(NotBlank.class);
-        assertNotNull(notBlank, "IngressPathRequest.uri 必须 @NotBlank");
+        assertNotNull(notBlank, "BatchRouteRequest.uri 必须 @NotBlank");
     }
 
-    /** S12-6：旧的 backend{service,port} 形态已从请求契约移除（单一真相源 = uri）。 */
+    /** S12-7b：单一真相源 —— batch 请求不接受 upstream_url 字段（上游地址只由 uri 表达）。 */
     @Test
-    void ingressBackendRecordRemoved() {
-        List<String> nestedNames = Arrays.stream(RouteController.class.getDeclaredClasses())
-                .map(Class::getSimpleName)
-                .filter(n -> n.toLowerCase().contains("backend"))
+    void batchRequestRejectsUpstreamUrlAsTruthSource() {
+        List<String> components = Arrays.stream(RouteController.BatchRouteRequest.class.getRecordComponents())
+                .map(java.lang.reflect.RecordComponent::getName)
                 .toList();
-        assertTrue(nestedNames.isEmpty(), "backend 嵌套契约已移除，仍存在：" + nestedNames);
-        boolean hasBackendField = Arrays.stream(RouteController.IngressPathRequest.class.getRecordComponents())
-                .anyMatch(rc -> "backend".equals(rc.getName()));
-        assertFalse(hasBackendField, "IngressPathRequest 不得再保留 backend 字段");
+        assertFalse(components.contains("upstream_url"),
+                "batch 请求不得携带 upstream_url（单一真相源 = uri）");
+        assertFalse(components.contains("backend"), "batch 请求不得携带 backend 嵌套字段");
+        assertFalse(components.contains("rules"), "batch 请求不得保留 K8s rules[] 形态");
+        assertFalse(components.contains("pathType"), "batch 请求不得保留 pathType 字段");
     }
 
     @Test

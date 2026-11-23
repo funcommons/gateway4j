@@ -1494,8 +1494,10 @@ BEARER 类型 + jti 撤销检查 + Redis nonce 强一致，与拦截器同源收
 > 前端表单是「SCG 路由列表编辑器」，YAML 视图是**可直接粘回 SCG 配置文件**的
 > `RouteDefinition` YAML。
 >
-> **实现状态**：契约已定（S12-7b 管理面批量 API / S12-7c 前端表单待落地）；
-> 本节先固定线格式与落库映射，引擎语义以本节为准。
+> **实现状态**：S12-7a 引擎侧已落地（aa40cc7：`gw_route_filter` 表 + `gw_route.metadata`
+> JSONB 列 + SCG filter 绑定挂载 + metadata 透传）；**S12-7b 管理面批量 API 已落地**
+> （`POST /v1/routes/batch` 正式可用，`POST /v1/routes/ingress` 已删除）；S12-7c
+> 前端表单待落地。引擎语义以本节为准。
 
 ### 19.1 批量建路由 POST /v1/routes/batch
 
@@ -1507,7 +1509,7 @@ BEARER 类型 + jti 撤销检查 + Redis nonce 强一致，与拦截器同源收
 | 端点 | 状态 |
 |---|---|
 | `POST /v1/routes/batch` | ✅ **本批正式端点**（SCG `RouteDefinition` 1:1 形态） |
-| `POST /v1/routes/ingress` | ⛔ **废弃 / 下线**（K8s Ingress 形态：`rules[]` / `paths[]` / `backend{service,port}` / `pathType`）。SCG 形态与 K8s 形态并存 = **双真相源** → 直接删除，不留兼容分支。该端点 2026-11-23 由 S12-3 刚落库、**仅本 UI 消费、无外部调用方**，删除无迁移成本 |
+| `POST /v1/routes/ingress` | ⛔ **已删除（S12-7b）**（K8s Ingress 形态：`rules[]` / `paths[]` / `backend{service,port}` / `pathType`）。SCG 形态与 K8s 形态并存 = **双真相源** → 直接删除，不留兼容分支。该端点 2026-11-23 由 S12-3 落库、**仅本 UI 消费、无外部调用方**，删除无迁移成本；后端 `RouteIngressService` 与 `RouteController.IngressCreateRequest` 等 Ingress 嵌套 record 已一并移除，S12-3 的 ingress 测试已改造为 batch 测试（`RouteBatchServiceTest`） |
 
 > K8s 形态的能力（host × path 的笛卡尔展开、pathType 三值映射）在 SCG 1:1 形态下
 > **由用户自己在 `predicates[]` 里逐条写**（`Host=api.example.com` + `Path=/api/**`），
@@ -1698,8 +1700,11 @@ gateway4j 不实现任何一条匹配规则。
   `ModifyResponseBody` / `RequestRateLimiter` / `CircuitBreaker` / `Retry` /
   `RequestSize` / `PreserveHost` 等。
 - **本批固定的只是线格式与存储口径**：定义串**原样**落 `gw_route_filter.definition`
-  （逐条一行）。**引擎侧是否逐条绑定执行由 S12-7b 落地**（gateway4j 另有自己的插件链，
-  SCG filter 与 gateway4j 插件的对应关系不在本节范围）。
+  （逐条一行）。**引擎侧逐条绑定执行已由 S12-7a 落地**（aa40cc7：复刻 SCG
+  `RouteDefinitionRouteLocator`，定义串 → `GatewayFilterFactory.apply` →
+  `OrderedGatewayFilter` 挂 `Route.gatewayFilters`；未知名跳过 / 已知名坏参恒不放行，
+  见 §19.2.4；gateway4j 另有自己的插件链，SCG filter 与 gateway4j 插件的对应关系
+  不在本节范围）。
 
 #### 19.2.4 失败语义（fail-closed 口径，两类分流）
 

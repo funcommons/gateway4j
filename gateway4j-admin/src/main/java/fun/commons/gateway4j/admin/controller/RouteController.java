@@ -1,6 +1,5 @@
 package fun.commons.gateway4j.admin.controller;
 
-import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -11,11 +10,11 @@ import fun.commons.framework4j.ratelimit.annotation.RateLimit;
 import fun.commons.framework4j.web.ApiResponse;
 import fun.commons.gateway4j.admin.service.ConfigSyncStatusService;
 import fun.commons.gateway4j.admin.service.ImportSnapshotService;
+import fun.commons.gateway4j.admin.service.RouteBatchService;
 import fun.commons.gateway4j.admin.service.RouteBindingService;
 import fun.commons.gateway4j.admin.service.RouteEnvironmentDiffService;
 import fun.commons.gateway4j.admin.service.RouteCanvasApplyService;
 import fun.commons.gateway4j.admin.service.RouteCanvasService;
-import fun.commons.gateway4j.admin.service.RouteIngressService;
 import fun.commons.gateway4j.admin.service.RoutePackage;
 import fun.commons.gateway4j.admin.service.RouteService;
 import fun.commons.gateway4j.admin.service.RouteTransferService;
@@ -60,7 +59,7 @@ public class RouteController {
     private final RouteEnvironmentDiffService routeEnvironmentDiffService;
     private final RouteVersionService routeVersionService;
     private final ConfigSyncStatusService configSyncStatusService;
-    private final RouteIngressService routeIngressService;
+    private final RouteBatchService routeBatchService;
 
     @Autowired
     public RouteController(RouteService routeService, RouteCanvasService routeCanvasService,
@@ -71,7 +70,7 @@ public class RouteController {
                            RouteEnvironmentDiffService routeEnvironmentDiffService,
                            RouteVersionService routeVersionService,
                            ConfigSyncStatusService configSyncStatusService,
-                           RouteIngressService routeIngressService) {
+                           RouteBatchService routeBatchService) {
         this.routeService = routeService;
         this.routeCanvasService = routeCanvasService;
         this.routeCanvasApplyService = routeCanvasApplyService;
@@ -81,7 +80,7 @@ public class RouteController {
         this.routeEnvironmentDiffService = routeEnvironmentDiffService;
         this.routeVersionService = routeVersionService;
         this.configSyncStatusService = configSyncStatusService;
-        this.routeIngressService = routeIngressService;
+        this.routeBatchService = routeBatchService;
     }
 
     /** 旧 8 参构造（存量调用方兼容，同 ImportRequest/BulkIdsRequest 旧参构造风格）：同步状态服务缺省 null。 */
@@ -156,21 +155,23 @@ public class RouteController {
                 toBindings(request.bindings(), request.pluginIds()));
     }
 
-    // ==================== S12-3：批量 Ingress 建路由（契约 §10） ====================
+    // ==================== S12-7b：批量建路由（SCG RouteDefinition 1:1 形态，契约 §19.1） ====================
 
     /**
-     * 批量 Ingress 建路由：把一份 K8s Ingress 形态的 rules[] 一次性落成 N 条普通
-     * BACKEND 路由（每条 (host, path) 一条），host 走路由级 SCG 原生谓词行
-     * （{@code Host={host}}）→ 不再需要 DISPATCH 父路由 + 条件近似机制。
+     * 批量建路由：一次性落成 N 条 SCG {@code RouteDefinition} 1:1 路由
+     * （{@code uri} + {@code predicates[]} + {@code filters[]} + {@code order} +
+     * {@code metadata}），取代已删除的 K8s Ingress 形态端点
+     * {@code POST /v1/routes/ingress}（S12-3 → S12-7b，避免双真相源）。
      *
-     * <p>整个请求一个事务，中途失败全量回滚（不留半成品路由）；返回
-     * {@code data.created[] = {route_id, route_name, path, host}}。</p>
+     * <p>映射与校验口径见 {@link RouteBatchService}；整个请求一个事务，中途失败
+     * 全量回滚；返回 {@code data.created[] = {route_id, route_name, uri, path,
+     * predicates_count, filters_count}}。</p>
      */
-    @PostMapping("/ingress")
-    @Auditable(action = "CREATE_INGRESS_ROUTES", targetType = "ROUTE")
-    public ApiResponse<IngressCreateResult> createIngressRoutes(
-            @Valid @RequestBody IngressCreateRequest request) {
-        return ApiResponse.success(routeIngressService.createIngress(request));
+    @PostMapping("/batch")
+    @Auditable(action = "CREATE_ROUTES_BATCH", targetType = "ROUTE")
+    public ApiResponse<BatchCreateResult> createRoutesBatch(
+            @Valid @RequestBody BatchCreateRequest request) {
+        return ApiResponse.success(routeBatchService.createBatch(request));
     }
 
     @PatchMapping("/{id}")
@@ -559,95 +560,75 @@ public class RouteController {
 
     public record BindingRequest(Long pluginId, String bindingConfig) {}
 
-    // ==================== S12-3：批量 Ingress 建路由（契约 §10） ====================
+    // ==================== S12-7b：批量建路由请求/响应（SCG RouteDefinition 1:1 形态，契约 §19.1） ====================
 
     /**
-     * S12-3 批量 Ingress 建路由请求体（K8s Ingress 形态）。
+     * S12-7b 批量建路由请求体（SCG {@code RouteDefinition} 1:1 形态）。
      *
-     * <p>线格式逐字对齐前端 {@code IngressRoutePayload}（src/api/routes.ts）：
-     * {@code {name, environment, remark, tags, rules[], plugins[], predicates[]}}。
-     * 全部字段显式 {@code @JsonProperty} 钉死 JSON 名（不依赖全局 snake_case 策略开关），
-     * {@code pathType} 保留驼峰（前端原样发），另给 {@code path_type} 别名兜底。</p>
+     * <p>顶层字段 {@code routes[]}（非空），每项 = 一条 SCG 路由定义。全部字段显式
+     * {@code @JsonProperty} 钉死 JSON 名（不依赖全局 snake_case 策略开关）；未知字段
+     * 忽略（旧 K8s 形态的 {@code rules[]} / {@code pathType} / 冗余 {@code upstream_url}
+     * 等一律不认 —— 单一真相源 = {@code uri}）。</p>
      *
-     * <p>{@code rules[]} 扁平展开成 N 条普通 BACKEND 路由（每条 (host, path) 一条），
-     * 不再需要 DISPATCH 父路由 + 条件近似机制 —— host 走路由级 SCG 原生谓词行
-     * （gw_route_predicate.definition = {@code Host={host}}），语义与 Spring Cloud
-     * Gateway 100% 对齐。</p>
-     *
-     * <p>S12-6：path 级后端目标为单字段 {@code uri}（= SCG {@code RouteDefinition.uri}
-     * 同名同义的完整上游地址 {@code scheme://host[:port]}），取代旧的
-     * {@code backend{service,port}} 两分形态 —— 单一真相源。</p>
+     * <p>S12-7b 前身为 S12-3 的 {@code IngressCreateRequest}（K8s Ingress 形态），
+     * 已随本票删除。</p>
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record IngressCreateRequest(
-            @NotBlank(message = "基础名称不能为空")
-            @Pattern(regexp = "^[a-zA-Z0-9_]{2,50}$", message = "基础名称须为 2-50 位字母、数字或下划线")
+    public record BatchCreateRequest(
+            @NotEmpty(message = "routes 不能为空（至少一条路由）")
+            @Valid
+            @JsonProperty("routes") List<BatchRouteRequest> routes
+    ) {}
+
+    /**
+     * 一条路由 = 一条 SCG {@code RouteDefinition}：
+     * {@code name/uri/predicates[]/filters[]/order/metadata/environment/remark/tags}。
+     *
+     * <p>字段级校验 → framework4j 统一 {@code 10100}（REQUIRED_MISSING/FORMAT_INVALID，
+     * AdminGlobalExceptionHandler 口径）；结构级（Path= 唯一性、定义串长度）在
+     * {@link RouteBatchService} 内前置拒收，同 10100。</p>
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record BatchRouteRequest(
+            @NotBlank(message = "路由名称不能为空")
+            @Pattern(regexp = "^[a-zA-Z0-9_]{2,50}$", message = "路由名称须为 2-50 位字母、数字或下划线")
             @JsonProperty("name") String name,
+            @NotBlank(message = "上游地址不能为空")
+            @Pattern(regexp = "^https?://\\S+$",
+                    message = "上游地址须为 http:// 或 https:// 开头的完整上游地址（例：http://user-service:8080）")
+            @JsonProperty("uri") String uri,
+            /** SCG 原生谓词定义串；{@code Path=} 谓词被抽取落 gw_route.path（§19.1.3），不落谓词行。 */
+            @JsonProperty("predicates") List<String> predicates,
+            /** SCG 原生 filter 定义串（如 {@code AddRequestHeader=X-Foo, bar}），逐条落 gw_route_filter。 */
+            @JsonProperty("filters") List<String> filters,
+            /** 与 SCG {@code RouteDefinition.order} 同名同义；缺省 0 → gw_route.sort_order。 */
+            @JsonProperty("order") Integer order,
+            /** SCG {@code RouteDefinition.metadata} 同形（JSON object）→ gw_route.metadata（JSONB）。 */
+            @JsonProperty("metadata") JsonNode metadata,
             @Pattern(regexp = "^[a-z0-9_-]{1,20}$", message = "环境标识须为 1-20 位小写字母、数字、下划线或中划线")
             @JsonProperty("environment") String environment,
             @Size(max = 200, message = "备注最长 200 字符")
             @JsonProperty("remark") String remark,
             @Size(max = 200, message = "标签最长 200 字符")
-            @JsonProperty("tags") String tags,
-            @NotEmpty(message = "规则不能为空")
-            @Valid
-            @JsonProperty("rules") List<IngressRuleRequest> rules,
-            @Valid
-            @JsonProperty("plugins") List<IngressPluginRequest> plugins,
-            @JsonProperty("predicates") List<String> predicates
-    ) {}
-
-    /** 一条 rule = 一个 host（可空 = 不限域名）+ 若干 paths[]。 */
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public record IngressRuleRequest(
-            @JsonProperty("host") String host,
-            @NotEmpty(message = "每条规则至少包含一个路径")
-            @Valid
-            @JsonProperty("paths") List<IngressPathRequest> paths
-    ) {}
-
-    /**
-     * 一条 path = 一条 BACKEND 路由（pathType 三值：PREFIX / EXACT / IMPLEMENTATION_SPECIFIC）。
-     *
-     * <p>S12-6：path 级后端目标由 {@code backend{service,port}}（K8s 两分形态）合并为
-     * <b>单字段 {@code uri}</b> —— 与 Spring Cloud Gateway {@code RouteDefinition.uri}
-     * 同名同义（完整上游地址 {@code scheme://host[:port]}）。K8s 的
-     * {@code backend.service.name} + {@code backend.service.port.number} 两分在本 API 中
-     * 合并进这一个 uri 字段（用户直接填完整地址，服务端原样落 {@code gw_route.upstream_url}）。</p>
-     */
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public record IngressPathRequest(
-            @NotBlank(message = "路径不能为空")
-            @Pattern(regexp = "^/\\S+$", message = "路径须以 / 开头且不含空白字符")
-            @JsonProperty("path") String path,
-            @Pattern(regexp = "^(PREFIX|EXACT|IMPLEMENTATION_SPECIFIC)$",
-                    message = "pathType 仅支持 PREFIX/EXACT/IMPLEMENTATION_SPECIFIC")
-            @JsonProperty("pathType") @JsonAlias("path_type") String pathType,
-            @NotBlank(message = "上游地址不能为空")
-            @Pattern(regexp = "^https?://\\S+$",
-                    message = "上游地址须为 http:// 或 https:// 开头的完整上游地址（例：http://user-service:8080）")
-            @JsonProperty("uri") String uri
-    ) {}
-
-    /** 插件绑定（SCG filters ↔ gateway4j 插件）：plugin_id = gw_plugin.plugin_id（插件标识）。 */
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public record IngressPluginRequest(
-            @NotBlank(message = "插件标识不能为空")
-            @JsonProperty("plugin_id") @JsonAlias("pluginId") String pluginId,
-            @JsonProperty("binding_config") @JsonAlias("bindingConfig") String bindingConfig
+            @JsonProperty("tags") String tags
     ) {}
 
     /** 响应 data：本次批量创建成功的路由清单。 */
-    public record IngressCreateResult(
-            @JsonProperty("created") List<IngressCreatedRoute> created
+    public record BatchCreateResult(
+            @JsonProperty("created") List<BatchCreatedRoute> created
     ) {}
 
-    /** 单条创建结果（route_id 序列化为字符串，与前端 IngressCreatedRoute 对齐）。 */
-    public record IngressCreatedRoute(
+    /**
+     * 单条创建结果（route_id 序列化为字符串，雪花 ID → String 契约）；
+     * {@code path} = 抽取出的 {@code Path=} 谓词值（无 Path 谓词时为 null）。
+     */
+    public record BatchCreatedRoute(
             @JsonProperty("route_id") Long routeId,
             @JsonProperty("route_name") String routeName,
+            @JsonProperty("uri") String uri,
             @JsonProperty("path") String path,
-            @JsonProperty("host") String host
+            @JsonProperty("predicates_count") int predicatesCount,
+            @JsonProperty("filters_count") int filtersCount
     ) {}
 
     public record RouteValidateRequest(
