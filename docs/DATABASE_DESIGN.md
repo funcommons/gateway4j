@@ -1,4 +1,4 @@
-# 可视化网关 - 数据库设计 V1.5.3
+# 可视化网关 - 数据库设计 V1.8.0
 
 ## 1. 基础信息
 
@@ -19,6 +19,8 @@
 | V1.0.0 | 2026-07-13 | 新建 | 初始化数据库设计，核心表结构与规范 | - | - |
 | V1.2.0 | 2026-07-14 | 修订 | 补充修订历史、Mermaid ER、表清单、全列 COMMENT、索引策略、分区方案、敏感字段、数据字典、逻辑外键关系等 | - | - |
 | V1.5.3 | 2026-11-19 | 修订 | gw_route_condition.condition_type 同步 S10 批：对齐 Spring Cloud Gateway predicate 全集扩至 13 类型（新增 HOST/METHOD/COOKIE/REMOTE_ADDR/AFTER/BEFORE/BETWEEN，补录 WEIGHT），迁移 V1.5.3__condition_type_scg_predicates.sql 仅更新列注释、无列/数据变更；§3/§5.2/§9.7 同步并注明 SCG 对齐口径 | S10-3 | - |
+| V1.7.0 | 2026-11-23 | 修订 | 新增表 gw_route_predicate（路由级 SCG 原生谓词，S12-1）：迁移 V1.7.0__route_predicate.sql 幂等建表 + idx_route_predicate_route 索引 + set_updated_at 触发器；§3/§4/§5.15/§7/§8 同步 | S12-1 | - |
+| V1.8.0 | 2026-11-23 | 修订 | S12 路由创建 SCG 1:1 形态（S12-7b）：新增表 gw_route_filter（路由级 SCG 原生 filter 定义串）+ gw_route 新增列 metadata（JSONB，GIN 索引）；§3/§4/§5.1/§5.16/§7/§8 同步 | S12-7b | - |
 
 ## 2. 全局规范
 
@@ -113,6 +115,8 @@ erDiagram
     gw_route ||--o{ gw_route_condition : "1:N 分发条件"
     gw_route ||--o{ gw_route_plugin_binding : "1:N 绑定插件"
     gw_route ||--|| gw_route_canvas : "1:1 画布数据"
+    gw_route ||--o{ gw_route_predicate : "1:N 路由级 SCG 谓词"
+    gw_route ||--o{ gw_route_filter : "1:N 路由级 SCG 过滤器"
     gw_route ||--o{ gw_route : "1:N 自引用嵌套"
 
     gw_plugin ||--o{ gw_plugin_group_item : "1:N 分组成员"
@@ -132,6 +136,7 @@ erDiagram
         VARCHAR route_name "路由名称"
         VARCHAR route_type "DISPATCH/BACKEND"
         VARCHAR status "DRAFT/PUBLISHED/OFFLINE/CHANGING"
+        JSONB metadata "路由元数据（S12-7b）"
     }
 
     gw_route_condition {
@@ -145,6 +150,20 @@ erDiagram
         BIGSERIAL id PK "主键"
         BIGINT route_id FK "路由ID"
         BIGINT plugin_id FK "插件ID"
+    }
+
+    gw_route_predicate {
+        BIGSERIAL id PK "主键"
+        BIGINT route_id FK "所属路由"
+        VARCHAR definition "SCG shortcut 定义串"
+        INT sort_order "同路由内求值顺序"
+    }
+
+    gw_route_filter {
+        BIGSERIAL id PK "主键"
+        BIGINT route_id FK "所属路由"
+        VARCHAR definition "SCG filter 定义串"
+        INT sort_order "同路由内执行顺序"
     }
 
     gw_route_canvas {
@@ -238,6 +257,8 @@ erDiagram
 | 12 | gw_user_role_rel | 关系表 | ≤ 500 | BIGSERIAL | 2 |
 | 13 | gw_permission | 字典表 | ≤ 100 | BIGSERIAL | 2 |
 | 14 | gw_role_permission_rel | 关系表 | ≤ 1,000 | BIGSERIAL | 3 |
+| 15 | gw_route_predicate | 关系表 | ≤ 10,000 | BIGSERIAL | 1 |
+| 16 | gw_route_filter | 关系表 | ≤ 10,000 | BIGSERIAL | 1 |
 
 ---
 
@@ -257,6 +278,7 @@ CREATE TABLE gw_route (
     sort_order      INT          NOT NULL DEFAULT 0,
     remark          VARCHAR(200) DEFAULT NULL,
     config_version  BIGINT       NOT NULL DEFAULT 0,
+    metadata        JSONB        NOT NULL DEFAULT '{}'::jsonb,   -- S12-7b：路由元数据（SCG RouteDefinition.metadata 同义）
     created_at      TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_deleted      SMALLINT     NOT NULL DEFAULT 0,
@@ -267,6 +289,7 @@ CREATE UNIQUE INDEX uk_route_name ON gw_route (route_name) WHERE is_deleted = 0;
 CREATE INDEX idx_route_type ON gw_route (route_type);
 CREATE INDEX idx_route_status ON gw_route (status);
 CREATE INDEX idx_parent_route ON gw_route (parent_route_id);
+CREATE INDEX idx_route_metadata ON gw_route USING GIN (metadata);
 
 CREATE TRIGGER trg_gw_route_updated_at
     BEFORE UPDATE ON gw_route
@@ -276,17 +299,29 @@ COMMENT ON TABLE gw_route IS '路由配置';
 COMMENT ON COLUMN gw_route.id IS '主键（雪花ID）';
 COMMENT ON COLUMN gw_route.route_name IS '路由名称';
 COMMENT ON COLUMN gw_route.route_type IS '路由类型：DISPATCH/BACKEND';
-COMMENT ON COLUMN gw_route.path IS '匹配路径（后置路由必填）';
-COMMENT ON COLUMN gw_route.upstream_url IS '后端服务地址（后置路由必填）';
+COMMENT ON COLUMN gw_route.path IS '匹配路径（后置路由必填）；SCG PathPattern 语义（S12-2 起统一）';
+COMMENT ON COLUMN gw_route.upstream_url IS '后端服务地址（后置路由必填）；批量端点下由 uri 原样落库（S12-7b）';
 COMMENT ON COLUMN gw_route.status IS '状态：DRAFT/PUBLISHED/OFFLINE/CHANGING';
 COMMENT ON COLUMN gw_route.parent_route_id IS '父路由ID（分发路由嵌套时使用）';
-COMMENT ON COLUMN gw_route.sort_order IS '排序值（同一父路由下排序）';
+COMMENT ON COLUMN gw_route.sort_order IS '排序值（同一父路由下排序）；批量端点的 order 落此列（S12-7b）';
 COMMENT ON COLUMN gw_route.remark IS '备注';
 COMMENT ON COLUMN gw_route.config_version IS '配置版本号（单调递增）';
+COMMENT ON COLUMN gw_route.metadata IS '路由元数据（S12-7b）：JSONB 自由键值对，对应 SCG RouteDefinition.metadata；须为 Object，默认 {}';
 COMMENT ON COLUMN gw_route.created_at IS '创建时间';
 COMMENT ON COLUMN gw_route.updated_at IS '更新时间';
 COMMENT ON COLUMN gw_route.is_deleted IS '逻辑删除 0=未删除 1=已删除';
 ```
+
+> **路由准入谓词（S12-1）**：`gw_route.path` 是该路由的 **Path 谓词**（SCG PathPattern
+> 语义，尾斜杠按 SCG `matchTrailingSlash=true` 统一）；其余准入谓词（Host / Method /
+> Cookie / Header / Query / RemoteAddr / XForwardedRemoteAddr / After / Before / Between）
+> 落在 **`gw_route_predicate`**（见 §5.15），引擎注册时与 Path 谓词 **AND 组合**。
+>
+> **路由级 filter（S12-7b）**：SCG 原生 filter 定义串落在 **`gw_route_filter`**（见 §5.16）；
+> **`gw_route.metadata`**（JSONB）承载 SCG `RouteDefinition.metadata` 的自由键值对。
+> 三者合起来 = 一条 SCG `RouteDefinition` 在 gateway4j 侧的完整落库形态
+> （`uri` → `upstream_url`；`order` → `sort_order`；`predicates` → `path` + `gw_route_predicate`；
+> `filters` → `gw_route_filter`；`metadata` → `metadata`）。
 
 ### 5.2 gw_route_condition - 分发条件（关系表）
 
@@ -728,6 +763,122 @@ COMMENT ON COLUMN gw_role_permission_rel.permission_code IS '权限编码（引�
 COMMENT ON COLUMN gw_role_permission_rel.created_at IS '创建时间';
 ```
 
+### 5.15 gw_route_predicate - 路由级 SCG 原生谓词（关系表，S12-1）
+
+```sql
+CREATE TABLE gw_route_predicate (
+    id          BIGSERIAL,
+    route_id    BIGINT       NOT NULL,
+    definition  VARCHAR(500) NOT NULL,   -- SCG 原生 shortcut 定义串，如 Host=**.example.com
+    sort_order  INT          NOT NULL DEFAULT 0,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted  SMALLINT     NOT NULL DEFAULT 0,
+    PRIMARY KEY (id)
+);
+
+CREATE INDEX idx_route_predicate_route ON gw_route_predicate (route_id);
+
+CREATE TRIGGER trg_gw_route_predicate_updated_at
+    BEFORE UPDATE ON gw_route_predicate
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+COMMENT ON TABLE gw_route_predicate IS '路由级 SCG 原生谓词（S12-1）：definition 存 SCG shortcut 定义串';
+COMMENT ON COLUMN gw_route_predicate.id IS '主键（序列自增）';
+COMMENT ON COLUMN gw_route_predicate.route_id IS '所属路由 gw_route.id';
+COMMENT ON COLUMN gw_route_predicate.definition IS 'SCG 原生 shortcut 定义串，如 Host=**.example.com / Method=GET,POST';
+COMMENT ON COLUMN gw_route_predicate.sort_order IS '排序号（同一路由内多条谓词的求值顺序）';
+COMMENT ON COLUMN gw_route_predicate.is_deleted IS '逻辑删除位（0 未删除 / 1 已删除）';
+COMMENT ON COLUMN gw_route_predicate.created_at IS '创建时间';
+COMMENT ON COLUMN gw_route_predicate.updated_at IS '更新时间（set_updated_at() 触发器维护）';
+```
+
+**用途与口径（S12-1）**：
+
+- 既有 `gw_route` 只有 `path` 一列，路由注册时**只注册一个 PathPattern 谓词**，其余
+  host/method/cookie/remote-addr/时间窗条件全靠 gateway4j 自研 `RouteConditionMatcher`
+  近似（9/13 类条件与 SCG 有可观测行为差异，且自研 matcher 表达不了 `host AND path`）。
+  本表给每条路由挂若干条 **SCG 原生 shortcut 定义串**，引擎注册路由时用 SCG 自己的
+  `RoutePredicateFactory` + `ConfigurationService` 绑定，并与 Path 谓词 **AND 组合**
+  → 路由准入语义**由构造保证 100% 对齐**。
+- **definition 语法**：`<谓词名>=<参数>[,<参数>...]`，解析器 = SCG 自己的
+  `PredicateDefinition`（与 SCG YAML `predicates:` 同款）。支持 10 种谓词：
+  `Host` / `Method` / `Cookie` / `Header` / `Query` / `RemoteAddr` /
+  `XForwardedRemoteAddr` / `After` / `Before` / `Between`（语义与 SCG 原生工厂一一对应，
+  详见 `docs/API_CONTRACT.md` §19.2.2）。
+- **失败语义（fail-closed，两类分流）**：未知谓词名 / 语法坏 → **跳过该谓词 + WARN**
+  （同路由其余谓词照常生效）；已知谓词缺必填参数 / 参数值非法 → **该谓词恒不匹配 + WARN**
+  （AND 链短路 → 整条路由永不被匹配，与 SCG「路由加载失败 → 不注册」效果等价）。
+  参数值以 `#{` 开头的 **SpEL 表达式被显式拒绝**（不求值，判恒不匹配）。
+- **与 `gw_route_condition` 的分工**：本表 = **路由准入层**（AND、SCG 原生）；
+  `gw_route_condition` = **DISPATCH 分发层**（OR、gateway4j 扩展算子）。两者互不替代。
+
+**迁移**：`V1.7.0__route_predicate.sql`（Flyway，幂等 —— `CREATE TABLE/INDEX IF NOT EXISTS`
++ 触发器 `DO $$` 存在性判定）。列类型口径对齐 `V1.0.0__init_schema.sql`（`gw_route` 等）：
+`id BIGSERIAL` 主键、`TIMESTAMPTZ` 时间戳 + `set_updated_at()` 触发器、`is_deleted SMALLINT`
+逻辑删除位。
+
+> **已知实现缺口（S12-5 记录）**：`RouteService#deleteRoute` 级联清除 `gw_route_condition`
+> 与 `gw_route_plugin_binding`，但**尚未级联清除本表的谓词行** → 删除路由后会残留
+> `is_deleted=0` 的孤儿谓词行。运行时无害（引擎只加载 `is_deleted=0` 的路由，
+> 孤儿行不参与匹配），但表会逐渐积累脏行 —— 管理面补一条 DELETE 路由时清理谓词行
+> （或改为逻辑删除）即可闭合。
+
+### 5.16 gw_route_filter - 路由级 SCG 原生过滤器（关系表，S12-7b）
+
+```sql
+CREATE TABLE gw_route_filter (
+    id          BIGSERIAL,
+    route_id    BIGINT       NOT NULL,
+    definition  VARCHAR(500) NOT NULL,   -- SCG 原生 filter 定义串，如 AddRequestHeader=X-Foo, bar
+    sort_order  INT          NOT NULL DEFAULT 0,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted  SMALLINT     NOT NULL DEFAULT 0,
+    PRIMARY KEY (id)
+);
+
+CREATE INDEX idx_route_filter_route ON gw_route_filter (route_id);
+
+CREATE TRIGGER trg_gw_route_filter_updated_at
+    BEFORE UPDATE ON gw_route_filter
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+COMMENT ON TABLE gw_route_filter IS '路由级 SCG 原生过滤器（S12-7b）：definition 存 SCG filter 定义串';
+COMMENT ON COLUMN gw_route_filter.id IS '主键（序列自增）';
+COMMENT ON COLUMN gw_route_filter.route_id IS '所属路由 gw_route.id';
+COMMENT ON COLUMN gw_route_filter.definition IS 'SCG 原生 filter 定义串，如 AddRequestHeader=X-Foo, bar';
+COMMENT ON COLUMN gw_route_filter.sort_order IS '排序号（同一路由内多条 filter 的执行顺序）';
+COMMENT ON COLUMN gw_route_filter.is_deleted IS '逻辑删除位（0 未删除 / 1 已删除）';
+COMMENT ON COLUMN gw_route_filter.created_at IS '创建时间';
+COMMENT ON COLUMN gw_route_filter.updated_at IS '更新时间（set_updated_at() 触发器维护）';
+```
+
+**用途与口径（S12-7b）**：
+
+- 与 `gw_route_predicate`（§5.15）**同构**：一张路由级「SCG 原生定义串」明细表，
+  区别只在语义侧 —— 谓词决定「这条路由接不接这个请求」（AND 组合、准入层），
+  filter 决定「请求通过后做什么」（请求/响应改写链，SCG `filters:` 的对应物）。
+- **definition 语法**：`<名字>=<参数>[,<参数>...]`，解析器 = SCG 自己的 `FilterDefinition`
+  （与 SCG YAML `filters:` 同款）。SCG 标准 `GatewayFilterFactory` 集合（4.3.1）含
+  `AddRequestHeader` / `AddResponseHeader` / `RemoveRequestHeader` / `RemoveResponseHeader` /
+  `SetStatus` / `RewritePath` / `SetPath` / `PrefixPath` / `RedirectTo` /
+  `ModifyRequestBody` / `ModifyResponseBody` / `RequestRateLimiter` / `CircuitBreaker` /
+  `Retry` / `RequestSize` / `PreserveHost` 等。
+- **落库口径**：批量端点 `POST /v1/routes/batch`（见 `docs/API_CONTRACT.md` §19.1）的
+  `filters[]` **逐条原样落一行**（`sort_order` 从 0 递增）；本批只固定**线格式与存储口径**，
+  **引擎侧是否逐条绑定执行由 S12-7b 落地**（gateway4j 另有自己的插件链，SCG filter 与
+  gateway4j 插件的对应关系不在本表范围）。
+- **失败语义**：与谓词同款 fail-closed 口径（未知 filter 名 → 跳过该条 + WARN；
+  已知名字缺必填参数/值非法 → 该条恒不生效 + WARN；参数值以 `#{` 开头的 **SpEL 被显式拒绝**，
+  不在服务端求值）—— 见 `docs/API_CONTRACT.md` §19.2.4。
+- **迁移**：`V1.8.0__route_filter_metadata.sql`（Flyway，幂等 —— `CREATE TABLE/INDEX IF NOT
+  EXISTS` + `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` + 触发器 `DO $$` 存在性判定）。
+
+> **与 `gw_route_plugin_binding` 的分工**：后者是 gateway4j **插件**绑定（插件 id + 配置 JSON），
+> 本表是 **SCG 原生 filter 定义串** —— 两种扩展机制并存，1:1 批量端点把 SCG 形态写进本表、
+> gateway4j 插件形态仍走 `plugins[]`（→ `gw_route_plugin_binding`），互不覆盖。
+
 ---
 
 ## 6. 敏感字段
@@ -755,6 +906,9 @@ COMMENT ON COLUMN gw_role_permission_rel.created_at IS '创建时间';
 | idx_condition_route | gw_route_condition | route_id | B-Tree | 查询路由下的条件 | 高 |
 | idx_condition_target | gw_route_condition | target_route_id | B-Tree | 查询条件指向的目标路由 | 高 |
 | idx_condition_route_priority | gw_route_condition | route_id, priority | B-Tree 复合 | 按路由查询条件并按优先级排序 | 高 |
+| idx_route_predicate_route | gw_route_predicate | route_id | B-Tree | 按路由加载其 SCG 原生谓词行（引擎 reload 全量取数后内存按 route_id 分组） | 高 |
+| idx_route_filter_route | gw_route_filter | route_id | B-Tree | 按路由加载其 SCG 原生 filter 行（与谓词行同款：一次全量取数 + 内存分组） | 高 |
+| idx_route_metadata | gw_route | metadata | GIN | JSONB 元数据键检索（§2.6 规范要求 JSONB 配 GIN） | 中 |
 | uk_plugin_name | gw_plugin | plugin_name | UNIQUE PARTIAL (WHERE is_deleted=0) | 插件名称唯一性校验 | 高 |
 | uk_plugin_id | gw_plugin | plugin_id | UNIQUE PARTIAL (WHERE is_deleted=0) | 插件标识唯一性校验 | 高 |
 | idx_plugin_type | gw_plugin | plugin_type | B-Tree | 按插件类型筛选 | 低（4值） |
@@ -792,6 +946,8 @@ COMMENT ON COLUMN gw_role_permission_rel.created_at IS '创建时间';
 | gw_route_plugin_binding | route_id | gw_route | id | 应用层级联：删除路由时清除绑定 |
 | gw_route_plugin_binding | plugin_id | gw_plugin | id | 应用层校验：禁用/卸载插件时检查绑定 |
 | gw_route_canvas | route_id | gw_route | id | 应用层级联：删除路由时清除画布 |
+| gw_route_predicate | route_id | gw_route | id | 应用层级联：删除路由时清除谓词（**当前实现未级联，见 §5.15 已知实现缺口**） |
+| gw_route_filter | route_id | gw_route | id | 应用层级联：删除路由时清除 filter（与谓词行同款，**当前实现未级联**） |
 | gw_config_push_log | config_id | gw_route / gw_plugin | id | 无级联，仅引用 |
 | gw_user_role_rel | user_id | gw_user | id | 应用层级联：删除用户时清除角色关联 |
 | gw_user_role_rel | role_code | gw_role | role_code | 应用层校验：删除角色时检查用户关联 |

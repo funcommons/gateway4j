@@ -1,0 +1,6 @@
+{
+  "urlAfterLogin": "http://localhost:9302/v2/routes/new",
+  "title": "Gateway4j Console",
+  "yamlHead": null,
+  "nameAfterYamlRoundtrip": "probe_ingress"
+}

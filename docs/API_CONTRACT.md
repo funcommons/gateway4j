@@ -114,6 +114,7 @@
 | 10602 | 插件未实现 SDK 接口 | `PLUGIN_SDK_VIOLATION` |
 | 10603 | 路由循环引用 | `CYCLIC_REFERENCE` |
 | 10604 | 分发路由嵌套超限 | `DEPTH_EXCEEDED` |
+| 10609 | 路由名称已存在（S12 批量建路由同环境重名预检） | `ROUTE_NAME_CONFLICT` |
 | 10699 | 网关引擎内部错误 | `ENGINE_INTERNAL_ERROR` |
 
 ---
@@ -1480,3 +1481,265 @@ BEARER 类型 + jti 撤销检查 + Redis nonce 强一致，与拦截器同源收
 
 见 §4.3 补注。回归口径：OFFLINE 路由 `PATCH {remark}` → `status` 仍 OFFLINE、
 `sort_order`/`tags`/`config_version` 不动；PUBLISHED 路由 PATCH 仍被禁改保护拒绝（不变）。
+
+---
+
+## 19. S12 路由创建改造批契约（SCG 1:1 形态，V1.8.0 / 2026-11-23）
+
+> 背景与用户裁决见 `docs/ui-v2/实施契约.md` §10（用户指令：「路由创建要 100% Spring Cloud
+> Gateway 对齐」→「**要 spring gateway 1:1 对应填写**」）。
+>
+> **最终形态**：路由创建 = **纯 Spring Cloud Gateway `RouteDefinition` 1:1** ——
+> 一条路由 = 一条 SCG 路由定义（`uri` + `predicates[]` + `filters[]` + `order` + `metadata`）；
+> 前端表单是「SCG 路由列表编辑器」，YAML 视图是**可直接粘回 SCG 配置文件**的
+> `RouteDefinition` YAML。
+>
+> **实现状态**：契约已定（S12-7b 管理面批量 API / S12-7c 前端表单待落地）；
+> 本节先固定线格式与落库映射，引擎语义以本节为准。
+
+### 19.1 批量建路由 POST /v1/routes/batch
+
+一次性落成 N 条路由（**整个请求一个事务**，中途失败全量回滚，不留半成品路由）。
+需 Bearer Token。
+
+#### 19.1.0 端点更名与废弃（⚠️ 破坏性变更）
+
+| 端点 | 状态 |
+|---|---|
+| `POST /v1/routes/batch` | ✅ **本批正式端点**（SCG `RouteDefinition` 1:1 形态） |
+| `POST /v1/routes/ingress` | ⛔ **废弃 / 下线**（K8s Ingress 形态：`rules[]` / `paths[]` / `backend{service,port}` / `pathType`）。SCG 形态与 K8s 形态并存 = **双真相源** → 直接删除，不留兼容分支。该端点 2026-11-23 由 S12-3 刚落库、**仅本 UI 消费、无外部调用方**，删除无迁移成本 |
+
+> K8s 形态的能力（host × path 的笛卡尔展开、pathType 三值映射）在 SCG 1:1 形态下
+> **由用户自己在 `predicates[]` 里逐条写**（`Host=api.example.com` + `Path=/api/**`），
+> 服务端不再替用户做展开决策 —— 1:1 的核心就是「所见即 SCG 配置」。
+
+#### 19.1.1 请求体
+
+顶层字段（未知字段**忽略**，不报错）：
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| routes | Array | 是 | 路由列表，**非空**；顺序即落库顺序 |
+
+`routes[]` 单项（= 一条 SCG `RouteDefinition`）：
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| name | String | 是 | 路由名，须合 `^[a-zA-Z0-9_]{2,50}$`（与 §4.2 一致）；**不再自动追加序号后缀** —— 1:1 形态下路由名由用户自己给，服务端不合成 |
+| uri | String | 是 | 上游地址：**完整 URL** `scheme://host[:port]`，须合 `^https?://\S+$`（与 §4.2 的 `upstream_url` 同一条正则）。与 SCG `RouteDefinition.uri` **同名同义** |
+| predicates | Array&lt;String&gt; | 否 | SCG 原生**谓词**定义串列表（`Path=/api/**`、`Host=api.example.com`…）；语法与失败语义见 §19.2 |
+| filters | Array&lt;String&gt; | 否 | SCG 原生**过滤器**定义串列表（`AddRequestHeader=X-Foo, bar`…）；语法与失败语义见 §19.2 |
+| order | Integer | 否 | 排序号 → `gw_route.sort_order`；与 SCG `RouteDefinition.order` 同名同义 |
+| metadata | Object | 否 | 自由元数据（任意键值对）→ `gw_route.metadata`（JSONB） |
+| environment | String | 否 | 环境标识，须合 `^[a-z0-9_-]{1,20}$`；缺省 `default`（口径同 §4.2） |
+| remark | String | 否 | 备注，最长 200 字符 |
+| tags | String | 否 | 标签，最长 200 字符 |
+
+请求示例：
+
+```json
+{
+  "routes": [
+    {
+      "name": "api_gateway_1",
+      "uri": "http://user-service:8080",
+      "predicates": ["Path=/api/**", "Host=api.example.com"],
+      "filters": ["AddRequestHeader=X-Foo, bar"],
+      "order": 10,
+      "metadata": { "team": "core" },
+      "environment": "default",
+      "remark": "",
+      "tags": ""
+    }
+  ]
+}
+```
+
+#### 19.1.2 响应体
+
+`data.created[]` = 本次批量创建成功的路由清单（顺序同 `routes`）：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| created | Array | 创建结果列表 |
+| created[].route_id | String | 新建路由 ID（雪花 ID → String 契约） |
+| created[].route_name | String | 路由名（原样取自请求 `name`） |
+| created[].uri | String | 上游地址（原样取自请求 `uri`） |
+| created[].path | String | 落库的路径（= 抽取出的 `Path=` 谓词值；无 Path 谓词时为 null） |
+| created[].predicates_count | Integer | 该路由落库的**谓词行数**（不含被抽取走的 `Path=`） |
+| created[].filters_count | Integer | 该路由落库的**filter 行数** |
+
+```json
+{
+  "code": 0,
+  "message": "操作成功",
+  "data": {
+    "created": [
+      {
+        "route_id": "2124846057075699714",
+        "route_name": "api_gateway_1",
+        "uri": "http://user-service:8080",
+        "path": "/api/**",
+        "predicates_count": 1,
+        "filters_count": 1
+      }
+    ]
+  },
+  "trace_id": "756c897a-8c50-4e16-b534-1ecf4b3ee37b",
+  "timestamp": "1795437752449",
+  "fail": false,
+  "success": true
+}
+```
+
+#### 19.1.3 落库映射（请求字段 → 表）
+
+| 请求字段 | 落库位置 | 口径 |
+|---|---|---|
+| `name` | `gw_route.route_name` | 原样（**不合成、不加序号**） |
+| `uri` | `gw_route.upstream_url` | 原样（**不合成、不补 scheme、不去尾斜杠**） |
+| `predicates[]` 中的 **`Path=`** | `gw_route.path` | **抽取**：Path 谓词被抽出落 path 列（SCG 注册层由 path 生成唯一 Path 谓词），**不再**另落 `gw_route_predicate` 行 |
+| `predicates[]` 其余条目 | `gw_route_predicate.definition` | 逐条落一行（`sort_order` 从 0 递增），定义串原样 |
+| `filters[]` | `gw_route_filter.definition` | 逐条落一行（`sort_order` 从 0 递增），定义串原样 |
+| `order` | `gw_route.sort_order` | 原样（缺省 0） |
+| `metadata` | `gw_route.metadata`（JSONB） | 原样（缺省 `{}`） |
+| `environment` / `remark` / `tags` | 同名列 | 原样（environment 缺省 `default`） |
+| —— | `gw_route.route_type` | 一律 `BACKEND`（本端点只建普通路由，不建 DISPATCH 父路由） |
+| —— | `gw_route.status` | 一律 **`DRAFT`** —— 需另行调用 `POST /v1/routes/{id}/publish` 才在网关生效（与 §4.2 一致） |
+
+> **单一真相源**：请求体**不接受** `upstream_url`（未知字段忽略）—— 上游地址只由 `uri` 表达。
+> 前端若再自带一份 `upstream_url`，两个真相源一旦分叉即静默不一致。
+
+#### 19.1.4 Path 谓词唯一性限制（拒收口径）
+
+`gw_route.path` 是**单列**，SCG 注册层由该列生成**唯一**的 Path 谓词 → 一条路由只允许
+**一个** `Path=` 谓词：
+
+| 情形 | 处理 |
+|---|---|
+| `predicates[]` 含**多个** `Path=` 条目 | ⛔ **拒收**（HTTP 200 + 失败信封，`10100`）—— 数据模型无法承载多个 Path 谓词 |
+| 单个 `Path=` 内用逗号写多 pattern（`Path=/a,/b`） | ⛔ **拒收**（`10100`）—— 本端点不暴露多 pattern 形态（SCG 原生虽支持 GATHER_LIST，本数据模型是单值） |
+| `predicates[]` **没有** `Path=` 条目 | ✅ 允许 —— `gw_route.path` 落 `null`（该路由不限路径，SCG 原生语义）。**注意**：这与 §4.2 单条创建「后置路由 path 必填」的约定不同（批量端点按 SCG 1:1 语义，不强加 path 必填） |
+| `Path=` 值非法（如不以 `/` 开头、含空白） | ⛔ **拒收**（`10100`）—— path 列的既有校验口径 |
+
+#### 19.1.5 错误码
+
+| 错误码 | 触发条件 | 说明 |
+|---|---|---|
+| `10100`（`FORMAT_INVALID` / `REQUIRED_MISSING`） | 字段级校验失败 | 如 `name` 不合正则、`routes` 为空、`uri` 为空或不合 `^https?://\S+$`（文案点明「须为 http:// 或 https:// 开头的完整上游地址」）、`Path=` 值非法、`environment` 非法白名单、**多个 `Path=` 谓词** |
+| `10609` `ROUTE_NAME_CONFLICT` | **同环境内**路由名已存在 | 预检式拒收，message 给出冲突的路由名；**整单不落库** |
+| `10605` `CONFIG_SYNC_FAILED` | 业务级校验失败（路由落库失败等） | message 带具体原因 |
+
+> **码值唯一性**：`10402` 已被 `ROUTE_VERSION_CONFLICT` 占用且跨模块契约，故新码取
+> `10609`（`ErrorCodeTest` 强制码值唯一）。
+
+#### 19.1.6 事务与副作用
+
+- **整个请求一个事务**（`@Transactional`）：N 条路由 + 谓词行 + filter 行要么全成，要么全回滚。
+- **配置变更事件整批只发 1 条**（`ConfigChangeEvent`，`AFTER_COMMIT` 广播）—— 逐条发会触发
+  N 次网关全量重载。
+- **审计**：`action = CREATE_ROUTES_BATCH`，`targetType = ROUTE`（framework4j `@Auditable`）。
+- **幂等**：未接 `Idempotency-Key`（admin 模块现无先例）；重名预检（`10609`）承担去重兜底。
+
+### 19.2 路由级 SCG 谓词 / filter 定义串
+
+每条路由可挂若干条 **SCG 原生定义串**：谓词落 `gw_route_predicate`（见
+`docs/DATABASE_DESIGN.md` §5.15），过滤器落 `gw_route_filter`（§5.16）。
+引擎注册路由时用 **SCG 自己的 `RoutePredicateFactory` + `ConfigurationService`** 绑定，
+并与该路由的 Path 谓词 **AND 组合**（`AsyncPredicate.and`，与 SCG
+`RouteDefinitionRouteLocator` 的多谓词 AND 同款）→ **路由准入语义由构造保证 100% 对齐**，
+gateway4j 不实现任何一条匹配规则。
+
+#### 19.2.1 定义串语法
+
+```
+<名字>=<参数>[,<参数>...]
+```
+
+- 解析器 = SCG 自己的 `PredicateDefinition` / `FilterDefinition`（与 SCG YAML
+  `predicates:` / `filters:` 同款解析器）；参数按逗号切分，再由各工厂的
+  `ShortcutType`（`GATHER_LIST` / `DEFAULT`）归一化。
+- 名字**大小写敏感**（须与 SCG `RoutePredicateFactory#name()` /
+  `GatewayFilterFactory#name()` 完全一致）。
+- 值的引号/转义：沿用 SCG 原生口径。
+
+#### 19.2.2 支持谓词清单（10 种）
+
+| 谓词名 | 参数形态 | 对应 SCG 工厂 | 语义（由 SCG 决定） |
+|---|---|---|---|
+| `Host` | `patterns`（1 个或多个，逗号分隔） | `HostRoutePredicateFactory` | Host 头 Ant 风格匹配；`**` 口径**能匹配裸域**（`**.example.com` 命中 `example.com`） |
+| `Method` | `methods`（多值） | `MethodRoutePredicateFactory` | HTTP 方法**多值**且**大小写敏感**（`HttpMethod` 枚举） |
+| `Cookie` | `name,regexp` | `CookieRoutePredicateFactory` | Cookie 名 + 正则；**全串 matches**（非子串 find） |
+| `Header` | `header,regexp` | `HeaderRoutePredicateFactory` | 请求头名 + 正则；SCG 遍历**全部**同名头值 |
+| `Query` | `param,regexp` | `QueryRoutePredicateFactory` | 查询参数名 + 正则 |
+| `RemoteAddr` | `source`（CIDR） | `RemoteAddrRoutePredicateFactory` | `IpSubnetFilterRule` 口径的 IP/CIDR 前缀比较 |
+| `XForwardedRemoteAddr` | `source`（CIDR） | `XForwardedRemoteAddrRoutePredicateFactory` | 同上，但取 `X-Forwarded-For` 链路的首个地址 |
+| `After` | `datetime` | `AfterRoutePredicateFactory` | 请求时刻**晚于**该时刻命中（ISO-8601 带时区偏移，或 epoch 毫秒） |
+| `Before` | `datetime` | `BeforeRoutePredicateFactory` | 请求时刻**早于**该时刻命中 |
+| `Between` | `datetime1,datetime2` | `BetweenRoutePredicateFactory` | 请求时刻落在该区间命中 |
+
+**不在支持清单**：
+
+| 谓词 | 原因 |
+|---|---|
+| `Path` | 路由自身的 `gw_route.path` 列**已经是** Path 谓词（尾斜杠口径由 S12-2 统一）；重复声明会歧义 → 批量端点把 `Path=` **抽取**到 path 列（§19.1.3） |
+| `ReadBody` / `Weight` / `CloudFoundry` | 需要额外装配（请求体缓存 / 权重组 / CF 环境），不在本批范围 |
+| `GROOVY` / `BETWEEN` / `WEIGHT`（gateway4j 条件类型） | **SCG 无等价物**（BODY 机制异构：SCG 仅 Java API，gw4j 走 JsonPath）→ 保留为 gateway4j **扩展谓词**（`gw_route_condition`），UI 标注「扩展（非 SCG 标准）」 |
+
+> `Between`（SCG 路由级谓词，两端**闭**区间）与 `gw_route_condition.BETWEEN`（扩展条件，
+> 左闭右**开** `[start,end)`）语义不同 —— 两者并存但**不是同一个东西**，勿混用。
+
+#### 19.2.3 filter 定义串
+
+- **语法同谓词**：`Name=args,...`，如 `AddRequestHeader=X-Foo, bar`。
+- SCG 标准 `GatewayFilterFactory` 集合（4.3.1）含 `AddRequestHeader` /
+  `AddResponseHeader` / `RemoveRequestHeader` / `RemoveResponseHeader` / `SetStatus` /
+  `RewritePath` / `SetPath` / `PrefixPath` / `RedirectTo` / `ModifyRequestBody` /
+  `ModifyResponseBody` / `RequestRateLimiter` / `CircuitBreaker` / `Retry` /
+  `RequestSize` / `PreserveHost` 等。
+- **本批固定的只是线格式与存储口径**：定义串**原样**落 `gw_route_filter.definition`
+  （逐条一行）。**引擎侧是否逐条绑定执行由 S12-7b 落地**（gateway4j 另有自己的插件链，
+  SCG filter 与 gateway4j 插件的对应关系不在本节范围）。
+
+#### 19.2.4 失败语义（fail-closed 口径，两类分流）
+
+配置写错**绝不放宽准入条件**。两类失败处理不同：
+
+| 失败类型 | 例子 | 处理 | 理由 |
+|---|---|---|---|
+| **格式非法 / 未知名字** | `Foo=bar`、`=bar`、名字拼错、语法不可解析 | **跳过该条 + WARN**（同路由其余谓词/filter 照常生效） | 多半是版本/拼写问题；一条脏数据不废掉整条路由的其余条目 |
+| **已知名字但缺必填参数 / 参数值非法** | `Cookie=session`（缺 regexp）、`Host`（无 `=`）、`Method=`（空值）、`After=not-a-date` | **该条恒不匹配 + WARN** → AND 链短路 → **整条路由永不被匹配** | 与 SCG「shortcut 绑定失败 → 整条路由加载失败 → 不注册 → 永不匹配」**效果等价**；保留 gateway4j 的网关级 fail-safe（不炸网关、不影响其它路由） |
+
+**SpEL 显式拒绝**：定义串来自数据库，参数值以 `#{` 开头（SpEL 表达式）→ 判为
+**该条恒不匹配 + WARN**（fail-closed），**绝不在服务端求值 SpEL**。
+
+**表未建出时**：降级为「无谓词 / 无 filter」并 WARN（fail-safe，不炸网关）。
+
+> **与 §4.2 `conditions` 的关系**：`gw_route_condition` 是 **DISPATCH 分发层的扩展编排**
+> （OR 语义、首个命中即止、gateway4j 自研算子）；`gw_route_predicate` 是
+> **路由准入层的 SCG 原生谓词**（AND 语义、SCG 工厂判定）。两者**互不替代**：
+> 前者决定「分发到哪个子路由」，后者决定「这条路由本身接不接这个请求」。
+
+### 19.3 pathType 与 SCG PathPattern 语法对照（参考）
+
+K8s `pathType` → SCG `Path=` 谓词值的对照（**1:1 形态下由用户自己写 Path 谓词**，
+本表给出「K8s 语义 → SCG PathPattern 语法」的换算参考）：
+
+| K8s pathType | K8s 语义 | 对应 SCG PathPattern | 命中口径 |
+|---|---|---|---|
+| `Prefix` | 前缀匹配（`/api` 命中 `/api` 与 `/api/...`） | `Path=/api/**` | 零段匹配：`/api`、`/api/`、`/api/a/b` 全中 |
+| `Exact` | 精确匹配 | `Path=/exact` | 仅 `/exact`（尾斜杠按 SCG `matchTrailingSlash=true` 与 `/exact/` 等价） |
+| `ImplementationSpecific` | 由实现方自定义 | `Path=/api/{id:[0-9]+}` | PathPattern 变量段 + 正则约束；`/api/123` 中、`/api/abc` 不中 |
+
+**PathPattern 语法速查**（SCG `PathPatternParser`，S12-2 起三处共用同一份实现）：
+
+| 语法 | 含义 | 例 |
+|---|---|---|
+| `{name}` | 变量段（匹配任意单段） | `/seg/{id}` 命中 `/seg/123` 与 `/seg/abc` |
+| `{name:regex}` | 变量段 + 正则约束 | `/segn/{id:[0-9]+}` 只命中数字段 |
+| `**` | 跨段通配（任意深度，含零段） | `/api/**` |
+| `*` | 单段通配 | `/api/*` |
+
+> **S12-2 修复的历史坑**：修复前 gateway4j 分发层按**字面全等**比对路径，`/seg/{id}`
+> 这类变量段路由在分发层匹配不到 → **静默 404**（SCG 注册层却能匹配）。现已统一为
+> PathPattern 语义，并显式化仲裁顺序（精确优先 → DISPATCH 优先 → 注册顺序）。

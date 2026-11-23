@@ -2,7 +2,9 @@ import { test, expect, loginV2, shot, writeEvidence, uniq, apiCall, confirmPubli
 
 /**
  * BL-03 路由管理（列表 + 向导 + 详情/编辑，v2 迁移版，P4e 步 3）
- * v2 页面：/v2/routes（列表 route-*）、/v2/routes/wizard（wizard-* 五步向导）、
+ * v2 页面：/v2/routes（列表 route-*）、/v2/routes/new（**S12-4 起的新建入口**，
+ *          单页形态；S12-7c 将重写为 SCG RouteDefinition 1:1 编辑器）、
+ *          /v2/routes/wizard（wizard-* 五步向导，**S12-4 起保留但不再是导航目标**）、
  *          /v2/routes/:id/detail（dtl-*，dtl-action-edit 开 RouteEditForm 编辑态 ref-*）、
  *          /v2/publish/:id（pub-* 独立发布页，confirmPublishV2 助手）。
  * 旧→v2 形态差异（2026-11-09 核源码）：
@@ -20,6 +22,17 @@ import { test, expect, loginV2, shot, writeEvidence, uniq, apiCall, confirmPubli
  *     → 03-15/03-17 状态变更经 API 驱动 + v2 列表展示断言（UI 缺口在用例注释留痕）
  * 旧缺陷 D3/D9/D12 在现后端均已修复（GET /v1/routes/{id}=200、POST 非法格式 10100 拒单、
  * 前端向导分步拦截），对应断言转正向。
+ *
+ * ── S12-4/S12-5（2026-11-23）创建入口切换后的用例归属 ──────────────────────
+ * 用户裁决「不要向导，要仿 k8s ingress 配置页」+「入口摘除旧向导」：
+ *   - **03-06 改了**（唯一断言「列表页新建按钮 → 向导」这条链路的用例）：
+ *     期望 URL 由 /v2/routes/wizard 改为 /v2/routes/new。**只断言目标路由**，
+ *     不断言目标页内部 testid —— 该页在 S12-7c 会被重写为 SCG RouteDefinition 1:1 编辑器。
+ *   - **03-07/03-08/03-10/03-14/03-17/03-18 保留**：它们直接 goto /v2/routes/wizard
+ *     或走 wizardCreateRoute() 辅助函数，测的是**旧向导页仍可用**（裁决①：页面与路由项
+ *     保留、可直达），与「哪个是入口」无关 → 不因入口切换而失效。
+ *   - 新建入口的端到端验证（表单填写 → 提交 → 落库 → 谓词行 → 清理）**待 S12-8 补**
+ *     （需等 S12-7b 批量 API + S12-7c 新表单落地后再写，现在写必然红）。
  */
 
 /** 路由树递归按名找 id（v2 列表/树接口返回嵌套 children） */
@@ -132,15 +145,21 @@ test.describe('BL-03 路由管理', () => {
   })
 
   test('03-06 路由列表应提供「新建路由」主操作入口', async ({ page, shot, diag }) => {
+    // S12-4：创建入口已从旧五步向导切到单页 /v2/routes/new
+    //（裁决①：旧 /v2/routes/wizard 页面与路由项保留、可直达，但不再是任何导航目标）。
+    // 本断言只钉「入口 → 目标路由」这条链路，与目标页内部形态解耦
+    //（S12-7c 新表单会重写该页结构 → 不在此断言页内 testid）。
     const create = page.getByTestId('route-create')
     await expect(create, '路由列表应提供「新建路由」主操作按钮').toBeVisible({ timeout: 10_000 })
     await create.click()
-    await expect(page).toHaveURL(/\/v2\/routes\/wizard$/, { timeout: 10_000 })
+    await expect(page, '点击「新建路由」应跳 /v2/routes/new').toHaveURL(/\/v2\/routes\/new$/, { timeout: 10_000 })
     await shot('routes', '03-06-create-button')
-    writeEvidence('routes', '03-06-create-button', diag, '点击后跳转 /v2/routes/wizard')
+    writeEvidence('routes', '03-06-create-button', diag, '点击后跳转 /v2/routes/new（旧向导不再作为入口）')
   })
 
   test('03-07 新建路由：第 1 步必选模板 + 必填项分步校验', async ({ page, shot, diag }) => {
+    // S12-4/S12-5 保留：直接 goto 旧向导页（裁决①：页面保留、可直达）→ 测「旧向导仍可用」，
+    // 与「谁是新建入口」无关（入口链路已由 03-06 改断言 /v2/routes/new）。
     await page.goto('/v2/routes/wizard')
     await expect(page.getByTestId('wizard-step-1')).toBeVisible({ timeout: 15_000 })
     // v2 门禁：未选模板时「下一步」disabled（旧表单页无此门禁）
@@ -160,6 +179,7 @@ test.describe('BL-03 路由管理', () => {
   })
 
   test('03-08 新建路由：非法名称/路径格式被前端拦截', async ({ page, shot, diag }) => {
+    // S12-4/S12-5 保留：同上（直接 goto 旧向导页，测旧页面前端校验仍生效）。
     await page.goto('/v2/routes/wizard')
     await expect(page.getByTestId('wizard-step-1')).toBeVisible({ timeout: 15_000 })
     await page.getByTestId('wizard-template-basic').click()
@@ -206,6 +226,8 @@ test.describe('BL-03 路由管理', () => {
   })
 
   test('03-10 新建路由：向导合法输入创建成功并回到列表可见', async ({ page, shot, diag }) => {
+    // S12-4/S12-5 保留：走旧向导建路由 → 测「旧向导建路由链路仍可用」。
+    // （新建入口链路由 03-06 断言 + 03-routes-ingress.spec.ts 覆盖。）
     const name = uniq('e2e_rt')
     await wizardCreateRoute(page, name)
     await shot('routes', '03-10-create-success')
@@ -270,6 +292,7 @@ test.describe('BL-03 路由管理', () => {
   })
 
   test('03-14 草稿路由可发布（v2 独立发布页 + 状态真的变为已发布）', async ({ page, shot, diag }) => {
+    // S12-4/S12-5 保留：用例意图是「草稿 → 发布」，建路由用旧向导只是手段（发布流未变）。
     const name = uniq('e2e_pub')
     await wizardCreateRoute(page, name)
     await page.getByLabel('搜路径 / 名称…').fill(name)
@@ -348,6 +371,7 @@ test.describe('BL-03 路由管理', () => {
   test('03-17 草稿路由可删除（v2 无 UI 入口缺口：API 驱动 + 列表消失断言）', async ({ page, shot, diag }) => {
     // v2 UI 缺口（记录不修业务）：路由删除无 UI 入口。保留意图「草稿路由可删除且从列表消失」：
     // 创建走向导 UI，删除经 API（后端 DELETE 健在），断言 v2 列表不再出现。
+    // S12-4/S12-5 保留：建路由手段仍是旧向导（用例测的是删除能力，与创建入口无关）。
     const name = uniq('e2e_del')
     await wizardCreateRoute(page, name)
     await page.getByLabel('搜路径 / 名称…').fill(name)
@@ -372,6 +396,8 @@ test.describe('BL-03 路由管理', () => {
   test('03-18 分发路由形态：向导分发模板出分支配置 + 编辑态父路由选择在', async ({ page, shot, diag }) => {
     // v2 无「路由类型切换后出现父路由」的表单联动：分发=模板选择（向导第 3 步出分支配置）；
     // 父路由选择在编辑态 RouteEditForm（ref-input-parent_route_id，仅分发路由可作父）。
+    // S12-4/S12-5 保留：DISPATCH 分发模板是 gateway4j 扩展编排（SCG 无等价物），
+    // 只存在于旧向导 → 该用例继续直入旧向导页。
     await page.goto('/v2/routes/wizard')
     await expect(page.getByTestId('wizard-step-1')).toBeVisible({ timeout: 15_000 })
     await page.getByTestId('wizard-template-dispatch').click()
