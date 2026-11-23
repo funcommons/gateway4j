@@ -1,5 +1,5 @@
 /**
- * S12-4-T：v2 路由创建单页「K8s Ingress 风格」+ YAML 视图测试。
+ * S12-4-T / S12-6-T：v2 路由创建单页「K8s Ingress 风格」+ YAML 视图测试。
  * 契约来源：docs/ui-v2/实施契约.md §10 S12 批（用户裁决：不要向导，仿 K8s Ingress 配置页；
  * pathType 三值全上；SCG 原生谓词；批量 POST /v1/routes/ingress）。
  *
@@ -10,43 +10,49 @@
  *
  * 结构（K8s Ingress 视觉语法，自上而下）：
  *   metadata：name（必填 ^[a-zA-Z0-9_]{2,50}$）/ environment / remark / tags
- *   spec.rules[]：host（可空 = 不限域名）+ paths[]（path | pathType | backend.service | backend.port）
+ *   spec.rules[]：host（可空 = 不限域名）+ paths[]（path | pathType | uri）
  *   spec.filters[]：插件绑定（SCG filters ↔ gateway4j 插件）
  *   spec.predicates[]：高级谓词（SCG 原生定义串，如 Host=**.example.com）
  *   底部：保存 / 取消
  * 双视图：表单 / YAML（同一份 Ingress 结构的 YAML 表达，双向同步；YAML 解析失败给行号）。
  *
- * ══ 载荷契约（§10 POST /v1/routes/ingress）══
+ * ══ S12-6 载荷契约（path 级后端目标合并为单字段 uri）══
  * { name, environment, remark, tags,
- *   rules: [{ host, paths: [{ path, pathType, backend: { service, port } }] }],
+ *   rules: [{ host, paths: [{ path, pathType, uri }] }],
  *   plugins: [{ plugin_id, binding_config }],
  *   predicates: string[] }
+ * - uri = **完整上游地址**（scheme://host[:port]），与 SCG `RouteDefinition.uri` 同名同义；
+ *   K8s 的 backend.service.name + backend.service.port.number 两分在本 API 中合并为这一个
+ *   uri 字段；旧的 `backend{service,port}` **不再保留**（单一真相源）。
+ * - uri 校验：非空 + 形如 ^https?://\S+$（与后端 @Pattern 同口径），错误提示带格式示例。
  * - pathType：PREFIX → `/api/**`（用户填 /api，自动补 /**）；EXACT → 原样；
  *   IMPLEMENTATION_SPECIFIC → 原样（用户直填 SCG PathPattern 片段）。
- * - upstream_url：**前端不携带**（S12-4 收口裁决）——后端按 §10 从 service+port 合成，
+ * - upstream_url：**前端不携带**（S12-4 收口裁决）——后端按 uri 原样落库，
  *   后端是唯一真相源；前端再带一份 = 两个真相源。
  * - predicates：路由级 SCG 谓词定义串（顶层字段，与 rules/plugins 平级）。
  *
  * ══ i18n key 全表（v2.ingress.*，zh-CN/en-US 同步加，铁律 6）══
  * title sectionMetadata sectionRules sectionFilters sectionPredicates
  * fieldName fieldEnvironment fieldRemark fieldTags fieldHost fieldPath fieldPathType
- * fieldService fieldPort fieldPredicateType fieldPredicateArg
+ * fieldUri fieldPredicateType fieldPredicateArg
  * addRule addPath addPlugin addPredicate removeRule removePath removePlugin removePredicate
  * pathTypePrefix pathTypeExact pathTypeImplementationSpecific
  * viewForm viewYaml save cancel createSuccess createFailed forbidden
- * nameRequired nameInvalid pathRequired serviceRequired portInvalid hostInvalid
+ * nameRequired nameInvalid pathRequired uriRequired uriInvalid hostInvalid
  * ruleNeedPath predicateArgRequired yamlInvalid pluginsEmpty pluginsLoadFailed
  * emptyValue emptyRuleHint
+ * （S12-6 新增可发现性键）viewLabel viewToggle switchToForm switchToYaml yamlHint uriPlaceholder
  *
  * ══ DOM 契约（data-testid，前缀 ing-）══
  * ing-root / ing-forbidden
  * ing-view-form / ing-view-yaml（双视图切换钮，aria-pressed 同步当前视图）
+ * ing-yaml-hint（标题下方的 YAML 入口轻提示）
  * ing-form-view / ing-yaml-view（两个视图容器）
  * ing-yaml（YAML 编辑区容器；内含 textarea）
  * ing-yaml-error（YAML 解析失败行号提示）
  * ing-name / ing-environment / ing-remark / ing-tags
  * ing-rule-<i> / ing-host-<i> / ing-rm-rule-<i> / ing-add-rule
- * ing-path-<i>-<j> / ing-pathtype-<i>-<j> / ing-service-<i>-<j> / ing-port-<i>-<j>
+ * ing-path-<i>-<j> / ing-pathtype-<i>-<j> / ing-uri-<i>-<j>
  * ing-rm-path-<i>-<j> / ing-add-path-<i>
  * ing-plugin-select / ing-add-plugin / ing-plugin-<plugin_id> / ing-rm-plugin-<plugin_id>
  * ing-plugin-cfg-<plugin_id>
@@ -163,13 +169,12 @@ async function setSelect(w: VueWrapper<any>, id: string, value: string) {
   await selectEl(w, id).setValue(value)
 }
 
-/** 填一份最小可用表单（name/path/service/port 齐） */
+/** 填一份最小可用表单（name/path/uri 齐） */
 async function fillValid(w: VueWrapper<any>) {
   await setInput(w, 'ing-name', 'api_gateway')
   await setInput(w, 'ing-host-0', 'api.example.com')
   await setInput(w, 'ing-path-0-0', '/api')
-  await setInput(w, 'ing-service-0-0', 'user-service')
-  await setInput(w, 'ing-port-0-0', '8080')
+  await setInput(w, 'ing-uri-0-0', 'http://user-service:8080')
 }
 
 beforeEach(() => {
@@ -185,13 +190,15 @@ beforeEach(() => {
 const KEYS = [
   'title', 'sectionMetadata', 'sectionRules', 'sectionFilters', 'sectionPredicates',
   'fieldName', 'fieldEnvironment', 'fieldRemark', 'fieldTags', 'fieldHost', 'fieldPath',
-  'fieldPathType', 'fieldService', 'fieldPort', 'fieldPredicateType', 'fieldPredicateArg',
+  'fieldPathType', 'fieldUri', 'fieldPredicateType', 'fieldPredicateArg',
   'addRule', 'addPath', 'addPlugin', 'addPredicate', 'removeRule', 'removePath', 'removePlugin',
   'removePredicate', 'pathTypePrefix', 'pathTypeExact', 'pathTypeImplementationSpecific',
   'viewForm', 'viewYaml', 'save', 'cancel', 'createSuccess', 'createFailed', 'forbidden',
-  'nameRequired', 'nameInvalid', 'pathRequired', 'serviceRequired', 'portInvalid', 'hostInvalid',
+  'nameRequired', 'nameInvalid', 'pathRequired', 'uriRequired', 'uriInvalid', 'hostInvalid',
   'ruleNeedPath', 'predicateArgRequired', 'predicateHostConflict', 'yamlInvalid', 'pluginsEmpty', 'pluginsLoadFailed',
-  'emptyValue', 'emptyRuleHint'
+  'emptyValue', 'emptyRuleHint',
+  // S12-6：YAML 切换器可发现性
+  'viewLabel', 'viewToggle', 'switchToForm', 'switchToYaml', 'yamlHint', 'uriPlaceholder'
 ].map((k) => `v2.ingress.${k}`)
 
 describe('S12-4 — i18n key 全表双语存在（铁律 6，v2.ingress.* 新树）', () => {
@@ -209,10 +216,22 @@ describe('S12-4 — 结构：rules / paths 行渲染与增删', () => {
     expect(tid(wrapper, 'ing-rule-0').exists()).toBe(true)
     expect(tid(wrapper, 'ing-host-0').exists()).toBe(true)
     expect(tid(wrapper, 'ing-path-0-0').exists()).toBe(true)
-    expect(tid(wrapper, 'ing-service-0-0').exists()).toBe(true)
-    expect(tid(wrapper, 'ing-port-0-0').exists()).toBe(true)
+    expect(tid(wrapper, 'ing-uri-0-0').exists()).toBe(true)
     expect(tid(wrapper, 'ing-name').exists()).toBe(true)
     expect(tid(wrapper, 'ing-add-rule').exists()).toBe(true)
+  })
+
+  it('S12-6：服务/端口两输入框已合并为一个「上游地址」输入框', async () => {
+    const { wrapper } = await factory()
+    expect(tid(wrapper, 'ing-uri-0-0').exists(), '必须有合并后的 uri 输入框').toBe(true)
+    expect(tid(wrapper, 'ing-service-0-0').exists(), '旧 service 输入框必须移除').toBe(false)
+    expect(tid(wrapper, 'ing-port-0-0').exists(), '旧 port 输入框必须移除').toBe(false)
+    // 标签走 i18n
+    const label = wrapper.findAll('label').map((l) => l.text())
+    expect(label.some((x) => x.includes(t('v2.ingress.fieldUri')))).toBe(true)
+    // 占位符给出完整上游地址示例
+    const ph = inputEl(wrapper, 'ing-uri-0-0').attributes('placeholder')
+    expect(ph).toContain('http://user-service:8080')
   })
 
   it('添加规则 → 新规则行渲染；删除规则 → 行消失', async () => {
@@ -256,8 +275,8 @@ describe('S12-4 — 结构：rules / paths 行渲染与增删', () => {
 })
 
 // ── 载荷形状 ──────────────────────────────────────────────────────────────
-describe('S12-4 — 载荷：§10 契约逐字一致', () => {
-  it('payload 形状与 §10 一致（toStrictEqual：name/rules/paths/backend/plugins/predicates）', async () => {
+describe('S12-6 — 载荷：path 级 uri 单字段（无 backend）', () => {
+  it('payload 形状逐字一致（含 uri、不含 backend）', async () => {
     const { wrapper } = await factory()
     await fillValid(wrapper)
     await setInput(wrapper, 'ing-remark', 'demo route')
@@ -286,7 +305,7 @@ describe('S12-4 — 载荷：§10 契约逐字一致', () => {
             {
               path: '/api/**',
               pathType: 'PREFIX',
-              backend: { service: 'user-service', port: '8080' }
+              uri: 'http://user-service:8080'
             }
           ]
         }
@@ -294,6 +313,19 @@ describe('S12-4 — 载荷：§10 契约逐字一致', () => {
       plugins: [{ plugin_id: 'dingtalk', binding_config: '{}' }],
       predicates: ['Host=**.example.com']
     })
+  })
+
+  it('载荷中不得出现 backend / service / port 任何旧形态键', async () => {
+    const { wrapper } = await factory()
+    await fillValid(wrapper)
+    await tid(wrapper, 'ing-submit').trigger('click')
+    await flushPromises()
+    const payload = mocks.createIngressRoute.mock.calls[0][0]
+    const path0 = payload.rules[0].paths[0]
+    expect(path0).not.toHaveProperty('backend')
+    expect(path0).not.toHaveProperty('service')
+    expect(path0).not.toHaveProperty('port')
+    expect(Object.keys(path0).sort()).toEqual(['path', 'pathType', 'uri'])
   })
 
   it('pathType 三值映射：PREFIX 补 /**、EXACT 原样、IMPLEMENTATION_SPECIFIC 原样', async () => {
@@ -306,8 +338,7 @@ describe('S12-4 — 载荷：§10 契约逐字一致', () => {
     await tid(wrapper, 'ing-add-path-0').trigger('click')
     await setSelect(wrapper, 'ing-pathtype-0-1', 'IMPLEMENTATION_SPECIFIC')
     await setInput(wrapper, 'ing-path-0-1', '/api/{id:[0-9]+}')
-    await setInput(wrapper, 'ing-service-0-1', 'order-service')
-    await setInput(wrapper, 'ing-port-0-1', '9090')
+    await setInput(wrapper, 'ing-uri-0-1', 'http://order-service:9090')
 
     await tid(wrapper, 'ing-submit').trigger('click')
     await flushPromises()
@@ -316,13 +347,22 @@ describe('S12-4 — 载荷：§10 契约逐字一致', () => {
     expect(payload.rules[0].paths[0]).toStrictEqual({
       path: '/api/exact',
       pathType: 'EXACT',
-      backend: { service: 'user-service', port: '8080' }
+      uri: 'http://user-service:8080'
     })
     expect(payload.rules[0].paths[1]).toStrictEqual({
       path: '/api/{id:[0-9]+}',
       pathType: 'IMPLEMENTATION_SPECIFIC',
-      backend: { service: 'order-service', port: '9090' }
+      uri: 'http://order-service:9090'
     })
+  })
+
+  it('uri 原样提交（前端不合成 scheme / 不拆端口）', async () => {
+    const { wrapper } = await factory()
+    await fillValid(wrapper)
+    await setInput(wrapper, 'ing-uri-0-0', 'https://user-service')
+    await tid(wrapper, 'ing-submit').trigger('click')
+    await flushPromises()
+    expect(mocks.createIngressRoute.mock.calls[0][0].rules[0].paths[0].uri).toBe('https://user-service')
   })
 
   it('高级谓词：Host + 参数 → SCG 定义串 Host=**.example.com 进载荷', async () => {
@@ -352,7 +392,7 @@ describe('S12-4 — 载荷：§10 契约逐字一致', () => {
 })
 
 // ── 校验 ──────────────────────────────────────────────────────────────────
-describe('S12-4 — 校验：错误提示且不调 API', () => {
+describe('S12-6 — 校验：uri 非空 + 形如 ^https?://\S+$（与后端同口径）', () => {
   it('名称非法 → 错误提示且不调 API', async () => {
     const { wrapper } = await factory()
     await fillValid(wrapper)
@@ -374,23 +414,45 @@ describe('S12-4 — 校验：错误提示且不调 API', () => {
     expect(mocks.createIngressRoute).not.toHaveBeenCalled()
   })
 
-  it('服务缺失 → 错误提示且不调 API', async () => {
+  it('上游地址缺失 → 错误提示且不调 API', async () => {
     const { wrapper } = await factory()
     await fillValid(wrapper)
-    await setInput(wrapper, 'ing-service-0-0', '')
+    await setInput(wrapper, 'ing-uri-0-0', '')
     await tid(wrapper, 'ing-submit').trigger('click')
     await flushPromises()
-    expect(tid(wrapper, 'ing-error').text()).toContain(t('v2.ingress.serviceRequired'))
+    expect(tid(wrapper, 'ing-error').text()).toContain(t('v2.ingress.uriRequired'))
     expect(mocks.createIngressRoute).not.toHaveBeenCalled()
   })
 
-  it('端口非数字 → 错误提示且不调 API', async () => {
+  it('上游地址缺 scheme → 错误提示（含格式示例）且不调 API', async () => {
     const { wrapper } = await factory()
     await fillValid(wrapper)
-    await setInput(wrapper, 'ing-port-0-0', 'abc')
+    await setInput(wrapper, 'ing-uri-0-0', 'user-service:8080')
     await tid(wrapper, 'ing-submit').trigger('click')
     await flushPromises()
-    expect(tid(wrapper, 'ing-error').text()).toContain(t('v2.ingress.portInvalid'))
+    const text = tid(wrapper, 'ing-error').text()
+    expect(text).toContain(t('v2.ingress.uriInvalid'))
+    expect(text).toContain('http://user-service:8080')
+    expect(mocks.createIngressRoute).not.toHaveBeenCalled()
+  })
+
+  it('上游地址含空格 → 错误提示且不调 API', async () => {
+    const { wrapper } = await factory()
+    await fillValid(wrapper)
+    await setInput(wrapper, 'ing-uri-0-0', 'http://user service:8080')
+    await tid(wrapper, 'ing-submit').trigger('click')
+    await flushPromises()
+    expect(tid(wrapper, 'ing-error').text()).toContain(t('v2.ingress.uriInvalid'))
+    expect(mocks.createIngressRoute).not.toHaveBeenCalled()
+  })
+
+  it('上游地址非 http(s) 协议 → 错误提示且不调 API', async () => {
+    const { wrapper } = await factory()
+    await fillValid(wrapper)
+    await setInput(wrapper, 'ing-uri-0-0', 'ftp://user-service:8080')
+    await tid(wrapper, 'ing-submit').trigger('click')
+    await flushPromises()
+    expect(tid(wrapper, 'ing-error').text()).toContain(t('v2.ingress.uriInvalid'))
     expect(mocks.createIngressRoute).not.toHaveBeenCalled()
   })
 })
@@ -425,8 +487,8 @@ describe('S12-4 — 提交：成功 / 失败可重试', () => {
 })
 
 // ── YAML 视图 ─────────────────────────────────────────────────────────────
-describe('S12-4 — YAML 视图：双向同步', () => {
-  it('切到 YAML → 看到序列化内容（metadata / spec / rules）', async () => {
+describe('S12-6 — YAML 视图：双向同步（uri 键）', () => {
+  it('切到 YAML → 看到序列化内容（metadata / spec / rules / uri）', async () => {
     const { wrapper } = await factory()
     await fillValid(wrapper)
     await tid(wrapper, 'ing-view-yaml').trigger('click')
@@ -438,7 +500,11 @@ describe('S12-4 — YAML 视图：双向同步', () => {
     expect(text).toContain('spec:')
     expect(text).toContain('rules:')
     expect(text).toContain('pathType: PREFIX')
-    expect(text).toContain('service: user-service')
+    expect(text).toContain('uri: http://user-service:8080')
+    // 旧的两分形态（backend/service/port 键）不得再出现（注意：值里的 "user-service:8080" 不是键）
+    expect(text).not.toMatch(/^\s*backend:/m)
+    expect(text).not.toMatch(/^\s*service:/m)
+    expect(text).not.toMatch(/^\s*port:/m)
   })
 
   it('改 YAML 再切回表单 → 字段同步', async () => {
@@ -457,9 +523,7 @@ describe('S12-4 — YAML 视图：双向同步', () => {
       '      paths:',
       '        - path: /v1',
       '          pathType: EXACT',
-      '          backend:',
-      '            service: yaml-svc',
-      '            port: "9090"',
+      '          uri: http://yaml-svc:9090',
       '  filters: []',
       '  predicates: []',
       ''
@@ -474,8 +538,7 @@ describe('S12-4 — YAML 视图：双向同步', () => {
     expect(inputVal(wrapper, 'ing-host-0')).toBe('yaml.example.com')
     expect(inputVal(wrapper, 'ing-path-0-0')).toBe('/v1')
     expect(selectVal(wrapper, 'ing-pathtype-0-0')).toBe('EXACT')
-    expect(inputVal(wrapper, 'ing-service-0-0')).toBe('yaml-svc')
-    expect(inputVal(wrapper, 'ing-port-0-0')).toBe('9090')
+    expect(inputVal(wrapper, 'ing-uri-0-0')).toBe('http://yaml-svc:9090')
   })
 
   it('YAML 非法 → 行号错误提示且不切回表单', async () => {
@@ -489,6 +552,48 @@ describe('S12-4 — YAML 视图：双向同步', () => {
     expect(tid(wrapper, 'ing-yaml-error').text()).toContain('3')
     expect(tid(wrapper, 'ing-yaml-view').exists(), '解析失败必须停留 YAML 视图').toBe(true)
     expect(tid(wrapper, 'ing-form-view').exists()).toBe(false)
+  })
+})
+
+// ── S12-6：YAML 切换器可发现性 ───────────────────────────────────────────
+describe('S12-6 — YAML 切换器可发现性（用户反馈「没有看到 YML」）', () => {
+  it('切换器带可见文案（表单 / YAML）+ 语义图标', async () => {
+    const { wrapper } = await factory()
+    const formBtn = tid(wrapper, 'ing-view-form')
+    const yamlBtn = tid(wrapper, 'ing-view-yaml')
+    expect(formBtn.text()).toContain(t('v2.ingress.viewForm'))
+    expect(yamlBtn.text()).toContain(t('v2.ingress.viewYaml'))
+    // 语义图标（remix-icon class）
+    expect(formBtn.find('i.ri-file-list-3-line').exists(), '表单按钮缺语义图标').toBe(true)
+    expect(yamlBtn.find('i.ri-code-line').exists(), 'YAML 按钮缺语义图标').toBe(true)
+  })
+
+  it('YAML 按钮带 title / aria-label 提示「切换 YAML 直接编辑」', async () => {
+    const { wrapper } = await factory()
+    const yamlBtn = tid(wrapper, 'ing-view-yaml')
+    expect(yamlBtn.attributes('title')).toContain(t('v2.ingress.switchToYaml'))
+    const aria = yamlBtn.attributes('aria-label') ?? ''
+    expect(aria).toContain(t('v2.ingress.switchToYaml'))
+    // WCAG 2.5.3 Label in Name：aria-label 须包含可见文案
+    expect(aria).toContain(t('v2.ingress.viewYaml'))
+    const formBtn = tid(wrapper, 'ing-view-form')
+    expect(formBtn.attributes('title')).toContain(t('v2.ingress.switchToForm'))
+    expect(formBtn.attributes('aria-label') ?? '').toContain(t('v2.ingress.viewForm'))
+  })
+
+  it('切换器旁有可见「视图」标签，分组有 aria-label', async () => {
+    const { wrapper } = await factory()
+    const group = wrapper.find('.ing-views')
+    expect(group.exists()).toBe(true)
+    expect(group.text()).toContain(t('v2.ingress.viewLabel'))
+    expect(group.attributes('aria-label')).toContain(t('v2.ingress.viewToggle'))
+  })
+
+  it('标题下方有 YAML 入口轻提示（入口自解释）', async () => {
+    const { wrapper } = await factory()
+    const hint = tid(wrapper, 'ing-yaml-hint')
+    expect(hint.exists(), '必须给出 YAML 视图入口的可见提示').toBe(true)
+    expect(hint.text()).toContain(t('v2.ingress.yamlHint'))
   })
 })
 

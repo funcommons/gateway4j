@@ -10,7 +10,7 @@
  *   spec 区：
  *     rules[]  每条 rule = 一个 host（可空 = 不限域名）+ 若干 paths[]
  *              每条 path = path | pathType(Prefix|Exact|ImplementationSpecific)
- *                        | backend.service | backend.port
+ *                        | uri（完整上游地址，SCG RouteDefinition.uri 同名同义）
  *     filters[]  插件绑定（SCG filters ↔ gateway4j 插件）
  *     predicates[] 高级谓词（SCG 原生定义串，如 Host=**.example.com）
  *   底部：保存 / 取消
@@ -18,13 +18,17 @@
  * 双视图：表单 ⇄ YAML（同一份 Ingress 结构的 YAML 表达，双向同步）。
  *   - 切到 YAML：把当前表单（含未保存改动）序列化成 YAML；
  *   - 切回表单：解析 YAML → 回填表单；解析失败给【行号】错误提示并停留 YAML 视图。
+ *   - S12-6：切换器可发现性 —— 语义图标 + 可见「视图」标签 + title/aria-label +
+ *     标题下方的 YAML 入口轻提示（用户反馈「没有看到 YML」）。
  *
  * 载荷（§10 POST /v1/routes/ingress）：
  *   { name, environment, remark, tags,
- *     rules: [{ host, paths: [{ path, pathType, backend: { service, port } }] }],
+ *     rules: [{ host, paths: [{ path, pathType, uri }] }],
  *     plugins: [{ plugin_id, binding_config }],
  *     predicates: string[] }
  *   pathType 映射：PREFIX → `/api/**`；EXACT → 原样；IMPLEMENTATION_SPECIFIC → 原样。
+ *   uri = 完整上游地址（scheme://host[:port]）—— S12-6 起 path 级后端目标合并为这一个
+ *   字段（K8s 的 backend.service.name + backend.service.port.number 两分已合并）。
  *
  * 依赖分层（避免重依赖进主 bundle）：
  *   - 纯模型层 ./ingressModel（路径翻译 / 载荷构造）静态 import —— 零重依赖；
@@ -52,8 +56,11 @@ import {
 const NAME_RE = INGRESS_NAME_RE
 /** host 宽松格式（允许 *.example.com；空 = 不限域名） */
 const HOST_RE = /^(\*\.)?[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?$/
-/** 端口：数字（可空） */
-const PORT_RE = /^\d+$/
+/**
+ * 上游地址格式（S12-6：与后端 RouteController.IngressPathRequest.uri 的 @Pattern 同口径）：
+ * 完整上游地址 scheme://host[:port] —— 前端校验与后端必须一致，避免用户填了才被拒。
+ */
+const URI_RE = /^https?:\/\/\S+$/
 
 /** SCG 原生谓词类型全集（高级谓词区） */
 const PREDICATE_TYPES = ['Host', 'Method', 'Cookie', 'RemoteAddr', 'After', 'Before'] as const
@@ -134,7 +141,7 @@ function currentModel(): IngressModel {
       paths: r.paths.map((p) => ({
         path: p.path,
         pathType: p.pathType,
-        backend: { service: p.backend.service, port: p.backend.port }
+        uri: p.uri
       }))
     })),
     plugins: model.plugins.map((p) => ({ plugin_id: p.plugin_id, binding_config: p.binding_config })),
@@ -229,9 +236,9 @@ function validate(): string[] {
     if (rule.paths.length === 0) errs.push(t('v2.ingress.ruleNeedPath'))
     rule.paths.forEach((p) => {
       if (!p.path.trim()) errs.push(t('v2.ingress.pathRequired'))
-      if (!p.backend.service.trim()) errs.push(t('v2.ingress.serviceRequired'))
-      const port = p.backend.port.trim()
-      if (port && !PORT_RE.test(port)) errs.push(t('v2.ingress.portInvalid'))
+      const uri = p.uri.trim()
+      if (!uri) errs.push(t('v2.ingress.uriRequired'))
+      else if (!URI_RE.test(uri)) errs.push(t('v2.ingress.uriInvalid'))
     })
   })
   predicateRows.value.forEach((r) => {
@@ -278,6 +285,14 @@ const PATH_TYPE_OPTIONS: Array<{ value: IngressPathType; labelKey: string }> = [
   { value: 'EXACT', labelKey: 'v2.ingress.pathTypeExact' },
   { value: 'IMPLEMENTATION_SPECIFIC', labelKey: 'v2.ingress.pathTypeImplementationSpecific' }
 ]
+
+/**
+ * 视图切换器按钮的无障碍名（S12-6 可发现性）：
+ * WCAG 2.5.3（Label in Name）要求 aria-label 包含可见文案 —— 故拼成
+ * 「可见文案 — 动作提示」，既保留可见标签，又能被读屏读出「切换到 YAML 直接编辑」。
+ */
+const viewFormLabel = computed(() => `${t('v2.ingress.viewForm')} — ${t('v2.ingress.switchToForm')}`)
+const viewYamlLabel = computed(() => `${t('v2.ingress.viewYaml')} — ${t('v2.ingress.switchToYaml')}`)
 </script>
 
 <template>
@@ -290,17 +305,23 @@ const PATH_TYPE_OPTIONS: Array<{ value: IngressPathType; labelKey: string }> = [
 
     <template v-else>
       <header class="ing-head">
-        <h1 class="ing-title">{{ t('v2.ingress.title') }}</h1>
-        <div class="ing-views" role="group" :aria-label="t('v2.ingress.title')">
+        <div class="ing-head-main">
+          <h1 class="ing-title">{{ t('v2.ingress.title') }}</h1>
+          <p class="ing-hint" data-testid="ing-yaml-hint">{{ t('v2.ingress.yamlHint') }}</p>
+        </div>
+        <div class="ing-views" role="group" :aria-label="t('v2.ingress.viewToggle')">
+          <span class="ing-views-label">{{ t('v2.ingress.viewLabel') }}</span>
           <button
             type="button"
             class="ing-view-btn"
             data-testid="ing-view-form"
             :aria-pressed="view === 'form' ? 'true' : 'false'"
+            :aria-label="viewFormLabel"
+            :title="t('v2.ingress.switchToForm')"
             :class="{ 'is-on': view === 'form' }"
             @click="switchToForm"
           >
-            <FcIcon name="ri-file-list-3-line" :size="13" />
+            <FcIcon name="ri-file-list-3-line" :size="14" />
             <span>{{ t('v2.ingress.viewForm') }}</span>
           </button>
           <button
@@ -308,10 +329,12 @@ const PATH_TYPE_OPTIONS: Array<{ value: IngressPathType; labelKey: string }> = [
             class="ing-view-btn"
             data-testid="ing-view-yaml"
             :aria-pressed="view === 'yaml' ? 'true' : 'false'"
+            :aria-label="viewYamlLabel"
+            :title="t('v2.ingress.switchToYaml')"
             :class="{ 'is-on': view === 'yaml' }"
             @click="switchToYaml"
           >
-            <FcIcon name="ri-code-box-line" :size="13" />
+            <FcIcon name="ri-code-line" :size="14" />
             <span>{{ t('v2.ingress.viewYaml') }}</span>
           </button>
         </div>
@@ -399,12 +422,13 @@ const PATH_TYPE_OPTIONS: Array<{ value: IngressPathType; labelKey: string }> = [
                 </select>
               </div>
               <div class="ing-field">
-                <label class="ing-label" :for="`ing-service-${ri}-${pi}`">{{ t('v2.ingress.fieldService') }}</label>
-                <FcInput :id="`ing-service-${ri}-${pi}`" v-model="p.backend.service" :data-testid="`ing-service-${ri}-${pi}`" />
-              </div>
-              <div class="ing-field">
-                <label class="ing-label" :for="`ing-port-${ri}-${pi}`">{{ t('v2.ingress.fieldPort') }}</label>
-                <FcInput :id="`ing-port-${ri}-${pi}`" v-model="p.backend.port" :data-testid="`ing-port-${ri}-${pi}`" />
+                <label class="ing-label" :for="`ing-uri-${ri}-${pi}`">{{ t('v2.ingress.fieldUri') }}</label>
+                <FcInput
+                  :id="`ing-uri-${ri}-${pi}`"
+                  v-model="p.uri"
+                  :placeholder="t('v2.ingress.uriPlaceholder')"
+                  :data-testid="`ing-uri-${ri}-${pi}`"
+                />
               </div>
               <button
                 type="button"
@@ -579,10 +603,17 @@ const PATH_TYPE_OPTIONS: Array<{ value: IngressPathType; labelKey: string }> = [
 
 .ing-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.ing-head-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
 .ing-title {
@@ -592,31 +623,52 @@ const PATH_TYPE_OPTIONS: Array<{ value: IngressPathType; labelKey: string }> = [
   color: var(--app-text);
 }
 
+/* 视图切换器（S12-6：提高对比度 / 尺寸 / 位置显著性，用户反馈「没有看到 YML」） */
 .ing-views {
   display: inline-flex;
+  align-items: center;
   gap: 4px;
-  padding: 3px;
+  padding: 4px;
   background: var(--app-bg-muted);
-  border: 1px solid var(--app-border-light);
+  border: 1px solid var(--app-border);
   border-radius: var(--app-radius-md);
+}
+
+.ing-views-label {
+  padding: 0 6px 0 4px;
+  font-size: 12px;
+  color: var(--app-text-tertiary);
+  white-space: nowrap;
 }
 
 .ing-view-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 4px 12px;
-  font-size: 12px;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--app-text-secondary);
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
   border-radius: var(--app-radius-button);
   cursor: pointer;
 }
 
+.ing-view-btn:hover {
+  color: var(--app-text);
+}
+
+.ing-view-btn:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+}
+
 .ing-view-btn.is-on {
   color: var(--app-text);
+  font-weight: 600;
   background: var(--app-bg-card);
+  border-color: var(--app-border);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--app-shadow) 12%, transparent);
 }
 
@@ -705,7 +757,7 @@ const PATH_TYPE_OPTIONS: Array<{ value: IngressPathType; labelKey: string }> = [
 
 .ing-path {
   display: grid;
-  grid-template-columns: 2fr 1.2fr 1.4fr 0.8fr auto;
+  grid-template-columns: 2fr 1.2fr 2.2fr auto;
   gap: 8px;
   align-items: end;
   padding: 8px;

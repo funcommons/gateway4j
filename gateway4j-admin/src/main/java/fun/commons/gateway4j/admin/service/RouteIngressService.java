@@ -17,11 +17,10 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * S12-3：管理面批量 Ingress 建路由服务（契约 docs/ui-v2/实施契约.md §10）。
@@ -36,9 +35,11 @@ import java.util.regex.Pattern;
  *   <li>pathType 三值：{@code PREFIX} → {@code /api} 补成 {@code /api/**}（已带
  *       {@code /**} 或 {@code /*} 则原样）；{@code EXACT} / {@code IMPLEMENTATION_SPECIFIC}
  *       原样（后者允许 SCG PathPattern 片段如 {@code /api/{id:[0-9]+}}）。</li>
- *   <li>backend → upstream_url：{@code http://{service}[:{port}]}；service 自带
- *       scheme（{@code http://x} / {@code https://x}）则保留其 scheme；port 为空则
- *       不带端口；service 为空 → 拒收。合成结果过 {@code ^https?://\S+$} 校验。</li>
+ *   <li><b>S12-6：uri → upstream_url 原样落库</b>（不再由服务端合成）。
+ *       uri = SCG {@code RouteDefinition.uri} 同名同义的完整上游地址
+ *       （{@code scheme://host[:port]}）；K8s 的 {@code backend.service.name} +
+ *       {@code backend.service.port.number} 两分在本 API 中已合并进这一个 uri 字段。
+ *       uri 为空 / 缺 scheme / 含空白 → 整单拒收（错误文案点明格式与示例）。</li>
  *   <li>命名：{@code route_name = <name>_<序号>}（序号从 1 起全局连续），须合
  *       {@code ^[a-zA-Z0-9_]{2,50}$}（超长截断 name 部分）。</li>
  *   <li>事务：整个请求一个事务（{@code @Transactional}），中途失败全量回滚，
@@ -46,7 +47,7 @@ import java.util.regex.Pattern;
  * </ul>
  *
  * <p>校验前置（比单条创建更严，批量会放大风险）：rules 非空、每条 rule 至少一个
- * path、path 必填且以 / 开头、service 必填、port 须为数字、environment 合法
+ * path、path 必填且以 / 开头、uri 必填且形如 {@code ^https?://\S+$}、environment 合法
  * （白名单口径同 {@link RouteService#normalizeEnvironment}）、plugin_id 必须真实
  * 存在（查 gw_plugin）→ 否则整单拒收。</p>
  */
@@ -62,8 +63,9 @@ public class RouteIngressService {
     /** 上游地址格式（对齐 RouteCreateRequest.upstreamUrl 的校验口径）。 */
     private static final String UPSTREAM_PATTERN = "^https?://\\S+$";
 
-    /** service 自带 scheme 时按此拆分（保留其 scheme，不做 URL 反序列化）。 */
-    private static final Pattern SCHEME_PATTERN = Pattern.compile("^(https?)://(.*)$", Pattern.CASE_INSENSITIVE);
+    /** uri 非法时的统一错误文案（点明格式 + 示例；与 Controller 的 @Pattern 文案同口径）。 */
+    private static final String URI_FORMAT_HINT =
+            "上游地址须为 http:// 或 https:// 开头的完整上游地址（例：http://user-service:8080）";
 
     private final RouteMapper routeMapper;
     private final RoutePredicateMapper predicateMapper;
@@ -207,18 +209,10 @@ public class RouteIngressService {
                 if (rawPath.matches(".*\\s.*")) {
                     throw new BusinessException(ErrorCode.CONFIG_SYNC_FAILED, "路径不能含空白字符：" + rawPath);
                 }
-                RouteController.IngressBackendRequest backend = path.backend();
-                if (backend == null || backend.service() == null || backend.service().trim().isEmpty()) {
-                    throw new BusinessException(ErrorCode.CONFIG_SYNC_FAILED, "服务名不能为空");
-                }
-                String port = backend.port() == null ? "" : backend.port().trim();
-                if (!port.isEmpty() && !port.matches("^\\d+$")) {
-                    throw new BusinessException(ErrorCode.CONFIG_SYNC_FAILED, "端口须为数字：" + port);
-                }
                 seq++;
                 plans.add(new Plan(seq, deriveRouteName(baseName, seq),
                         translatePath(rawPath, path.pathType()),
-                        buildUpstreamUrl(backend.service(), port),
+                        normalizeUri(path.uri()),
                         host));
             }
         }
@@ -245,29 +239,33 @@ public class RouteIngressService {
     }
 
     /**
-     * backend → upstream_url：{@code http://{service}[:{port}]}。
-     * service 自带 scheme 时保留其 scheme；带端口且另给 port 时以 port 覆盖；
-     * port 为空则不带端口。合成结果过 {@code ^https?://\S+$} 校验（对齐既有创建路由）。
+     * uri 归一 + 校验（S12-6：path 级 uri = SCG {@code RouteDefinition.uri} 同名同义的
+     * 完整上游地址 {@code scheme://host[:port]}）。
+     *
+     * <p>口径：trim 后原样落 {@code gw_route.upstream_url} —— 服务端<b>不再合成</b>
+     * scheme/端口（K8s 的 service.name + service.port.number 两分已在 API 层合并为
+     * 这一个 uri 字段，前端/用户填什么就存什么 → 单一真相源）。</p>
+     *
+     * <p>非法（空 / 缺 scheme / 含空白 / 非 http(s) / URI 语法非法）→ 整单拒收，
+     * 错误文案点明格式与示例。</p>
      */
-    static String buildUpstreamUrl(String service, String port) {
-        String svc = service.trim();
-        String p = port == null ? "" : port.trim();
-        String scheme = "http";
-        String rest = svc;
-        Matcher matcher = SCHEME_PATTERN.matcher(svc);
-        if (matcher.matches()) {
-            scheme = matcher.group(1).toLowerCase(Locale.ROOT);
-            rest = matcher.group(2);
+    static String normalizeUri(String rawUri) {
+        String uri = rawUri == null ? "" : rawUri.trim();
+        if (uri.isEmpty()) {
+            throw new BusinessException(ErrorCode.CONFIG_SYNC_FAILED,
+                    "上游地址不能为空。" + URI_FORMAT_HINT);
         }
-        if (!p.isEmpty()) {
-            rest = rest.replaceFirst(":\\d+$", "");
-            rest = rest + ":" + p;
+        if (!uri.matches(UPSTREAM_PATTERN)) {
+            throw new BusinessException(ErrorCode.CONFIG_SYNC_FAILED,
+                    URI_FORMAT_HINT + "：" + uri);
         }
-        String url = scheme + "://" + rest;
-        if (!url.matches(UPSTREAM_PATTERN)) {
-            throw new BusinessException(ErrorCode.CONFIG_SYNC_FAILED, "上游地址非法：" + url);
+        try {
+            URI.create(uri);
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException(ErrorCode.CONFIG_SYNC_FAILED,
+                    URI_FORMAT_HINT + "：" + uri);
         }
-        return url;
+        return uri;
     }
 
     /** 合成子路由名：{@code <name>_<序号>}，超长截断 name 部分（总量 ≤ 50）。 */

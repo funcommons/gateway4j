@@ -35,7 +35,6 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -574,6 +573,10 @@ public class RouteController {
      * 不再需要 DISPATCH 父路由 + 条件近似机制 —— host 走路由级 SCG 原生谓词行
      * （gw_route_predicate.definition = {@code Host={host}}），语义与 Spring Cloud
      * Gateway 100% 对齐。</p>
+     *
+     * <p>S12-6：path 级后端目标为单字段 {@code uri}（= SCG {@code RouteDefinition.uri}
+     * 同名同义的完整上游地址 {@code scheme://host[:port]}），取代旧的
+     * {@code backend{service,port}} 两分形态 —— 单一真相源。</p>
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record IngressCreateRequest(
@@ -603,7 +606,15 @@ public class RouteController {
             @JsonProperty("paths") List<IngressPathRequest> paths
     ) {}
 
-    /** 一条 path = 一条 BACKEND 路由（pathType 三值：PREFIX / EXACT / IMPLEMENTATION_SPECIFIC）。 */
+    /**
+     * 一条 path = 一条 BACKEND 路由（pathType 三值：PREFIX / EXACT / IMPLEMENTATION_SPECIFIC）。
+     *
+     * <p>S12-6：path 级后端目标由 {@code backend{service,port}}（K8s 两分形态）合并为
+     * <b>单字段 {@code uri}</b> —— 与 Spring Cloud Gateway {@code RouteDefinition.uri}
+     * 同名同义（完整上游地址 {@code scheme://host[:port]}）。K8s 的
+     * {@code backend.service.name} + {@code backend.service.port.number} 两分在本 API 中
+     * 合并进这一个 uri 字段（用户直接填完整地址，服务端原样落 {@code gw_route.upstream_url}）。</p>
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record IngressPathRequest(
             @NotBlank(message = "路径不能为空")
@@ -612,17 +623,10 @@ public class RouteController {
             @Pattern(regexp = "^(PREFIX|EXACT|IMPLEMENTATION_SPECIFIC)$",
                     message = "pathType 仅支持 PREFIX/EXACT/IMPLEMENTATION_SPECIFIC")
             @JsonProperty("pathType") @JsonAlias("path_type") String pathType,
-            @NotNull(message = "后端服务不能为空")
-            @Valid
-            @JsonProperty("backend") IngressBackendRequest backend
-    ) {}
-
-    /** 后端目标（K8s 形态：服务名 + 端口；service 不含 scheme 时按 http:// 合成）。 */
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public record IngressBackendRequest(
-            @NotBlank(message = "服务名不能为空")
-            @JsonProperty("service") String service,
-            @JsonProperty("port") String port
+            @NotBlank(message = "上游地址不能为空")
+            @Pattern(regexp = "^https?://\\S+$",
+                    message = "上游地址须为 http:// 或 https:// 开头的完整上游地址（例：http://user-service:8080）")
+            @JsonProperty("uri") String uri
     ) {}
 
     /** 插件绑定（SCG filters ↔ gateway4j 插件）：plugin_id = gw_plugin.plugin_id（插件标识）。 */

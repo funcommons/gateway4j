@@ -24,6 +24,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -86,7 +90,7 @@ class RouteControllerTest {
                 "api_gateway", "default", "", "",
                 List.of(new RouteController.IngressRuleRequest("api.example.com",
                         List.of(new RouteController.IngressPathRequest("/api", "PREFIX",
-                                new RouteController.IngressBackendRequest("user-service", "8080"))))),
+                                "http://user-service:8080")))),
                 List.of(), List.of());
 
         var response = controller.createIngressRoutes(request);
@@ -95,6 +99,40 @@ class RouteControllerTest {
         assertEquals(1, response.getData().created().size());
         assertEquals("api_gateway_1", response.getData().created().get(0).routeName());
         verify(routeIngressService).createIngress(request);
+    }
+
+    /**
+     * S12-6：path 级 uri 字段的 Bean Validation 契约 —— 必须是
+     * {@code ^https?://\S+$}，且错误文案点明「http:// 或 https:// 开头的完整上游地址」
+     * 与格式示例（{@code http://user-service:8080}）。
+     */
+    @Test
+    void ingressPathUriValidationContract() throws Exception {
+        // record 组件上的约束注解按 JLS 传播到访问器方法（@Target 含 METHOD）
+        var uriAccessor = RouteController.IngressPathRequest.class.getDeclaredMethod("uri");
+
+        Pattern pattern = uriAccessor.getAnnotation(Pattern.class);
+        assertNotNull(pattern, "IngressPathRequest 必须有 uri 字段并标注 @Pattern");
+        assertEquals("^https?://\\S+$", pattern.regexp());
+        assertTrue(pattern.message().contains("http://"), pattern.message());
+        assertTrue(pattern.message().contains("https://"), pattern.message());
+        assertTrue(pattern.message().contains("http://user-service:8080"), pattern.message());
+
+        NotBlank notBlank = uriAccessor.getAnnotation(NotBlank.class);
+        assertNotNull(notBlank, "IngressPathRequest.uri 必须 @NotBlank");
+    }
+
+    /** S12-6：旧的 backend{service,port} 形态已从请求契约移除（单一真相源 = uri）。 */
+    @Test
+    void ingressBackendRecordRemoved() {
+        List<String> nestedNames = Arrays.stream(RouteController.class.getDeclaredClasses())
+                .map(Class::getSimpleName)
+                .filter(n -> n.toLowerCase().contains("backend"))
+                .toList();
+        assertTrue(nestedNames.isEmpty(), "backend 嵌套契约已移除，仍存在：" + nestedNames);
+        boolean hasBackendField = Arrays.stream(RouteController.IngressPathRequest.class.getRecordComponents())
+                .anyMatch(rc -> "backend".equals(rc.getName()));
+        assertFalse(hasBackendField, "IngressPathRequest 不得再保留 backend 字段");
     }
 
     @Test

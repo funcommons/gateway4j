@@ -33,7 +33,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /**
- * S12-3：管理面批量 Ingress 建路由服务单测（契约 docs/ui-v2/实施契约.md §10）。
+ * S12-3 / S12-6：管理面批量 Ingress 建路由服务单测（契约 docs/ui-v2/实施契约.md §10）。
  *
  * <p>契约要点（实现须与本文件一致）：</p>
  * <ul>
@@ -42,10 +42,12 @@ import static org.mockito.Mockito.*;
  *       （{@code Host={host}}）+ 顶层 predicates[] 各插一份 + plugins[] 绑定行。</li>
  *   <li>pathType 三值：PREFIX → {@code /api} 补成 {@code /api/**}（已带 {@code /**}
  *       或 {@code /*} 则原样）；EXACT / IMPLEMENTATION_SPECIFIC 原样。</li>
- *   <li>backend → upstream_url：{@code http://{service}[:{port}]}；service 可自带
- *       scheme（保留其 scheme）；port 为空则不带端口；service 为空 → 拒收。</li>
+ *   <li><b>S12-6：path 级 {@code backend{service,port}} 合并为单字段 {@code uri}</b>
+ *       （SCG {@code RouteDefinition.uri} 同名同义 = 完整上游地址 {@code scheme://host[:port]}）。
+ *       uri 原样落 {@code gw_route.upstream_url}（不再由服务端合成）；
+ *       uri 空 / 缺 scheme / 含空白 → 整单拒收，错误文案点明格式。</li>
  *   <li>整个请求一个事务：中途失败全量回滚，不留半成品路由。</li>
- *   <li>校验前置：rules 非空、path 必填、service 必填、plugin_id 必须真实存在
+ *   <li>校验前置：rules 非空、path 必填、uri 必填且合法、plugin_id 必须真实存在
  *       （查 gw_plugin）→ 否则整单拒收。</li>
  * </ul>
  *
@@ -95,12 +97,9 @@ class RouteIngressServiceTest {
         return Plugin.builder().id(id).pluginId(code).pluginName(code).status("ENABLED").build();
     }
 
-    private RouteController.IngressBackendRequest backend(String service, String port) {
-        return new RouteController.IngressBackendRequest(service, port);
-    }
-
-    private RouteController.IngressPathRequest path(String p, String type, String svc, String port) {
-        return new RouteController.IngressPathRequest(p, type, backend(svc, port));
+    /** 一条 path（uri = 完整上游地址，SCG RouteDefinition.uri 同名同义）。 */
+    private RouteController.IngressPathRequest path(String p, String type, String uri) {
+        return new RouteController.IngressPathRequest(p, type, uri);
     }
 
     private RouteController.IngressRuleRequest rule(String host, RouteController.IngressPathRequest... paths) {
@@ -119,7 +118,7 @@ class RouteIngressServiceTest {
     void oneRuleOnePathCreatesBackendRouteWithHostPredicateAndBinding() {
         RouteController.IngressCreateRequest req = new RouteController.IngressCreateRequest(
                 "api_gateway", "default", "入口", "prod",
-                List.of(rule("api.example.com", path("/api", "PREFIX", "user-service", "8080"))),
+                List.of(rule("api.example.com", path("/api", "PREFIX", "http://user-service:8080"))),
                 List.of(new RouteController.IngressPluginRequest("dingtalk", "{}")),
                 List.of());
 
@@ -162,9 +161,9 @@ class RouteIngressServiceTest {
     void multiplePathsProduceIncrementingRouteNames() {
         RouteController.IngressCreateRequest req = request("api_gateway", List.of(
                 rule("api.example.com",
-                        path("/a", "PREFIX", "svc-a", "8080"),
-                        path("/b", "PREFIX", "svc-b", "8080"),
-                        path("/c", "EXACT", "svc-c", "8080"))));
+                        path("/a", "PREFIX", "http://svc-a:8080"),
+                        path("/b", "PREFIX", "http://svc-b:8080"),
+                        path("/c", "EXACT", "http://svc-c:8080"))));
 
         RouteController.IngressCreateResult result = service.createIngress(req);
 
@@ -190,11 +189,11 @@ class RouteIngressServiceTest {
     void pathTypeMappingPrefixExactImplementationSpecific() {
         RouteController.IngressCreateRequest req = request("map_demo", List.of(
                 rule("h.example.com",
-                        path("/api", "PREFIX", "svc", "80"),
-                        path("/api/**", "PREFIX", "svc", "80"),
-                        path("/api/*", "PREFIX", "svc", "80"),
-                        path("/api/v1", "EXACT", "svc", "80"),
-                        path("/api/{id:[0-9]+}", "IMPLEMENTATION_SPECIFIC", "svc", "80"))));
+                        path("/api", "PREFIX", "http://svc:80"),
+                        path("/api/**", "PREFIX", "http://svc:80"),
+                        path("/api/*", "PREFIX", "http://svc:80"),
+                        path("/api/v1", "EXACT", "http://svc:80"),
+                        path("/api/{id:[0-9]+}", "IMPLEMENTATION_SPECIFIC", "http://svc:80"))));
 
         service.createIngress(req);
 
@@ -208,15 +207,15 @@ class RouteIngressServiceTest {
         assertEquals("/api/{id:[0-9]+}", routes.get(4).getPath());
     }
 
-    // ==================== 4. upstream_url 合成 ====================
+    // ==================== 4. upstream_url 直落（uri 原样，不再合成） ====================
 
     @Test
-    void upstreamUrlSynthesisVariants() {
+    void upstreamUrlStoredVerbatimFromUri() {
         RouteController.IngressCreateRequest req = request("up_demo", List.of(
                 rule("h.example.com",
-                        path("/a", "PREFIX", "user-service", "8080"),
-                        path("/b", "PREFIX", "https://user-service", ""),
-                        path("/c", "PREFIX", "http://user-service", "8080"))));
+                        path("/a", "PREFIX", "http://user-service:8080"),
+                        path("/b", "PREFIX", "https://user-service"),
+                        path("/c", "PREFIX", "http://user-service:8080"))));
 
         service.createIngress(req);
 
@@ -228,14 +227,49 @@ class RouteIngressServiceTest {
         assertEquals("http://user-service:8080", routes.get(2).getUpstreamUrl());
     }
 
+    /**
+     * S12-6 新增：uri 的 https 形态与带端口形态各自原样落 upstream_url
+     * （服务端不再补 scheme、不再拼端口 —— 单一真相源 = 用户填的 uri）。
+     */
+    @Test
+    void httpsAndPortUriVariantsStoredVerbatim() {
+        RouteController.IngressCreateRequest req = request("uri_demo", List.of(
+                rule("h.example.com",
+                        path("/https", "PREFIX", "https://user-service"),
+                        path("/port", "PREFIX", "http://user-service:8080"),
+                        path("/https-port", "PREFIX", "https://user-service:8443"))));
+
+        service.createIngress(req);
+
+        ArgumentCaptor<Route> routeCap = ArgumentCaptor.forClass(Route.class);
+        verify(routeMapper, times(3)).insert(routeCap.capture());
+        List<Route> routes = routeCap.getAllValues();
+        assertEquals("https://user-service", routes.get(0).getUpstreamUrl());
+        assertEquals("http://user-service:8080", routes.get(1).getUpstreamUrl());
+        assertEquals("https://user-service:8443", routes.get(2).getUpstreamUrl());
+    }
+
+    /** uri 前后空白被 trim 后落库（首尾空白不算非法）。 */
+    @Test
+    void uriIsTrimmedBeforeStored() {
+        RouteController.IngressCreateRequest req = request("trim_demo", List.of(
+                rule("h.example.com", path("/a", "PREFIX", "  http://user-service:8080  "))));
+
+        service.createIngress(req);
+
+        ArgumentCaptor<Route> routeCap = ArgumentCaptor.forClass(Route.class);
+        verify(routeMapper).insert(routeCap.capture());
+        assertEquals("http://user-service:8080", routeCap.getValue().getUpstreamUrl());
+    }
+
     // ==================== 5. 空 host 不插谓词行；顶层 predicates 每路由一份 ====================
 
     @Test
     void emptyHostSkipsHostPredicateButTopLevelPredicatesAppliedToEveryRoute() {
         RouteController.IngressCreateRequest req = new RouteController.IngressCreateRequest(
                 "pred_demo", "default", "", "",
-                List.of(rule("", path("/a", "PREFIX", "svc", "80"),
-                        path("/b", "PREFIX", "svc", "80"))),
+                List.of(rule("", path("/a", "PREFIX", "http://svc:80"),
+                        path("/b", "PREFIX", "http://svc:80"))),
                 List.of(),
                 List.of("Method=GET,POST"));
 
@@ -254,7 +288,7 @@ class RouteIngressServiceTest {
     void topLevelPredicatesAndHostPredicateBothInsertedPerRoute() {
         RouteController.IngressCreateRequest req = new RouteController.IngressCreateRequest(
                 "both_demo", "default", "", "",
-                List.of(rule("api.example.com", path("/a", "PREFIX", "svc", "80"))),
+                List.of(rule("api.example.com", path("/a", "PREFIX", "http://svc:80"))),
                 List.of(),
                 List.of("Method=GET,POST", "Cookie=session"));
 
@@ -283,8 +317,8 @@ class RouteIngressServiceTest {
 
         RouteController.IngressCreateRequest req = request("api_gateway", List.of(
                 rule("api.example.com",
-                        path("/a", "PREFIX", "svc", "80"),
-                        path("/b", "PREFIX", "svc", "80"))));
+                        path("/a", "PREFIX", "http://svc:80"),
+                        path("/b", "PREFIX", "http://svc:80"))));
 
         BusinessException ex = assertThrows(BusinessException.class, () -> service.createIngress(req));
         assertEquals(ErrorCode.CONFIG_SYNC_FAILED.code(), ex.getCode());
@@ -302,7 +336,7 @@ class RouteIngressServiceTest {
         when(routeMapper.selectList(any())).thenReturn(List.of(existing));
 
         RouteController.IngressCreateRequest req = request("api_gateway", List.of(
-                rule("api.example.com", path("/a", "PREFIX", "svc", "80"))));
+                rule("api.example.com", path("/a", "PREFIX", "http://svc:80"))));
 
         BusinessException ex = assertThrows(BusinessException.class, () -> service.createIngress(req));
         assertEquals(ErrorCode.ROUTE_NAME_CONFLICT.code(), ex.getCode());
@@ -322,15 +356,7 @@ class RouteIngressServiceTest {
     @Test
     void emptyPathRejected() {
         RouteController.IngressCreateRequest req = request("api_gateway", List.of(
-                rule("api.example.com", path("", "PREFIX", "svc", "80"))));
-        assertThrows(BusinessException.class, () -> service.createIngress(req));
-        verify(routeMapper, never()).insert(any(Route.class));
-    }
-
-    @Test
-    void emptyServiceRejected() {
-        RouteController.IngressCreateRequest req = request("api_gateway", List.of(
-                rule("api.example.com", path("/a", "PREFIX", "", "80"))));
+                rule("api.example.com", path("", "PREFIX", "http://svc:80"))));
         assertThrows(BusinessException.class, () -> service.createIngress(req));
         verify(routeMapper, never()).insert(any(Route.class));
     }
@@ -340,7 +366,7 @@ class RouteIngressServiceTest {
         when(pluginMapper.selectOne(any())).thenReturn(null);
         RouteController.IngressCreateRequest req = new RouteController.IngressCreateRequest(
                 "api_gateway", "default", "", "",
-                List.of(rule("api.example.com", path("/a", "PREFIX", "svc", "80"))),
+                List.of(rule("api.example.com", path("/a", "PREFIX", "http://svc:80"))),
                 List.of(new RouteController.IngressPluginRequest("not-exist", "{}")),
                 List.of());
 
@@ -352,7 +378,7 @@ class RouteIngressServiceTest {
     @Test
     void illegalBaseNameRejected() {
         RouteController.IngressCreateRequest req = request("bad-name!", List.of(
-                rule("api.example.com", path("/a", "PREFIX", "svc", "80"))));
+                rule("api.example.com", path("/a", "PREFIX", "http://svc:80"))));
         assertThrows(BusinessException.class, () -> service.createIngress(req));
         verify(routeMapper, never()).insert(any(Route.class));
     }
@@ -361,13 +387,52 @@ class RouteIngressServiceTest {
     void illegalEnvironmentRejected() {
         RouteController.IngressCreateRequest req = new RouteController.IngressCreateRequest(
                 "api_gateway", "BAD ENV", "", "",
-                List.of(rule("api.example.com", path("/a", "PREFIX", "svc", "80"))),
+                List.of(rule("api.example.com", path("/a", "PREFIX", "http://svc:80"))),
                 List.of(), List.of());
         assertThrows(BusinessException.class, () -> service.createIngress(req));
         verify(routeMapper, never()).insert(any(Route.class));
     }
 
-    // ==================== 9. 线格式契约：前端实际 payload → DTO 绑定 ====================
+    // ==================== 9. S12-6：uri 非法 → 拒收且文案点明格式 ====================
+
+    /** 空 uri → 拒收，文案点明「上游地址不能为空」+ 格式示例。 */
+    @Test
+    void emptyUriRejected() {
+        RouteController.IngressCreateRequest req = request("api_gateway", List.of(
+                rule("api.example.com", path("/a", "PREFIX", ""))));
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.createIngress(req));
+        assertEquals(ErrorCode.CONFIG_SYNC_FAILED.code(), ex.getCode());
+        assertTrue(ex.getMessage().contains("上游地址"), ex.getMessage());
+        verify(routeMapper, never()).insert(any(Route.class));
+    }
+
+    /**
+     * S12-6 新增：uri 缺 scheme / 含空白 / 仅 host 三种非法形态一律拒收，
+     * 且错误文案点明「http:// 或 https:// 开头的完整上游地址」与格式示例。
+     */
+    @Test
+    void invalidUriRejectedWithFormatHint() {
+        List<String> invalidUris = List.of(
+                "user-service:8080",        // 缺 scheme
+                "http://user service:8080", // 含空白
+                "ftp://user-service:8080",  // 非 http/https
+                "user-service"              // 裸 host
+        );
+        for (String bad : invalidUris) {
+            RouteController.IngressCreateRequest req = request("api_gateway", List.of(
+                    rule("api.example.com", path("/a", "PREFIX", bad))));
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> service.createIngress(req), "非法 uri 必须拒收：" + bad);
+            assertEquals(ErrorCode.CONFIG_SYNC_FAILED.code(), ex.getCode());
+            assertTrue(ex.getMessage().contains("http://"), ex.getMessage());
+            assertTrue(ex.getMessage().contains("https://"), ex.getMessage());
+            assertTrue(ex.getMessage().contains("http://user-service:8080"),
+                    "错误文案须给出格式示例：" + ex.getMessage());
+        }
+        verify(routeMapper, never()).insert(any(Route.class));
+    }
+
+    // ==================== 10. 线格式契约：前端实际 payload → DTO 绑定 ====================
 
     /**
      * 前端（src/api/routes.ts 的 IngressRoutePayload）实际发出的 JSON 必须能被后端
@@ -379,7 +444,7 @@ class RouteIngressServiceTest {
         String json = """
                 {"name":"api_gateway","environment":"default","remark":"","tags":"",
                  "rules":[{"host":"api.example.com","paths":[
-                     {"path":"/api/**","pathType":"PREFIX","backend":{"service":"user-service","port":"8080"}}]}],
+                     {"path":"/api/**","pathType":"PREFIX","uri":"http://user-service:8080"}]}],
                  "plugins":[{"plugin_id":"dingtalk","binding_config":"{}"}],
                  "predicates":["Method=GET,POST"]}
                 """;
@@ -398,26 +463,26 @@ class RouteIngressServiceTest {
         RouteController.IngressPathRequest path = rule.paths().get(0);
         assertEquals("/api/**", path.path());
         assertEquals("PREFIX", path.pathType());
-        assertEquals("user-service", path.backend().service());
-        assertEquals("8080", path.backend().port());
+        assertEquals("http://user-service:8080", path.uri());
         assertEquals("dingtalk", request.plugins().get(0).pluginId());
         assertEquals("{}", request.plugins().get(0).bindingConfig());
         assertEquals(List.of("Method=GET,POST"), request.predicates());
     }
 
-    /** 未知字段（旧前端多带 upstream_url）不得炸 —— DTO 显式忽略未知属性。 */
+    /** 未知字段（前端多带的 upstream_url 等）不得炸 —— DTO 显式忽略未知属性。 */
     @Test
     void unknownFieldsAreIgnored() throws Exception {
         String json = """
                 {"name":"api_gateway","rules":[{"host":"","paths":[
                      {"path":"/api/**","pathType":"PREFIX","upstream_url":"http://x:80",
-                      "backend":{"service":"user-service","port":"8080"}}]}]}
+                      "uri":"http://user-service:8080"}]}]}
                 """;
         ObjectMapper mapper = new ObjectMapper()
                 .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
         RouteController.IngressCreateRequest request =
                 mapper.readValue(json, RouteController.IngressCreateRequest.class);
         assertEquals("/api/**", request.rules().get(0).paths().get(0).path());
+        assertEquals("http://user-service:8080", request.rules().get(0).paths().get(0).uri());
     }
 
     /** 响应 data：snake_case 键 + route_id 序列化为字符串（对齐前端 IngressCreatedRoute）。 */

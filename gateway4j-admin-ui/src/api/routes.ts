@@ -380,18 +380,20 @@ export function getRouteSyncStatus(id: string) {
 /** pathType 三值（§10 pathType → SCG 映射裁决） */
 export type IngressPathType = 'PREFIX' | 'EXACT' | 'IMPLEMENTATION_SPECIFIC'
 
-/** 后端目标（K8s 风格：服务名 + 端口；service 不含 scheme） */
-export interface IngressBackendDto {
-  service: string
-  port: string
-}
-
-/** 一条 path（= 一条 BACKEND 路由） */
+/**
+ * 一条 path（= 一条 BACKEND 路由）。
+ *
+ * S12-6：path 级后端目标为单字段 `uri` —— 与 SCG `RouteDefinition.uri` 同名同义
+ * （完整上游地址 `scheme://host[:port]`）。K8s 的 `backend.service.name` +
+ * `backend.service.port.number` 两分在本 API 中合并为这一个 uri 字段；
+ * 旧的 `backend{service,port}` 不再保留（单一真相源）。
+ */
 export interface IngressPathDto {
   /** SCG 路径（Prefix 已被前端补成 `/api/**` 形态） */
   path: string
   pathType: IngressPathType
-  backend: IngressBackendDto
+  /** 完整上游地址（须为 http:// 或 https:// 开头，例：http://user-service:8080） */
+  uri: string
 }
 
 /** 一条 rule（= 一个 host + 若干 paths） */

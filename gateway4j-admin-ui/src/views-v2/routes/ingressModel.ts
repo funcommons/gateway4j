@@ -8,9 +8,12 @@
  * - YAML 序列化（js-yaml）另立 ingressYaml.ts —— js-yaml 只在动态 chunk 里，
  *   不进主 bundle（本模块保持零重依赖）。
  *
- * 契约来源：docs/ui-v2/实施契约.md §10（S12 批）。
+ * 契约来源：docs/ui-v2/实施契约.md §10（S12 批）+ S12-6（上游地址合并为 uri 单字段）。
  * - pathType 三值：PREFIX → `/api/**`；EXACT → 原样；IMPLEMENTATION_SPECIFIC → 原样。
- * - upstream_url **不由前端合成**：后端按 §10 契约从 backend.service + backend.port 生成
+ * - path 级后端目标 = **单字段 uri**（SCG `RouteDefinition.uri` 同名同义 = 完整上游地址
+ *   `scheme://host[:port]`）；K8s 的 `backend.service.name` + `backend.service.port.number`
+ *   两分在本 API 中合并为这一个 uri 字段（旧的 backend{service,port} 不再保留）。
+ * - upstream_url **不由前端合成**：后端按 §10 契约把 uri 原样落 gw_route.upstream_url
  *   （后端唯一真相源，见 buildIngressPayload 头注）。
  */
 
@@ -23,7 +26,8 @@ export interface IngressPathModel {
   /** 用户直填路径（PREFIX 存基路径如 `/api`；EXACT / IMPLEMENTATION_SPECIFIC 存原文） */
   path: string
   pathType: IngressPathType
-  backend: { service: string; port: string }
+  /** 完整上游地址（scheme://host[:port]）—— 与 SCG RouteDefinition.uri 同名同义 */
+  uri: string
 }
 
 /** 一条 rule 的表单模型（= 一个 host + 若干 paths） */
@@ -64,7 +68,7 @@ export function emptyIngressModel(): IngressModel {
     environment: 'default',
     remark: '',
     tags: '',
-    rules: [{ host: '', paths: [{ path: '', pathType: 'PREFIX', backend: { service: '', port: '' } }] }],
+    rules: [{ host: '', paths: [{ path: '', pathType: 'PREFIX', uri: '' }] }],
     plugins: [],
     predicates: []
   }
@@ -72,7 +76,7 @@ export function emptyIngressModel(): IngressModel {
 
 /** 空 path 行 */
 export function emptyIngressPath(): IngressPathModel {
-  return { path: '', pathType: 'PREFIX', backend: { service: '', port: '' } }
+  return { path: '', pathType: 'PREFIX', uri: '' }
 }
 
 /**
@@ -91,9 +95,11 @@ export function translatedPath(raw: string, pathType: IngressPathType): string {
 /**
  * 表单模型 → API 载荷（§10 POST /v1/routes/ingress 请求体，逐字对齐）。
  *
- * upstream_url 口径（S12-4 收口裁决）：**前端不合成、不携带** —— 后端按 §10 契约从
- * backend.service + backend.port 自行合成（后端是唯一真相源）。前端再带一份 = 两个真相源，
+ * upstream_url 口径（S12-4 收口裁决）：**前端不合成、不携带** —— 后端按 §10 契约把
+ * path 级 uri 原样落 gw_route.upstream_url（后端是唯一真相源）。前端再带一份 = 两个真相源，
  * 合成规则一旦分叉即静默不一致。
+ *
+ * S12-6：path 级后端目标 = 单字段 uri（原样 trim 提交，不拆 service/port）。
  */
 export function buildIngressPayload(model: IngressModel): IngressRoutePayload {
   return {
@@ -103,15 +109,11 @@ export function buildIngressPayload(model: IngressModel): IngressRoutePayload {
     tags: String(model.tags ?? '').trim(),
     rules: model.rules.map((rule) => ({
       host: String(rule.host ?? '').trim(),
-      paths: rule.paths.map((p) => {
-        const service = String(p.backend?.service ?? '').trim()
-        const port = String(p.backend?.port ?? '').trim()
-        return {
-          path: translatedPath(p.path, p.pathType),
-          pathType: p.pathType,
-          backend: { service, port }
-        }
-      })
+      paths: rule.paths.map((p) => ({
+        path: translatedPath(p.path, p.pathType),
+        pathType: p.pathType,
+        uri: String(p.uri ?? '').trim()
+      }))
     })),
     plugins: model.plugins.map((p) => ({
       plugin_id: p.plugin_id,
@@ -138,7 +140,7 @@ export function modelToYamlDoc(model: IngressModel): Record<string, unknown> {
         paths: rule.paths.map((p) => ({
           path: p.path,
           pathType: p.pathType,
-          backend: { service: p.backend.service, port: p.backend.port }
+          uri: p.uri
         }))
       })),
       filters: model.plugins.map((p) => ({
@@ -150,7 +152,7 @@ export function modelToYamlDoc(model: IngressModel): Record<string, unknown> {
   }
 }
 
-/** 宽松取串（YAML 里 port 可能是数字 → 一律转字符串） */
+/** 宽松取串（YAML 里 uri 可能是数字等非串值 → 一律转字符串；空值回落空串） */
 function str(v: unknown): string {
   if (v === null || v === undefined) return ''
   if (typeof v === 'string') return v
@@ -184,11 +186,10 @@ export function yamlDocToModel(doc: unknown): IngressModel {
       host: str(ro.host),
       paths: rawPaths.map((p) => {
         const po = obj(p)
-        const backend = obj(po.backend)
         return {
           path: str(po.path),
           pathType: pathTypeOf(po.pathType),
-          backend: { service: str(backend.service), port: str(backend.port) }
+          uri: str(po.uri)
         }
       })
     }

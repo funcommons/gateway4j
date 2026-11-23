@@ -8,9 +8,12 @@
  * YAML 文档形态（K8s Ingress 风味，与表单字段一一对应）：
  *   metadata: { name, environment, remark, tags }
  *   spec:
- *     rules: [ { host, paths: [ { path, pathType, backend: { service, port } } ] } ]
+ *     rules: [ { host, paths: [ { path, pathType, uri } ] } ]
  *     filters: [ { plugin_id, binding_config } ]
  *     predicates: [ 'Host=**.example.com' ]
+ *
+ * S12-6：paths[] 的后端目标为单字段 `uri`（SCG RouteDefinition.uri 同名同义 = 完整上游地址
+ * `scheme://host[:port]`），取代旧的 `backend: { service, port }` 两分形态。
  */
 import { dump, load } from 'js-yaml'
 import { emptyIngressModel, modelToYamlDoc, yamlDocToModel, type IngressModel } from './ingressModel'
