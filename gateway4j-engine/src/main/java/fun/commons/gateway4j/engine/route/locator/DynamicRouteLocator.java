@@ -1,10 +1,13 @@
 package fun.commons.gateway4j.engine.route.locator;
 
 import fun.commons.gateway4j.common.model.Route;
+import fun.commons.gateway4j.common.util.JsonUtils;
+import fun.commons.gateway4j.engine.route.filter.ScgRouteFilterSupport;
 import fun.commons.gateway4j.engine.route.matcher.RoutePathMatcher;
 import fun.commons.gateway4j.engine.route.predicate.ScgRoutePredicateSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.handler.AsyncPredicate;
 import org.springframework.web.server.ServerWebExchange;
@@ -16,6 +19,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -64,6 +68,12 @@ public class DynamicRouteLocator implements RouteLocator {
     /** SCG native predicate binder (S12-1). */
     private final ScgRoutePredicateSupport scgPredicateSupport;
 
+    /** Route id → SCG native filter definitions (S12-7a). */
+    private final Function<Long, List<String>> filterLookup;
+
+    /** SCG native filter binder (S12-7a). */
+    private final ScgRouteFilterSupport scgFilterSupport;
+
     public DynamicRouteLocator(Supplier<List<Route>> routeSupplier) {
         this(routeSupplier, routeId -> List.of(), new ScgRoutePredicateSupport());
     }
@@ -71,9 +81,26 @@ public class DynamicRouteLocator implements RouteLocator {
     public DynamicRouteLocator(Supplier<List<Route>> routeSupplier,
                                Function<Long, List<String>> predicateLookup,
                                ScgRoutePredicateSupport scgPredicateSupport) {
+        // S12-7a：老形态构造器保留（无 filter / metadata 装配），行为与 S12-1 完全一致。
+        this(routeSupplier, predicateLookup, scgPredicateSupport,
+                routeId -> List.of(), new ScgRouteFilterSupport());
+    }
+
+    /**
+     * S12-7a 起新增 {@code filterLookup} / {@code scgFilterSupport}：路由级 SCG 原生
+     * filter 行（gw_route_filter）按 route_id 取定义串并由 SCG 自己的
+     * {@code GatewayFilterFactory} 绑定后挂到 {@code Route.gatewayFilters}。
+     */
+    public DynamicRouteLocator(Supplier<List<Route>> routeSupplier,
+                               Function<Long, List<String>> predicateLookup,
+                               ScgRoutePredicateSupport scgPredicateSupport,
+                               Function<Long, List<String>> filterLookup,
+                               ScgRouteFilterSupport scgFilterSupport) {
         this.routeSupplier = routeSupplier;
         this.predicateLookup = predicateLookup == null ? routeId -> List.of() : predicateLookup;
         this.scgPredicateSupport = scgPredicateSupport == null ? new ScgRoutePredicateSupport() : scgPredicateSupport;
+        this.filterLookup = filterLookup == null ? routeId -> List.of() : filterLookup;
+        this.scgFilterSupport = scgFilterSupport == null ? new ScgRouteFilterSupport() : scgFilterSupport;
     }
 
     @Override
@@ -150,6 +177,20 @@ public class DynamicRouteLocator implements RouteLocator {
                         .id(String.valueOf(route.getId()))
                         .asyncPredicate(predicate);
 
+        // S12-7a: SCG native filters（复刻 RouteDefinitionRouteLocator：定义串 →
+        // GatewayFilterFactory.apply → OrderedGatewayFilter(i+1) 包裹）。非法定义在
+        // ScgRouteFilterSupport 内分流：未知名跳过（fail-open），已知名坏参恒不放行。
+        List<GatewayFilter> scgFilters = scgFilters(route);
+        if (!scgFilters.isEmpty()) {
+            builder.filters(scgFilters);
+        }
+        // S12-7a: metadata 透传（gw_route.metadata JSONB → Route.metadata，
+        // SCG RouteLocator.matchMetadata 的消费形态）。空/坏 JSON 均为空 map（fail-open）。
+        Map<String, Object> metadata = metadataOf(route);
+        if (!metadata.isEmpty()) {
+            builder.metadata(metadata);
+        }
+
         if (TYPE_DISPATCH.equals(route.getRouteType())) {
             // Placeholder upstream; DispatchRoutingFilter replaces the request URL
             // per request after resolving the target sub-route.
@@ -192,5 +233,40 @@ public class DynamicRouteLocator implements RouteLocator {
             return List.of();
         }
         return scgPredicateSupport.buildPredicates(definitions);
+    }
+
+    /**
+     * S12-7a: 该路由携带的 SCG 原生 filter（定义串 → SCG GatewayFilter，
+     * 挂载顺序 = gw_route_filter.sort_order，即 SCG filters[] 声明顺序）。
+     * 未知名/语法坏的定义串在 {@link ScgRouteFilterSupport} 内被跳过（fail-open）；
+     * 已知名但缺参/值非法 → 恒不放行 filter（503，永不转发下游）。
+     */
+    private List<GatewayFilter> scgFilters(Route route) {
+        List<String> definitions = filterLookup.apply(route.getId());
+        if (definitions == null || definitions.isEmpty()) {
+            return List.of();
+        }
+        return scgFilterSupport.buildFilters(definitions, String.valueOf(route.getId()));
+    }
+
+    /**
+     * S12-7a: gw_route.metadata（JSONB 字符串）→ SCG Route.metadata 的
+     * {@code Map<String,Object>}。坏 JSON / 非 object JSON → 空 map + WARN
+     * （fail-open：metadata 是被动数据，解析失败只丢 metadata，不影响路由服务）。
+     */
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> metadataOf(Route route) {
+        String json = route.getMetadata();
+        if (json == null || json.isBlank() || "{}".equals(json.trim())) {
+            return Map.of();
+        }
+        try {
+            Map<String, Object> metadata = JsonUtils.mapper().readValue(json, Map.class);
+            return metadata == null ? Map.of() : metadata;
+        } catch (Exception e) {
+            log.warn("Route {} ({}): invalid metadata JSON ignored: {}",
+                    route.getId(), route.getRouteName(), e.getMessage());
+            return Map.of();
+        }
     }
 }

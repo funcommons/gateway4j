@@ -3,23 +3,27 @@ package fun.commons.gateway4j.gateway.config;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import fun.commons.gateway4j.common.mapper.PluginMapper;
 import fun.commons.gateway4j.common.mapper.RouteConditionMapper;
+import fun.commons.gateway4j.common.mapper.RouteFilterMapper;
 import fun.commons.gateway4j.common.mapper.RouteMapper;
 import fun.commons.gateway4j.common.mapper.RoutePluginBindingMapper;
 import fun.commons.gateway4j.common.mapper.RoutePredicateMapper;
 import fun.commons.gateway4j.common.model.Plugin;
 import fun.commons.gateway4j.common.model.Route;
 import fun.commons.gateway4j.common.model.RouteCondition;
+import fun.commons.gateway4j.common.model.RouteFilter;
 import fun.commons.gateway4j.common.model.RoutePluginBinding;
 import fun.commons.gateway4j.common.model.RoutePredicate;
 import fun.commons.gateway4j.engine.config.ConfigService;
 import fun.commons.gateway4j.engine.config.EngineAutoConfiguration;
 import fun.commons.gateway4j.engine.config.cache.PluginConfigCache;
 import fun.commons.gateway4j.engine.config.cache.RouteConfigCache;
+import fun.commons.gateway4j.engine.config.cache.RouteFilterCache;
 import fun.commons.gateway4j.engine.config.cache.RoutePredicateCache;
 import fun.commons.gateway4j.engine.config.sync.ConfigPushHandler;
 import fun.commons.gateway4j.engine.config.sync.ConfigSyncService;
 import fun.commons.gateway4j.engine.plugin.runtime.PluginInstanceRegistry;
 import fun.commons.gateway4j.engine.route.dispatcher.RouteDispatcher;
+import fun.commons.gateway4j.engine.route.filter.ScgRouteFilterSupport;
 import fun.commons.gateway4j.engine.route.locator.DynamicRouteLocator;
 import fun.commons.gateway4j.engine.route.predicate.ScgRoutePredicateSupport;
 import fun.commons.gateway4j.plugin.builtins.cache.CachePlugin;
@@ -47,11 +51,27 @@ public class ServerAutoConfiguration {
 
     @Bean
     public RouteLocator dynamicRouteLocator(ConfigService configService,
-                                             ScgRoutePredicateSupport scgRoutePredicateSupport) {
+                                             ScgRoutePredicateSupport scgRoutePredicateSupport,
+                                             ScgRouteFilterSupport scgRouteFilterSupport) {
         return new DynamicRouteLocator(() -> {
             List<Route> routes = configService.getAllRoutes();
             return routes.stream().toList();
-        }, configService::getRoutePredicateDefinitions, scgRoutePredicateSupport);
+        }, configService::getRoutePredicateDefinitions, scgRoutePredicateSupport,
+                configService::getRouteFilterDefinitions, scgRouteFilterSupport);
+    }
+
+    /**
+     * S12-7a：路由级 SCG 原生 filter 支持。装配语义与
+     * {@link #scgRoutePredicateSupport} 对称：优先注入 SCG 自己的
+     * {@code ConfigurationService}（走 SCG 原生 shortcut 绑定，即
+     * {@code RouteDefinitionRouteLocator#loadGatewayFilters} 同款路径）；该 bean
+     * 不可用时由 {@link ScgRouteFilterSupport} 退回内置绑定器（逐字复刻 SCG 的
+     * {@code ConfigurationService.bindOrCreate} + jakarta 校验兜底）。
+     */
+    @Bean
+    public ScgRouteFilterSupport scgRouteFilterSupport(
+            ObjectProvider<org.springframework.cloud.gateway.support.ConfigurationService> scgConfigurationService) {
+        return new ScgRouteFilterSupport(scgConfigurationService.getIfAvailable());
     }
 
     /**
@@ -81,6 +101,12 @@ public class ServerAutoConfiguration {
         return new RoutePredicateCache();
     }
 
+    /** S12-7a：路由级 SCG 原生 filter 行缓存（口径同 RoutePredicateCache）。 */
+    @Bean
+    public RouteFilterCache routeFilterCache() {
+        return new RouteFilterCache();
+    }
+
     @Bean
     public PluginConfigCache pluginConfigCache() {
         return new PluginConfigCache();
@@ -90,6 +116,7 @@ public class ServerAutoConfiguration {
     public ConfigService engineConfigService(RouteConfigCache routeConfigCache,
                                        PluginConfigCache pluginConfigCache,
                                        RoutePredicateCache routePredicateCache,
+                                       RouteFilterCache routeFilterCache,
                                        RouteDispatcher routeDispatcher,
                                        ApplicationEventPublisher eventPublisher,
                                        PluginInstanceRegistry pluginInstanceRegistry,
@@ -97,6 +124,7 @@ public class ServerAutoConfiguration {
                                        RouteConditionMapper conditionMapper,
                                        RoutePluginBindingMapper bindingMapper,
                                        RoutePredicateMapper routePredicateMapper,
+                                       RouteFilterMapper routeFilterMapper,
                                        PluginMapper pluginMapper) {
         // S12-2（缺陷②）：路由取数带 ORDER BY id —— PostgreSQL 无 ORDER BY 的返回顺序不确定，
         // 会让「先注册者胜出」的 path 仲裁随部署漂移（DISPATCH 父路由可能被后置路由抢走入口）。
@@ -107,9 +135,12 @@ public class ServerAutoConfiguration {
         Supplier<List<RoutePluginBinding>> bindingLoader = () -> bindingMapper.selectList(null);
         // S12-1：路由级 SCG 原生谓词行一次性取数（内存按 route_id 分组，禁 N+1）
         Supplier<List<RoutePredicate>> routePredicateLoader = () -> routePredicateMapper.selectList(null);
+        // S12-7a：路由级 SCG 原生 filter 行一次性取数（同款口径，禁 N+1）
+        Supplier<List<RouteFilter>> routeFilterLoader = () -> routeFilterMapper.selectList(null);
         return new ConfigService(routeConfigCache, pluginConfigCache, routePredicateCache,
-                routeDispatcher, eventPublisher, routeLoader, conditionLoader, pluginLoader,
-                bindingLoader, routePredicateLoader, pluginInstanceRegistry);
+                routeFilterCache, routeDispatcher, eventPublisher, routeLoader, conditionLoader,
+                pluginLoader, bindingLoader, routePredicateLoader, routeFilterLoader,
+                pluginInstanceRegistry);
     }
 
     /**

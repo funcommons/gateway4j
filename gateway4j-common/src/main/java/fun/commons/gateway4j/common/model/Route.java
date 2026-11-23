@@ -1,6 +1,7 @@
 package fun.commons.gateway4j.common.model;
 
 import com.baomidou.mybatisplus.annotation.*;
+import fun.commons.gateway4j.common.util.JsonbTypeHandler;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -9,7 +10,7 @@ import lombok.NoArgsConstructor;
 import java.time.OffsetDateTime;
 
 @Data
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 @TableName("gw_route")
@@ -53,6 +54,17 @@ public class Route {
 
     @Builder.Default
     private String tags = "";
+
+    /**
+     * S12-7a：SCG {@code RouteDefinition.metadata}（{@code Map<String,Object>}）的
+     * gateway4j 落点 —— JSONB 列（V1.7.1 起），实体持 JSON 字符串（写经
+     * {@link JsonbTypeHandler}，读 PG JDBC getString 直出），引擎注册路由时解析成
+     * {@code Map} 透传给 SCG {@code Route.metadata}（可被 SCG
+     * {@code RouteLocator.matchMetadata} 消费）。
+     */
+    @Builder.Default
+    @TableField(typeHandler = JsonbTypeHandler.class)
+    private String metadata = "{}";
 
     /**
      * P2-2 多环境：环境标识（V1.4.1 起落库，缺省 {@link #DEFAULT_ENVIRONMENT}；

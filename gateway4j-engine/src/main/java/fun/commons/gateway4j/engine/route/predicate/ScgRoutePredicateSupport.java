@@ -154,7 +154,8 @@ public class ScgRoutePredicateSupport {
      * {@code GatewayAutoConfiguration#stringToZonedDateTimeConverter} 同款：
      * ISO-8601 时刻与 epoch 毫秒两种写法）。
      */
-    private static ConversionService buildConversionService() {
+    /** 供 {@code ScgRouteFilterSupport}（S12-7a）复用的转换服务构造入口。 */
+    public static ConversionService buildConversionService() {
         DefaultConversionService conversionService = new DefaultConversionService();
         conversionService.addConverter(new StringToZonedDateTimeConverter());
         return conversionService;
@@ -258,7 +259,7 @@ public class ScgRoutePredicateSupport {
     }
 
     /** 从定义串恢复谓词名（用于「无 '=' 」场景的分类：取第一个 '=' 之前的部分）。 */
-    private static String recoverName(String text) {
+    public static String recoverName(String text) {
         int eq = text.indexOf('=');
         if (eq > 0) {
             return text.substring(0, eq).trim();
@@ -303,7 +304,8 @@ public class ScgRoutePredicateSupport {
         return null;
     }
 
-    private static boolean isBlankValue(Object value) {
+    /** 归一化后的参数值是否为空（null/空白串/空集合/空数组）——filter 支持类共用。 */
+    public static boolean isBlankValue(Object value) {
         if (value == null) {
             return true;
         }

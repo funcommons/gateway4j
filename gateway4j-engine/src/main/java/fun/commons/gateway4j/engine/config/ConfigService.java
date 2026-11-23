@@ -3,10 +3,12 @@ package fun.commons.gateway4j.engine.config;
 import fun.commons.gateway4j.common.model.Plugin;
 import fun.commons.gateway4j.common.model.Route;
 import fun.commons.gateway4j.common.model.RouteCondition;
+import fun.commons.gateway4j.common.model.RouteFilter;
 import fun.commons.gateway4j.common.model.RoutePluginBinding;
 import fun.commons.gateway4j.common.model.RoutePredicate;
 import fun.commons.gateway4j.engine.config.cache.PluginConfigCache;
 import fun.commons.gateway4j.engine.config.cache.RouteConfigCache;
+import fun.commons.gateway4j.engine.config.cache.RouteFilterCache;
 import fun.commons.gateway4j.engine.config.cache.RoutePredicateCache;
 import fun.commons.gateway4j.engine.config.event.ConfigChangeEvent;
 import fun.commons.gateway4j.engine.plugin.runtime.PluginInstanceRegistry;
@@ -38,6 +40,7 @@ public class ConfigService implements org.springframework.context.EnvironmentAwa
     private final RouteConfigCache routeCache;
     private final PluginConfigCache pluginCache;
     private final RoutePredicateCache routePredicateCache;
+    private final RouteFilterCache routeFilterCache;
     private final RouteDispatcher routeDispatcher;
     private final ApplicationEventPublisher eventPublisher;
     private final Supplier<List<Route>> routeLoader;
@@ -45,6 +48,7 @@ public class ConfigService implements org.springframework.context.EnvironmentAwa
     private final Supplier<List<Plugin>> pluginLoader;
     private final Supplier<List<RoutePluginBinding>> bindingLoader;
     private final Supplier<List<RoutePredicate>> routePredicateLoader;
+    private final Supplier<List<RouteFilter>> routeFilterLoader;
     private final PluginInstanceRegistry pluginRegistry;
     private volatile List<RoutePluginBinding> bindings = List.of();
 
@@ -67,8 +71,8 @@ public class ConfigService implements org.springframework.context.EnvironmentAwa
     }
 
     /**
-     * S12-1 起新增 {@code routePredicateCache} / {@code routePredicateLoader}：
-     * 路由级 SCG 原生谓词行（gw_route_predicate）一次性取数后按 route_id 内存分组。
+     * S12-1 形态构造器（无 filter 装配）：S12-7a 起委托全参构造——
+     * filter 缓存/装载缺省为空，行为与 S12-1 完全一致（老调用点零改动）。
      */
     public ConfigService(RouteConfigCache routeCache, PluginConfigCache pluginCache,
                          RoutePredicateCache routePredicateCache,
@@ -78,9 +82,30 @@ public class ConfigService implements org.springframework.context.EnvironmentAwa
                          Supplier<List<RoutePluginBinding>> bindingLoader,
                          Supplier<List<RoutePredicate>> routePredicateLoader,
                          PluginInstanceRegistry pluginRegistry) {
+        this(routeCache, pluginCache, routePredicateCache, new RouteFilterCache(), routeDispatcher,
+                eventPublisher, routeLoader, conditionLoader, pluginLoader, bindingLoader,
+                routePredicateLoader, () -> List.of(), pluginRegistry);
+    }
+
+    /**
+     * S12-1 起新增 {@code routePredicateCache} / {@code routePredicateLoader}：
+     * 路由级 SCG 原生谓词行（gw_route_predicate）一次性取数后按 route_id 内存分组。
+     * S12-7a 起新增 {@code routeFilterCache} / {@code routeFilterLoader}：
+     * 路由级 SCG 原生 filter 行（gw_route_filter），同款取数口径。
+     */
+    public ConfigService(RouteConfigCache routeCache, PluginConfigCache pluginCache,
+                         RoutePredicateCache routePredicateCache, RouteFilterCache routeFilterCache,
+                         RouteDispatcher routeDispatcher, ApplicationEventPublisher eventPublisher,
+                         Supplier<List<Route>> routeLoader, Supplier<List<RouteCondition>> conditionLoader,
+                         Supplier<List<Plugin>> pluginLoader,
+                         Supplier<List<RoutePluginBinding>> bindingLoader,
+                         Supplier<List<RoutePredicate>> routePredicateLoader,
+                         Supplier<List<RouteFilter>> routeFilterLoader,
+                         PluginInstanceRegistry pluginRegistry) {
         this.routeCache = routeCache;
         this.pluginCache = pluginCache;
         this.routePredicateCache = routePredicateCache == null ? new RoutePredicateCache() : routePredicateCache;
+        this.routeFilterCache = routeFilterCache == null ? new RouteFilterCache() : routeFilterCache;
         this.routeDispatcher = routeDispatcher;
         this.eventPublisher = eventPublisher;
         this.routeLoader = routeLoader;
@@ -88,6 +113,7 @@ public class ConfigService implements org.springframework.context.EnvironmentAwa
         this.pluginLoader = pluginLoader;
         this.bindingLoader = bindingLoader;
         this.routePredicateLoader = routePredicateLoader;
+        this.routeFilterLoader = routeFilterLoader;
         this.pluginRegistry = pluginRegistry;
     }
 
@@ -103,6 +129,7 @@ public class ConfigService implements org.springframework.context.EnvironmentAwa
         routeCache.refreshAll(envRoutes);
         pluginCache.refreshAll(plugins);
         routePredicateCache.refreshAll(loadRoutePredicates());
+        routeFilterCache.refreshAll(loadRouteFilters());
         // Push persisted plugin config into runtime plugin instances (fail-open per plugin).
         pluginRegistry.applyPluginConfigs(plugins);
 
@@ -115,9 +142,9 @@ public class ConfigService implements org.springframework.context.EnvironmentAwa
 
         this.bindings = bindings == null ? List.of() : bindings;
 
-        log.info("Config loaded: environment={}, routes={} (published={}), conditions={}, plugins={}, bindings={}, routePredicates={}",
+        log.info("Config loaded: environment={}, routes={} (published={}), conditions={}, plugins={}, bindings={}, routePredicates={}, routeFilters={}",
                 environment, envRoutes.size(), publishedRoutes.size(), conditions.size(), plugins.size(),
-                this.bindings.size(), routePredicateCache.size());
+                this.bindings.size(), routePredicateCache.size(), routeFilterCache.size());
         eventPublisher.publishEvent(new fun.commons.gateway4j.engine.config.event.ConfigLoadedEvent(
                 this, plugins, maxConfigVersion(envRoutes, plugins)));
         eventPublisher.publishEvent(new org.springframework.cloud.gateway.event.RefreshRoutesEvent(this));
@@ -146,6 +173,31 @@ public class ConfigService implements org.springframework.context.EnvironmentAwa
     /** S12-1：某路由携带的 SCG 原生谓词定义串（按 sort_order 升序）。 */
     public List<String> getRoutePredicateDefinitions(Long routeId) {
         return routePredicateCache.getDefinitions(routeId);
+    }
+
+    /**
+     * S12-7a：装载路由级 SCG 原生 filter 行。
+     *
+     * <p>fail-safe：gw_route_filter 表尚未由迁移脚本建出（管理面未升级）时，
+     * 取数失败只降级为「无 filter」，绝不拖垮整个配置装载。</p>
+     */
+    private List<RouteFilter> loadRouteFilters() {
+        if (routeFilterLoader == null) {
+            return List.of();
+        }
+        try {
+            List<RouteFilter> filters = routeFilterLoader.get();
+            return filters == null ? List.of() : filters;
+        } catch (Exception e) {
+            log.warn("Load route filters failed (gw_route_filter unavailable?), "
+                    + "continuing without route-level SCG filters: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    /** S12-7a：某路由携带的 SCG 原生 filter 定义串（按 sort_order 升序）。 */
+    public List<String> getRouteFilterDefinitions(Long routeId) {
+        return routeFilterCache.getDefinitions(routeId);
     }
 
     /**
