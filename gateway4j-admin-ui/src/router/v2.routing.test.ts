@@ -428,6 +428,8 @@ function makeNavRouterP4c1(): ReturnType<typeof createRouter> {
         { path: 'overview', name: 'V2Overview', component: NAV_STUB },
         { path: 'routes', name: 'V2Routes', component: NAV_STUB },
         { path: 'routes/wizard', name: 'V2RouteWizard', component: NAV_STUB },
+        // S12-4：创建入口叶子改指 Ingress 单页（路由项本身仍在，与真实路由表一致）
+        { path: 'routes/new', name: 'V2RouteIngress', component: NAV_STUB },
         { path: 'import-export', name: 'V2ImportExport', component: NAV_STUB }
       ] },
       { path: '/routes', name: 'Routes', component: NAV_STUB }
@@ -451,7 +453,7 @@ describe('P4c-1 追加 — LayoutV2 路由组「导入导出」叶子', () => {
     expect(digNav(enUS, P4C1_NAV_KEY), 'en-US 缺少 v2.nav.importExport').toBeDefined()
   })
 
-  it('「导入导出」叶子归路由分组、排「新建路由向导」之后（路由组第三叶子，T 裁决），点击跳 /v2/import-export 且 name=V2ImportExport', async () => {
+  it('「导入导出」叶子归路由分组、排「创建入口」叶子之后（路由组第三叶子，T 裁决），点击跳 /v2/import-export 且 name=V2ImportExport', async () => {
     const { wrapper, navRouter } = await mountNavP4c1()
     const label = String(digNav(zhCN, P4C1_NAV_KEY))
     const side = wrapper.find('#v2-side')
@@ -460,11 +462,12 @@ describe('P4c-1 追加 — LayoutV2 路由组「导入导出」叶子', () => {
     const routesGroup = groups.find((g) => g.text().includes(String(digNav(zhCN, 'v2.nav.group.routes'))))
     expect(routesGroup, '未找到路由分组').toBeDefined()
     const listAt = routesGroup!.text().indexOf(String(digNav(zhCN, 'v2.nav.routes')))
-    const wizardAt = routesGroup!.text().indexOf(String(digNav(zhCN, 'v2.nav.wizard')))
+    const createAt = routesGroup!.text().indexOf(String(digNav(zhCN, 'v2.nav.ingress')))
     const impExpAt = routesGroup!.text().indexOf(label)
     expect(impExpAt, '导入导出叶子未渲染').toBeGreaterThan(-1)
     expect(impExpAt, '导入导出应排路由列表之后').toBeGreaterThan(listAt)
-    expect(impExpAt, '导入导出应排新建路由向导之后（路由组第三叶子）').toBeGreaterThan(wizardAt)
+    expect(createAt, '创建入口叶子（v2.nav.ingress）未渲染').toBeGreaterThan(-1)
+    expect(impExpAt, '导入导出应排创建入口叶子之后（路由组第三叶子）').toBeGreaterThan(createAt)
     const leaf = wrapper.findAll('.el-menu-item, [role="menuitem"], a').find((n) => n.text().includes(label))
     expect(leaf, `找不到文案为「${label}」(${P4C1_NAV_KEY}) 的导航项`).toBeDefined()
     await leaf!.trigger('click')

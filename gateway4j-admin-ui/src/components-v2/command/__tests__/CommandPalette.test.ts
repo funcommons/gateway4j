@@ -21,7 +21,7 @@
  *   「结果合并」用例原 actions<routes 断言与演进契约冲突，按裁决修订该单行（见该用例）。
  * - 动作集（无权限门槛，恒显）：create-route→push(/v2/routes/new)
  *   （S12-4 裁决：创建入口统一指向 K8s Ingress 风格单页，旧向导 /v2/routes/wizard 不再是入口；
- *   页面组仍保留 V2RouteWizard 叶子——侧栏导航未改）；
+ *   页面组叶子同步改为 V2RouteIngress——侧栏与命令面板一致，旧向导只保留路由可直达）；
  *   import-export→push(/v2/import-export)；theme-toggle→inject('fc-theme').setTheme(翻转)；
  *   logout→auth store logout()+push(/login)。
  *   【裁决】优化建议原文的「发布页」（V2Publish=/v2/publish/:id）是参数页，无静态直达入口，
@@ -183,7 +183,7 @@ interface PageRow {
 const SIDEBAR_PAGES: PageRow[] = [
   { path: '/v2/overview', name: 'V2Overview', permission: 'monitor:read' },
   { path: '/v2/routes', name: 'V2Routes', permission: 'route:read' },
-  { path: '/v2/routes/wizard', name: 'V2RouteWizard', permission: 'route:edit' },
+  { path: '/v2/routes/new', name: 'V2RouteIngress', permission: 'route:edit' },
   { path: '/v2/import-export', name: 'V2ImportExport', permission: 'route:edit' },
   { path: '/v2/plugins/chain', name: 'V2PluginChain', permission: 'plugin:read' },
   { path: '/v2/plugins', name: 'V2PluginList', permission: 'plugin:read' },
@@ -211,9 +211,6 @@ function makeRouter(): Router {
     meta: { permission: r.permission }
   }))
   rows.push({ path: '/login', name: 'Login', component: stub })
-  // S12-4：创建入口目标页（Ingress 单页）——不入 SIDEBAR_PAGES（侧栏叶子未改），
-  // 仅作为 create-route 动作的跳转落地路由存在。
-  rows.push({ path: '/v2/routes/new', name: 'V2RouteIngress', component: stub, meta: { permission: 'route:edit' } })
   return createRouter({ history: createMemoryHistory(), routes: rows })
 }
 

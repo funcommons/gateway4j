@@ -300,6 +300,9 @@ export default {
       overview: 'Topology Overview',
       routes: 'Route List',
       wizard: 'New Route Wizard',
+      // S12-4: sidebar / command palette create entry leaf (points to the K8s Ingress style page
+      // /v2/routes/new); v2.nav.wizard is kept (the old wizard page and route still exist)
+      ingress: 'New Route',
       importExport: 'Import & Export',
       pluginChain: 'Plugin Chain',
       pluginList: 'Plugin Management',

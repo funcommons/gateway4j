@@ -297,6 +297,9 @@ export default {
       overview: '拓扑总览',
       routes: '路由列表',
       wizard: '新建路由向导',
+      // S12-4：侧栏/命令面板的创建入口叶子（指向 K8s Ingress 风格单页 /v2/routes/new）；
+      // v2.nav.wizard 保留（旧向导页面与路由项仍在，仅不再是导航目标）
+      ingress: '新建路由',
       importExport: '导入导出',
       pluginChain: '插件链',
       pluginList: '插件管理',

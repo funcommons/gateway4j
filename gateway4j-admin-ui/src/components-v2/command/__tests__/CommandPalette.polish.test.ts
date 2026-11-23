@@ -159,7 +159,7 @@ interface PageRow {
 const SIDEBAR_PAGES: PageRow[] = [
   { path: '/v2/overview', name: 'V2Overview', permission: 'monitor:read' },
   { path: '/v2/routes', name: 'V2Routes', permission: 'route:read' },
-  { path: '/v2/routes/wizard', name: 'V2RouteWizard', permission: 'route:edit' },
+  { path: '/v2/routes/new', name: 'V2RouteIngress', permission: 'route:edit' },
   { path: '/v2/import-export', name: 'V2ImportExport', permission: 'route:edit' },
   { path: '/v2/plugins/chain', name: 'V2PluginChain', permission: 'plugin:read' },
   { path: '/v2/plugins', name: 'V2PluginList', permission: 'plugin:read' },

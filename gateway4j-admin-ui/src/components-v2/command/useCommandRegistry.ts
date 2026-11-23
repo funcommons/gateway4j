@@ -52,7 +52,9 @@ export interface CmdPageDef {
 export const CMD_PAGES: CmdPageDef[] = [
   { name: 'V2Overview', path: '/v2/overview', labelKey: 'v2.nav.overview', icon: 'ri-dashboard-line', permission: 'monitor:read' },
   { name: 'V2Routes', path: '/v2/routes', labelKey: 'v2.nav.routes', icon: 'ri-git-branch-line', permission: 'route:read' },
-  { name: 'V2RouteWizard', path: '/v2/routes/wizard', labelKey: 'v2.nav.wizard', icon: 'ri-magic-line', permission: 'route:edit' },
+  // S12-4：创建入口统一指向 K8s Ingress 风格单页（name/path 与 src/router/index.ts 的
+  // V2RouteIngress 注册行一致）；旧向导 /v2/routes/wizard 路由与页面保留，但不再是导航目标。
+  { name: 'V2RouteIngress', path: '/v2/routes/new', labelKey: 'v2.nav.ingress', icon: 'ri-magic-line', permission: 'route:edit' },
   { name: 'V2ImportExport', path: '/v2/import-export', labelKey: 'v2.nav.importExport', icon: 'ri-exchange-line', permission: 'route:edit' },
   { name: 'V2PluginChain', path: '/v2/plugins/chain', labelKey: 'v2.nav.pluginChain', icon: 'ri-stack-line', permission: 'plugin:read' },
   { name: 'V2PluginList', path: '/v2/plugins', labelKey: 'v2.nav.pluginList', icon: 'ri-list-check', permission: 'plugin:read' },

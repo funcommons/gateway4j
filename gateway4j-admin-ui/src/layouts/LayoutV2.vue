@@ -207,7 +207,9 @@ const NAV_GROUPS: V2NavGroup[] = [
     labelKey: 'v2.nav.group.routes',
     items: [
       { name: 'V2Routes', path: '/v2/routes', labelKey: 'v2.nav.routes', icon: 'ri-git-branch-line' },
-      { name: 'V2RouteWizard', path: '/v2/routes/wizard', labelKey: 'v2.nav.wizard', icon: 'ri-magic-line' },
+      // S12-4：创建入口叶子改指 K8s Ingress 风格单页（name/path 与 router/index.ts 的
+      // V2RouteIngress 注册行一致）；旧向导 /v2/routes/wizard 路由与页面保留，但不再是导航目标。
+      { name: 'V2RouteIngress', path: '/v2/routes/new', labelKey: 'v2.nav.ingress', icon: 'ri-magic-line' },
       // P4c-1：导入导出叶子（路由组第三叶子，向导之后）。permission 字段 = 路由 meta 的同值兜底
       { name: 'V2ImportExport', path: '/v2/import-export', labelKey: 'v2.nav.importExport', icon: 'ri-exchange-line', permission: 'route:edit' }
     ]
