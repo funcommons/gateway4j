@@ -404,4 +404,61 @@ class WatermarkPluginUpgradeTest {
         assertTrue(body.contains("<script>"), "无 </body> 时仍应注入");
         assertTrue(body.endsWith("</script>"), "无 </body> 时脚本应追加在尾部");
     }
+
+    // ------------------------------------------------------------------
+    // S11-6：fu-gw-nick 展示 cookie 身份来源（3）
+    // ------------------------------------------------------------------
+
+    /**
+     * S11-6 T 步契约（RED 先行）。会话 cookie fu-gw-token 是 HttpOnly，document.cookie
+     * 读不到 → 用户化文案失效。修复口径：DingTalkPlugin 登录时额外下发<b>非 HttpOnly</b>
+     * 展示 cookie fu-gw-nick（值=服务端预脱敏「nick|mobile」先拼接后整体 URLEncoder UTF-8，
+     * '|'→%7C）；脚本 resolveIdentity 优先读展示 cookie（值已是脱敏态，decode 后
+     * split('|') 直接用），读不到/无 nick 段再走既有 JWT 解析回退（maskName/maskMobile 保留，
+     * 兼容非 HttpOnly 部署）。cookie 名参数化进 cfg（cfg.nickCookie），外链引导同步传导。
+     */
+    private static final String NICK_COOKIE_KEY = "nickCookie:'fu-gw-nick'";
+
+    @Test
+    void cfgLiteralCarriesNickDisplayCookieKeyInlineAndExternal() {
+        setDefaultConfig();
+        String inline = plugin.buildScriptTag();
+        assertTrue(inline.contains(NICK_COOKIE_KEY),
+                "内联 cfg 字面量应参数化展示 cookie 名（nickCookie:'fu-gw-nick'）");
+        assertTrue(inline.contains("cfg.nickCookie"),
+                "脚本应引用 cfg.nickCookie 读展示 cookie");
+
+        setConfigJson("{\"scriptUrl\":\"/static/wm.js\"}");
+        String external = plugin.buildScriptTag();
+        assertTrue(external.contains(NICK_COOKIE_KEY),
+                "scriptUrl 外链引导 options 同样传导 nickCookie 键");
+        assertTrue(external.contains("sessionCookieName:'fu-gw-token'"),
+                "外链引导既有 sessionCookieName 传导不回退");
+    }
+
+    @Test
+    void resolveIdentityReadsNickDisplayCookieBeforeJwtFallback() {
+        setDefaultConfig();
+        String script = plugin.buildScriptTag();
+        int displayRead = script.indexOf("getCookie(cfg.nickCookie)");
+        int decodeSplit = script.indexOf("split('|')");
+        int jwtFallback = script.indexOf("var payload = parseJwtPayload(token)");
+        assertTrue(displayRead >= 0, "resolveIdentity 应先读展示 cookie（cfg.nickCookie）");
+        assertTrue(script.contains("decodeURIComponent"), "展示 cookie 值应 decodeURIComponent 还原");
+        assertTrue(decodeSplit >= 0, "还原后应按 '|' split 出 nick/mobile 两段");
+        assertTrue(jwtFallback >= 0, "既有 JWT 回退路径应保留");
+        assertTrue(displayRead < decodeSplit, "先读展示 cookie 再 decode+split");
+        assertTrue(displayRead < jwtFallback, "展示 cookie 主路径必须先于 JWT 回退");
+        assertTrue(decodeSplit < jwtFallback, "decode+split 须在 JWT 回退之前（主路径次序锚）");
+    }
+
+    @Test
+    void jwtFallbackMaskHelpersRetainedForNonHttpOnlyDeployments() {
+        setDefaultConfig();
+        String script = plugin.buildScriptTag();
+        assertTrue(script.contains("function maskName"), "JWT 回退路径 maskName 保留（逻辑不动）");
+        assertTrue(script.contains("function maskMobile"), "JWT 回退路径 maskMobile 保留（逻辑不动）");
+        assertTrue(script.contains("parseJwtPayload"), "JWT payload 解析保留");
+        assertTrue(script.contains("fu-gw-token"), "会话 cookie 名锚不回退");
+    }
 }

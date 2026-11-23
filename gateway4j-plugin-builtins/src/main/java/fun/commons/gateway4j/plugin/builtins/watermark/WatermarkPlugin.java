@@ -49,6 +49,12 @@ import java.util.function.Function;
  *       装饰器包上了但 writeWith 零调用）——本票修复（S11-4e 晚绑定桥）。</li>
  * </ol>
  *
+ * <p><b>用户化身份来源（S11-6）</b>：优先读展示 cookie {@code fu-gw-nick}（cfg.nickCookie，
+ * DingTalkPlugin 登录时下发、值已服务端<b>预脱敏</b>为「nick|mobile」先拼接后整体 URLEncoder
+ * UTF-8——'|'→%7C，本插件脚本 decodeURIComponent 后再 split，两端契约互为镜像，见
+ * DingTalkPlugin 类头 §7）；会话 cookie（fu-gw-token）是 HttpOnly，document.cookie 读不到，
+ * JWT payload 解析（parseJwtPayload + maskName/maskMobile）仅作非 HttpOnly 部署的回退路径。</p>
+ *
  * <p><b>响应装饰类插件新用法（勿再 mutate().response()）</b>：execute 时把装饰工厂
  * {@code Function<ServerHttpResponse, ServerHttpResponse>} 置入 exchange attributes
  * （{@link GatewayConstants#RESPONSE_DECORATOR_FACTORY_KEY}），然后透传 exchange——
@@ -65,6 +71,12 @@ public class WatermarkPlugin extends AbstractGatewayPlugin {
     private static final String EXTERNAL_GLOBAL_NAME = "FuSecurityWatermark";
     /** 外链引导的防重复实例化全局开关名。 */
     private static final String EXTERNAL_GUARD = "_fswm";
+    /**
+     * 展示专用 cookie 名（S11-6，DingTalkPlugin §7 下发）：非 HttpOnly、值已服务端预脱敏
+     * 「nick|mobile」整体 URLEncoder UTF-8（'|'→%7C），脚本 decodeURIComponent 后 split('|') 直接用。
+     * 名字写死进 cfg 字面量（cfg.nickCookie），与 DingTalkPlugin 常量互为镜像。
+     */
+    private static final String NICK_COOKIE = "fu-gw-nick";
 
     /**
      * 内联水印脚本主体（IIFE 内部，前置 var cfg={...} 由 buildScriptTag 注入）。
@@ -112,6 +124,20 @@ public class WatermarkPlugin extends AbstractGatewayPlugin {
             }
             function resolveIdentity() {
               try {
+                // S11-6 主路径：展示 cookie（DingTalkPlugin 下发，值已服务端预脱敏）——
+                // decodeURIComponent 还原整体 encode 后按 '|' split（先拼接后 encode，'|'→%7C）
+                var display = getCookie(cfg.nickCookie);
+                if (display) {
+                  var seg = decodeURIComponent(display).split('|');
+                  if (seg[0]) {
+                    mainText = cfg.org + '内部数据 严禁外泄';
+                    var days = Math.floor((Date.now() - new Date('2000-01-01').getTime()) / 86400000);
+                    var line = seg[0] + (seg[1] ? ' ' + seg[1] : '') + ' ' + days;
+                    subText = line + ' ' + crc16(line);
+                    return;
+                  }
+                }
+                // 回退路径：会话 cookie JWT payload 解析（仅非 HttpOnly 部署可达，逻辑不动）
                 var token = getCookie(cfg.cookieName);
                 if (!token) {
                   return;
@@ -277,11 +303,12 @@ public class WatermarkPlugin extends AbstractGatewayPlugin {
         return "<script>(function(){" + inlineConfigLiteral() + INLINE_SCRIPT_BODY + "})();</script>";
     }
 
-    /** 内联脚本的 cfg 字面量：org/cookieName/color/width/height/fontSize/rotate/markId。 */
+    /** 内联脚本的 cfg 字面量：org/cookieName/nickCookie/color/width/height/fontSize/rotate/markId。 */
     private String inlineConfigLiteral() {
         return "var cfg={"
                 + "org:'" + escape(config.getOrg()) + "',"
                 + "cookieName:'" + escape(config.getSessionCookieName()) + "',"
+                + "nickCookie:'" + escape(NICK_COOKIE) + "',"
                 + "color:'" + escape(config.getColor()) + "',"
                 + "width:" + config.getWidth() + ","
                 + "height:" + config.getHeight() + ","
@@ -293,7 +320,8 @@ public class WatermarkPlugin extends AbstractGatewayPlugin {
 
     /**
      * scriptUrl 外链引导（仅显式配置 scriptUrl 时启用）：保留既有 options 键
-     * （org/color/width/height/fontSize/rotate）并附带 sessionCookieName 传导参数化 cookie 名。
+     * （org/color/width/height/fontSize/rotate）并附带 sessionCookieName 传导参数化 cookie 名、
+     * nickCookie 传导展示 cookie 名（S11-6，与内联 cfg 同键）。
      */
     private String buildExternalBootstrap(String scriptUrl) {
         return "<script src='" + escape(scriptUrl) + "'></script>"
@@ -305,7 +333,8 @@ public class WatermarkPlugin extends AbstractGatewayPlugin {
                 + "height:" + config.getHeight() + ","
                 + "fontSize:" + config.getFontSize() + ","
                 + "rotate:" + config.getRotate() + ","
-                + "sessionCookieName:'" + escape(config.getSessionCookieName()) + "'"
+                + "sessionCookieName:'" + escape(config.getSessionCookieName()) + "',"
+                + "nickCookie:'" + escape(NICK_COOKIE) + "'"
                 + "})}</script>";
     }
 

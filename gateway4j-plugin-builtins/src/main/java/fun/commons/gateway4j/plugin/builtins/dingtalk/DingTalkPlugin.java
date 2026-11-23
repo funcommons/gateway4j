@@ -48,6 +48,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *    防客户端伪造）放行；败→浏览器（Accept 含 text/html）302 重登，API 401 JSON+清 cookie。
  * §5 logout：{basePath}/logout 精确匹配 → 清 cookie；logoutRedirect 非空→302 该址，否则 200 JSON。
  * §6 既有保留：OPTIONS/excludePaths/excludeFileExt/enabled=false 直通；未登录浏览器 302 跳钉钉。
+ * §7 fu-gw-nick 展示 cookie（S11-6）：登录成功（§2 下发 token cookie 处）追加第二个 Set-Cookie——
+ *    名 fu-gw-nick、<b>非 HttpOnly</b>（水印脚本需 JS 可读，水印个性化文案由此驱动）、其余属性
+ *    镜像 token cookie（Path=/）；值=服务端<b>预脱敏</b>的「maskedNick + "|" + maskedMobile」
+ *    先拼接后整体 URLEncoder.encode(UTF_8)（'|'→%7C，WatermarkPlugin 脚本 decode 后再 split，
+ *    两端契约互为镜像）；原始 nick/手机号不得进浏览器。读取契约见 WatermarkPlugin 类头。
  * </pre>
  */
 public class DingTalkPlugin extends AbstractGatewayPlugin {
@@ -64,6 +69,8 @@ public class DingTalkPlugin extends AbstractGatewayPlugin {
     private static final long DEFAULT_TOKEN_TIMEOUT_SECONDS = 43200;
     private static final String HEADER_USER = "X-User";
     private static final String HEADER_USER_NICK = "X-User-Nick";
+    /** §7 展示专用 cookie 名（非 HttpOnly，值=预脱敏 nick|mobile 的整体 URLEncode，见类头 §7）。 */
+    private static final String NICK_COOKIE = "fu-gw-nick";
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private volatile DingTalkPluginConfig config;
@@ -336,9 +343,43 @@ public class DingTalkPlugin extends AbstractGatewayPlugin {
         String jwt = issueJwt(userInfo);
         exchange.getResponse().addCookie(ResponseCookie.from(sessionCookieName(), jwt)
                 .path("/").httpOnly(true).build());
+        // §7（S11-6）：追加展示 cookie——非 HttpOnly（水印脚本 JS 可读），属性镜像 token cookie（Path=/），
+        // 值为服务端预脱敏结果，原始 PII 不进浏览器（契约见类头 §7 与 WatermarkPlugin）
+        exchange.getResponse().addCookie(ResponseCookie.from(NICK_COOKIE, displayCookieValue(userInfo))
+                .path("/").build());
         exchange.getResponse().setStatusCode(HttpStatus.FOUND);
         exchange.getResponse().getHeaders().setLocation(URI.create(redirect));
         return exchange.getResponse().setComplete();
+    }
+
+    /**
+     * §7（S11-6）fu-gw-nick 展示 cookie 值：脱敏 nick + "|" + 脱敏 mobile <b>先拼接后整体</b>
+     * URLEncoder.encode(UTF_8)（'|'→%7C；水印脚本 decodeURIComponent 后再 split('|')——两端约定，
+     * 与 WatermarkPlugin 脚本互为镜像）。任一段为 null/空串则该段留空（"|138****8000" / "张*|" / "|"），
+     * 脚本侧容忍空段（nick 段空 → 回落既有 JWT/静态文案路径）。
+     */
+    private String displayCookieValue(Map<String, Object> userInfo) {
+        String maskedNick = maskNickForDisplay(nullable(userInfo.get("nick")));
+        String maskedMobile = maskMobileForDisplay(nullable(userInfo.get("mobile")));
+        return URLEncoder.encode(maskedNick + "|" + maskedMobile, StandardCharsets.UTF_8);
+    }
+
+    /** 展示脱敏 nick（与水印脚本 JWT 回退路径 maskName 同规则）：length≥2 → 首 + "*" + 余字，否则原值；空段留空。 */
+    private static String maskNickForDisplay(String nick) {
+        if (nick == null || nick.isEmpty()) {
+            return "";
+        }
+        return nick.length() >= 2 ? nick.charAt(0) + "*" + nick.substring(2) : nick;
+    }
+
+    /** 展示脱敏手机（与水印脚本 JWT 回退路径 maskMobile 同规则）：length≥11 → 前 3 + "****" + 后 4，否则原值；空段留空。 */
+    private static String maskMobileForDisplay(String mobile) {
+        if (mobile == null || mobile.isEmpty()) {
+            return "";
+        }
+        return mobile.length() >= 11
+                ? mobile.substring(0, 3) + "****" + mobile.substring(mobile.length() - 4)
+                : mobile;
     }
 
     // ---------------------------------------------------------------- 会话 JWT（§4）
@@ -436,6 +477,9 @@ public class DingTalkPlugin extends AbstractGatewayPlugin {
     private void clearSessionCookie(ServerWebExchange exchange) {
         exchange.getResponse().addCookie(ResponseCookie.from(sessionCookieName(), "")
                 .path("/").httpOnly(true).maxAge(Duration.ZERO).build());
+        // §7（S11-6）：展示 cookie 同步过期清除（非 HttpOnly，同一 maxAge=0 手法）
+        exchange.getResponse().addCookie(ResponseCookie.from(NICK_COOKIE, "")
+                .path("/").maxAge(Duration.ZERO).build());
     }
 
     private String sessionCookieName() {

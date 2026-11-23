@@ -1235,6 +1235,8 @@ signature = HMAC-SHA256(secret, accessKey + timestamp + nonce + bodyMd5)
 | basePath | String | `""` | §5 logout 路径前缀；空 → 精确匹配 `/logout` |
 | logoutRedirect | String | `""` | §5 logout 后跳转地址；空 → 200 JSON，非空 → 302 该址 |
 
+**fu-gw-nick 展示 cookie（S11-6）**：登录成功（回调 302 前）与 `fu-gw-token` 一同下发第二个 Set-Cookie——名 `fu-gw-nick`、**非 HttpOnly**（水印脚本需 JS 可读，会话 token cookie 保持 HttpOnly 不变）、其余属性镜像 token cookie（Path=/）。值=`URLEncoder.encode(maskedNick + "|" + maskedMobile, UTF_8)`（先拼接后整体 encode，`|`→`%7C`，水印脚本 decode 后再 split）；脱敏**服务端执行、原始 PII 不进浏览器**（nick=首字+`*`+余字，1 字不脱敏；mobile=前3+`****`+后4；段为 null/空串则留空，如 `|138****8000`）。生命周期=浏览器会话级（随 token cookie）；logout（含 401 清 cookie 分流）以 maxAge=0 与 token cookie 同步过期清除。读取契约见 16.3.2。
+
 #### 16.3.2 watermark 配置键（S11-2 补强，schema 见 GET /v1/plugins/builtin-types/watermark/schema）
 
 | 键 | 类型 | 缺省 | 说明 |
@@ -1248,6 +1250,8 @@ signature = HMAC-SHA256(secret, accessKey + timestamp + nonce + bodyMd5)
 | scriptUrl | String | — | 自定义水印脚本 URL |
 | sessionCookieName | String | `fu-gw-token` | 会话 cookie 名（对齐 dingtalk cookieName），脚本据此读 JWT payload 个性化文案 |
 | stripCsp | Boolean | false | 是否剥离 Content-Security-Policy 头；缺省保留，true 时仅在注入路径删除 |
+
+**用户化身份来源（S11-6）**：脚本 resolveIdentity 优先读展示 cookie `fu-gw-nick`（cfg.nickCookie，键随内联 cfg 字面量与 scriptUrl 外链引导同步传导；DingTalkPlugin 下发，值已服务端预脱敏，decodeURIComponent 后 split('|') 直接使用，nick 段非空才进用户化文案）；读不到/无 nick 段再回落 sessionCookieName 会话 cookie 的 JWT payload 解析 + 本地脱敏（maskName/maskMobile 保留）——HttpOnly 会话 cookie 不可 JS 读，JWT 回退仅服务非 HttpOnly 部署。
 
 ---
 

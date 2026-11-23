@@ -28,6 +28,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -78,6 +79,8 @@ class DingTalkPluginScgAuthTest {
     private static final String BROWSER_ACCEPT = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
     private static final String API_ACCEPT = "application/json";
     private static final String ACCESS_TOKEN = "dt-access-token-1";
+    /** S11-6 展示 cookie 名（非 HttpOnly，值=服务端预脱敏 nick|mobile 的整体 URLEncode）。 */
+    private static final String NICK_COOKIE = "fu-gw-nick";
 
     private DingTalkPlugin plugin;
 
@@ -179,6 +182,7 @@ class DingTalkPluginScgAuthTest {
         HttpStatusCode status() { return exchange.getResponse().getStatusCode(); }
         String location() { return exchange.getResponse().getHeaders().getFirst("Location"); }
         ResponseCookie cookie() { return exchange.getResponse().getCookies().getFirst(COOKIE); }
+        ResponseCookie cookie(String name) { return exchange.getResponse().getCookies().getFirst(name); }
         String body() { return exchange.getResponse().getBodyAsString().block(); }
         MediaType contentType() { return exchange.getResponse().getHeaders().getContentType(); }
     }
@@ -590,6 +594,112 @@ class DingTalkPluginScgAuthTest {
         assertTrue(location.contains("redirect_uri="));
         assertNotNull(stateParamOf(location), "state 参数必须存在");
         assertFalse(stateParamOf(location).isEmpty());
+    }
+
+    // ---------------------------------------------------------------- §8 fu-gw-nick 展示 cookie（S11-6）
+
+    /**
+     * S11-6 T 步契约（RED 先行）。会话 cookie fu-gw-token 是 HttpOnly（§9 安全口径），水印脚本
+     * document.cookie 读不到 → 用户化文案失效。修复：登录成功时额外下发非 HttpOnly 展示专用
+     * cookie fu-gw-nick，值=服务端<b>预脱敏</b>的「nick|mobile」先拼接后整体
+     * URLEncoder.encode(UTF_8)（'|'→%7C，WatermarkPlugin 脚本 decode 后再 split，两端契约互为镜像）；
+     * 原始 PII 不得进浏览器；logout（及 401 清 cookie 分流）与 token cookie 同步过期清除。
+     * 脱敏规则与水印脚本 JWT 回退路径一致：nick=首字+*+余字（1 字不脱敏）、mobile=前3+****+后4；
+     * 任一段 null/空串该段留空（"|138****8000" / "张*|" / "|"）。
+     */
+
+    /** 定制 users/me 用户信息（nick/mobile 可控，corpId 对齐既有锚）。 */
+    private static Map<String, Object> displayUser(String nick, String mobile) {
+        Map<String, Object> user = new LinkedHashMap<>();
+        if (nick != null) {
+            user.put("nick", nick);
+        }
+        user.put("unionId", "u-union-1");
+        user.put("corpId", "corp-ok");
+        if (mobile != null) {
+            user.put("mobile", mobile);
+        }
+        return user;
+    }
+
+    @Test
+    void loginSuccessEmitsTokenAndNickCookiesWithCorrectHttpOnlyFlags() {
+        RoundTrip rt = roundTrip(Map.of("stateSecret", STATE_SECRET, "jwtSecret", JWT_SECRET),
+                OK_TOKEN, displayUser("张三", "13800138000"), BROWSER_ACCEPT);
+
+        ResponseCookie token = rt.cookie();
+        assertNotNull(token, "token cookie（既有锚）仍须下发");
+        assertTrue(token.isHttpOnly(), "fu-gw-token 保持 HttpOnly（会话凭据不可 JS 读）");
+
+        ResponseCookie nick = rt.cookie(NICK_COOKIE);
+        assertNotNull(nick, "登录成功必须额外下发展示 cookie fu-gw-nick");
+        assertFalse(nick.isHttpOnly(), "fu-gw-nick 必须**非** HttpOnly（水印脚本需 JS 可读）");
+        assertEquals("/", nick.getPath(), "展示 cookie 属性对齐 token cookie（Path=/）");
+        assertFalse(nick.toString().toLowerCase().contains("httponly"),
+                "响应 cookie 串 nick 段不得含 HttpOnly 标记");
+        assertTrue(token.toString().toLowerCase().contains("httponly"),
+                "响应 cookie 串 token 段含 HttpOnly 标记（对照）");
+    }
+
+    @Test
+    void nickCookieValueIsPreMaskedPairUrlEncodedWithoutRawPii() {
+        RoundTrip rt = roundTrip(Map.of("stateSecret", STATE_SECRET, "jwtSecret", JWT_SECRET),
+                OK_TOKEN, displayUser("张三", "13800138000"), BROWSER_ACCEPT);
+
+        ResponseCookie nick = rt.cookie(NICK_COOKIE);
+        assertNotNull(nick);
+        assertEquals(URLEncoder.encode("张*|138****8000", StandardCharsets.UTF_8),
+                nick.getValue(),
+                "值=URLEncoder.encode(脱敏nick|脱敏mobile, UTF_8)——先拼接后整体 encode（'|'→%7C）");
+        // 断言红线：cookie 值里不得出现原始 nick / 原始手机号
+        assertFalse(nick.getValue().contains("张三"), "cookie 值不得含原始 nick");
+        assertFalse(nick.getValue().contains("13800138000"), "cookie 值不得含原始手机号");
+        for (List<ResponseCookie> group : rt.exchange().getResponse().getCookies().values()) {
+            for (ResponseCookie any : group) {
+                String rendered = any.toString();
+                assertFalse(rendered.contains("张三"), "任一 cookie 串不得含原始 nick");
+                assertFalse(rendered.contains("13800138000"), "任一 cookie 串不得含原始手机号");
+            }
+        }
+    }
+
+    @Test
+    void singleCharNickStaysUnmaskedInNickCookie() {
+        RoundTrip rt = roundTrip(Map.of("stateSecret", STATE_SECRET, "jwtSecret", JWT_SECRET),
+                OK_TOKEN, displayUser("A", "13800138000"), BROWSER_ACCEPT);
+
+        ResponseCookie nick = rt.cookie(NICK_COOKIE);
+        assertNotNull(nick);
+        assertEquals(URLEncoder.encode("A|138****8000", StandardCharsets.UTF_8),
+                nick.getValue(), "1 字 nick 按脱敏规则原样保留（length<2 不脱敏）");
+    }
+
+    @Test
+    void logoutClearsBothTokenAndNickCookies() {
+        configure(Map.of("stateSecret", STATE_SECRET, "jwtSecret", JWT_SECRET));
+        injectWebClient(fakeDingApi(OK_TOKEN, displayUser("张三", "13800138000"), new AtomicBoolean(false)));
+
+        MockServerWebExchange logout = get("/logout", BROWSER_ACCEPT);
+        plugin.execute(logout, passThrough()).block();
+
+        ResponseCookie clearedToken = logout.getResponse().getCookies().getFirst(COOKIE);
+        assertNotNull(clearedToken, "logout 清 token cookie（既有锚）");
+        assertTrue(clearedToken.getMaxAge().isZero(), "token cookie maxAge=0 过期手法");
+        ResponseCookie clearedNick = logout.getResponse().getCookies().getFirst(NICK_COOKIE);
+        assertNotNull(clearedNick, "logout 必须同步清展示 cookie fu-gw-nick");
+        assertTrue(clearedNick.getMaxAge().isZero(), "nick cookie 同样 maxAge=0 过期手法");
+    }
+
+    @Test
+    void missingNickLeavesNickSegmentEmptyInCookieValue() {
+        // users/me 无 nick 字段场景可达：mock 用户信息不含 nick 键 → nick 段留空
+        RoundTrip rt = roundTrip(Map.of("stateSecret", STATE_SECRET, "jwtSecret", JWT_SECRET),
+                OK_TOKEN, displayUser(null, "13800138000"), BROWSER_ACCEPT);
+
+        ResponseCookie nick = rt.cookie(NICK_COOKIE);
+        assertNotNull(nick, "无 nick 仍须下发展示 cookie（mobile 段可用）");
+        assertEquals(URLEncoder.encode("|138****8000", StandardCharsets.UTF_8),
+                nick.getValue(), "nick 段 null → 留空（'|138****8000'）");
     }
 
     // ---------------------------------------------------------------- 契约工具（JDK only）
