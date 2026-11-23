@@ -1,0 +1,47 @@
+{
+  "ev1Url": "https://login.dingtalk.com/oauth2/challenge.htm?redirect_uri=http%3A%2F%2Flocalhost%3A9300%2Fmock%2Fhello&response_type=code&client_id=test-app-key&scope=openid&state=0pBMRtZ97luC3xEJWGQpuw.1795419681.aHR0cDovL2xvY2FsaG9zdDo5MzAwL21vY2svaGVsbG8.LkYj0BjUoqdmctzF8LyHQHgezoTwlRSdEr0quid6e5g&prompt=consent",
+  "ev1State": "0pBMRtZ97luC3xEJWGQpuw.1795419681.aHR0cDovL2xvY2FsaG9zdDo5MzAwL21vY2svaGVsbG8.LkYj0BjUoqdmctzF8LyHQHgezoTwlRSdEr0quid6e5g",
+  "ev2Url": "http://localhost:9300/mock/hello",
+  "ev2Cookies": [
+    {
+      "name": "fu-gw-token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1bmlvbklkIjoibW9jay11bmlvbi0wMDEiLCJuaWNrIjoi5byg5LiJIiwiY29ycElkIjoiZGluZy1tb2NrLWNvcnAiLCJtb2JpbGUiOiIxMzgwMDEzODAwMCIsImlzcyI6ImRpbmd0YWxrIiwiZXhwIjoxNzk1NDYyODgzfQ.vWqvxIR6Yy4cZAzkh6tlgRMao6pmeIoka7toP5WvIDQ",
+      "domain": "localhost",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "ev2CookieInfo": [
+    {
+      "name": "fu-gw-token",
+      "httpOnly": true,
+      "expires": -1
+    }
+  ],
+  "ev2Body": {
+    "upstreamOk": true,
+    "xuserEcho": "mock-union-001",
+    "watermarkDivs": 1,
+    "watermarkScripts": 1,
+    "watermarkHasObserver": true,
+    "watermarkHasCrc": true,
+    "wmTextSample": "url(\"data:image/png;base64,iVB..."
+  },
+  "ev3": {
+    "documentCookieReadable": "",
+    "fuGwTokenReadable": false,
+    "note": "HttpOnly cookie 对 document.cookie 不可见"
+  },
+  "ev4": {
+    "beforeDelete": 1,
+    "afterDeleteWait": 1,
+    "restored": true
+  },
+  "ev5Body": "{\"code\":401,\"message\":\"state validation failed\"}",
+  "ev6LogoutBody": "{\"code\":200,\"message\":\"logged out\"}",
+  "ev6CookiesAfterLogout": 0,
+  "ev6AfterLogoutUrl": "302 → login.dingtalk.com"
+}
