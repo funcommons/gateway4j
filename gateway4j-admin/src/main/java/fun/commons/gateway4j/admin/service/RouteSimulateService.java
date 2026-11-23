@@ -8,11 +8,9 @@ import fun.commons.gateway4j.common.model.Route;
 import fun.commons.gateway4j.common.model.RouteCondition;
 import fun.commons.gateway4j.common.model.RoutePluginBinding;
 import fun.commons.gateway4j.common.util.RoutePathUtils;
+import fun.commons.gateway4j.engine.route.matcher.RoutePathMatcher;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.server.PathContainer;
 import org.springframework.stereotype.Service;
-import org.springframework.web.util.pattern.PathPattern;
-import org.springframework.web.util.pattern.PathPatternParser;
 
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -32,10 +30,12 @@ import java.util.regex.Pattern;
  * 匹配语义与数据面 {@code DynamicRouteLocator} 逐字对齐：</p>
  * <ul>
  *   <li>仅 status=PUBLISHED 的路由参与；</li>
- *   <li>路径谓词 = {@link PathPatternParser#defaultInstance} 解析
- *       {@code RoutePathUtils.normalizePath(path)} 后 matches（与 engine 同源）；</li>
- *   <li>排序：DISPATCH 优先（order = -1_000_000 + sort_order），BACKEND 按 sort_order
- *       —— engine 的 RoutePredicateHandlerMapping 取顺序第一个命中；</li>
+ *   <li>路径谓词 = engine {@code RoutePathMatcher} 的共享判定（SCG 同口径 PathPattern，
+ *       {@code matchTrailingSlash=true}；pattern 侧 {@code RoutePathUtils.normalizePath}、
+ *       request 侧 {@code RoutePathUtils.normalizeRequestPath}）——与 engine 分发层、
+ *       SCG 注册层共用同一份语义实现，杜绝三层口径漂移（S12-2）；</li>
+ *   <li>排序：DISPATCH 优先（order = -1_000_000 + sort_order），BACKEND 按 sort_order，
+ *       sort_order 相同再按 id 升序 —— engine 的 RoutePredicateHandlerMapping 取顺序第一个命中；</li>
  *   <li>DISPATCH 命中后按 priority 升序求值条件（HEADER/QUERY/PATH/HOST/METHOD/
  *       AFTER/BEFORE/BETWEEN 现场求值，与 engine {@code RouteConditionMatcher}
  *       同语义；BODY/GROOVY/COOKIE/REMOTE_ADDR 需要模拟请求模型没有的输入
@@ -47,8 +47,6 @@ import java.util.regex.Pattern;
 @Slf4j
 @Service
 public class RouteSimulateService {
-
-    private static final PathPatternParser PATH_PATTERN_PARSER = PathPatternParser.defaultInstance;
 
     private static final String TYPE_BACKEND = "BACKEND";
     private static final String TYPE_DISPATCH = "DISPATCH";
@@ -79,7 +77,10 @@ public class RouteSimulateService {
      */
     public Map<String, Object> simulate(String path, String method,
                                         Map<String, String> headers, Map<String, String> query) {
-        String normalizedPath = RoutePathUtils.normalizePath(path);
+        // S12-2（缺陷③）：匹配用归一 = 只补前导 "/"、不剥尾斜杠（SCG matchTrailingSlash=true
+        // 口径），与 engine 分发层 / SCG 注册层同源；条件求值也用同一路径（engine 的
+        // RouteConditionMatcher#matchPath 用的是原始请求路径）。
+        String requestPath = RoutePathUtils.normalizeRequestPath(path);
         String normalizedMethod = method == null || method.isBlank() ? "GET" : method.toUpperCase(Locale.ROOT);
         Map<String, String> safeHeaders = headers == null ? Map.of() : headers;
         Map<String, String> safeQuery = query == null ? Map.of() : query;
@@ -89,7 +90,7 @@ public class RouteSimulateService {
         List<Map<String, Object>> evaluated = new ArrayList<>();
         Route matched = null;
         for (Route route : candidates) {
-            boolean pathHit = matchPath(route.getPath(), normalizedPath);
+            boolean pathHit = matchPath(route.getPath(), requestPath);
             boolean winner = pathHit && matched == null;
             if (winner) {
                 matched = route;
@@ -102,7 +103,7 @@ public class RouteSimulateService {
             item.put("matched", winner);
             item.put("path_matched", pathHit);
             if (!pathHit) {
-                item.put("reason", "path 不匹配：路由 " + route.getPath() + " vs 请求 " + normalizedPath);
+                item.put("reason", "path 不匹配：路由 " + route.getPath() + " vs 请求 " + requestPath);
             } else if (winner) {
                 item.put("reason", "path 匹配且排序最前（命中）");
             } else {
@@ -116,20 +117,24 @@ public class RouteSimulateService {
         result.put("route", matched != null ? routeSummary(matched) : null);
         result.put("evaluated", evaluated);
         if (matched != null && TYPE_DISPATCH.equals(matched.getRouteType())) {
-            result.put("dispatch", resolveDispatch(matched, normalizedPath, normalizedMethod,
+            result.put("dispatch", resolveDispatch(matched, requestPath, normalizedMethod,
                     safeHeaders, safeQuery));
         }
         result.put("plugins", collectPlugins(matched));
         result.put("request", Map.of(
-                "path", normalizedPath,
+                "path", requestPath,
                 "method", normalizedMethod));
         return result;
     }
 
-    /** 与 DynamicRouteLocator.getOrder 同序：DISPATCH（-1e6+sort）在前，BACKEND 按 sort。 */
+    /**
+     * 与 DynamicRouteLocator.getOrder 同序：DISPATCH（-1e6+sort）在前，BACKEND 按 sort；
+     * sort_order 相同时按 id 升序兜底（S12-2：结果不依赖 DB 返回顺序）。
+     */
     private List<Route> orderedPublishedRoutes() {
         List<Route> routes = new ArrayList<>(routeService.listRoutes(null, "PUBLISHED", null));
-        routes.sort(Comparator.comparingInt(this::routeOrder));
+        routes.sort(Comparator.comparingInt(this::routeOrder)
+                .thenComparing(route -> route.getId() != null ? route.getId() : Long.MAX_VALUE));
         return routes;
     }
 
@@ -138,18 +143,15 @@ public class RouteSimulateService {
         return TYPE_DISPATCH.equals(route.getRouteType()) ? DISPATCH_ORDER_BASE + sortOrder : sortOrder;
     }
 
-    /** 与 engine 同源：PathPatternParser.defaultInstance + RoutePathUtils.normalizePath。 */
+    /**
+     * 与 engine 分发层同源：直接复用 engine 的 {@code RoutePathMatcher} 静态判定
+     * （SCG 同口径 PathPattern + matchTrailingSlash=true），杜绝模拟器与数据面口径漂移。
+     */
     private boolean matchPath(String routePath, String requestPath) {
         if (routePath == null || routePath.isBlank()) {
             return false;
         }
-        try {
-            PathPattern pattern = PATH_PATTERN_PARSER.parse(RoutePathUtils.normalizePath(routePath));
-            return pattern.matches(PathContainer.parsePath(requestPath));
-        } catch (Exception e) {
-            log.warn("[路由模拟] 路由 path 非法（{}）: {}", routePath, e.getMessage());
-            return false;
-        }
+        return RoutePathMatcher.matches(routePath, requestPath);
     }
 
     private Map<String, Object> routeSummary(Route route) {

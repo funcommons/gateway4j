@@ -1,5 +1,6 @@
 package fun.commons.gateway4j.gateway.config;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import fun.commons.gateway4j.common.mapper.PluginMapper;
 import fun.commons.gateway4j.common.mapper.RouteConditionMapper;
 import fun.commons.gateway4j.common.mapper.RouteMapper;
@@ -97,7 +98,10 @@ public class ServerAutoConfiguration {
                                        RoutePluginBindingMapper bindingMapper,
                                        RoutePredicateMapper routePredicateMapper,
                                        PluginMapper pluginMapper) {
-        Supplier<List<Route>> routeLoader = () -> routeMapper.selectList(null);
+        // S12-2（缺陷②）：路由取数带 ORDER BY id —— PostgreSQL 无 ORDER BY 的返回顺序不确定，
+        // 会让「先注册者胜出」的 path 仲裁随部署漂移（DISPATCH 父路由可能被后置路由抢走入口）。
+        Supplier<List<Route>> routeLoader = () -> routeMapper.selectList(
+                new LambdaQueryWrapper<Route>().orderByAsc(Route::getId));
         Supplier<List<RouteCondition>> conditionLoader = () -> conditionMapper.selectList(null);
         Supplier<List<Plugin>> pluginLoader = () -> pluginMapper.selectList(null);
         Supplier<List<RoutePluginBinding>> bindingLoader = () -> bindingMapper.selectList(null);

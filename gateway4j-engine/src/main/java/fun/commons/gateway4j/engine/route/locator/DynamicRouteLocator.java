@@ -1,16 +1,14 @@
 package fun.commons.gateway4j.engine.route.locator;
 
 import fun.commons.gateway4j.common.model.Route;
-import fun.commons.gateway4j.common.util.RoutePathUtils;
+import fun.commons.gateway4j.engine.route.matcher.RoutePathMatcher;
 import fun.commons.gateway4j.engine.route.predicate.ScgRoutePredicateSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.handler.AsyncPredicate;
-import org.springframework.http.server.PathContainer;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.util.pattern.PathPattern;
-import org.springframework.web.util.pattern.PathPatternParser;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -49,8 +47,6 @@ public class DynamicRouteLocator implements RouteLocator {
 
     private static final Logger log = LoggerFactory.getLogger(DynamicRouteLocator.class);
 
-    private static final PathPatternParser PATH_PATTERN_PARSER = PathPatternParser.defaultInstance;
-
     public static final String DISPATCH_PLACEHOLDER_URI = "http://dispatch-placeholder.invalid";
 
     private static final String TYPE_BACKEND = "BACKEND";
@@ -87,20 +83,39 @@ public class DynamicRouteLocator implements RouteLocator {
             return Flux.empty();
         }
 
+        // S12-2（缺陷②）：注册顺序确定化 —— DISPATCH 优先（order=-1_000_000+sort_order）
+        // → sort_order 升序 → id 升序。上游 supplier 的顺序不稳定（DB 无序返回 / 缓存是
+        // 哈希 Map），不显式排序时同 order 的路由谁先命中会随部署漂移。
+        List<Route> orderedRoutes = routes.stream()
+                .sorted(Comparator.comparingInt(DynamicRouteLocator::routeOrder)
+                        .thenComparing(DynamicRouteLocator::routeId))
+                .toList();
+
         List<org.springframework.cloud.gateway.route.Route> scgRoutes = new ArrayList<>();
-        for (Route route : routes) {
+        for (Route route : orderedRoutes) {
             org.springframework.cloud.gateway.route.Route scgRoute = toScgRoute(route);
             if (scgRoute != null) {
                 scgRoutes.add(scgRoute);
             }
         }
-        // Emission order mirrors getOrder(): RoutePredicateHandlerMapping takes the
-        // first matching route, so make both deterministic and consistent.
-        scgRoutes.sort(Comparator.comparingInt(org.springframework.cloud.gateway.route.Route::getOrder));
+        // Emission order mirrors getOrder() (DISPATCH → sort_order → id): the
+        // RoutePredicateHandlerMapping takes the first matching route, so the
+        // emission order is the match order — keep both deterministic and consistent.
         if (log.isDebugEnabled()) {
             log.debug("Dynamic routes registered: {}", scgRoutes.size());
         }
         return Flux.fromIterable(scgRoutes);
+    }
+
+    /** 与 SCG route order 同口径：DISPATCH 恒在 BACKEND 之前。 */
+    private static int routeOrder(Route route) {
+        int sortOrder = route.getSortOrder() != null ? route.getSortOrder() : 0;
+        return TYPE_DISPATCH.equals(route.getRouteType()) ? DISPATCH_ORDER_BASE + sortOrder : sortOrder;
+    }
+
+    /** id 升序兜底（sort_order 相同时的确定性 tiebreak）。 */
+    private static Long routeId(Route route) {
+        return route.getId() != null ? route.getId() : Long.MAX_VALUE;
     }
 
     private org.springframework.cloud.gateway.route.Route toScgRoute(Route route) {
@@ -113,7 +128,9 @@ public class DynamicRouteLocator implements RouteLocator {
 
         PathPattern pattern;
         try {
-            pattern = PATH_PATTERN_PARSER.parse(RoutePathUtils.normalizePath(route.getPath()));
+            // S12-2（缺陷③）：path 语义与 SCG 同源 —— 与分发层 / 模拟器共用
+            // RoutePathMatcher 的解析器（matchTrailingSlash=true，SCG 默认口径）。
+            pattern = RoutePathMatcher.parsePattern(route.getPath());
         } catch (Exception e) {
             log.warn("Skip route {} ({}): invalid path pattern '{}': {}",
                     route.getId(), route.getRouteName(), route.getPath(), e.getMessage());

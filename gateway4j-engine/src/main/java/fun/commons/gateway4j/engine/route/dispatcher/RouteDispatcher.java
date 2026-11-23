@@ -68,12 +68,43 @@ public class RouteDispatcher {
         this.conditionMap = conditions.stream()
                 .collect(Collectors.groupingBy(RouteCondition::getRouteId));
 
+        // S12-2（缺陷②）：注册顺序确定化 —— DISPATCH 优先 → sort_order 升序 → id 升序。
+        // 上游取数（DB 查询 / 缓存 Map）顺序不稳定，直接按入参顺序注册会让 path 匹配的
+        // 「先注册者胜出」结果随 DB 返回顺序漂移（DISPATCH 父路由可能被后置路由抢走入口）。
         pathMatcher.clear();
-        for (Route route : routes) {
+        for (Route route : orderedRoutes(routes)) {
             if (route.getPath() != null) {
-                pathMatcher.addRoute(route.getId(), route.getPath());
+                pathMatcher.addRoute(route.getId(), route.getPath(), route.getRouteType());
             }
         }
+    }
+
+    /**
+     * 路由注册顺序（DISPATCH 优先 → sort_order 升序 → id 升序）。
+     *
+     * <p>与 SCG 注册层 {@code DynamicRouteLocator} 的 order 口径一致（DISPATCH 的
+     * order = -1_000_000 + sort_order，恒排在 BACKEND 之前）。id 升序兜底，保证
+     * sort_order 相同的路由也有确定顺序（不再依赖 DB 返回顺序）。</p>
+     */
+    static List<Route> orderedRoutes(List<Route> routes) {
+        return routes.stream()
+                .sorted(Comparator.comparingInt(RouteDispatcher::typeRank)
+                        .thenComparingInt(RouteDispatcher::sortOrderOf)
+                        .thenComparing(RouteDispatcher::idOf))
+                .toList();
+    }
+
+    /** DISPATCH 优先（0）于 BACKEND（1）。 */
+    private static int typeRank(Route route) {
+        return "DISPATCH".equals(route.getRouteType()) ? 0 : 1;
+    }
+
+    private static int sortOrderOf(Route route) {
+        return route.getSortOrder() != null ? route.getSortOrder() : 0;
+    }
+
+    private static Long idOf(Route route) {
+        return route.getId() != null ? route.getId() : Long.MAX_VALUE;
     }
 
     public Mono<ResolvedRoute> dispatch(ServerWebExchange exchange) {

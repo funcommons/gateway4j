@@ -56,44 +56,32 @@ class RoutePathUtilsTest {
         assertEquals(List.of("api", "users"), segments);
     }
 
+    // ===== S12-2：matchPath 已删除（死代码，匹配能力统一由 engine 的 PathPattern 匹配器承担）=====
+
     @Test
-    void matchPath_exact() {
-        assertTrue(RoutePathUtils.matchPath("/api/users", "/api/users"));
+    void normalizeRequestPath_null() {
+        assertEquals("/", RoutePathUtils.normalizeRequestPath(null));
     }
 
     @Test
-    void matchPath_exactNotMatch() {
-        assertFalse(RoutePathUtils.matchPath("/api/users", "/api/orders"));
+    void normalizeRequestPath_empty() {
+        assertEquals("/", RoutePathUtils.normalizeRequestPath(""));
     }
 
     @Test
-    void matchPath_doubleStar() {
-        assertTrue(RoutePathUtils.matchPath("/api/**", "/api/users/123"));
-        assertTrue(RoutePathUtils.matchPath("/api/**", "/api/users"));
-        assertTrue(RoutePathUtils.matchPath("/api/**", "/api"));
+    void normalizeRequestPath_noLeadingSlash() {
+        assertEquals("/api/users", RoutePathUtils.normalizeRequestPath("api/users"));
     }
 
     @Test
-    void matchPath_doubleStarRoot() {
-        assertTrue(RoutePathUtils.matchPath("/**", "/anything/nested/deep"));
-        assertTrue(RoutePathUtils.matchPath("/**", "/"));
+    void normalizeRequestPath_keepsTrailingSlash() {
+        // 匹配用归一不剥尾斜杠（SCG matchTrailingSlash=true 口径）
+        assertEquals("/api/users/", RoutePathUtils.normalizeRequestPath("/api/users/"));
+        assertEquals("/api/users/", RoutePathUtils.normalizeRequestPath("api/users/"));
     }
 
     @Test
-    void matchPath_singleStar() {
-        assertTrue(RoutePathUtils.matchPath("/api/*", "/api/users"));
-        assertFalse(RoutePathUtils.matchPath("/api/*", "/api/users/123"));
-    }
-
-    @Test
-    void matchPath_singleStarRoot() {
-        assertTrue(RoutePathUtils.matchPath("/*", "/anything"));
-        assertFalse(RoutePathUtils.matchPath("/*", "/nested/path"));
-    }
-
-    @Test
-    void matchPath_null() {
-        assertFalse(RoutePathUtils.matchPath(null, "/api"));
-        assertFalse(RoutePathUtils.matchPath("/api", null));
+    void normalizeRequestPath_root() {
+        assertEquals("/", RoutePathUtils.normalizeRequestPath("/"));
     }
 }

@@ -5,6 +5,7 @@ import fun.commons.gateway4j.common.mapper.RouteConditionMapper;
 import fun.commons.gateway4j.common.mapper.RoutePluginBindingMapper;
 import fun.commons.gateway4j.common.model.Route;
 import fun.commons.gateway4j.common.model.RouteCondition;
+import fun.commons.gateway4j.engine.route.matcher.RoutePathMatcher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -399,5 +400,103 @@ class RouteSimulateServiceTest {
         assertTrue(String.valueOf(((Map<?, ?>) conditions.get(0)).get("reason")).contains("Trace-lite"));
         assertTrue(String.valueOf(((Map<?, ?>) conditions.get(0)).get("reason")).contains("cookie 字段"));
         assertTrue(String.valueOf(((Map<?, ?>) conditions.get(1)).get("reason")).contains("remoteAddress 字段"));
+    }
+
+    // ===== S12-2：模拟器与引擎路径语义同步（缺陷①/③）=====
+
+    /** 缺陷①：变量路由在模拟器侧可命中（此前模拟器与引擎口径不一致）。 */
+    @Test
+    void variableSegmentRouteMatches() {
+        publish(Route.builder().id(1L).routeName("v").routeType("BACKEND")
+                .path("/foo/{seg}").upstreamUrl("http://v:8080").sortOrder(0).build());
+
+        Map<String, Object> result = service.simulate("/foo/bar", "GET", Map.of(), Map.of());
+
+        assertEquals(true, result.get("matched"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> route = (Map<String, Object>) result.get("route");
+        assertEquals("v", route.get("route_name"));
+    }
+
+    /** 缺陷③：尾斜杠口径 = SCG 默认（route path {@code /api} 命中 request {@code /api/}）。 */
+    @Test
+    void trailingSlashMatchesScgDefault() {
+        publish(Route.builder().id(1L).routeName("api").routeType("BACKEND")
+                .path("/api").upstreamUrl("http://v:8080").sortOrder(0).build());
+
+        Map<String, Object> result = service.simulate("/api/", "GET", Map.of(), Map.of());
+
+        assertEquals(true, result.get("matched"));
+    }
+
+    /** 缺陷③：{@code /*} 命中带尾斜杠的单段路径（与引擎/注册层同一口径）。 */
+    @Test
+    void singleWildcardMatchesTrailingSlashPath() {
+        publish(Route.builder().id(1L).routeName("api").routeType("BACKEND")
+                .path("/api/*").upstreamUrl("http://v:8080").sortOrder(0).build());
+
+        Map<String, Object> result = service.simulate("/api/", "GET", Map.of(), Map.of());
+
+        assertEquals(true, result.get("matched"));
+    }
+
+    /**
+     * 缺陷②：DISPATCH 父路由（{@code /api/**}）与后置 BACKEND（{@code /api/user/**}）
+     * 前缀重叠时，模拟器必须与引擎一致地判给 DISPATCH。
+     */
+    @Test
+    void dispatchParentWinsOverOverlappingBackendRoute() {
+        Route dispatch = Route.builder().id(10L).routeName("dispatch").routeType("DISPATCH")
+                .path("/api/**").sortOrder(0).build();
+        Route legacy = Route.builder().id(11L).routeName("legacy").routeType("BACKEND")
+                .path("/api/user/**").upstreamUrl("http://legacy:8080").sortOrder(0).build();
+        publish(legacy, dispatch);
+        when(conditionMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(
+                RouteCondition.builder().routeId(10L).targetRouteId(11L)
+                        .conditionType("HEADER").operator("EQ").conditionKey("X-Version")
+                        .conditionValue("v2").priority(0).build()));
+        when(routeService.getById(11L)).thenReturn(legacy);
+
+        Map<String, Object> result = service.simulate("/api/user/1", "GET",
+                Map.of("X-Version", "v2"), Map.of());
+
+        assertEquals(true, result.get("matched"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> route = (Map<String, Object>) result.get("route");
+        assertEquals("dispatch", route.get("route_name"));
+    }
+
+    /**
+     * 模拟器与引擎逐条一致：同一组 (route.path, request.path)，
+     * 模拟器给出的 path 命中判定必须与引擎 {@code RoutePathMatcher} 的判定完全一致。
+     */
+    @Test
+    void simulatorPathVerdictMatchesEngineMatcher() {
+        List<String> routePaths = List.of("/foo/{seg}", "/foo/{seg:[0-9]+}", "/api", "/api/*", "/api/**");
+        List<String> requestPaths = List.of("/foo/bar", "/foo/123", "/foo/abc",
+                "/api", "/api/", "/api/x", "/api/x/y", "/other");
+
+        List<Route> routes = new java.util.ArrayList<>();
+        for (int i = 0; i < routePaths.size(); i++) {
+            routes.add(Route.builder().id((long) (i + 1)).routeName("r" + i).routeType("BACKEND")
+                    .path(routePaths.get(i)).upstreamUrl("http://v:8080").sortOrder(i).build());
+        }
+        publish(routes.toArray(new Route[0]));
+
+        for (String requestPath : requestPaths) {
+            Map<String, Object> result = service.simulate(requestPath, "GET", Map.of(), Map.of());
+            List<?> evaluated = (List<?>) result.get("evaluated");
+            for (int i = 0; i < routePaths.size(); i++) {
+                boolean simulatorHit = Boolean.TRUE.equals(
+                        ((Map<?, ?>) evaluated.get(i)).get("path_matched"));
+
+                RoutePathMatcher engineMatcher = new RoutePathMatcher();
+                engineMatcher.addRoute((long) (i + 1), routePaths.get(i));
+                boolean engineHit = engineMatcher.match(requestPath).isPresent();
+
+                assertEquals(engineHit, simulatorHit,
+                        "模拟器与引擎判定不一致：route=" + routePaths.get(i) + " request=" + requestPath);
+            }
+        }
     }
 }
