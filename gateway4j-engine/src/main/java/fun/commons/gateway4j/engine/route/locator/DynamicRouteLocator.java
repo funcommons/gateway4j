@@ -45,6 +45,12 @@ import java.util.function.Supplier;
  *       bound by SCG's own {@code RoutePredicateFactory} and AND-combined with
  *       the path predicate — so {@code host AND path} becomes expressible and
  *       the matching semantics are 100% Spring Cloud Gateway's by construction.</li>
+ *   <li>S12-7b2: a route with no configured path (S12-7b batch API's native SCG
+ *       semantics: the route is not path-restricted) is no longer silently
+ *       dropped — with at least one effective SCG predicate it registers on
+ *       those predicates alone; with none (no gw_route_predicate rows, or all
+ *       failing to bind) it is still skipped with a WARN, because a route
+ *       without any predicate would match every request.</li>
  * </ul>
  */
 public class DynamicRouteLocator implements RouteLocator {
@@ -149,27 +155,40 @@ public class DynamicRouteLocator implements RouteLocator {
         if (!STATUS_PUBLISHED.equals(route.getStatus())) {
             return null;
         }
-        if (route.getPath() == null || route.getPath().isBlank()) {
-            return null;
-        }
-
-        PathPattern pattern;
-        try {
-            // S12-2（缺陷③）：path 语义与 SCG 同源 —— 与分发层 / 模拟器共用
-            // RoutePathMatcher 的解析器（matchTrailingSlash=true，SCG 默认口径）。
-            pattern = RoutePathMatcher.parsePattern(route.getPath());
-        } catch (Exception e) {
-            log.warn("Skip route {} ({}): invalid path pattern '{}': {}",
-                    route.getId(), route.getRouteName(), route.getPath(), e.getMessage());
-            return null;
-        }
 
         int sortOrder = route.getSortOrder() != null ? route.getSortOrder() : 0;
 
         // S12-1: path predicate ∧ route-level SCG native predicates (all AND).
-        AsyncPredicate<ServerWebExchange> predicate = pathPredicate(pattern);
-        for (AsyncPredicate<ServerWebExchange> scgPredicate : scgPredicates(route)) {
-            predicate = predicate.and(scgPredicate);
+        // S12-7b2: path=null/blank（S12-7b batch API 的 SCG 原生语义：路由不限路径）
+        // 不再静默丢弃 —— 有有效 SCG 谓词即按纯 SCG 谓词注册；但连有效谓词都没有的
+        // 裸路由仍不注册（无任何谓词会匹配一切请求，产品语义不成立）。
+        List<AsyncPredicate<ServerWebExchange>> scgPredicates = scgPredicates(route);
+
+        AsyncPredicate<ServerWebExchange> predicate;
+        if (route.getPath() == null || route.getPath().isBlank()) {
+            if (scgPredicates.isEmpty()) {
+                log.warn("Skip route {} ({}): no path and no effective SCG predicate - "
+                        + "a route without any predicate would match every request, not registered",
+                        route.getId(), route.getRouteName());
+                return null;
+            }
+            predicate = combinePredicates(scgPredicates);
+        } else {
+            PathPattern pattern;
+            try {
+                // S12-2（缺陷③）：path 语义与 SCG 同源 —— 与分发层 / 模拟器共用
+                // RoutePathMatcher 的解析器（matchTrailingSlash=true，SCG 默认口径）。
+                pattern = RoutePathMatcher.parsePattern(route.getPath());
+            } catch (Exception e) {
+                log.warn("Skip route {} ({}): invalid path pattern '{}': {}",
+                        route.getId(), route.getRouteName(), route.getPath(), e.getMessage());
+                return null;
+            }
+
+            predicate = pathPredicate(pattern);
+            for (AsyncPredicate<ServerWebExchange> scgPredicate : scgPredicates) {
+                predicate = predicate.and(scgPredicate);
+            }
         }
 
         org.springframework.cloud.gateway.route.Route.AsyncBuilder builder =
@@ -220,6 +239,20 @@ public class DynamicRouteLocator implements RouteLocator {
     private AsyncPredicate<org.springframework.web.server.ServerWebExchange> pathPredicate(PathPattern pattern) {
         return exchange -> Mono.just(pattern.matches(
                 exchange.getRequest().getPath().pathWithinApplication()));
+    }
+
+    /**
+     * S12-7b2: 无 path 路由的谓词链 = 纯 SCG 谓词 AND 组合（与有 path 时的
+     * {@code pathPredicate ∧ scgPredicates} 同一口径，只是少了 path 谓词）。
+     * 调用方保证 {@code predicates} 非空。
+     */
+    private static AsyncPredicate<ServerWebExchange> combinePredicates(
+            List<AsyncPredicate<ServerWebExchange>> predicates) {
+        AsyncPredicate<ServerWebExchange> combined = predicates.get(0);
+        for (int i = 1; i < predicates.size(); i++) {
+            combined = combined.and(predicates.get(i));
+        }
+        return combined;
     }
 
     /**
