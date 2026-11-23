@@ -1,0 +1,36 @@
+用例: 12-03-traffic-evidence
+时间: 2026-11-23T15:20:05.167Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/login
+200 GET /v1/permissions
+200 GET /v1/routes
+200 GET /v1/config/sync-status
+200 GET /v1/monitor/routes/traffic-summary
+200 GET /v1/routes/2124885660893630465/versions
+200 GET /v1/monitor/timeseries?routeId=2124885660893630465&timeRange=24h&granularity=1h
+200 POST /v1/routes/2124885660893630465/publish
+200 GET /v1/monitor/routes/traffic-summary
+200 GET /v1/config/sync-status
+200 GET /v1/routes/2124885660893630465/versions
+200 GET /v1/routes
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/config/sync-status
+200 GET /v1/monitor/routes/traffic-summary
+200 GET /v1/routes
+
+--- Extra ---
+GET /scge2e/e2e-traffic（Host: scg-e2e.test）→ status=200; body 片段=<html><head><title>mock-upstream</title></head><body><h1>UPSTREAM OK /scge2e/e2e-traffic</h1><div id='xuser'></div></bod

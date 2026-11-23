@@ -20,7 +20,7 @@
 | V1.2.0 | 2026-07-14 | 修订 | 补充修订历史、Mermaid ER、表清单、全列 COMMENT、索引策略、分区方案、敏感字段、数据字典、逻辑外键关系等 | - | - |
 | V1.5.3 | 2026-11-19 | 修订 | gw_route_condition.condition_type 同步 S10 批：对齐 Spring Cloud Gateway predicate 全集扩至 13 类型（新增 HOST/METHOD/COOKIE/REMOTE_ADDR/AFTER/BEFORE/BETWEEN，补录 WEIGHT），迁移 V1.5.3__condition_type_scg_predicates.sql 仅更新列注释、无列/数据变更；§3/§5.2/§9.7 同步并注明 SCG 对齐口径 | S10-3 | - |
 | V1.7.0 | 2026-11-23 | 修订 | 新增表 gw_route_predicate（路由级 SCG 原生谓词，S12-1）：迁移 V1.7.0__route_predicate.sql 幂等建表 + idx_route_predicate_route 索引 + set_updated_at 触发器；§3/§4/§5.15/§7/§8 同步 | S12-1 | - |
-| V1.8.0 | 2026-11-23 | 修订 | S12 路由创建 SCG 1:1 形态（S12-7b）：新增表 gw_route_filter（路由级 SCG 原生 filter 定义串）+ gw_route 新增列 metadata（JSONB，GIN 索引）；§3/§4/§5.1/§5.16/§7/§8 同步 | S12-7b | - |
+| V1.8.0 | 2026-11-23 | 修订 | S12 路由创建 SCG 1:1 形态（S12-7b）：新增表 gw_route_filter（路由级 SCG 原生 filter 定义串）+ gw_route 新增列 metadata（JSONB；迁移 V1.7.1__route_filter_and_metadata.sql 未建 GIN 索引，见 §5.1）；§3/§4/§5.1/§5.16/§7/§8 同步 | S12-7b | - |
 
 ## 2. 全局规范
 
@@ -289,7 +289,8 @@ CREATE UNIQUE INDEX uk_route_name ON gw_route (route_name) WHERE is_deleted = 0;
 CREATE INDEX idx_route_type ON gw_route (route_type);
 CREATE INDEX idx_route_status ON gw_route (status);
 CREATE INDEX idx_parent_route ON gw_route (parent_route_id);
-CREATE INDEX idx_route_metadata ON gw_route USING GIN (metadata);
+-- S12-7b metadata 列：V1.7.1 迁移未建 GIN 索引（当前无按 JSON 路径的查询场景，
+-- 按 §2.6 豁免条款省略；后续若引入 metadata 键检索再补建）
 
 CREATE TRIGGER trg_gw_route_updated_at
     BEFORE UPDATE ON gw_route
@@ -866,13 +867,14 @@ COMMENT ON COLUMN gw_route_filter.updated_at IS '更新时间（set_updated_at()
   `ModifyRequestBody` / `ModifyResponseBody` / `RequestRateLimiter` / `CircuitBreaker` /
   `Retry` / `RequestSize` / `PreserveHost` 等。
 - **落库口径**：批量端点 `POST /v1/routes/batch`（见 `docs/API_CONTRACT.md` §19.1）的
-  `filters[]` **逐条原样落一行**（`sort_order` 从 0 递增）；本批只固定**线格式与存储口径**，
-  **引擎侧是否逐条绑定执行由 S12-7b 落地**（gateway4j 另有自己的插件链，SCG filter 与
-  gateway4j 插件的对应关系不在本表范围）。
+  `filters[]` **逐条原样落一行**（`sort_order` 从 0 递增）；本批固定**线格式与存储口径**，
+  **引擎侧逐条绑定执行已由 S12-7a 落地**（aa40cc7：复刻 SCG `RouteDefinitionRouteLocator`，
+  定义串 → `GatewayFilterFactory.apply` → 挂 `Route.gatewayFilters`；gateway4j 另有自己的
+  插件链，SCG filter 与 gateway4j 插件的对应关系不在本表范围）。
 - **失败语义**：与谓词同款 fail-closed 口径（未知 filter 名 → 跳过该条 + WARN；
   已知名字缺必填参数/值非法 → 该条恒不生效 + WARN；参数值以 `#{` 开头的 **SpEL 被显式拒绝**，
   不在服务端求值）—— 见 `docs/API_CONTRACT.md` §19.2.4。
-- **迁移**：`V1.8.0__route_filter_metadata.sql`（Flyway，幂等 —— `CREATE TABLE/INDEX IF NOT
+- **迁移**：`V1.7.1__route_filter_and_metadata.sql`（Flyway，幂等 —— `CREATE TABLE/INDEX IF NOT
   EXISTS` + `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` + 触发器 `DO $$` 存在性判定）。
 
 > **与 `gw_route_plugin_binding` 的分工**：后者是 gateway4j **插件**绑定（插件 id + 配置 JSON），
@@ -908,7 +910,6 @@ COMMENT ON COLUMN gw_route_filter.updated_at IS '更新时间（set_updated_at()
 | idx_condition_route_priority | gw_route_condition | route_id, priority | B-Tree 复合 | 按路由查询条件并按优先级排序 | 高 |
 | idx_route_predicate_route | gw_route_predicate | route_id | B-Tree | 按路由加载其 SCG 原生谓词行（引擎 reload 全量取数后内存按 route_id 分组） | 高 |
 | idx_route_filter_route | gw_route_filter | route_id | B-Tree | 按路由加载其 SCG 原生 filter 行（与谓词行同款：一次全量取数 + 内存分组） | 高 |
-| idx_route_metadata | gw_route | metadata | GIN | JSONB 元数据键检索（§2.6 规范要求 JSONB 配 GIN） | 中 |
 | uk_plugin_name | gw_plugin | plugin_name | UNIQUE PARTIAL (WHERE is_deleted=0) | 插件名称唯一性校验 | 高 |
 | uk_plugin_id | gw_plugin | plugin_id | UNIQUE PARTIAL (WHERE is_deleted=0) | 插件标识唯一性校验 | 高 |
 | idx_plugin_type | gw_plugin | plugin_type | B-Tree | 按插件类型筛选 | 低（4值） |

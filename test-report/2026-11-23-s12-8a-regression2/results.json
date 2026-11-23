@@ -1,0 +1,804 @@
+{
+  "config": {
+    "argv": [
+      "/opt/homebrew/Cellar/node/26.13.1_2/bin/node",
+      "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/node_modules/.bin/playwright",
+      "test",
+      "-c",
+      "playwright.regression.config.ts",
+      "e2e-regression/03-routes.spec.ts"
+    ],
+    "configFile": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/playwright.regression.config.ts",
+    "rootDir": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-regression",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-regression",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 90000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "/Users/justin/codes/funcommons/gateway4j/test-report/2026-11-23-s12-8a-regression2/results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.61.1",
+    "workers": 1,
+    "webServer": {
+      "command": "npm run dev",
+      "port": 9302,
+      "reuseExistingServer": true,
+      "timeout": 120000
+    }
+  },
+  "suites": [
+    {
+      "title": "03-routes.spec.ts",
+      "file": "03-routes.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "BL-03 路由管理",
+          "file": "03-routes.spec.ts",
+          "line": 83,
+          "column": 6,
+          "specs": [
+            {
+              "title": "03-01 路由列表加载：语义表格渲染且含分发型种子路由",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2914,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-23T15:23:45.116Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-982b88e36b13c0ee125f",
+              "file": "03-routes.spec.ts",
+              "line": 90,
+              "column": 3
+            },
+            {
+              "title": "03-02 状态过滤标签切换生效（全部/已发布/草稿/已下线，v2 裁除变更中）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5512,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-23T15:23:48.263Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-0fbb6074ebe73212d4d2",
+              "file": "03-routes.spec.ts",
+              "line": 98,
+              "column": 3
+            },
+            {
+              "title": "03-03 搜索框按路由名过滤（大小写不敏感）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3636,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-23T15:23:53.781Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-31625af97382c44ebde7",
+              "file": "03-routes.spec.ts",
+              "line": 112,
+              "column": 3
+            },
+            {
+              "title": "03-04 搜索无结果时展示空态而非报错",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3596,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-23T15:23:57.422Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-6293a31f9c24bc26f2b5",
+              "file": "03-routes.spec.ts",
+              "line": 123,
+              "column": 3
+            },
+            {
+              "title": "03-05 行级展开/收起可用（v2 逐行详情卡，无全局展开钮）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3518,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-23T15:24:01.024Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-88de444f7d9745386c83",
+              "file": "03-routes.spec.ts",
+              "line": 132,
+              "column": 3
+            },
+            {
+              "title": "03-06 路由列表应提供「新建路由」主操作入口",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 11903,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-23T15:24:04.549Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-6bd1f4d4b8ae057004a2",
+              "file": "03-routes.spec.ts",
+              "line": 147,
+              "column": 3
+            },
+            {
+              "title": "03-07 新建路由：第 1 步必选模板 + 必填项分步校验",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2806,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-23T15:24:16.458Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-e8a055798d326029191e",
+              "file": "03-routes.spec.ts",
+              "line": 160,
+              "column": 3
+            },
+            {
+              "title": "03-08 新建路由：非法名称/路径格式被前端拦截",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2866,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-23T15:24:19.270Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-da82609a7ce109fc5bf5",
+              "file": "03-routes.spec.ts",
+              "line": 181,
+              "column": 3
+            },
+            {
+              "title": "03-09 后端拒绝非法格式的路由（与前端校验对齐，D9 已修复）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3970,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-23T15:24:22.141Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-c5ea605920aeced34c41",
+              "file": "03-routes.spec.ts",
+              "line": 210,
+              "column": 3
+            },
+            {
+              "title": "03-10 新建路由：向导合法输入创建成功并回到列表可见",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4349,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-23T15:24:26.116Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-395938de9339abfc3a43",
+              "file": "03-routes.spec.ts",
+              "line": 228,
+              "column": 3
+            },
+            {
+              "title": "03-11 编辑态：基础信息/分发条件/插件绑定三分区 + 插件链只读区均可打开",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 77481,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByTestId('dtl-name')\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 20000ms\u001b[22m\n\u001b[2m  - waiting for getByTestId('dtl-name')\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByTestId('dtl-name')\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 20000ms\u001b[22m\n\u001b[2m  - waiting for getByTestId('dtl-name')\u001b[22m\n\n    at /Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-regression/03-routes.spec.ts:245:48",
+                        "location": {
+                          "file": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-regression/03-routes.spec.ts",
+                          "column": 48,
+                          "line": 245
+                        },
+                        "snippet": "  243 |   test('03-11 编辑态：基础信息/分发条件/插件绑定三分区 + 插件链只读区均可打开', async ({ page, shot, diag }) => {\n  244 |     await page.goto('/v2/routes/-100/detail')\n> 245 |     await expect(page.getByTestId('dtl-name')).toBeVisible({ timeout: 20_000 })\n      |                                                ^\n  246 |     await page.getByTestId('dtl-action-edit').click()\n  247 |     await expect(page.getByTestId('dtl-edit-panel')).toBeVisible({ timeout: 10_000 })\n  248 |     await expect(page.getByTestId('ref-form')).toBeVisible()"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-regression/03-routes.spec.ts",
+                            "column": 48,
+                            "line": 245
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByTestId('dtl-name')\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 20000ms\u001b[22m\n\u001b[2m  - waiting for getByTestId('dtl-name')\u001b[22m\n\n\n  243 |   test('03-11 编辑态：基础信息/分发条件/插件绑定三分区 + 插件链只读区均可打开', async ({ page, shot, diag }) => {\n  244 |     await page.goto('/v2/routes/-100/detail')\n> 245 |     await expect(page.getByTestId('dtl-name')).toBeVisible({ timeout: 20_000 })\n      |                                                ^\n  246 |     await page.getByTestId('dtl-action-edit').click()\n  247 |     await expect(page.getByTestId('dtl-edit-panel')).toBeVisible({ timeout: 10_000 })\n  248 |     await expect(page.getByTestId('ref-form')).toBeVisible()\n    at /Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-regression/03-routes.spec.ts:245:48"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-23T15:24:30.470Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/test-results/03-routes-BL-03-路由管理-03-11-编辑态：基础信息-分发条件-插件绑定三分区-插件链只读区均可打开-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-regression/03-routes.spec.ts",
+                        "column": 48,
+                        "line": 245
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-68432c3f46486f605073",
+              "file": "03-routes.spec.ts",
+              "line": 243,
+              "column": 3
+            },
+            {
+              "title": "03-12 编辑已有路由：应能加载出基本信息表单（D3 已修复）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 6650,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-23T15:25:48.294Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-d3e98c087c1a892075f5",
+              "file": "03-routes.spec.ts",
+              "line": 265,
+              "column": 3
+            },
+            {
+              "title": "03-13 编辑已有路由：后端更新能力（PATCH）正常",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3726,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-23T15:25:55.074Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-58f96bbac5a4f12bacaf",
+              "file": "03-routes.spec.ts",
+              "line": 277,
+              "column": 3
+            },
+            {
+              "title": "03-14 草稿路由可发布（v2 独立发布页 + 状态真的变为已发布）",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 27546,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('.rt-table')\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 20000ms\u001b[22m\n\u001b[2m  - waiting for locator('.rt-table')\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('.rt-table')\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 20000ms\u001b[22m\n\u001b[2m  - waiting for locator('.rt-table')\u001b[22m\n\n    at /Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-regression/03-routes.spec.ts:309:45",
+                        "location": {
+                          "file": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-regression/03-routes.spec.ts",
+                          "column": 45,
+                          "line": 309
+                        },
+                        "snippet": "  307 |     // 回列表验证状态真实变化（v2 发布成功后停留发布页，需主动返回）\n  308 |     await page.goto('/v2/routes')\n> 309 |     await expect(page.locator('.rt-table')).toBeVisible({ timeout: 20_000 })\n      |                                             ^\n  310 |     await page.waitForTimeout(800)\n  311 |     await page.getByLabel('搜路径 / 名称…').fill(name)\n  312 |     await page.waitForTimeout(900)"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-regression/03-routes.spec.ts",
+                            "column": 45,
+                            "line": 309
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('.rt-table')\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 20000ms\u001b[22m\n\u001b[2m  - waiting for locator('.rt-table')\u001b[22m\n\n\n  307 |     // 回列表验证状态真实变化（v2 发布成功后停留发布页，需主动返回）\n  308 |     await page.goto('/v2/routes')\n> 309 |     await expect(page.locator('.rt-table')).toBeVisible({ timeout: 20_000 })\n      |                                             ^\n  310 |     await page.waitForTimeout(800)\n  311 |     await page.getByLabel('搜路径 / 名称…').fill(name)\n  312 |     await page.waitForTimeout(900)\n    at /Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-regression/03-routes.spec.ts:309:45"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-23T15:25:58.806Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/test-results/03-routes-BL-03-路由管理-03-14-草稿路由可发布（v2-独立发布页-状态真的变为已发布）-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-regression/03-routes.spec.ts",
+                        "column": 45,
+                        "line": 309
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-6bb5a522bfa950ada5e3",
+              "file": "03-routes.spec.ts",
+              "line": 294,
+              "column": 3
+            },
+            {
+              "title": "03-15 已发布路由状态可下线（v2 无 UI 入口缺口：API 驱动 + 列表展示断言）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 9055,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-23T15:26:26.610Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-6b8c3c49b9927ca4049e",
+              "file": "03-routes.spec.ts",
+              "line": 323,
+              "column": 3
+            },
+            {
+              "title": "03-16 已发布路由不提供删除动作（v2 行动作为固定五钮集合）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3553,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-23T15:26:35.761Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-f22dcebd2e1aa7dca495",
+              "file": "03-routes.spec.ts",
+              "line": 357,
+              "column": 3
+            },
+            {
+              "title": "03-17 草稿路由可删除（v2 无 UI 入口缺口：API 驱动 + 列表消失断言）",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 62509,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-23T15:26:39.321Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-7a25e4fd687118577a55",
+              "file": "03-routes.spec.ts",
+              "line": 371,
+              "column": 3
+            },
+            {
+              "title": "03-18 分发路由形态：向导分发模板出分支配置 + 编辑态父路由选择在",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 23018,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByTestId('dtl-name')\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 20000ms\u001b[22m\n\u001b[2m  - waiting for getByTestId('dtl-name')\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByTestId('dtl-name')\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 20000ms\u001b[22m\n\u001b[2m  - waiting for getByTestId('dtl-name')\u001b[22m\n\n    at /Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-regression/03-routes.spec.ts:414:48",
+                        "location": {
+                          "file": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-regression/03-routes.spec.ts",
+                          "column": 48,
+                          "line": 414
+                        },
+                        "snippet": "  412 |     // 编辑态：分发路由 -100 的父路由选择控件在\n  413 |     await page.goto('/v2/routes/-100/detail')\n> 414 |     await expect(page.getByTestId('dtl-name')).toBeVisible({ timeout: 20_000 })\n      |                                                ^\n  415 |     await page.getByTestId('dtl-action-edit').click()\n  416 |     await expect(page.getByTestId('ref-form')).toBeVisible({ timeout: 10_000 })\n  417 |     // FcSelect 两层结构：断言取 .first()（步 2 铁律）"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-regression/03-routes.spec.ts",
+                            "column": 48,
+                            "line": 414
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByTestId('dtl-name')\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 20000ms\u001b[22m\n\u001b[2m  - waiting for getByTestId('dtl-name')\u001b[22m\n\n\n  412 |     // 编辑态：分发路由 -100 的父路由选择控件在\n  413 |     await page.goto('/v2/routes/-100/detail')\n> 414 |     await expect(page.getByTestId('dtl-name')).toBeVisible({ timeout: 20_000 })\n      |                                                ^\n  415 |     await page.getByTestId('dtl-action-edit').click()\n  416 |     await expect(page.getByTestId('ref-form')).toBeVisible({ timeout: 10_000 })\n  417 |     // FcSelect 两层结构：断言取 .first()（步 2 铁律）\n    at /Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-regression/03-routes.spec.ts:414:48"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-23T15:27:41.834Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/test-results/03-routes-BL-03-路由管理-03-18-分发路由形态：向导分发模板出分支配置-编辑态父路由选择在-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/justin/codes/funcommons/gateway4j/gateway4j-admin-ui/e2e-regression/03-routes.spec.ts",
+                        "column": 48,
+                        "line": 414
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "f699aa6dec7d4ad27e36-4744c3100f835afc2b88",
+              "file": "03-routes.spec.ts",
+              "line": 396,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-11-23T15:23:44.733Z",
+    "duration": 260173.285,
+    "expected": 15,
+    "skipped": 0,
+    "unexpected": 3,
+    "flaky": 0
+  }
+}

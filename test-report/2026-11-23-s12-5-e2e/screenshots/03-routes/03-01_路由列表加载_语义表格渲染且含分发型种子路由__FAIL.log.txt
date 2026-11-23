@@ -1,0 +1,22 @@
+用例: 03-01_路由列表加载_语义表格渲染且含分发型种子路由__FAIL
+时间: 2026-11-23T13:22:45.929Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 GET /v1/config/sync-status
+200 GET /v1/routes
+200 GET /v1/monitor/routes/traffic-summary
+
+--- Extra ---
+失败断言详情见 playwright error-context / results.json

@@ -1,0 +1,23 @@
+用例: 12-99-cleanup
+时间: 2026-11-23T15:20:07.964Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+(无)
+
+--- Extra ---
+e2e_scg_a_mwtewclz53: 直删被拒（success=false）→ offline={"id":"2124885660893630465","route_name":"e2e_scg_a_mwtewclz53","route_type":"BA → 重删
+e2e_scg_a_mwtewclz53: DELETE success=true (id=2124885660893630465)
+e2e_scg_b_mwtewclz678: DELETE success=true (id=2124885661015265282)
+孤儿谓词行清除=DELETE 1; 孤儿filter行清除=DELETE 1; 残留路由行=0

@@ -1496,8 +1496,11 @@ BEARER 类型 + jti 撤销检查 + Redis nonce 强一致，与拦截器同源收
 >
 > **实现状态**：S12-7a 引擎侧已落地（aa40cc7：`gw_route_filter` 表 + `gw_route.metadata`
 > JSONB 列 + SCG filter 绑定挂载 + metadata 透传）；**S12-7b 管理面批量 API 已落地**
-> （`POST /v1/routes/batch` 正式可用，`POST /v1/routes/ingress` 已删除）；S12-7c
-> 前端表单待落地。引擎语义以本节为准。
+> （`POST /v1/routes/batch` 正式可用，`POST /v1/routes/ingress` 已删除）；**S12-7c 前端已落地**
+> （bcad5ca：`/v2/routes/new` = `ScgRoutesForm.vue` 纯 SCG 路由列表编辑器，表单 ⇄ YAML 双视图，
+> 提交消费 `POST /v1/routes/batch`——UI 消费端已整体切换，旧 K8s Ingress 形态的前端代码
+> （`ingressModel.ts` / `IngressForm.vue` 及其 E2E `03-routes-ingress.spec.ts`）已随之删除，
+> 无残留消费方）。引擎语义以本节为准。
 
 ### 19.1 批量建路由 POST /v1/routes/batch
 

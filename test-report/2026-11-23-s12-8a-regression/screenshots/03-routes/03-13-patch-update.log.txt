@@ -1,0 +1,21 @@
+用例: 03-13-patch-update
+时间: 2026-11-23T15:22:33.359Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/routes
+200 PATCH /v1/routes/2124886324373803009
+
+--- Extra ---
+创建 status=200; PATCH status=200 payload={"id":"2124886324373803009","route_name":"e2e_patch_mwtezvvd618","route_type":"BACKEND","path":"/e2e/e2e_patch_mwtezvvd618/**","upstream_url":"http://127.0.0.1:19000","status":"DRAFT","parent_route_id

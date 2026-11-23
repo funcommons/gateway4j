@@ -1,0 +1,20 @@
+用例: 03-02-status-filter
+时间: 2026-11-23T15:20:31.698Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+(无)
+
+--- Extra ---
+各状态过滤行数: {"全部":7,"已发布":7,"草稿":7,"已下线":0}; v2 FcSegmented 仅 4 段（旧「变更中」不随迁）

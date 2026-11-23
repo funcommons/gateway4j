@@ -1,0 +1,27 @@
+用例: 12-04-db-rows
+时间: 2026-11-23T15:20:07.186Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/login
+200 GET /v1/permissions
+200 GET /v1/config/sync-status
+200 GET /v1/routes
+200 GET /v1/monitor/routes/traffic-summary
+200 GET /v1/routes
+
+--- Extra ---
+gw_route 行:
+e2e_scg_a_mwtewclz53|BACKEND|http://127.0.0.1:8091|/scge2e/**|PUBLISHED|10|{"team": "e2e"}
+e2e_scg_b_mwtewclz678|BACKEND|http://127.0.0.1:8091|/scge2e-b/**|DRAFT|0|{}

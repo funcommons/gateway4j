@@ -98,6 +98,8 @@ export const LINES = {
   roles: '08-roles',
   settings: '09-settings',
   theme: '10-theme',
+  /** S12-8a：路由 SCG 批量创建（/v2/routes/new ScgRoutesForm 主链路） */
+  scg: '12-scg-routes',
 } as const
 
 export type LineKey = keyof typeof LINES
@@ -166,7 +168,7 @@ function lineFromTitle(title: string): LineKey {
   const map: Record<string, LineKey> = {
     '1': 'auth', '2': 'dashboard', '3': 'routes', '4': 'canvas',
     '5': 'importExport', '6': 'plugins', '7': 'users', '8': 'roles', '9': 'settings',
-    '10': 'theme',
+    '10': 'theme', '12': 'scg',
   }
   const byDescribe = title.match(/BL-0(\d{1,2})/)
   if (byDescribe) return map[byDescribe[1]] ?? 'auth'

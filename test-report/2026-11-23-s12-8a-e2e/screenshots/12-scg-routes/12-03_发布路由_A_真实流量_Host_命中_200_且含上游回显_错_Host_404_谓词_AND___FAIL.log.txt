@@ -1,0 +1,24 @@
+用例: 12-03_发布路由_A_真实流量_Host_命中_200_且含上游回显_错_Host_404_谓词_AND___FAIL
+时间: 2026-11-23T15:15:06.986Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/login
+200 GET /v1/permissions
+200 GET /v1/routes
+200 GET /v1/config/sync-status
+200 GET /v1/monitor/routes/traffic-summary
+
+--- Extra ---
+失败断言详情见 playwright error-context / results.json

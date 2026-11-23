@@ -1,0 +1,38 @@
+用例: 03-15-offline-status-verified
+时间: 2026-11-23T13:25:23.807Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/routes
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/config/sync-status
+200 GET /v1/routes
+200 GET /v1/monitor/routes/traffic-summary
+200 GET /v1/monitor/timeseries?routeId=2124856814186196994&timeRange=24h&granularity=1h
+200 GET /v1/routes/2124856814186196994/versions
+200 GET /v1/monitor/routes/traffic-summary
+200 GET /v1/routes
+200 POST /v1/routes/2124856814186196994/publish
+200 GET /v1/routes/2124856814186196994/versions
+200 GET /v1/config/sync-status
+200 POST /v1/routes/2124856814186196994/offline
+200 POST /v1/auth/refresh
+200 GET /v1/permissions
+200 GET /v1/config/sync-status
+200 GET /v1/routes
+200 GET /v1/monitor/routes/traffic-summary
+
+--- Extra ---
+POST /offline status=200; 下线后行过滤命中=1; v2 下线 UI 入口缺失已记录

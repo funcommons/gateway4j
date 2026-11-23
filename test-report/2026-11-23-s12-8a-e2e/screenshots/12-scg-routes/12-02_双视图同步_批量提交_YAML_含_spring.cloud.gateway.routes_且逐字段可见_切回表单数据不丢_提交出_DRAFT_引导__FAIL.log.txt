@@ -1,0 +1,21 @@
+用例: 12-02_双视图同步_批量提交_YAML_含_spring.cloud.gateway.routes_且逐字段可见_切回表单数据不丢_提交出_DRAFT_引导__FAIL
+时间: 2026-11-23T15:14:52.801Z
+
+--- Console Errors ---
+(无)
+
+--- Page Errors (未捕获异常) ---
+(无)
+
+--- Failed Requests (网络失败) ---
+(无)
+
+--- HTTP >= 400 ---
+(无)
+
+--- 后端 API 调用记录 (status METHOD path) ---
+200 POST /v1/auth/login
+200 GET /v1/permissions
+
+--- Extra ---
+失败断言详情见 playwright error-context / results.json
