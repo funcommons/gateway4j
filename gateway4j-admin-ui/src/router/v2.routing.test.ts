@@ -52,6 +52,11 @@ const V2_TABLE: Array<{ name: string; path: string; permission: string }> = [
   { name: 'V2Overview', path: '/v2/overview', permission: 'monitor:read' },
   { name: 'V2Routes', path: '/v2/routes', permission: 'route:read' },
   { name: 'V2RouteWizard', path: '/v2/routes/wizard', permission: 'route:edit' },
+  // 【S12-4-T 追加（2026-11-23，契约 §10 S12 批）】注册 V2RouteIngress
+  // （views-v2/routes/IngressForm.vue，path /v2/routes/new，permission route:edit）
+  // —— 路由创建单页（K8s Ingress 风格 + YAML 视图）。旧 V2RouteWizard 行保留不动
+  // （入口摘除 ≠ 路由删除，契约 §10 裁决①），本文件既有行改动 = 裁决直接后果（同 P4a/P4c 先例）。
+  { name: 'V2RouteIngress', path: '/v2/routes/new', permission: 'route:edit' },
   { name: 'V2ImportExport', path: '/v2/import-export', permission: 'route:edit' },
   { name: 'V2RouteDetail', path: '/v2/routes/:id/detail', permission: 'route:read' },
   { name: 'V2DecisionTree', path: '/v2/routes/tree/:id', permission: 'route:read' },
@@ -107,7 +112,7 @@ describe('/v2 路由表 — 契约 §1', () => {
     expect((record!.meta as Record<string, unknown>).permission).toBe(permission)
   })
 
-  it('v2 路由 name 全部以 V2 前缀且恰好 16 条（S9a 注册 V2Canvas；P4a-1 注册 V2PluginEditor；P4a-2 注册 V2PluginList；P4c-1 注册 V2ImportExport；P4d-1 注册 V2Users；P4d-2 注册 V2Roles；P4d-3 注册 V2Settings，契约 §1 + P4a/P4c/P4d 行）', () => {
+  it('v2 路由 name 全部以 V2 前缀且恰好 17 条（S9a 注册 V2Canvas；P4a-1 注册 V2PluginEditor；P4a-2 注册 V2PluginList；P4c-1 注册 V2ImportExport；P4d-1 注册 V2Users；P4d-2 注册 V2Roles；P4d-3 注册 V2Settings；S12-4 注册 V2RouteIngress，契约 §1 + P4a/P4c/P4d 行 + §10 S12 批）', () => {
     const v2Names = router.getRoutes()
       .map((r) => String(r.name))
       .filter((n) => n.startsWith('V2'))

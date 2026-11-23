@@ -38,6 +38,9 @@ const v2Routes: RouteRecordRaw[] = [
       { path: 'overview', name: 'V2Overview', component: () => import('@/views-v2/overview/Overview.vue'), meta: { title: 'v2.page.overview', permission: 'monitor:read' } },
       { path: 'routes', name: 'V2Routes', component: () => import('@/views-v2/routes/List.vue'), meta: { title: 'v2.page.routes', permission: 'route:read' } },
       { path: 'routes/wizard', name: 'V2RouteWizard', component: () => import('@/views-v2/routes/Wizard.vue'), meta: { title: 'v2.page.wizard', permission: 'route:edit' } },
+      // S12-4：路由创建单页（K8s Ingress 风格 + YAML 视图）—— 旧 /v2/routes/wizard 路由项保留
+      // （入口摘除 ≠ 文件/路由删除，见契约 §10 裁决①），本行是列表页「新建」按钮的唯一入口。
+      { path: 'routes/new', name: 'V2RouteIngress', component: () => import('@/views-v2/routes/IngressForm.vue'), meta: { title: 'v2.page.ingress', permission: 'route:edit' } },
       // P4c-1：导入导出（路由组第三叶子）；静态段不吞兄弟路径（同 P4a-2 静态路径先例）
       { path: 'import-export', name: 'V2ImportExport', component: () => import('@/views-v2/routes/ImportExport.vue'), meta: { title: 'v2.page.importExport', permission: 'route:edit' } },
       { path: 'routes/:id/detail', name: 'V2RouteDetail', component: () => import('@/views-v2/routes/Detail.vue'), meta: { title: 'v2.page.detail', permission: 'route:read' } },

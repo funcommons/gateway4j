@@ -522,7 +522,9 @@ async function reload() {
 }
 
 function goCreate() {
-  void router.push('/v2/routes/wizard')
+  // S12-4：入口摘除旧向导 → 跳 K8s Ingress 风格单页（/v2/routes/new）；
+  // 旧 /v2/routes/wizard 路由与页面文件保留（契约 §10 裁决①）。
+  void router.push('/v2/routes/new')
 }
 
 function summaryOf(id: string): RouteTrafficSummaryItem | undefined {

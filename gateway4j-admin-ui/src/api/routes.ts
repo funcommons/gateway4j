@@ -370,3 +370,74 @@ export interface RouteSyncStatus {
 export function getRouteSyncStatus(id: string) {
   return envelope<RouteSyncStatus>(http.get(`/v1/routes/${id}/sync-status`))
 }
+
+/* ══ S12-4：K8s Ingress 风格批量建路由（契约 §10「批量 API 契约」）══════════════════
+ * 单次 POST 建 N 条 BACKEND 路由（每个 (host, path) 一条）+ N 条路由级 SCG 谓词行；
+ * 服务端事务内完成。响应 data.created[] = { route_id, route_name, path, host }。
+ * 字段名与 §10 逐字一致；pathType 三值 PREFIX / EXACT / IMPLEMENTATION_SPECIFIC。
+ */
+
+/** pathType 三值（§10 pathType → SCG 映射裁决） */
+export type IngressPathType = 'PREFIX' | 'EXACT' | 'IMPLEMENTATION_SPECIFIC'
+
+/** 后端目标（K8s 风格：服务名 + 端口；service 不含 scheme） */
+export interface IngressBackendDto {
+  service: string
+  port: string
+}
+
+/** 一条 path（= 一条 BACKEND 路由） */
+export interface IngressPathDto {
+  /** SCG 路径（Prefix 已被前端补成 `/api/**` 形态） */
+  path: string
+  pathType: IngressPathType
+  backend: IngressBackendDto
+  /**
+   * 前端合成的上游地址（`http://{service}[:{port}]`）——服务端若按 service/port 自算可忽略本字段
+   * （Spring Boot 默认忽略未知字段），带上有值即用、无值即算，两种后端实现都能吃。
+   */
+  upstream_url?: string
+}
+
+/** 一条 rule（= 一个 host + 若干 paths） */
+export interface IngressRuleDto {
+  /** 可空 = 不限域名（K8s 允许空 host） */
+  host: string
+  paths: IngressPathDto[]
+}
+
+/** 插件绑定（SCG filters ↔ gateway4j 插件） */
+export interface IngressPluginDto {
+  plugin_id: string
+  binding_config: string
+}
+
+/** POST /v1/routes/ingress 请求体 */
+export interface IngressRoutePayload {
+  name: string
+  environment: string
+  remark: string
+  tags: string
+  rules: IngressRuleDto[]
+  plugins: IngressPluginDto[]
+  /** 路由级 SCG 谓词定义串（Host=**.example.com 形态）；顶层字段，与 rules/plugins 平级 */
+  predicates: string[]
+}
+
+/** 响应 data.created[] 元素 */
+export interface IngressCreatedRoute {
+  route_id?: string
+  route_name?: string
+  path?: string
+  host?: string
+}
+
+/** 响应 data */
+export interface IngressCreateResult {
+  created: IngressCreatedRoute[]
+}
+
+/** S12-4：批量 Ingress 建路由（K8s Ingress 风格单页提交） */
+export function createIngressRoute(payload: IngressRoutePayload) {
+  return envelope<IngressCreateResult>(http.post('/v1/routes/ingress', payload))
+}
