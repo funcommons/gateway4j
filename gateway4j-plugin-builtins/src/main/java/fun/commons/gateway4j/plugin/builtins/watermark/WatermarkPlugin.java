@@ -6,8 +6,6 @@ import fun.commons.gateway4j.plugin.api.PluginChain;
 import fun.commons.gateway4j.plugin.api.PluginConfig;
 import fun.commons.gateway4j.plugin.builtins.BuiltinPluginConstants;
 import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.http.MediaType;
@@ -32,10 +30,15 @@ import java.nio.charset.StandardCharsets;
  *
  * <p>CSP 头按需剥离：stripCsp=false（缺省）保留 Content-Security-Policy；true 时仅在
  * 注入路径删除。非 HTML（含 SSE text/event-stream）与超限响应透传路径一律不动 CSP 头。</p>
+ *
+ * <p><b>架构约束：响应改写类插件必须挂 PRE 阶段转发前装饰（order=900 置 PRE 末尾）。</b>
+ * PluginExecutionFilter 的 POST 链在 {@code chain.filter(exchange).then(POST 链)} 中于转发
+ * 完成后执行，此时上游响应已由 SCG 用原始 response 写回客户端——POST 阶段的 response
+ * decorator mutate 太晚，天然失效（真实流量实测 execute 被调但响应零注入）。挂 PRE 末尾
+ * （dingtalk=2/security 等短路类先跑：未登录已被 302 短路轮不到水印）让放行请求先被
+ * WatermarkDecorator 包装再转发，注入才能生效。</p>
  */
 public class WatermarkPlugin extends AbstractGatewayPlugin {
-
-    private static final Logger log = LoggerFactory.getLogger(WatermarkPlugin.class);
 
     private static final String CSP_HEADER = "Content-Security-Policy";
 
@@ -224,7 +227,10 @@ public class WatermarkPlugin extends AbstractGatewayPlugin {
     private volatile WatermarkPluginConfig config;
 
     public WatermarkPlugin() {
-        super(BuiltinPluginConstants.WATERMARK, "安全水印插件", "POST", 8);
+        // PRE + order 900（PRE 末尾）：响应改写类插件必须在转发前装饰 response——
+        // POST 链在转发完成后执行（原始响应已写回客户端），decorator 届时失效；
+        // 900 保证鉴权短路类（dingtalk=2/security 等）先跑，放行者才被包装转发。
+        super(BuiltinPluginConstants.WATERMARK, "安全水印插件", "PRE", 900);
     }
 
     @Override

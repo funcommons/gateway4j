@@ -1215,7 +1215,7 @@ signature = HMAC-SHA256(secret, accessKey + timestamp + nonce + bodyMd5)
 | 插件 | plugin_id | 阶段 | 说明 |
 |---|---|---|---|
 | 钉钉认证 | dingtalk | PRE | 钉钉 SSO OAuth2 登录，回调换取用户信息注入 X-User 头 |
-| 安全水印 | watermark | POST | HTML 响应注入水印 JS（</body> 前），stripCsp=true 时移除 CSP 头 |
+| 安全水印 | watermark | PRE | HTML 响应注入水印 JS（</body> 前），stripCsp=true 时移除 CSP 头 |
 
 #### 16.3.1 dingtalk 配置键（S11-1 补强，schema 见 GET /v1/plugins/builtin-types/dingtalk/schema）
 

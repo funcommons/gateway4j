@@ -106,7 +106,7 @@ public class BuiltinPluginTypeRegistry {
                         numDef("tokenTimeout", "会话 JWT 有效期(秒)", 43200),
                         str("basePath", "logout 路径前缀（空=精确匹配 /logout）"),
                         str("logoutRedirect", "logout 后跳转地址（空=200 JSON）"))));
-        register(new BuiltinType("watermark", "安全水印插件", "POST", "HTML 响应注入水印 JS（stripCsp=true 时移除 CSP 头）",
+        register(new BuiltinType("watermark", "安全水印插件", "PRE", "HTML 响应注入水印 JS（stripCsp=true 时移除 CSP 头）",
                 obj(str("org", "组织名称"), str("color", "水印颜色"),
                         num("width", "水印宽度"), num("height", "水印高度"),
                         num("fontSize", "字号"), num("rotate", "旋转角度"),

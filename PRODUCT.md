@@ -417,7 +417,7 @@ stateDiagram-v2
 | **其他(4)** | 共享插件 | sharing | PRE+POST | 跨插件数据共享 |
 | | Mock | mock | PRE | 模拟响应（短路返回） |
 | | 钉钉认证 | dingtalk | PRE | 钉钉 SSO OAuth2 登录，用户信息注入 X-User 头 |
-| | 安全水印 | watermark | POST | HTML 响应注入水印 JS（防截屏泄密），移除 CSP 头 |
+| | 安全水印 | watermark | PRE | HTML 响应注入水印 JS（防截屏泄密），移除 CSP 头 |
 
 #### 1. 入口与路由
 
