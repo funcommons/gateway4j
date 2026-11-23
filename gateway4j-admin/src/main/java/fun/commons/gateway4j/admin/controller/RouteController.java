@@ -1,5 +1,8 @@
 package fun.commons.gateway4j.admin.controller;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import fun.commons.framework4j.accesstoken.annotation.RequiresToken;
 import fun.commons.framework4j.accesstoken.context.TokenContext;
@@ -12,6 +15,7 @@ import fun.commons.gateway4j.admin.service.RouteBindingService;
 import fun.commons.gateway4j.admin.service.RouteEnvironmentDiffService;
 import fun.commons.gateway4j.admin.service.RouteCanvasApplyService;
 import fun.commons.gateway4j.admin.service.RouteCanvasService;
+import fun.commons.gateway4j.admin.service.RouteIngressService;
 import fun.commons.gateway4j.admin.service.RoutePackage;
 import fun.commons.gateway4j.admin.service.RouteService;
 import fun.commons.gateway4j.admin.service.RouteTransferService;
@@ -30,6 +34,8 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,6 +61,7 @@ public class RouteController {
     private final RouteEnvironmentDiffService routeEnvironmentDiffService;
     private final RouteVersionService routeVersionService;
     private final ConfigSyncStatusService configSyncStatusService;
+    private final RouteIngressService routeIngressService;
 
     @Autowired
     public RouteController(RouteService routeService, RouteCanvasService routeCanvasService,
@@ -64,7 +71,8 @@ public class RouteController {
                            ImportSnapshotService importSnapshotService,
                            RouteEnvironmentDiffService routeEnvironmentDiffService,
                            RouteVersionService routeVersionService,
-                           ConfigSyncStatusService configSyncStatusService) {
+                           ConfigSyncStatusService configSyncStatusService,
+                           RouteIngressService routeIngressService) {
         this.routeService = routeService;
         this.routeCanvasService = routeCanvasService;
         this.routeCanvasApplyService = routeCanvasApplyService;
@@ -74,6 +82,7 @@ public class RouteController {
         this.routeEnvironmentDiffService = routeEnvironmentDiffService;
         this.routeVersionService = routeVersionService;
         this.configSyncStatusService = configSyncStatusService;
+        this.routeIngressService = routeIngressService;
     }
 
     /** 旧 8 参构造（存量调用方兼容，同 ImportRequest/BulkIdsRequest 旧参构造风格）：同步状态服务缺省 null。 */
@@ -86,7 +95,7 @@ public class RouteController {
                            RouteVersionService routeVersionService) {
         this(routeService, routeCanvasService, routeCanvasApplyService, routeBindingService,
                 routeTransferService, importSnapshotService, routeEnvironmentDiffService,
-                routeVersionService, null);
+                routeVersionService, null, null);
     }
 
     @GetMapping
@@ -146,6 +155,23 @@ public class RouteController {
                 .build();
         return routeService.createRouteWithBindings(route, request.conditions(),
                 toBindings(request.bindings(), request.pluginIds()));
+    }
+
+    // ==================== S12-3：批量 Ingress 建路由（契约 §10） ====================
+
+    /**
+     * 批量 Ingress 建路由：把一份 K8s Ingress 形态的 rules[] 一次性落成 N 条普通
+     * BACKEND 路由（每条 (host, path) 一条），host 走路由级 SCG 原生谓词行
+     * （{@code Host={host}}）→ 不再需要 DISPATCH 父路由 + 条件近似机制。
+     *
+     * <p>整个请求一个事务，中途失败全量回滚（不留半成品路由）；返回
+     * {@code data.created[] = {route_id, route_name, path, host}}。</p>
+     */
+    @PostMapping("/ingress")
+    @Auditable(action = "CREATE_INGRESS_ROUTES", targetType = "ROUTE")
+    public ApiResponse<IngressCreateResult> createIngressRoutes(
+            @Valid @RequestBody IngressCreateRequest request) {
+        return ApiResponse.success(routeIngressService.createIngress(request));
     }
 
     @PatchMapping("/{id}")
@@ -533,6 +559,92 @@ public class RouteController {
     ) {}
 
     public record BindingRequest(Long pluginId, String bindingConfig) {}
+
+    // ==================== S12-3：批量 Ingress 建路由（契约 §10） ====================
+
+    /**
+     * S12-3 批量 Ingress 建路由请求体（K8s Ingress 形态）。
+     *
+     * <p>线格式逐字对齐前端 {@code IngressRoutePayload}（src/api/routes.ts）：
+     * {@code {name, environment, remark, tags, rules[], plugins[], predicates[]}}。
+     * 全部字段显式 {@code @JsonProperty} 钉死 JSON 名（不依赖全局 snake_case 策略开关），
+     * {@code pathType} 保留驼峰（前端原样发），另给 {@code path_type} 别名兜底。</p>
+     *
+     * <p>{@code rules[]} 扁平展开成 N 条普通 BACKEND 路由（每条 (host, path) 一条），
+     * 不再需要 DISPATCH 父路由 + 条件近似机制 —— host 走路由级 SCG 原生谓词行
+     * （gw_route_predicate.definition = {@code Host={host}}），语义与 Spring Cloud
+     * Gateway 100% 对齐。</p>
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record IngressCreateRequest(
+            @NotBlank(message = "基础名称不能为空")
+            @Pattern(regexp = "^[a-zA-Z0-9_]{2,50}$", message = "基础名称须为 2-50 位字母、数字或下划线")
+            @JsonProperty("name") String name,
+            @Pattern(regexp = "^[a-z0-9_-]{1,20}$", message = "环境标识须为 1-20 位小写字母、数字、下划线或中划线")
+            @JsonProperty("environment") String environment,
+            @Size(max = 200, message = "备注最长 200 字符")
+            @JsonProperty("remark") String remark,
+            @Size(max = 200, message = "标签最长 200 字符")
+            @JsonProperty("tags") String tags,
+            @NotEmpty(message = "规则不能为空")
+            @Valid
+            @JsonProperty("rules") List<IngressRuleRequest> rules,
+            @Valid
+            @JsonProperty("plugins") List<IngressPluginRequest> plugins,
+            @JsonProperty("predicates") List<String> predicates
+    ) {}
+
+    /** 一条 rule = 一个 host（可空 = 不限域名）+ 若干 paths[]。 */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record IngressRuleRequest(
+            @JsonProperty("host") String host,
+            @NotEmpty(message = "每条规则至少包含一个路径")
+            @Valid
+            @JsonProperty("paths") List<IngressPathRequest> paths
+    ) {}
+
+    /** 一条 path = 一条 BACKEND 路由（pathType 三值：PREFIX / EXACT / IMPLEMENTATION_SPECIFIC）。 */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record IngressPathRequest(
+            @NotBlank(message = "路径不能为空")
+            @Pattern(regexp = "^/\\S+$", message = "路径须以 / 开头且不含空白字符")
+            @JsonProperty("path") String path,
+            @Pattern(regexp = "^(PREFIX|EXACT|IMPLEMENTATION_SPECIFIC)$",
+                    message = "pathType 仅支持 PREFIX/EXACT/IMPLEMENTATION_SPECIFIC")
+            @JsonProperty("pathType") @JsonAlias("path_type") String pathType,
+            @NotNull(message = "后端服务不能为空")
+            @Valid
+            @JsonProperty("backend") IngressBackendRequest backend
+    ) {}
+
+    /** 后端目标（K8s 形态：服务名 + 端口；service 不含 scheme 时按 http:// 合成）。 */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record IngressBackendRequest(
+            @NotBlank(message = "服务名不能为空")
+            @JsonProperty("service") String service,
+            @JsonProperty("port") String port
+    ) {}
+
+    /** 插件绑定（SCG filters ↔ gateway4j 插件）：plugin_id = gw_plugin.plugin_id（插件标识）。 */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record IngressPluginRequest(
+            @NotBlank(message = "插件标识不能为空")
+            @JsonProperty("plugin_id") @JsonAlias("pluginId") String pluginId,
+            @JsonProperty("binding_config") @JsonAlias("bindingConfig") String bindingConfig
+    ) {}
+
+    /** 响应 data：本次批量创建成功的路由清单。 */
+    public record IngressCreateResult(
+            @JsonProperty("created") List<IngressCreatedRoute> created
+    ) {}
+
+    /** 单条创建结果（route_id 序列化为字符串，与前端 IngressCreatedRoute 对齐）。 */
+    public record IngressCreatedRoute(
+            @JsonProperty("route_id") Long routeId,
+            @JsonProperty("route_name") String routeName,
+            @JsonProperty("path") String path,
+            @JsonProperty("host") String host
+    ) {}
 
     public record RouteValidateRequest(
             Long routeId,

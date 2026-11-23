@@ -6,6 +6,7 @@ import fun.commons.gateway4j.admin.service.RouteBindingService;
 import fun.commons.gateway4j.admin.service.RouteCanvasApplyService;
 import fun.commons.gateway4j.admin.service.RouteEnvironmentDiffService;
 import fun.commons.gateway4j.admin.service.RouteCanvasService;
+import fun.commons.gateway4j.admin.service.RouteIngressService;
 import fun.commons.gateway4j.admin.service.RoutePackage;
 import fun.commons.gateway4j.admin.service.RouteService;
 import fun.commons.gateway4j.admin.service.RouteTransferService;
@@ -42,6 +43,7 @@ class RouteControllerTest {
     @Mock private RouteEnvironmentDiffService routeEnvironmentDiffService;
     @Mock private RouteVersionService routeVersionService;
     @Mock private ConfigSyncStatusService configSyncStatusService;
+    @Mock private RouteIngressService routeIngressService;
     @InjectMocks private RouteController controller;
 
     @Test
@@ -70,6 +72,29 @@ class RouteControllerTest {
         Route result = controller.createRoute(request);
         assertNotNull(result);
         verify(routeService).createRouteWithBindings(any(Route.class), isNull(), isNull());
+    }
+
+    /** S12-3：批量 Ingress 建路由端点 —— 委托服务并回信封（data.created[]）。 */
+    @Test
+    void createIngressRoutes() {
+        RouteController.IngressCreateResult created = new RouteController.IngressCreateResult(
+                List.of(new RouteController.IngressCreatedRoute(
+                        1L, "api_gateway_1", "/api/**", "api.example.com")));
+        when(routeIngressService.createIngress(any())).thenReturn(created);
+
+        RouteController.IngressCreateRequest request = new RouteController.IngressCreateRequest(
+                "api_gateway", "default", "", "",
+                List.of(new RouteController.IngressRuleRequest("api.example.com",
+                        List.of(new RouteController.IngressPathRequest("/api", "PREFIX",
+                                new RouteController.IngressBackendRequest("user-service", "8080"))))),
+                List.of(), List.of());
+
+        var response = controller.createIngressRoutes(request);
+        assertNotNull(response);
+        assertTrue(response.isSuccess());
+        assertEquals(1, response.getData().created().size());
+        assertEquals("api_gateway_1", response.getData().created().get(0).routeName());
+        verify(routeIngressService).createIngress(request);
     }
 
     @Test

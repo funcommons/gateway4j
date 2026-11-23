@@ -9,6 +9,14 @@ public enum ErrorCode {
      * （状态冲突语义即乐观锁冲突），message 覆盖为面向用户的可操作文案。
      */
     ROUTE_VERSION_CONFLICT(10402, "路由已被他人修改，请刷新后重试"),
+    /**
+     * 路由名冲突（S12-3 批量 Ingress 建路由）：同环境内 route_name 已存在
+     * （对应唯一索引 uk_route_environment_name）。
+     * <p>不复用 10402：10402 已被乐观锁冲突（{@link #ROUTE_VERSION_CONFLICT}）占用，
+     * 且是跨 agent 契约（前端按该码弹「请刷新」），语义与「名称重复」不同；
+     * ErrorCode 契约要求码值唯一且落在 106xx 段 → 本码取 10609。</p>
+     */
+    ROUTE_NAME_CONFLICT(10609, "路由名称已存在"),
     PLUGIN_NOT_FOUND(10608, "插件未找到"),
     PLUGIN_EXECUTION_FAILED(10602, "插件执行失败"),
     CYCLIC_REFERENCE(10603, "检测到循环引用"),
