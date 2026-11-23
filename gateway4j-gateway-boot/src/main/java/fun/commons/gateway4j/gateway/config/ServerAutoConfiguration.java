@@ -4,19 +4,23 @@ import fun.commons.gateway4j.common.mapper.PluginMapper;
 import fun.commons.gateway4j.common.mapper.RouteConditionMapper;
 import fun.commons.gateway4j.common.mapper.RouteMapper;
 import fun.commons.gateway4j.common.mapper.RoutePluginBindingMapper;
+import fun.commons.gateway4j.common.mapper.RoutePredicateMapper;
 import fun.commons.gateway4j.common.model.Plugin;
 import fun.commons.gateway4j.common.model.Route;
 import fun.commons.gateway4j.common.model.RouteCondition;
 import fun.commons.gateway4j.common.model.RoutePluginBinding;
+import fun.commons.gateway4j.common.model.RoutePredicate;
 import fun.commons.gateway4j.engine.config.ConfigService;
 import fun.commons.gateway4j.engine.config.EngineAutoConfiguration;
 import fun.commons.gateway4j.engine.config.cache.PluginConfigCache;
 import fun.commons.gateway4j.engine.config.cache.RouteConfigCache;
+import fun.commons.gateway4j.engine.config.cache.RoutePredicateCache;
 import fun.commons.gateway4j.engine.config.sync.ConfigPushHandler;
 import fun.commons.gateway4j.engine.config.sync.ConfigSyncService;
 import fun.commons.gateway4j.engine.plugin.runtime.PluginInstanceRegistry;
 import fun.commons.gateway4j.engine.route.dispatcher.RouteDispatcher;
 import fun.commons.gateway4j.engine.route.locator.DynamicRouteLocator;
+import fun.commons.gateway4j.engine.route.predicate.ScgRoutePredicateSupport;
 import fun.commons.gateway4j.plugin.builtins.cache.CachePlugin;
 import fun.commons.gateway4j.plugin.builtins.logging.LoggingPlugin;
 import fun.commons.gateway4j.plugin.builtins.mock.MockPlugin;
@@ -24,11 +28,13 @@ import fun.commons.gateway4j.plugin.builtins.ratelimit.RateLimitPlugin;
 import fun.commons.gateway4j.plugin.builtins.security.SecurityPlugin;
 import fun.commons.gateway4j.plugin.builtins.sharing.SharingPlugin;
 import fun.commons.gateway4j.plugin.builtins.tracing.TracingPlugin;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.env.Environment;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -39,16 +45,39 @@ import java.util.function.Supplier;
 public class ServerAutoConfiguration {
 
     @Bean
-    public RouteLocator dynamicRouteLocator(ConfigService configService) {
+    public RouteLocator dynamicRouteLocator(ConfigService configService,
+                                             ScgRoutePredicateSupport scgRoutePredicateSupport) {
         return new DynamicRouteLocator(() -> {
             List<Route> routes = configService.getAllRoutes();
             return routes.stream().toList();
-        });
+        }, configService::getRoutePredicateDefinitions, scgRoutePredicateSupport);
+    }
+
+    /**
+     * S12-1：路由级 SCG 原生谓词支持。
+     *
+     * <p>优先注入 SCG 自己的 {@code ConfigurationService}（走 SCG 原生 shortcut
+     * 绑定，即 {@code RouteDefinitionRouteLocator#lookup} 同款路径）；该 bean 不可用
+     * 时由 {@link ScgRoutePredicateSupport} 退回内置绑定器（逐字复刻 SCG 的
+     * {@code ConfigurationService.bindOrCreate}）。</p>
+     */
+    @Bean
+    public ScgRoutePredicateSupport scgRoutePredicateSupport(
+            ObjectProvider<org.springframework.cloud.gateway.support.ConfigurationService> scgConfigurationService,
+            Environment environment) {
+        boolean hostIncludePort = environment.getProperty(
+                "spring.cloud.gateway.server.webflux.predicate.host.include-port", Boolean.class, true);
+        return new ScgRoutePredicateSupport(scgConfigurationService.getIfAvailable(), hostIncludePort);
     }
 
     @Bean
     public RouteConfigCache routeConfigCache() {
         return new RouteConfigCache();
+    }
+
+    @Bean
+    public RoutePredicateCache routePredicateCache() {
+        return new RoutePredicateCache();
     }
 
     @Bean
@@ -59,20 +88,24 @@ public class ServerAutoConfiguration {
     @Bean
     public ConfigService engineConfigService(RouteConfigCache routeConfigCache,
                                        PluginConfigCache pluginConfigCache,
+                                       RoutePredicateCache routePredicateCache,
                                        RouteDispatcher routeDispatcher,
                                        ApplicationEventPublisher eventPublisher,
                                        PluginInstanceRegistry pluginInstanceRegistry,
                                        RouteMapper routeMapper,
                                        RouteConditionMapper conditionMapper,
                                        RoutePluginBindingMapper bindingMapper,
+                                       RoutePredicateMapper routePredicateMapper,
                                        PluginMapper pluginMapper) {
         Supplier<List<Route>> routeLoader = () -> routeMapper.selectList(null);
         Supplier<List<RouteCondition>> conditionLoader = () -> conditionMapper.selectList(null);
         Supplier<List<Plugin>> pluginLoader = () -> pluginMapper.selectList(null);
         Supplier<List<RoutePluginBinding>> bindingLoader = () -> bindingMapper.selectList(null);
-        return new ConfigService(routeConfigCache, pluginConfigCache,
+        // S12-1：路由级 SCG 原生谓词行一次性取数（内存按 route_id 分组，禁 N+1）
+        Supplier<List<RoutePredicate>> routePredicateLoader = () -> routePredicateMapper.selectList(null);
+        return new ConfigService(routeConfigCache, pluginConfigCache, routePredicateCache,
                 routeDispatcher, eventPublisher, routeLoader, conditionLoader, pluginLoader,
-                bindingLoader, pluginInstanceRegistry);
+                bindingLoader, routePredicateLoader, pluginInstanceRegistry);
     }
 
     /**

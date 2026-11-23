@@ -2,11 +2,13 @@ package fun.commons.gateway4j.engine.route.locator;
 
 import fun.commons.gateway4j.common.model.Route;
 import fun.commons.gateway4j.common.util.RoutePathUtils;
+import fun.commons.gateway4j.engine.route.predicate.ScgRoutePredicateSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.handler.AsyncPredicate;
 import org.springframework.http.server.PathContainer;
+import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.util.pattern.PathPattern;
 import org.springframework.web.util.pattern.PathPatternParser;
 import reactor.core.publisher.Flux;
@@ -16,6 +18,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -35,6 +38,11 @@ import java.util.function.Supplier;
  *       target sub-route per request (HEADER/QUERY/... conditions).</li>
  *   <li>Ordering: DISPATCH routes sort before BACKEND routes (dispatch parents
  *       take precedence), then by configured sort_order.</li>
+ *   <li>S12-1: routes may additionally carry **SCG native predicates**
+ *       ({@code Host=**.example.com}, {@code Method=GET,POST}, ...). They are
+ *       bound by SCG's own {@code RoutePredicateFactory} and AND-combined with
+ *       the path predicate — so {@code host AND path} becomes expressible and
+ *       the matching semantics are 100% Spring Cloud Gateway's by construction.</li>
  * </ul>
  */
 public class DynamicRouteLocator implements RouteLocator {
@@ -54,8 +62,22 @@ public class DynamicRouteLocator implements RouteLocator {
 
     private final Supplier<List<Route>> routeSupplier;
 
+    /** Route id → SCG native predicate definitions (S12-1). */
+    private final Function<Long, List<String>> predicateLookup;
+
+    /** SCG native predicate binder (S12-1). */
+    private final ScgRoutePredicateSupport scgPredicateSupport;
+
     public DynamicRouteLocator(Supplier<List<Route>> routeSupplier) {
+        this(routeSupplier, routeId -> List.of(), new ScgRoutePredicateSupport());
+    }
+
+    public DynamicRouteLocator(Supplier<List<Route>> routeSupplier,
+                               Function<Long, List<String>> predicateLookup,
+                               ScgRoutePredicateSupport scgPredicateSupport) {
         this.routeSupplier = routeSupplier;
+        this.predicateLookup = predicateLookup == null ? routeId -> List.of() : predicateLookup;
+        this.scgPredicateSupport = scgPredicateSupport == null ? new ScgRoutePredicateSupport() : scgPredicateSupport;
     }
 
     @Override
@@ -100,10 +122,16 @@ public class DynamicRouteLocator implements RouteLocator {
 
         int sortOrder = route.getSortOrder() != null ? route.getSortOrder() : 0;
 
+        // S12-1: path predicate ∧ route-level SCG native predicates (all AND).
+        AsyncPredicate<ServerWebExchange> predicate = pathPredicate(pattern);
+        for (AsyncPredicate<ServerWebExchange> scgPredicate : scgPredicates(route)) {
+            predicate = predicate.and(scgPredicate);
+        }
+
         org.springframework.cloud.gateway.route.Route.AsyncBuilder builder =
                 org.springframework.cloud.gateway.route.Route.async()
                         .id(String.valueOf(route.getId()))
-                        .asyncPredicate(pathPredicate(pattern));
+                        .asyncPredicate(predicate);
 
         if (TYPE_DISPATCH.equals(route.getRouteType())) {
             // Placeholder upstream; DispatchRoutingFilter replaces the request URL
@@ -134,5 +162,18 @@ public class DynamicRouteLocator implements RouteLocator {
     private AsyncPredicate<org.springframework.web.server.ServerWebExchange> pathPredicate(PathPattern pattern) {
         return exchange -> Mono.just(pattern.matches(
                 exchange.getRequest().getPath().pathWithinApplication()));
+    }
+
+    /**
+     * S12-1: 该路由携带的 SCG 原生谓词（定义串 → SCG 谓词）。
+     * 非法定义串在 {@link ScgRoutePredicateSupport} 内被跳过（fail-open），
+     * 其余谓词照常生效。
+     */
+    private List<AsyncPredicate<ServerWebExchange>> scgPredicates(Route route) {
+        List<String> definitions = predicateLookup.apply(route.getId());
+        if (definitions == null || definitions.isEmpty()) {
+            return List.of();
+        }
+        return scgPredicateSupport.buildPredicates(definitions);
     }
 }
