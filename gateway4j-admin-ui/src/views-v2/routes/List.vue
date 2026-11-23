@@ -522,8 +522,8 @@ async function reload() {
 }
 
 function goCreate() {
-  // S12-4：入口摘除旧向导 → 跳 K8s Ingress 风格单页（/v2/routes/new）；
-  // 旧 /v2/routes/wizard 路由与页面文件保留（契约 §10 裁决①）。
+  // S12-7c：入口摘除旧向导 → 跳纯 SCG 路由列表编辑器单页（/v2/routes/new，
+  // ScgRoutesForm.vue）；旧 /v2/routes/wizard 路由与页面文件保留（契约 §10 裁决①）。
   void router.push('/v2/routes/new')
 }
 

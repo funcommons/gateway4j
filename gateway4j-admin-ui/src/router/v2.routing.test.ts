@@ -52,11 +52,11 @@ const V2_TABLE: Array<{ name: string; path: string; permission: string }> = [
   { name: 'V2Overview', path: '/v2/overview', permission: 'monitor:read' },
   { name: 'V2Routes', path: '/v2/routes', permission: 'route:read' },
   { name: 'V2RouteWizard', path: '/v2/routes/wizard', permission: 'route:edit' },
-  // 【S12-4-T 追加（2026-11-23，契约 §10 S12 批）】注册 V2RouteIngress
-  // （views-v2/routes/IngressForm.vue，path /v2/routes/new，permission route:edit）
-  // —— 路由创建单页（K8s Ingress 风格 + YAML 视图）。旧 V2RouteWizard 行保留不动
+  // 【S12-7c-T 更新（2026-11-23）】V2RouteIngress 更名 V2RouteScg —— 纯 SCG 路由列表编辑器
+  // （views-v2/routes/ScgRoutesForm.vue，path /v2/routes/new 不变（E2E 03-06 依赖），
+  // permission route:edit）—— 替代旧 K8s Ingress 表单。旧 V2RouteWizard 行保留不动
   // （入口摘除 ≠ 路由删除，契约 §10 裁决①），本文件既有行改动 = 裁决直接后果（同 P4a/P4c 先例）。
-  { name: 'V2RouteIngress', path: '/v2/routes/new', permission: 'route:edit' },
+  { name: 'V2RouteScg', path: '/v2/routes/new', permission: 'route:edit' },
   { name: 'V2ImportExport', path: '/v2/import-export', permission: 'route:edit' },
   { name: 'V2RouteDetail', path: '/v2/routes/:id/detail', permission: 'route:read' },
   { name: 'V2DecisionTree', path: '/v2/routes/tree/:id', permission: 'route:read' },
@@ -112,7 +112,7 @@ describe('/v2 路由表 — 契约 §1', () => {
     expect((record!.meta as Record<string, unknown>).permission).toBe(permission)
   })
 
-  it('v2 路由 name 全部以 V2 前缀且恰好 17 条（S9a 注册 V2Canvas；P4a-1 注册 V2PluginEditor；P4a-2 注册 V2PluginList；P4c-1 注册 V2ImportExport；P4d-1 注册 V2Users；P4d-2 注册 V2Roles；P4d-3 注册 V2Settings；S12-4 注册 V2RouteIngress，契约 §1 + P4a/P4c/P4d 行 + §10 S12 批）', () => {
+  it('v2 路由 name 全部以 V2 前缀且恰好 17 条（S9a 注册 V2Canvas；P4a-1 注册 V2PluginEditor；P4a-2 注册 V2PluginList；P4c-1 注册 V2ImportExport；P4d-1 注册 V2Users；P4d-2 注册 V2Roles；P4d-3 注册 V2Settings；S12-7c 注册 V2RouteScg（原 V2RouteIngress 更名），契约 §1 + P4a/P4c/P4d 行 + §10 S12 批）', () => {
     const v2Names = router.getRoutes()
       .map((r) => String(r.name))
       .filter((n) => n.startsWith('V2'))
@@ -428,8 +428,8 @@ function makeNavRouterP4c1(): ReturnType<typeof createRouter> {
         { path: 'overview', name: 'V2Overview', component: NAV_STUB },
         { path: 'routes', name: 'V2Routes', component: NAV_STUB },
         { path: 'routes/wizard', name: 'V2RouteWizard', component: NAV_STUB },
-        // S12-4：创建入口叶子改指 Ingress 单页（路由项本身仍在，与真实路由表一致）
-        { path: 'routes/new', name: 'V2RouteIngress', component: NAV_STUB },
+        // S12-7c：创建入口叶子改指纯 SCG 编辑器单页（路由项本身仍在，与真实路由表一致）
+        { path: 'routes/new', name: 'V2RouteScg', component: NAV_STUB },
         { path: 'import-export', name: 'V2ImportExport', component: NAV_STUB }
       ] },
       { path: '/routes', name: 'Routes', component: NAV_STUB }
@@ -462,11 +462,11 @@ describe('P4c-1 追加 — LayoutV2 路由组「导入导出」叶子', () => {
     const routesGroup = groups.find((g) => g.text().includes(String(digNav(zhCN, 'v2.nav.group.routes'))))
     expect(routesGroup, '未找到路由分组').toBeDefined()
     const listAt = routesGroup!.text().indexOf(String(digNav(zhCN, 'v2.nav.routes')))
-    const createAt = routesGroup!.text().indexOf(String(digNav(zhCN, 'v2.nav.ingress')))
+    const createAt = routesGroup!.text().indexOf(String(digNav(zhCN, 'v2.nav.routeScg')))
     const impExpAt = routesGroup!.text().indexOf(label)
     expect(impExpAt, '导入导出叶子未渲染').toBeGreaterThan(-1)
     expect(impExpAt, '导入导出应排路由列表之后').toBeGreaterThan(listAt)
-    expect(createAt, '创建入口叶子（v2.nav.ingress）未渲染').toBeGreaterThan(-1)
+    expect(createAt, '创建入口叶子（v2.nav.routeScg）未渲染').toBeGreaterThan(-1)
     expect(impExpAt, '导入导出应排创建入口叶子之后（路由组第三叶子）').toBeGreaterThan(createAt)
     const leaf = wrapper.findAll('.el-menu-item, [role="menuitem"], a').find((n) => n.text().includes(label))
     expect(leaf, `找不到文案为「${label}」(${P4C1_NAV_KEY}) 的导航项`).toBeDefined()

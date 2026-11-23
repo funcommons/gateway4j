@@ -371,70 +371,47 @@ export function getRouteSyncStatus(id: string) {
   return envelope<RouteSyncStatus>(http.get(`/v1/routes/${id}/sync-status`))
 }
 
-/* ══ S12-4：K8s Ingress 风格批量建路由（契约 §10「批量 API 契约」）══════════════════
- * 单次 POST 建 N 条 BACKEND 路由（每个 (host, path) 一条）+ N 条路由级 SCG 谓词行；
- * 服务端事务内完成。响应 data.created[] = { route_id, route_name, path, host }。
- * 字段名与 §10 逐字一致；pathType 三值 PREFIX / EXACT / IMPLEMENTATION_SPECIFIC。
+/* ══ S12-7c：批量建路由（SCG RouteDefinition 1:1，POST /v1/routes/batch）══════════
+ * 后端 S12-7b（RouteController.BatchCreateRequest/BatchCreateResult + RouteBatchService）。
+ * 请求体 routes[] 每项 = 一条 SCG 路由定义：
+ *   { name, uri, predicates[], filters[], order, metadata, environment, remark, tags }
+ * （键名与后端 @JsonProperty 逐字一致；旧 K8s 形态 /v1/routes/ingress 已随 S12-7b 删除。）
+ * 响应 data.created[]：route_id（Long→String 契约）/ route_name / uri / path
+ * （抽取出的 Path= 谓词值，无 Path 时 null）/ predicates_count / filters_count。
+ * 错误：10100 结构校验 / 10609 同环境重名（整单拒收）/ 10605 落库失败。
+ * 创建后路由 status=DRAFT，需另行发布（UI 侧成功引导跳路由列表发布）。
  */
 
-/** pathType 三值（§10 pathType → SCG 映射裁决） */
-export type IngressPathType = 'PREFIX' | 'EXACT' | 'IMPLEMENTATION_SPECIFIC'
-
-/**
- * 一条 path（= 一条 BACKEND 路由）。
- *
- * S12-6：path 级后端目标为单字段 `uri` —— 与 SCG `RouteDefinition.uri` 同名同义
- * （完整上游地址 `scheme://host[:port]`）。K8s 的 `backend.service.name` +
- * `backend.service.port.number` 两分在本 API 中合并为这一个 uri 字段；
- * 旧的 `backend{service,port}` 不再保留（单一真相源）。
- */
-export interface IngressPathDto {
-  /** SCG 路径（Prefix 已被前端补成 `/api/**` 形态） */
-  path: string
-  pathType: IngressPathType
-  /** 完整上游地址（须为 http:// 或 https:// 开头，例：http://user-service:8080） */
-  uri: string
-}
-
-/** 一条 rule（= 一个 host + 若干 paths） */
-export interface IngressRuleDto {
-  /** 可空 = 不限域名（K8s 允许空 host） */
-  host: string
-  paths: IngressPathDto[]
-}
-
-/** 插件绑定（SCG filters ↔ gateway4j 插件） */
-export interface IngressPluginDto {
-  plugin_id: string
-  binding_config: string
-}
-
-/** POST /v1/routes/ingress 请求体 */
-export interface IngressRoutePayload {
+/** 批量建路由请求体里的单条路由（与视图层 ScgBatchRoutePayload 同形；键名逐字对齐后端） */
+export interface ScgBatchRouteDto {
   name: string
+  uri: string
+  predicates: string[]
+  filters: string[]
+  order: number
+  metadata: Record<string, unknown>
   environment: string
   remark: string
   tags: string
-  rules: IngressRuleDto[]
-  plugins: IngressPluginDto[]
-  /** 路由级 SCG 谓词定义串（Host=**.example.com 形态）；顶层字段，与 rules/plugins 平级 */
-  predicates: string[]
 }
 
 /** 响应 data.created[] 元素 */
-export interface IngressCreatedRoute {
+export interface ScgCreatedRoute {
   route_id?: string
   route_name?: string
-  path?: string
-  host?: string
+  uri?: string
+  /** 抽取出的 Path= 谓词值；无 Path= 谓词的路由为 null */
+  path?: string | null
+  predicates_count?: number
+  filters_count?: number
 }
 
 /** 响应 data */
-export interface IngressCreateResult {
-  created: IngressCreatedRoute[]
+export interface ScgBatchCreateResult {
+  created: ScgCreatedRoute[]
 }
 
-/** S12-4：批量 Ingress 建路由（K8s Ingress 风格单页提交） */
-export function createIngressRoute(payload: IngressRoutePayload) {
-  return envelope<IngressCreateResult>(http.post('/v1/routes/ingress', payload))
+/** S12-7c：批量建路由（纯 SCG 路由列表编辑器单页提交） */
+export function createRoutesBatch(payload: { routes: ScgBatchRouteDto[] }) {
+  return envelope<ScgBatchCreateResult>(http.post('/v1/routes/batch', payload))
 }
