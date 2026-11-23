@@ -195,7 +195,9 @@ export function useCommandRegistry(hooks: CmdRegistryHooks) {
   function actionOption(def: CmdActionDef): CmdOption {
     const q = query.value.trim()
     const runners: Record<CmdActionKey, () => unknown> = {
-      'create-route': () => router.push('/v2/routes/wizard'),
+      // S12-4：创建入口统一指向 K8s Ingress 风格单页 /v2/routes/new（用户裁决「不要向导」；
+      // 旧 /v2/routes/wizard 路由与页面保留，但不再是任何创建入口的目标）。
+      'create-route': () => router.push('/v2/routes/new'),
       'import-export': () => router.push('/v2/import-export'),
       'theme-toggle': () => hooks.toggleTheme(),
       logout: async () => {

@@ -392,11 +392,6 @@ export interface IngressPathDto {
   path: string
   pathType: IngressPathType
   backend: IngressBackendDto
-  /**
-   * 前端合成的上游地址（`http://{service}[:{port}]`）——服务端若按 service/port 自算可忽略本字段
-   * （Spring Boot 默认忽略未知字段），带上有值即用、无值即算，两种后端实现都能吃。
-   */
-  upstream_url?: string
 }
 
 /** 一条 rule（= 一个 host + 若干 paths） */

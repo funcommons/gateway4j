@@ -916,10 +916,10 @@ export default {
       hostInvalid: '域名格式不合法（可留空表示不限域名）',
       ruleNeedPath: '每条规则至少需要一个路径',
       predicateArgRequired: '请填写谓词参数',
+      predicateHostConflict: '已有规则限定了域名 {hosts}，此处再加 Host 谓词会与其同时生效（AND 组合），几乎必然不命中',
       yamlInvalid: 'YAML 解析失败（第 {line} 行）',
       pluginsEmpty: '暂无可绑定插件',
       pluginsLoadFailed: '插件列表加载失败，可稍后重试',
-      upstreamPreview: '上游地址：{url}',
       emptyValue: '—',
       emptyRuleHint: '高级谓词以 Spring Cloud Gateway 原生定义串提交，与路径谓词按 AND 组合'
     },

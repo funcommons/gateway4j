@@ -10,9 +10,8 @@
  *
  * 契约来源：docs/ui-v2/实施契约.md §10（S12 批）。
  * - pathType 三值：PREFIX → `/api/**`；EXACT → 原样；IMPLEMENTATION_SPECIFIC → 原样。
- * - backend.service + port → upstream_url（`http://{service}[:{port}]`），
- *   字符串手术沿既有 routePathMapping.mergeUpstream 的口径（禁 URL.toString 重序列化，
- *   免补尾斜杠破坏原文往返）。
+ * - upstream_url **不由前端合成**：后端按 §10 契约从 backend.service + backend.port 生成
+ *   （后端唯一真相源，见 buildIngressPayload 头注）。
  */
 
 import type { IngressPathType, IngressRoutePayload } from '@/api/routes'
@@ -90,22 +89,12 @@ export function translatedPath(raw: string, pathType: IngressPathType): string {
 }
 
 /**
- * 上游合成（service + port → upstream_url）：
- * service 填主机名/服务名（不含 scheme）；port 留空则不带端口。
- * service 误填 scheme 时按 mergeUpstream 口径换端口（原文往返，不重序列化）。
+ * 表单模型 → API 载荷（§10 POST /v1/routes/ingress 请求体，逐字对齐）。
+ *
+ * upstream_url 口径（S12-4 收口裁决）：**前端不合成、不携带** —— 后端按 §10 契约从
+ * backend.service + backend.port 自行合成（后端是唯一真相源）。前端再带一份 = 两个真相源，
+ * 合成规则一旦分叉即静默不一致。
  */
-export function mergeUpstream(service: string, port: string): string {
-  const raw = String(service ?? '').trim()
-  if (!raw) return ''
-  const p = String(port ?? '').trim()
-  const m = raw.match(/^(https?:\/\/[^/?#]+)(.*)$/i)
-  if (!m) return p ? `http://${raw}:${p}` : `http://${raw}`
-  let authority = m[1].replace(/:\d+$/, '')
-  if (p) authority += `:${p}`
-  return authority + (m[2] ?? '')
-}
-
-/** 表单模型 → API 载荷（§10 POST /v1/routes/ingress 请求体，逐字对齐） */
 export function buildIngressPayload(model: IngressModel): IngressRoutePayload {
   return {
     name: String(model.name ?? '').trim(),
@@ -120,8 +109,7 @@ export function buildIngressPayload(model: IngressModel): IngressRoutePayload {
         return {
           path: translatedPath(p.path, p.pathType),
           pathType: p.pathType,
-          backend: { service, port },
-          upstream_url: mergeUpstream(service, port)
+          backend: { service, port }
         }
       })
     })),

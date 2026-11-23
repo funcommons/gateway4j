@@ -919,10 +919,10 @@ export default {
       hostInvalid: 'Invalid host format (leave empty to match any host)',
       ruleNeedPath: 'Each rule needs at least one path',
       predicateArgRequired: 'Predicate argument is required',
+      predicateHostConflict: 'A rule already restricts the host to {hosts}; a Host predicate added here is combined with it (AND), so the route will almost never match',
       yamlInvalid: 'YAML parse failed (line {line})',
       pluginsEmpty: 'No plugin available to bind',
       pluginsLoadFailed: 'Failed to load the plugin list, retry later',
-      upstreamPreview: 'Upstream: {url}',
       emptyValue: '—',
       emptyRuleHint: 'Advanced predicates are submitted as native Spring Cloud Gateway definition strings and combined with the path predicate by AND'
     },

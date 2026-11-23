@@ -21,13 +21,13 @@
  *
  * 载荷（§10 POST /v1/routes/ingress）：
  *   { name, environment, remark, tags,
- *     rules: [{ host, paths: [{ path, pathType, backend: { service, port }, upstream_url }] }],
+ *     rules: [{ host, paths: [{ path, pathType, backend: { service, port } }] }],
  *     plugins: [{ plugin_id, binding_config }],
  *     predicates: string[] }
  *   pathType 映射：PREFIX → `/api/**`；EXACT → 原样；IMPLEMENTATION_SPECIFIC → 原样。
  *
  * 依赖分层（避免重依赖进主 bundle）：
- *   - 纯模型层 ./ingressModel（路径翻译 / 上游合成 / 载荷构造）静态 import —— 零重依赖；
+ *   - 纯模型层 ./ingressModel（路径翻译 / 载荷构造）静态 import —— 零重依赖；
  *   - YAML 序列化层 ./ingressYaml（js-yaml）动态 import → js-yaml 只进懒加载 chunk；
  *   - YAML 编辑器 @/components-v2/editor/FcYamlEditor.vue 动态 import（CodeMirror 6 同理）。
  */
@@ -43,7 +43,6 @@ import {
   emptyIngressModel,
   emptyIngressPath,
   INGRESS_NAME_RE,
-  mergeUpstream,
   type IngressModel,
   type IngressPathType,
   type IngressRuleModel
@@ -93,6 +92,24 @@ const pluginPick = ref('')
 const predicateRows = ref<Array<{ type: PredicateType; arg: string }>>([])
 /** 折叠区展开态（高级谓词区默认收起） */
 const openPanels = ref<string[]>([])
+
+/**
+ * 已限定域名的规则（高级谓词区的 Host 冲突提示数据源）：
+ * rule.host 与高级谓词区的 Host=... 会作为【两个 Host 谓词 AND 组合】同时生效
+ * → 几乎必然不命中。UI 只提示不禁用（高级谓词是全局的，可能另有用途）。
+ */
+const hostScopedHosts = computed(() => {
+  const seen = new Set<string>()
+  const out: string[] = []
+  model.rules.forEach((r) => {
+    const h = String(r.host ?? '').trim()
+    if (h && !seen.has(h)) {
+      seen.add(h)
+      out.push(h)
+    }
+  })
+  return out
+})
 
 /** 谓词定义串（`Host=**.example.com` 形态；空参数行不产出） */
 const predicateDefs = computed(() =>
@@ -157,10 +174,6 @@ function addPredicate() {
 }
 function removePredicate(i: number) {
   predicateRows.value.splice(i, 1)
-}
-/** 上游预览（mergeUpstream 口径） */
-function upstreamOf(service: string, port: string): string {
-  return mergeUpstream(service, port)
 }
 
 /* ── YAML 视图 ───────────────────────────────────────────────────────────── */
@@ -402,9 +415,6 @@ const PATH_TYPE_OPTIONS: Array<{ value: IngressPathType; labelKey: string }> = [
               >
                 <FcIcon name="ri-close-line" :size="14" />
               </button>
-              <p class="ing-upstream" :data-testid="`ing-upstream-${ri}-${pi}`">
-                {{ t('v2.ingress.upstreamPreview', { url: upstreamOf(p.backend.service, p.backend.port) || t('v2.ingress.emptyValue') }) }}
-              </p>
             </div>
 
             <FcButton variant="secondary" size="sm" :data-testid="`ing-add-path-${ri}`" @click="addPath(rule)">
@@ -456,6 +466,14 @@ const PATH_TYPE_OPTIONS: Array<{ value: IngressPathType; labelKey: string }> = [
         <FcSectionCard padding="sm" shadow="sm" class="ing-card">
           <FcCollapse v-model="openPanels" class="ing-collapse">
             <FcCollapseItem name="predicates" :title="t('v2.ingress.sectionPredicates')">
+              <p
+                v-if="hostScopedHosts.length > 0"
+                class="ing-hint is-warn"
+                data-testid="ing-pred-host-conflict"
+                role="alert"
+              >
+                {{ t('v2.ingress.predicateHostConflict', { hosts: hostScopedHosts.join(', ') }) }}
+              </p>
               <div class="ing-section-head">
                 <p class="ing-hint">{{ t('v2.ingress.emptyRuleHint') }}</p>
                 <FcButton variant="secondary" size="sm" data-testid="ing-add-predicate" @click="addPredicate">
@@ -696,14 +714,6 @@ const PATH_TYPE_OPTIONS: Array<{ value: IngressPathType; labelKey: string }> = [
   border-radius: var(--app-radius-sm);
 }
 
-.ing-upstream {
-  grid-column: 1 / -1;
-  margin: 0;
-  font-family: var(--app-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
-  font-size: 11px;
-  color: var(--app-text-tertiary);
-}
-
 .ing-select {
   width: 100%;
   padding: 7px 8px;
@@ -777,6 +787,14 @@ const PATH_TYPE_OPTIONS: Array<{ value: IngressPathType; labelKey: string }> = [
 
 .ing-hint.is-error {
   color: var(--app-color-danger-text-on-tint);
+}
+
+.ing-hint.is-warn {
+  color: var(--app-color-warning-text-on-tint, var(--app-text-secondary));
+  padding: 6px 8px;
+  background: color-mix(in srgb, var(--app-color-warning, var(--app-primary)) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--app-color-warning, var(--app-primary)) 28%, transparent);
+  border-radius: var(--app-radius-sm);
 }
 
 .ing-yaml-box {

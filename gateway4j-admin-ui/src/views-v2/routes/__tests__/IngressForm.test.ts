@@ -18,13 +18,13 @@
  *
  * ══ 载荷契约（§10 POST /v1/routes/ingress）══
  * { name, environment, remark, tags,
- *   rules: [{ host, paths: [{ path, pathType, backend: { service, port }, upstream_url }] }],
+ *   rules: [{ host, paths: [{ path, pathType, backend: { service, port } }] }],
  *   plugins: [{ plugin_id, binding_config }],
  *   predicates: string[] }
  * - pathType：PREFIX → `/api/**`（用户填 /api，自动补 /**）；EXACT → 原样；
  *   IMPLEMENTATION_SPECIFIC → 原样（用户直填 SCG PathPattern 片段）。
- * - upstream_url：backend.service + port 合成 `http://{service}[:{port}]`
- *   （mergeUpstream 语义；service 不含 scheme，port 留空则不带端口）。
+ * - upstream_url：**前端不携带**（S12-4 收口裁决）——后端按 §10 从 service+port 合成，
+ *   后端是唯一真相源；前端再带一份 = 两个真相源。
  * - predicates：路由级 SCG 谓词定义串（顶层字段，与 rules/plugins 平级）。
  *
  * ══ i18n key 全表（v2.ingress.*，zh-CN/en-US 同步加，铁律 6）══
@@ -36,7 +36,7 @@
  * viewForm viewYaml save cancel createSuccess createFailed forbidden
  * nameRequired nameInvalid pathRequired serviceRequired portInvalid hostInvalid
  * ruleNeedPath predicateArgRequired yamlInvalid pluginsEmpty pluginsLoadFailed
- * upstreamPreview emptyRuleHint
+ * emptyValue emptyRuleHint
  *
  * ══ DOM 契约（data-testid，前缀 ing-）══
  * ing-root / ing-forbidden
@@ -190,8 +190,8 @@ const KEYS = [
   'removePredicate', 'pathTypePrefix', 'pathTypeExact', 'pathTypeImplementationSpecific',
   'viewForm', 'viewYaml', 'save', 'cancel', 'createSuccess', 'createFailed', 'forbidden',
   'nameRequired', 'nameInvalid', 'pathRequired', 'serviceRequired', 'portInvalid', 'hostInvalid',
-  'ruleNeedPath', 'predicateArgRequired', 'yamlInvalid', 'pluginsEmpty', 'pluginsLoadFailed',
-  'upstreamPreview', 'emptyValue', 'emptyRuleHint'
+  'ruleNeedPath', 'predicateArgRequired', 'predicateHostConflict', 'yamlInvalid', 'pluginsEmpty', 'pluginsLoadFailed',
+  'emptyValue', 'emptyRuleHint'
 ].map((k) => `v2.ingress.${k}`)
 
 describe('S12-4 — i18n key 全表双语存在（铁律 6，v2.ingress.* 新树）', () => {
@@ -286,8 +286,7 @@ describe('S12-4 — 载荷：§10 契约逐字一致', () => {
             {
               path: '/api/**',
               pathType: 'PREFIX',
-              backend: { service: 'user-service', port: '8080' },
-              upstream_url: 'http://user-service:8080'
+              backend: { service: 'user-service', port: '8080' }
             }
           ]
         }
@@ -317,14 +316,12 @@ describe('S12-4 — 载荷：§10 契约逐字一致', () => {
     expect(payload.rules[0].paths[0]).toStrictEqual({
       path: '/api/exact',
       pathType: 'EXACT',
-      backend: { service: 'user-service', port: '8080' },
-      upstream_url: 'http://user-service:8080'
+      backend: { service: 'user-service', port: '8080' }
     })
     expect(payload.rules[0].paths[1]).toStrictEqual({
       path: '/api/{id:[0-9]+}',
       pathType: 'IMPLEMENTATION_SPECIFIC',
-      backend: { service: 'order-service', port: '9090' },
-      upstream_url: 'http://order-service:9090'
+      backend: { service: 'order-service', port: '9090' }
     })
   })
 
@@ -339,6 +336,18 @@ describe('S12-4 — 载荷：§10 契约逐字一致', () => {
     await tid(wrapper, 'ing-submit').trigger('click')
     await flushPromises()
     expect(mocks.createIngressRoute.mock.calls[0][0].predicates).toStrictEqual(['Host=**.example.com'])
+  })
+
+  it('Host 冲突提示：rule.host 非空 → 高级谓词区提示（AND 同时生效）；host 为空 → 无提示', async () => {
+    const { wrapper } = await factory()
+    // 无 host → 无提示
+    expect(tid(wrapper, 'ing-pred-host-conflict').exists()).toBe(false)
+    // 有 host → 提示出现且点明域名
+    await setInput(wrapper, 'ing-host-0', 'api.example.com')
+    const hint = tid(wrapper, 'ing-pred-host-conflict')
+    expect(hint.exists(), '规则已限定域名时必须提示 Host 谓词叠加风险').toBe(true)
+    expect(hint.text()).toContain('api.example.com')
+    expect(hint.text()).toContain('AND')
   })
 })
 
