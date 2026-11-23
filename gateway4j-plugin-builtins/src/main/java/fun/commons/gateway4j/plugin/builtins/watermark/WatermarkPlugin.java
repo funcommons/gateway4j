@@ -36,17 +36,18 @@ import java.util.function.Function;
  *
  * <p><b>架构约束：响应改写类插件的响应装饰必须晚绑定（S11-4e），三层叙事：</b></p>
  * <ol>
- *   <li>① POST 阶段改写天然失效：PluginExecutionFilter 的 POST 链在
- *       {@code chain.filter(exchange).then(POST 链)} 中于转发完成后执行，上游响应已由
- *       SCG 用原始 response 写回客户端——已修（phase PRE，order=900 置 PRE 末尾，
- *       dingtalk=2/security 等短路类先跑：未登录已被 302 短路轮不到水印）；</li>
+ *   <li>① POST 阶段改写：初判「POST 在转发完成后执行、decorator 太晚」——<b>经实测修正</b>：
+ *       POST 链实际运行在写回<b>之前</b>（POST 阶段插件的响应头/状态码改写实测生效，
+ *       因为改的是同一个 response 对象），故「POST 太晚」不成立；响应<b>体</b>装饰失效的
+ *       真因是第 ③ 条，<b>与阶段无关</b>。本插件仍置 PRE（order=900，短路类先跑、
+ *       装饰早于转发，语义更优）；</li>
  *   <li>② runner 边界 mutated 传播断裂：PRE 插件 mutate 后的 exchange 此前未传播到
  *       转发链——已修（S11-4d，FailSafePluginChainRunner 边界）；</li>
- *   <li>③ SCG 写回闭包提前绑定：NettyWriteResponseFilter（order=-1）的写回闭包
- *       {@code chain.filter(exchange).then(Mono.defer(...))} 在插件链（order 10020）
- *       运行<b>前</b>就捕获了装配时的原始 exchange——PRE 插件 mutate().response()
- *       只向下游传播，写回用的仍是原始 response，装饰结构上不可达（真实流量实测
- *       装饰器包上了但 writeWith 零调用）——本票修复（S11-4e 晚绑定桥）。</li>
+ *   <li>③ SCG 写回闭包提前绑定（响应体装饰失效的唯一根因）：NettyWriteResponseFilter
+ *       （order=-1）的写回闭包 {@code chain.filter(exchange).then(Mono.defer(...))} 在
+ *       插件链（order 10020）运行<b>前</b>就捕获了装配时的原始 exchange——PRE 插件
+ *       mutate().response() 只向下游传播，写回用的仍是原始 response，装饰结构上不可达
+ *       （真实流量实测装饰器包上了但 writeWith 零调用）——本票修复（S11-4e 晚绑定桥）。</li>
  * </ol>
  *
  * <p><b>用户化身份来源（S11-6）</b>：优先读展示 cookie {@code fu-gw-nick}（cfg.nickCookie，

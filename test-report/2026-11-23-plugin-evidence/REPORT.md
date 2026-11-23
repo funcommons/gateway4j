@@ -60,10 +60,11 @@
 
 水印插件「execute 被调但响应零注入」连续挖出**三层架构问题**，前两层为引擎级断裂：
 
-### 4.1 第一层：POST 阶段响应改写天然失效（S11-4c 修复，commit a64cc9a）
+### 4.1 第一层：POST 阶段响应改写天然失效（S11-4c 修复，commit a64cc9a）—— **归因经后测修正**
 
-`PluginExecutionFilter` 的 POST 链挂在 `chain.filter(exchange).then(POST 链)`——POST 插件在**转发完成后**才执行，此时上游响应已由 SCG 用原始 response 写回客户端，POST 阶段的 `response decorator` mutate 太晚，天然失效。
-**修复**：WatermarkPlugin phase POST→PRE + order=900（PRE 末尾：dingtalk=2 等短路类先跑，未登录已被 302，轮不到水印）+ Flyway V1.6.1 fix-forward。
+初判：POST 链挂在 `chain.filter(exchange).then(POST 链)`，POST 插件在转发完成后执行，response decorator 太晚。
+**实测修正（S11-6 期间用 modify-response / cryptor-response 探针实证）**：POST 链实际运行在写回**之前**——POST 阶段插件的**响应头/状态码改写生效**（改的是同一个 response 对象），故「POST 太晚」不成立；响应**体**装饰失效的真因是 §4.3（写回闭包捕获装配时 exchange），**与阶段无关**。
+**修复（仍然有效且必要）**：WatermarkPlugin phase POST→PRE + order=900（短路类先跑、装饰早于转发）+ Flyway V1.6.1 fix-forward；**根因修复在 §4.3**。
 
 ### 4.2 第二层：插件链 runner 边界吃掉 mutated exchange（S11-4d 修复，commit 717dd64）
 
@@ -98,9 +99,21 @@ filter(exchange, chain) → chain.filter(exchange)        ← 下行传"它被�
 | gateway4j-plugin-builtins | **275 全绿**（基线 265 → S11-4e 语义迁移 +2 → S11-6 展示 cookie +8） |
 | gateway4j-gateway-boot | 25 全绿（含 Testcontainers 冒烟 4/4） |
 
-### 4.5 波及面提示（遗留候选池）
+### 4.5 波及面（**已实测，勿再按「大概率」看待**）
 
-`ModifyResponse` / `CryptorResponse` 两个内置插件与水印同为响应改写类，大概率同样失效（其单测用 MockServerWebExchange 不暴露该错配——**mapper-mock 假绿家族新成员**）。迁移到晚绑定桥 attribute 工厂模式为独立票待排。
+用 modify-response / cryptor-response 探针（JSON 上游 + 绑定两插件）实测，结论逐项钉死：
+
+| 插件 | 阶段 | 响应头/状态码 | 响应体（装饰器） | 性质 |
+|---|---|---|---|---|
+| ModifyResponsePlugin | POST | ✅ **生效**（`X-Probe-Added: hello` 实到客户端） | ❌ 失效（缺 `added` 字段） | 声明生效实际不生效（易被误判为「插件在工作」） |
+| CryptorResponsePlugin | POST | — | ❌ 失效（`secret` **明文**输出） | **静默安全失效：声明加密=实际明文** |
+| CachePlugin（PRE/POST 两变体） | PRE/POST | — | ❌ 失效（响应体捕获不到） | 缓存恒不命中（功能退化，误导性能判断） |
+
+三者与水印同为「`mutate().response()` 装饰器」形态，失效真因同为 §4.3（写回闭包捕获装配时 exchange）。**修复方式与水印同款**：迁移到晚绑定桥 attribute 装饰工厂（`GatewayConstants.RESPONSE_DECORATOR_FACTORY_KEY`）。**其单测用 MockServerWebExchange 直接写 mutated exchange，不经过 SCG 写回闭包 → 假绿**（mapper-mock 假绿家族又一成员）。
+
+### 4.6 证据链缺陷自查（Mock 上游假绿）
+
+Mock 上游原实现把 `mock-union-001` **硬编码**回显（`upstream_handler("mock-union-001")`），而 probe.sh 断言的正是该常量——「X-User 头到达上游」实为**同义反复**，从未真实验证。已修正为回显真实到达的请求头并重验：真实 `X-User: mock-union-001` 到达上游（mock 日志实录）——**功能本身正确，是证据无效**。mock 修复已随本报告入库。
 
 ---
 

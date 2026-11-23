@@ -6,16 +6,19 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 def upstream_handler(h):
     class H(BaseHTTPRequestHandler):
         def do_GET(self):
+            # 回显【真实到达的】X-User 头（不硬编码）——硬编码常量会让「头到达上游」的
+            # 断言变成同义反复（假绿）：S11-5 曾因此掩盖 request mutate 传播缺陷
+            actual = self.headers.get("X-User", "")
             body = ("<html><head><title>mock-upstream</title></head><body>"
                     f"<h1>UPSTREAM OK {self.path}</h1>"
-                    f"<div id='xuser'>{h}</div>"
+                    f"<div id='xuser'>{actual}</div>"
                     "</body></html>").encode()
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
-        def log_message(self, *a): print(f"[upstream] {self.path} X-User={h}", flush=True)
+        def log_message(self, *a): print(f"[upstream] {self.path} X-User={self.headers.get('X-User', '')}", flush=True)
     return H
 
 class MockDing(BaseHTTPRequestHandler):
